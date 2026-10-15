@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { contrastRatio } from '@/lib/theme/color'
+import { PAGE_BACKGROUND } from '@/lib/theme/css'
 
 // Guards the fixed design tokens in src/styles/globals.css (they are not generated at runtime).
 const css = readFileSync(resolve(process.cwd(), 'src/styles/globals.css'), 'utf8')
@@ -16,6 +17,10 @@ const INK_SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
 const SEMANTIC = ['success', 'warning', 'danger', 'info', 'sale']
 
 describe('fixed design tokens', () => {
+  it('keeps the page background used for the focus ring in sync with ink-50', () => {
+    expect(PAGE_BACKGROUND.toLowerCase()).toBe(token('ink-50').toLowerCase())
+  })
+
   it('defines a monotonic ink scale from light to dark', () => {
     const contrastOnWhite = INK_SHADES.map((shade) =>
       contrastRatio(token(`ink-${shade}`), '#FFFFFF'),

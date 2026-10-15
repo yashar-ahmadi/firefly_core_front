@@ -173,8 +173,19 @@ export function contrastRatio(a: string, b: string): number {
 
 const LIGHT_TEXT = '#FFFFFF'
 const DARK_TEXT = '#111827'
+const BLACK_TEXT = '#000000'
+const AA_TEXT = 4.5
 
-/** The text colour (white or near-black) with the higher contrast on the given background. */
-export function readableTextOn(hex: string): typeof LIGHT_TEXT | typeof DARK_TEXT {
-  return contrastRatio(hex, LIGHT_TEXT) >= contrastRatio(hex, DARK_TEXT) ? LIGHT_TEXT : DARK_TEXT
+/**
+ * A text colour that reads on the given background: white or near-black (whichever has the
+ * higher contrast) when that reaches WCAG AA (4.5:1). Fills with relative luminance of about
+ * 0.183 to 0.219 get neither, so those fall back to pure black (at least 4.66:1 there).
+ */
+export function readableTextOn(
+  hex: string,
+): typeof LIGHT_TEXT | typeof DARK_TEXT | typeof BLACK_TEXT {
+  const onLight = contrastRatio(hex, LIGHT_TEXT)
+  const onDark = contrastRatio(hex, DARK_TEXT)
+  if (Math.max(onLight, onDark) < AA_TEXT) return BLACK_TEXT
+  return onLight >= onDark ? LIGHT_TEXT : DARK_TEXT
 }

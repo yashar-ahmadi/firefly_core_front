@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { ThemeConfig } from '@/config/resolve-store-config'
-import { generateScale, readableTextOn } from '@/lib/theme/color'
-import { buildThemeCss } from '@/lib/theme/css'
+import { PRESETS } from '@/config/presets'
+import { contrastRatio, generateScale, readableTextOn } from '@/lib/theme/color'
+import { buildThemeCss, PAGE_BACKGROUND } from '@/lib/theme/css'
 
 const theme: ThemeConfig = {
   primary: '#4F46E5',
@@ -50,6 +51,48 @@ describe('buildThemeCss', () => {
     expect(declaration(buildThemeCss({ ...theme, accent: '#FACC15' }), '--accent-fg')).toBe(
       '#111827',
     )
+  })
+
+  describe('--focus', () => {
+    const FOCUS_SHADES = [500, 600, 700, 800, 900, 950] as const
+    const primaries = [
+      '#FACC15',
+      '#0D9488',
+      '#16A34A',
+      '#4F46E5',
+      '#2563EB',
+      '#FFFFFF',
+      ...Object.values(PRESETS).map((p) => p.primary),
+    ]
+
+    it.each(primaries)(
+      'is the lightest brand shade from 500 down that has 3:1 on the page (%s)',
+      (primary) => {
+        const out = buildThemeCss({ ...theme, primary })
+        const scale = generateScale(primary)
+        const focus = declaration(out, '--focus')
+        const passing = FOCUS_SHADES.filter((s) => contrastRatio(scale[s], PAGE_BACKGROUND) >= 3)
+        expect(passing.length).toBeGreaterThan(0)
+        expect(focus).toBe(scale[passing[0]!])
+        expect(contrastRatio(focus!, PAGE_BACKGROUND)).toBeGreaterThanOrEqual(3)
+      },
+    )
+
+    it('moves a light primary off shade 500', () => {
+      const scale = generateScale('#FACC15')
+      expect(contrastRatio(scale[500], PAGE_BACKGROUND)).toBeLessThan(3)
+      expect(declaration(buildThemeCss({ ...theme, primary: '#FACC15' }), '--focus')).not.toBe(
+        scale[500],
+      )
+    })
+
+    it('keeps shade 500 when it is already visible enough', () => {
+      const scale = generateScale('#2563EB')
+      expect(contrastRatio(scale[500], PAGE_BACKGROUND)).toBeGreaterThanOrEqual(3)
+      expect(declaration(buildThemeCss({ ...theme, primary: '#2563EB' }), '--focus')).toBe(
+        scale[500],
+      )
+    })
   })
 
   it.each([

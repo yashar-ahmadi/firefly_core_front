@@ -1,5 +1,5 @@
 import type { ThemeConfig } from '@/config/resolve-store-config'
-import { generateScale, readableTextOn, SHADES } from './color'
+import { contrastRatio, generateScale, readableTextOn, SHADES } from './color'
 
 // Turns the resolved theme into one :root block of CSS variables. Tailwind's `@theme inline`
 // block (src/styles/globals.css) maps utilities onto these variables, so a different shop only
@@ -9,6 +9,13 @@ type RadiusScale = ThemeConfig['radius']
 type ShadowStyle = ThemeConfig['shadow']
 
 const PILL = '9999px'
+
+/** ink-50, the page background (keep in sync with src/styles/globals.css; a test checks it). */
+export const PAGE_BACKGROUND = '#f8fafc'
+
+/** Focus rings need 3:1 against the page (WCAG 1.4.11 non-text contrast). */
+const FOCUS_MIN_CONTRAST = 3
+const FOCUS_SHADES = [500, 600, 700, 800, 900, 950] as const
 
 const RADII: Record<RadiusScale, { control: string; card: string }> = {
   sm: { control: '.375rem', card: '.5rem' },
@@ -43,6 +50,15 @@ function colourVariables(name: 'brand' | 'accent', hex: string): string[] {
   ]
 }
 
+/** The lightest brand shade (500 and darker) that is visible enough as a focus ring. */
+function focusColour(brandHex: string): string {
+  const scale = generateScale(brandHex)
+  const shade = FOCUS_SHADES.find(
+    (s) => contrastRatio(scale[s], PAGE_BACKGROUND) >= FOCUS_MIN_CONTRAST,
+  )
+  return scale[shade ?? 950]
+}
+
 /**
  * The runtime theme as a single `:root{...}` rule. Every value is computed or looked up in a
  * fixed table, so nothing from the configuration reaches the stylesheet as a raw string.
@@ -53,6 +69,7 @@ export function buildThemeCss(theme: ThemeConfig): string {
   const declarations = [
     ...colourVariables('brand', theme.primary),
     ...colourVariables('accent', theme.accent),
+    `--focus: ${focusColour(theme.primary)}`,
     `--radius-control: ${radius.control}`,
     `--radius-card: ${radius.card}`,
     `--radius-pill: ${PILL}`,

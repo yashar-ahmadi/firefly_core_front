@@ -38,6 +38,16 @@ function hueGap(a: number, b: number): number {
   return d > 180 ? 360 - d : d
 }
 
+/** Every #rrggbb colour whose channels step through 0..255 by `step` (step 17 gives 16 levels). */
+function gridColours(step: number): string[] {
+  const levels: number[] = []
+  for (let v = 0; v <= 255; v += step) levels.push(v)
+  const hex = (v: number) => v.toString(16).padStart(2, '0')
+  return levels.flatMap((r) =>
+    levels.flatMap((g) => levels.map((b) => `#${hex(r)}${hex(g)}${hex(b)}`)),
+  )
+}
+
 const HEX = /^#[0-9a-f]{6}$/
 
 describe('generateScale', () => {
@@ -176,6 +186,44 @@ describe('readableTextOn', () => {
         const other = picked === '#FFFFFF' ? '#111827' : '#FFFFFF'
         expect(contrastRatio(hex, picked), hex).toBeGreaterThanOrEqual(contrastRatio(hex, other))
       }
+    }
+  })
+
+  it('falls back to black for mid-luminance fills where white and #111827 both miss 4.5:1', () => {
+    // Relative luminance between about 0.183 and 0.219: white tops out near 4.2:1.
+    for (const hex of ['#c34bb4', '#967800', '#e100c3']) {
+      expect(contrastRatio(hex, '#FFFFFF'), hex).toBeLessThan(4.5)
+      expect(contrastRatio(hex, '#111827'), hex).toBeLessThan(4.5)
+      expect(readableTextOn(hex), hex).toBe('#000000')
+    }
+  })
+
+  it('keeps white or #111827 whenever one of them reaches 4.5:1', () => {
+    for (const hex of gridColours(51)) {
+      const white = contrastRatio(hex, '#FFFFFF')
+      const dark = contrastRatio(hex, '#111827')
+      if (Math.max(white, dark) >= 4.5) {
+        expect(readableTextOn(hex), hex).toBe(white >= dark ? '#FFFFFF' : '#111827')
+      }
+    }
+  })
+
+  it('reaches WCAG AA on every 600 shade over a coarse RGB grid', () => {
+    for (const input of gridColours(17)) {
+      const fill = generateScale(input)[600]
+      expect(
+        contrastRatio(fill, readableTextOn(fill)),
+        `${input} -> ${fill}`,
+      ).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('reaches WCAG AA on the 600 shade of all twelve preset colours', () => {
+    const colours = Object.values(PRESETS).flatMap((p) => [p.primary, p.accent])
+    expect(colours).toHaveLength(12)
+    for (const input of colours) {
+      const fill = generateScale(input)[600]
+      expect(contrastRatio(fill, readableTextOn(fill)), input).toBeGreaterThanOrEqual(4.5)
     }
   })
 })
