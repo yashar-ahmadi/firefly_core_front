@@ -27,3 +27,10 @@ pnpm-debug.log*
 
 # superpowers scratch workspace
 .superpowers/
+
+# editors
+.idea/
+.vscode/
+
+# playwright
+playwright/.cache/
