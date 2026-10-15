@@ -71,10 +71,20 @@ describe('forwarding', () => {
     expect(knownSources).not.toHaveBeenCalled()
   })
 
-  it('does not hand the session cookies to the API', async () => {
+  it('does not hand the session cookies or credentials to the API', async () => {
     const { proxy } = await load()
-    const res = await proxy(request('/media/a.png', { cookies: { ff_rt: 'r', theme: 'x' } }))
-    expect(res.headers.get('x-middleware-override-headers')?.split(',')).not.toContain('cookie')
+    const res = await proxy(
+      request('/media/a.png', {
+        cookies: { ff_rt: 'r', theme: 'x' },
+        headers: { authorization: 'Bearer secret' },
+      }),
+    )
+    const overridden = res.headers.get('x-middleware-override-headers')?.split(',') ?? []
+    expect(overridden).toContain('x-real-ip')
+    expect(overridden).not.toContain('cookie')
+    expect(overridden).not.toContain('authorization')
+    expect(res.headers.has('x-middleware-request-cookie')).toBe(false)
+    expect(res.headers.has('x-middleware-request-authorization')).toBe(false)
   })
 })
 
@@ -132,6 +142,27 @@ describe('redirects', () => {
     await proxy(request('/a%2Fb/'))
     expect(resolveRedirect).toHaveBeenCalledWith('/a%2Fb/', '203.0.113.9')
   })
+
+  it('never resolves a browser prefetch', async () => {
+    resolveRedirect.mockResolvedValue({ status: 302, target: '/x/' })
+    const { proxy } = await load()
+    const res = await proxy(request('/festival/', { headers: { purpose: 'prefetch' } }))
+    expect(knownSources).not.toHaveBeenCalled()
+    expect(resolveRedirect).not.toHaveBeenCalled()
+    expect(res.headers.get('location')).toBeNull()
+  })
+
+  it.each(['/old-page.html', '/catalog/item.htm', '/index.php', '/default.asp', '/list.aspx'])(
+    'resolves the legacy page URL %s',
+    async (path) => {
+      knownSources.mockResolvedValue(new Set([path]))
+      resolveRedirect.mockResolvedValue({ status: 301, target: '/new/' })
+      const { proxy } = await load()
+      const res = await proxy(request(path))
+      expect(resolveRedirect).toHaveBeenCalledWith(path, '203.0.113.9')
+      expect(res.status).toBe(301)
+    },
+  )
 
   it('never redirects writes', async () => {
     resolveRedirect.mockResolvedValue({ status: 302, target: '/x/' })

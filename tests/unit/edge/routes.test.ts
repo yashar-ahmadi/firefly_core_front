@@ -54,13 +54,15 @@ describe('robots.txt', () => {
     ['an error text', async () => new Response('کلید نامعتبر', { status: 401 })],
     ['a JSON answer', async () => envelope({ content: 'x' })],
     ['no answer', async (): Promise<Response> => Promise.reject(new TypeError('fetch failed'))],
-  ])('allows everything, uncached, on %s', async (_label, answer) => {
+  ])('answers an uncached 503 with Retry-After on %s', async (_label, answer) => {
     fetchSpy.mockImplementation(answer)
     const { GET } = await load<Robots>('@/app/robots.txt/route')
     const res = await GET()
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(503)
+    expect(res.headers.get('retry-after')).toBe('300')
     expect(res.headers.get('cache-control')).toBe('no-store')
-    expect(await res.text()).toBe('User-agent: *\nDisallow:\n')
+    expect(res.headers.get('content-type')).toBe('text/plain; charset=utf-8')
+    expect(await res.text()).not.toContain('Disallow')
   })
 })
 

@@ -12,6 +12,11 @@ function locationOf(res: APIResponse): URL {
 }
 
 test.describe('edge', () => {
+  // The API counts every redirect and short-link hit: run these checks in one project only.
+  test.beforeAll(({}, workerInfo) => {
+    test.skip(workerInfo.project.name !== 'desktop', 'edge checks run once (desktop project)')
+  })
+
   test('a temporary redirect rule answers 302', async ({ request }) => {
     const res = await request.get('/festival/', { maxRedirects: 0 })
     expect(res.status()).toBe(302)
@@ -88,6 +93,10 @@ test.describe('edge', () => {
       const res = await request.get(logoPath, { maxRedirects: 0 })
       expect(res.status()).toBe(direct.status())
       expect(res.headers()['content-type']).toBe(direct.headers()['content-type'])
+      // Only Django sends X-Frame-Options here; Next's own 404 page would not carry it.
+      expect(direct.headers()['x-frame-options']).toBeTruthy()
+      expect(res.headers()['x-frame-options']).toBe(direct.headers()['x-frame-options'])
+      expect((await res.body()).equals(await direct.body())).toBe(true)
     })
 
     test('the settings logo is served as an image', async ({ request }) => {

@@ -3,14 +3,16 @@ import { getServerEnv } from '@/config/env'
 /**
  * robots.txt exactly as the operator wrote it in the panel (`GET robots/?format=txt`), byte for
  * byte so group and rule order survive. The API's own error text is never served as robots.txt:
- * on any failure the answer is "allow everything", uncached.
+ * when the API fails and nothing is cached the answer is an uncached 503, which crawlers read as
+ * a temporary "disallow everything" (safer than "allow everything" for a blocked staging shop).
  */
 export const dynamic = 'force-dynamic'
 
 const REVALIDATE_SECONDS = 300
 const TIMEOUT_MS = 5_000
 const TEXT = 'text/plain; charset=utf-8'
-const ALLOW_ALL = 'User-agent: *\nDisallow:\n'
+const RETRY_AFTER_SECONDS = '300'
+const UNAVAILABLE = 'robots.txt is temporarily unavailable.\n'
 
 export async function GET(): Promise<Response> {
   const env = getServerEnv()
@@ -31,5 +33,12 @@ export async function GET(): Promise<Response> {
   } catch (error) {
     console.error('[robots] API unreachable', error)
   }
-  return new Response(ALLOW_ALL, { headers: { 'Content-Type': TEXT, 'Cache-Control': 'no-store' } })
+  return new Response(UNAVAILABLE, {
+    status: 503,
+    headers: {
+      'Content-Type': TEXT,
+      'Cache-Control': 'no-store',
+      'Retry-After': RETRY_AFTER_SECONDS,
+    },
+  })
 }

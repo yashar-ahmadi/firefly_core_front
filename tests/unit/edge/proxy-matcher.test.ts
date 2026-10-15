@@ -28,6 +28,11 @@ describe('matcher', () => {
     '/sitemap.xml',
     '/media/categories/26/09/13/site-logo.png',
     '/static/defaults/default.png',
+    '/old-page.html',
+    '/catalog/item.htm',
+    '/product.php?id=7',
+    '/default.asp',
+    '/shop/list.aspx',
   ])('runs on %s', async (url) => {
     expect(await matches(url)).toBe(true)
   })
@@ -42,6 +47,9 @@ describe('matcher', () => {
     '/favicon.ico',
     '/icons/icon-192.png',
     '/logo.svg',
+    '/app.js',
+    '/style.css',
+    '/manifest.webmanifest',
   ])('skips %s', async (url) => {
     expect(await matches(url)).toBe(false)
   })

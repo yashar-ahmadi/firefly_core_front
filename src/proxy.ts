@@ -21,8 +21,11 @@ const GONE_MESSAGE = 'این صفحه دیگر وجود ندارد و جایگز
 
 const SESSION_COOKIES = [COOKIE.access, COOKIE.refresh, COOKIE.flag]
 const SKIPPED_PREFIX = /^\/(?:_next|api|s|icons)\//
-/** The last segment has a file extension other than `.xml`. */
-const ASSET_FILE = /\/[^/]*\.(?!xml$)[^/.]+$/
+/**
+ * The last segment has a file extension, other than `.xml` and the legacy page extensions that
+ * operators may redirect from older platforms (`.html`, `.htm`, `.php`, `.asp`, `.aspx`).
+ */
+const ASSET_FILE = /\/[^/]*\.(?!xml$|html?$|php$|aspx?$)[^/.]+$/
 
 function isForwarded(pathname: string): boolean {
   return pathname === '/sitemap.xml' || /^\/(?:media|static)\//.test(pathname)
@@ -133,9 +136,11 @@ export async function proxy(request: NextRequest): Promise<Response> {
 export const config = {
   matcher: [
     {
-      // Pages only: no Next internals, route handlers, robots.txt, icons or asset files
-      // (`.xml` is kept). Prefetches skip the proxy so they never count a redirect hit.
-      source: '/((?!_next/|api/|s/|icons/|favicon\\.ico|robots\\.txt|.*\\.(?!xml$)[^/.]+$).*)',
+      // Pages only: no Next internals, route handlers, robots.txt, icons or asset files (`.xml`
+      // and legacy page extensions are kept, as in ASSET_FILE). Prefetches skip the proxy so
+      // they never count a redirect hit.
+      source:
+        '/((?!_next/|api/|s/|icons/|favicon\\.ico|robots\\.txt|.*\\.(?!xml$|html?$|php$|aspx?$)[^/.]+$).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },
