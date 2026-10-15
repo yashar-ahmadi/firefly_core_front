@@ -1,0 +1,190 @@
+/*
+ * Typography for HTML written in the Firefly admin (blog posts, pages, product descriptions).
+ * Wrap the sanitised HTML in an element with the `rich-content` class. Plain CSS on purpose:
+ * the markup is not ours, so it cannot carry utility classes.
+ */
+.rich-content {
+  display: flow-root;
+  overflow-wrap: anywhere;
+  color: var(--color-ink-800);
+}
+
+/* Blocks. Every block spaces itself, so bare text between blocks (typical for pasted HTML)
+   still gets room from the heading above it and the block below it. */
+.rich-content :is(p, ul, ol, blockquote, table, figure, pre, hr, video, iframe) {
+  margin-block: 1em;
+}
+
+.rich-content > :first-child {
+  margin-block-start: 0;
+}
+
+.rich-content > :last-child {
+  margin-block-end: 0;
+}
+
+.rich-content :is(h1, h2, h3, h4, h5, h6) {
+  margin-block: 1.5em 0.75em;
+  color: var(--color-ink-900);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.rich-content h1 {
+  font-size: 1.75rem;
+}
+
+.rich-content h2 {
+  font-size: 1.5rem;
+}
+
+.rich-content h3 {
+  font-size: 1.25rem;
+}
+
+.rich-content :is(h4, h5, h6) {
+  font-size: 1.125rem;
+}
+
+.rich-content a {
+  color: var(--brand-700);
+  text-decoration: none;
+}
+
+.rich-content a:is(:hover, :focus-visible) {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.rich-content :is(strong, b) {
+  font-weight: 700;
+}
+
+.rich-content :is(ul, ol) {
+  padding-inline-start: 1.5rem;
+}
+
+.rich-content ul {
+  list-style: disc;
+}
+
+.rich-content ol {
+  list-style: decimal;
+}
+
+.rich-content li {
+  margin-block: 0.25em;
+}
+
+.rich-content li > :is(ul, ol) {
+  margin-block: 0.25em;
+}
+
+.rich-content blockquote {
+  padding: 0.75rem 1rem;
+  border-inline-start: 4px solid var(--brand-300);
+  border-radius: var(--radius-control);
+  background-color: var(--color-ink-100);
+  color: var(--color-ink-700);
+}
+
+.rich-content blockquote > :is(:first-child, :last-child) {
+  margin-block: 0;
+}
+
+.rich-content :is(img, video) {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-card);
+}
+
+/* Inline images stay in the text flow; stand-alone ones become blocks. */
+.rich-content :is(video, figure img, p > img:only-child) {
+  display: block;
+}
+
+.rich-content > img {
+  display: block;
+  margin-block: 1em;
+}
+
+.rich-content iframe {
+  max-width: 100%;
+  border: 0;
+  border-radius: var(--radius-card);
+}
+
+.rich-content figcaption {
+  margin-block-start: 0.5em;
+  color: var(--color-ink-600);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.rich-content hr {
+  border: 0;
+  border-block-start: 1px solid var(--color-ink-200);
+}
+
+/* Tables scroll sideways inside their own box instead of widening the page. A `.table-wrap`
+   wrapper does the same job for markup that already has one. */
+.rich-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.rich-content :is(th, td) {
+  min-width: 6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-ink-200);
+  /* Never break inside a word here, or narrow screens squeeze columns instead of scrolling. */
+  overflow-wrap: normal;
+  text-align: start;
+  vertical-align: top;
+}
+
+.rich-content th {
+  background-color: var(--color-ink-100);
+  color: var(--color-ink-900);
+  font-weight: 700;
+}
+
+.rich-content .table-wrap {
+  max-width: 100%;
+  margin-block: 1em;
+  overflow-x: auto;
+}
+
+.rich-content .table-wrap > table {
+  display: table;
+  min-width: 100%;
+  margin-block: 0;
+}
+
+.rich-content :is(code, pre) {
+  direction: ltr;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875em;
+}
+
+.rich-content code {
+  padding: 0.125em 0.375em;
+  border-radius: 0.375rem;
+  background-color: var(--color-ink-100);
+}
+
+.rich-content pre {
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  border-radius: var(--radius-control);
+  background-color: var(--color-ink-100);
+  text-align: left;
+}
+
+.rich-content pre code {
+  padding: 0;
+  background: none;
+}

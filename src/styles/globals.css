@@ -1,0 +1,116 @@
+@import 'tailwindcss';
+/* Component layer: utilities on the same element (`rich-content text-sm`) still win. */
+@import './rich-content.css' layer(components);
+
+/*
+ * Design tokens.
+ *
+ * Brand, accent, radius and shadow values come from the shop's configuration at request time:
+ * src/lib/theme/css.ts emits them as `:root` variables (--brand-600, --radius-card, ...) in a
+ * <style id="theme-vars"> tag. `inline` makes Tailwind read the variable at use time, so
+ * utilities such as `bg-brand-600` or `rounded-card` follow it without a rebuild.
+ */
+@theme inline {
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+
+  --color-accent-50: var(--accent-50);
+  --color-accent-100: var(--accent-100);
+  --color-accent-200: var(--accent-200);
+  --color-accent-300: var(--accent-300);
+  --color-accent-400: var(--accent-400);
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
+  --color-accent-800: var(--accent-800);
+  --color-accent-900: var(--accent-900);
+  --color-accent-950: var(--accent-950);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+
+  --radius-control: var(--radius-control);
+  --radius-card: var(--radius-card);
+  --radius-pill: var(--radius-pill);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-raised: var(--shadow-raised);
+
+  /* next/font/local defines --font-vazirmatn (see src/lib/fonts.ts). */
+  --font-sans:
+    var(--font-vazirmatn), ui-sans-serif, system-ui, 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
+/*
+ * Fixed tokens: the same in every shop. `static` keeps the variables in the output even when
+ * only plain CSS (not a utility) uses them.
+ *
+ * ink is a slate neutral scale: 400 is for borders and disabled states, 500 and darker pass AA
+ * as text on white and on ink-50.
+ *
+ * Every semantic colour passes AA (4.5:1) as text on white, on ink-50 and on its own 10% tint
+ * (`bg-danger/10 text-danger`); `-fg` is the text colour for a solid fill (`bg-danger`).
+ */
+@theme static {
+  --color-ink-50: #f8fafc;
+  --color-ink-100: #f1f5f9;
+  --color-ink-200: #e2e8f0;
+  --color-ink-300: #cbd5e1;
+  --color-ink-400: #94a3b8;
+  --color-ink-500: #64748b;
+  --color-ink-600: #475569;
+  --color-ink-700: #334155;
+  --color-ink-800: #1e293b;
+  --color-ink-900: #0f172a;
+  --color-ink-950: #020617;
+
+  --color-success: #117a37;
+  --color-success-fg: #ffffff;
+  --color-warning: #a14a08;
+  --color-warning-fg: #ffffff;
+  --color-danger: #c62828;
+  --color-danger-fg: #ffffff;
+  --color-info: #0369a1;
+  --color-info-fg: #ffffff;
+  --color-sale: #c01048;
+  --color-sale-fg: #ffffff;
+}
+
+@layer base {
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-ink-50 text-ink-900 antialiased;
+    /* Persian script needs more leading than Latin. */
+    line-height: 1.8;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand-500);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
