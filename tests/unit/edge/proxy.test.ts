@@ -1,0 +1,231 @@
+// @vitest-environment node
+import { NextRequest } from 'next/server'
+import { getRewrittenUrl } from 'next/experimental/testing/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { jwtExpiringIn } from '../support/jwt'
+import { isCleared, setCookies, stubEnv } from '../bff/support'
+
+const refreshAccess = vi.fn()
+const knownSources = vi.fn()
+const resolveRedirect = vi.fn()
+
+async function load() {
+  vi.resetModules()
+  vi.doMock('server-only', () => ({}))
+  vi.doMock('@/lib/auth/refresh', () => ({ refreshAccess }))
+  vi.doMock('@/lib/edge/redirects', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/lib/edge/redirects')>()),
+    knownSources,
+    resolveRedirect,
+  }))
+  return import('@/proxy')
+}
+
+interface Init {
+  method?: string
+  cookies?: Record<string, string>
+  headers?: Record<string, string>
+}
+
+function request(path: string, init: Init = {}): NextRequest {
+  const headers = new Headers({ host: 'shop.test', 'x-real-ip': '203.0.113.9', ...init.headers })
+  if (init.cookies) {
+    const pairs = Object.entries(init.cookies).map(([name, value]) => `${name}=${value}`)
+    headers.set('cookie', pairs.join('; '))
+  }
+  return new NextRequest(`https://shop.test${path}`, { method: init.method ?? 'GET', headers })
+}
+
+/** The cookie header the proxy hands to the rendering request, or undefined when unchanged. */
+function forwardedCookies(res: Response): string | null | undefined {
+  const overridden = res.headers.get('x-middleware-override-headers')
+  if (overridden === null) return undefined
+  return res.headers.get('x-middleware-request-cookie')
+}
+
+beforeEach(() => {
+  stubEnv()
+  knownSources.mockResolvedValue(new Set(['/festival', '/product/nokia-3310-classic']))
+  resolveRedirect.mockResolvedValue(null)
+})
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  vi.resetAllMocks()
+  vi.resetModules()
+  vi.doUnmock('server-only')
+  vi.doUnmock('@/lib/auth/refresh')
+  vi.doUnmock('@/lib/edge/redirects')
+})
+
+describe('forwarding', () => {
+  it.each([
+    ['/media/a/logo.png?v=2', 'https://api.test/media/a/logo.png?v=2'],
+    ['/static/defaults/default.png', 'https://api.test/static/defaults/default.png'],
+    ['/sitemap.xml?p=1', 'https://api.test/sitemap.xml?p=1'],
+  ])('rewrites %s to the API', async (path, target) => {
+    const { proxy } = await load()
+    const res = await proxy(request(path, { cookies: { ff_rt: jwtExpiringIn(9999) } }))
+    expect(getRewrittenUrl(res as never)).toBe(target)
+    expect(refreshAccess).not.toHaveBeenCalled()
+    expect(knownSources).not.toHaveBeenCalled()
+  })
+
+  it('does not hand the session cookies to the API', async () => {
+    const { proxy } = await load()
+    const res = await proxy(request('/media/a.png', { cookies: { ff_rt: 'r', theme: 'x' } }))
+    expect(res.headers.get('x-middleware-override-headers')?.split(',')).not.toContain('cookie')
+  })
+})
+
+describe('redirects', () => {
+  it('answers a listed path with the rule status and target', async () => {
+    resolveRedirect.mockResolvedValue({
+      status: 302,
+      target: '/product-category/digital/mobile-phone/',
+    })
+    const { proxy } = await load()
+    const res = await proxy(request('/festival/?utm_source=sms'))
+    expect(resolveRedirect).toHaveBeenCalledWith('/festival/?utm_source=sms', '203.0.113.9')
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe(
+      'https://shop.test/product-category/digital/mobile-phone/',
+    )
+  })
+
+  it('keeps absolute targets', async () => {
+    resolveRedirect.mockResolvedValue({ status: 301, target: 'https://other.test/x/' })
+    const { proxy } = await load()
+    const res = await proxy(request('/festival/', { method: 'HEAD' }))
+    expect(res.status).toBe(301)
+    expect(res.headers.get('location')).toBe('https://other.test/x/')
+  })
+
+  it.each(['javascript:alert(1)', 'http://'])('ignores the unusable target %s', async (target) => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    resolveRedirect.mockResolvedValue({ status: 302, target })
+    const { proxy } = await load()
+    const res = await proxy(request('/festival/'))
+    expect(res.headers.get('x-middleware-next')).toBe('1')
+    expect(res.headers.get('location')).toBeNull()
+    expect(logged).toHaveBeenCalled()
+    logged.mockRestore()
+  })
+
+  it('answers a gone rule with a 410 page', async () => {
+    resolveRedirect.mockResolvedValue({ status: 410, target: '' })
+    const { proxy } = await load()
+    const res = await proxy(request('/product/nokia-3310-classic/'))
+    expect(res.status).toBe(410)
+    expect(res.headers.get('content-type')).toContain('text/html')
+  })
+
+  it('does not ask the API about paths without a rule', async () => {
+    const { proxy } = await load()
+    const res = await proxy(request('/product/other/'))
+    expect(resolveRedirect).not.toHaveBeenCalled()
+    expect(res.headers.get('x-middleware-next')).toBe('1')
+  })
+
+  it('asks the API when the path has no local spelling', async () => {
+    const { proxy } = await load()
+    await proxy(request('/a%2Fb/'))
+    expect(resolveRedirect).toHaveBeenCalledWith('/a%2Fb/', '203.0.113.9')
+  })
+
+  it('never redirects writes', async () => {
+    resolveRedirect.mockResolvedValue({ status: 302, target: '/x/' })
+    const { proxy } = await load()
+    const res = await proxy(request('/festival/', { method: 'POST' }))
+    expect(resolveRedirect).not.toHaveBeenCalled()
+    expect(res.status).toBe(200)
+  })
+
+  it('renders the page when the API has no answer', async () => {
+    const { proxy } = await load()
+    const res = await proxy(request('/festival/'))
+    expect(res.headers.get('x-middleware-next')).toBe('1')
+  })
+})
+
+describe('session refresh', () => {
+  const refresh = jwtExpiringIn(7 * 24 * 3600)
+
+  it('refreshes an expiring access token for the page and the browser', async () => {
+    const fresh = jwtExpiringIn(900)
+    refreshAccess.mockResolvedValue({ access: fresh })
+    const { proxy } = await load()
+    const res = await proxy(
+      request('/product/x/', { cookies: { theme: 'a', ff_at: jwtExpiringIn(5), ff_rt: refresh } }),
+    )
+    expect(refreshAccess).toHaveBeenCalledWith(refresh, '203.0.113.9')
+    const cookies = setCookies(res)
+    expect(cookies.ff_at?.value).toBe(fresh)
+    expect(cookies.ff_at?.attrs.httponly).toBe(true)
+    expect(Number(cookies.ff_at?.attrs['max-age'])).toBeGreaterThan(890)
+    expect(cookies.ff_auth?.value).toBe('1')
+    expect(cookies.ff_auth?.attrs.httponly).toBeUndefined()
+    const forwarded = forwardedCookies(res)
+    expect(forwarded).toContain(`ff_at=${fresh}`)
+    expect(forwarded).toContain(`ff_rt=${refresh}`)
+    expect(forwarded).toContain('theme=a')
+  })
+
+  it('refreshes a missing access token', async () => {
+    refreshAccess.mockResolvedValue({ access: jwtExpiringIn(900) })
+    const { proxy } = await load()
+    await proxy(request('/', { cookies: { ff_rt: refresh } }))
+    expect(refreshAccess).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['invalid', 'inactive'] as const)(
+    'ends the session when the refresh is %s',
+    async (error) => {
+      refreshAccess.mockResolvedValue({ error })
+      const { proxy } = await load()
+      const res = await proxy(
+        request('/product/x/', { cookies: { theme: 'a', ff_rt: refresh, ff_auth: '1' } }),
+      )
+      const cookies = setCookies(res)
+      for (const name of ['ff_at', 'ff_rt', 'ff_auth']) {
+        expect(isCleared(cookies[name])).toBe(true)
+        expect(cookies[name]?.attrs.path).toBe('/')
+      }
+      const forwarded = forwardedCookies(res) ?? ''
+      expect(forwarded).toBe('theme=a')
+    },
+  )
+
+  it('keeps the cookies when the API cannot be reached', async () => {
+    refreshAccess.mockResolvedValue({ error: 'network' })
+    const { proxy } = await load()
+    const res = await proxy(request('/product/x/', { cookies: { ff_rt: refresh } }))
+    expect(res.headers.getSetCookie()).toEqual([])
+    expect(forwardedCookies(res)).toBeUndefined()
+  })
+
+  it('leaves a fresh access token alone', async () => {
+    const { proxy } = await load()
+    const res = await proxy(
+      request('/product/x/', { cookies: { ff_at: jwtExpiringIn(600), ff_rt: refresh } }),
+    )
+    expect(refreshAccess).not.toHaveBeenCalled()
+    expect(res.headers.getSetCookie()).toEqual([])
+  })
+
+  it('does nothing without a refresh token', async () => {
+    const { proxy } = await load()
+    await proxy(request('/product/x/', { cookies: { ff_at: jwtExpiringIn(5) } }))
+    expect(refreshAccess).not.toHaveBeenCalled()
+  })
+
+  it.each(['/api/bff/cart/', '/s/phone-fest/', '/_next/static/x.js', '/logo.svg'])(
+    'does no session work on %s',
+    async (path) => {
+      const { proxy } = await load()
+      await proxy(request(path, { cookies: { ff_rt: refresh } }))
+      expect(refreshAccess).not.toHaveBeenCalled()
+      expect(knownSources).not.toHaveBeenCalled()
+    },
+  )
+})

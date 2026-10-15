@@ -6,7 +6,7 @@ import { handleBff } from '@/lib/bff/handler'
  *
  * - Forwards allow-listed paths (`@/lib/bff/allowlist`) with the server-only API key, the visitor
  *   IP, `Idempotency-Key`, the bearer from `ff_at` and, for guests, `X-Cart-Token` from `ff_cart`.
- * - Writes need `X-Requested-With: ff` and a same-origin `Origin` (CSRF).
+ * - Every request needs `X-Requested-With: ff`; writes also need a same-origin `Origin`.
  * - Keeps JWTs and the guest cart token in httpOnly cookies and strips them from every body.
  * - Refreshes the access token at most once per request.
  * - Answers with the API's status, JSON envelope and `Retry-After`; never with its cookies.

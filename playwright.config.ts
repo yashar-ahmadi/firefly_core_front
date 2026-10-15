@@ -38,6 +38,8 @@ export default defineConfig({
     timeout: 300_000,
     env: {
       FIREFLY_API_URL: 'http://localhost:8000',
+      // `next start` requires a key; the dev backend's key gate is off, so any value works.
+      FIREFLY_API_KEY: process.env.FIREFLY_API_KEY ?? 'e2e-dev-key',
       SITE_URL: 'http://localhost:3000',
       PORT: new URL(baseURL).port || '3000',
     },
