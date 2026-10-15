@@ -8,6 +8,8 @@ export type UpstreamResult =
       kind: 'error'
       status: number
       code: 'network_error' | 'upstream_redirect' | 'non_json_response'
+      /** Kept from a non-JSON answer: an edge's HTML 429/503 page still says when to retry. */
+      retryAfter?: string | null
     }
 
 /** Statuses that must not carry a body. */
@@ -54,6 +56,7 @@ export async function callUpstream(url: string, init: RequestInit): Promise<Upst
       kind: 'error',
       status: res.status >= 400 ? res.status : 502,
       code: 'non_json_response',
+      retryAfter,
     }
   }
   return { kind: 'json', status: res.status, body: body as Record<string, unknown>, retryAfter }

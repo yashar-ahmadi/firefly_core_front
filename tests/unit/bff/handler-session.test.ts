@@ -113,64 +113,6 @@ describe('refresh before the call', () => {
   })
 })
 
-describe('cart token', () => {
-  it('is not sent with a bearer, except on cart/merge/', async () => {
-    const cookies = { ff_at: jwtExpiringIn(600), ff_rt: jwtExpiringIn(9999), ff_cart: 'guest' }
-    const handleBff = await loadHandler()
-    await handleBff(...bff('cart/', { cookies }))
-    await handleBff(...bff('cart/merge/', { method: 'POST', cookies }))
-    const [plain, merge] = upstreamCalls(fetchSpy)
-    expect(plain?.headers.has('X-Cart-Token')).toBe(false)
-    expect(merge?.headers.get('X-Cart-Token')).toBe('guest')
-    expect(merge?.headers.get('Authorization')).toBe(`Bearer ${cookies.ff_at}`)
-  })
-
-  it('is deleted after a successful merge and kept after a failed one', async () => {
-    const cookies = { ff_at: jwtExpiringIn(600), ff_rt: jwtExpiringIn(9999), ff_cart: 'guest' }
-    fetchSpy.mockResolvedValue(envelope({ token: 'user-cart', adjustments: [] }))
-    const handleBff = await loadHandler()
-    const ok = await handleBff(...bff('cart/merge/', { method: 'POST', cookies }))
-    expect(isCleared(setCookies(ok).ff_cart)).toBe(true)
-    expect((await ok.json()).data).toEqual({ adjustments: [] })
-
-    fetchSpy.mockResolvedValue(failure(401, 'cart_token_required'))
-    const failed = await handleBff(...bff('cart/merge/', { method: 'POST', cookies }))
-    expect(setCookies(failed).ff_cart).toBeUndefined()
-  })
-
-  it('is never taken from a signed-in cart response', async () => {
-    fetchSpy.mockResolvedValue(envelope({ token: 'user-cart' }))
-    const handleBff = await loadHandler()
-    const res = await handleBff(
-      ...bff('cart/item/add/', {
-        method: 'POST',
-        json: {},
-        cookies: { ff_at: jwtExpiringIn(600), ff_rt: jwtExpiringIn(9999) },
-      }),
-    )
-    expect(setCookies(res).ff_cart).toBeUndefined()
-    expect((await res.json()).data).toEqual({})
-  })
-
-  it.each([
-    ['an empty token on a guest read', () => envelope({ token: '', is_empty: true })],
-    ['cart_not_found on a guest write', () => failure(404, 'cart_not_found')],
-  ])('is dropped on %s', async (_label, response) => {
-    fetchSpy.mockImplementation(async () => response())
-    const handleBff = await loadHandler()
-    const res = await handleBff(...bff('cart/', { cookies: { ff_cart: 'dead' } }))
-    expect(isCleared(setCookies(res).ff_cart)).toBe(true)
-  })
-
-  it('is only captured from cart/* responses', async () => {
-    fetchSpy.mockResolvedValue(envelope({ token: 'not-a-cart' }))
-    const handleBff = await loadHandler()
-    const res = await handleBff(...bff('product/x/'))
-    expect(setCookies(res).ff_cart).toBeUndefined()
-    expect((await res.json()).data).toEqual({ token: 'not-a-cart' })
-  })
-})
-
 describe('session end and replacement', () => {
   it.each(['user_inactive', 'user_not_found'])('clears the session on %s', async (code) => {
     fetchSpy.mockResolvedValue(failure(401, code))

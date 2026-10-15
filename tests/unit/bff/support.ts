@@ -62,7 +62,7 @@ export interface BffInit {
   cookies?: Record<string, string>
   json?: unknown
   body?: BodyInit
-  /** Defaults to true for writes: adds `X-Requested-With: ff`. */
+  /** Defaults to true: adds `X-Requested-With: ff`, as `bffFetch` does on every call. */
   csrf?: boolean
 }
 
@@ -70,7 +70,7 @@ export interface BffInit {
 export function bff(path: string, init: BffInit = {}): [NextRequest, string[]] {
   const method = (init.method ?? 'GET').toUpperCase()
   const headers = new Headers({ host: 'shop.test', 'x-real-ip': '203.0.113.9', ...init.headers })
-  if ((init.csrf ?? method !== 'GET') && !headers.has('x-requested-with')) {
+  if ((init.csrf ?? true) && !headers.has('x-requested-with')) {
     headers.set('x-requested-with', 'ff')
   }
   if (init.cookies) {
@@ -88,7 +88,10 @@ export function bff(path: string, init: BffInit = {}): [NextRequest, string[]] {
   }
   const [pathname, search = ''] = path.split('?')
   const url = `${SITE}/api/bff/${pathname}${search ? `?${search}` : ''}`
-  const request = new NextRequest(url, { method, headers, body })
+  // A stream body needs `duplex: 'half'`, which the DOM RequestInit type does not list yet.
+  const streamed = body instanceof ReadableStream ? { duplex: 'half' } : {}
+  type Init = ConstructorParameters<typeof NextRequest>[1]
+  const request = new NextRequest(url, { method, headers, body, ...streamed } as Init)
   return [request, (pathname ?? '').split('/').filter(Boolean)]
 }
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { decodeJwtExp, isExpiring } from '@/lib/auth/jwt'
 import { base64url, jwtExpiringIn, makeJwt } from '../support/jwt'
 
@@ -58,10 +58,20 @@ describe('isExpiring', () => {
     expect(isExpiring('garbage', 30, NOW)).toBe(true)
   })
 
-  it('honours a custom skew and defaults to 30 s and Date.now()', () => {
+  it('honours a custom skew and defaults to 30 s', () => {
     expect(isExpiring(jwtExpiringIn(100, NOW), 120, NOW)).toBe(true)
     expect(isExpiring(jwtExpiringIn(100, NOW), 60, NOW)).toBe(false)
-    expect(isExpiring(jwtExpiringIn(31))).toBe(false)
-    expect(isExpiring(jwtExpiringIn(29))).toBe(true)
+    expect(isExpiring(jwtExpiringIn(31, NOW), undefined, NOW)).toBe(false)
+    expect(isExpiring(jwtExpiringIn(29, NOW), undefined, NOW)).toBe(true)
+  })
+
+  it('defaults now to Date.now()', () => {
+    vi.useFakeTimers({ now: NOW })
+    try {
+      expect(isExpiring(jwtExpiringIn(31, NOW))).toBe(false)
+      expect(isExpiring(jwtExpiringIn(29, NOW))).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

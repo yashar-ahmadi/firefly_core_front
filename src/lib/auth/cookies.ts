@@ -1,4 +1,4 @@
-import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies'
+import type { NextResponse } from 'next/server'
 import { decodeJwtExp } from '@/lib/auth/jwt'
 
 /**
@@ -14,7 +14,12 @@ export const COOKIE = {
 
 export type CookieKey = keyof typeof COOKIE
 
-export type CookieOptions = Omit<ResponseCookie, 'name' | 'value'>
+/** The options argument of `response.cookies.set(name, value, options)`, from the public API. */
+type SetCookieOptions = NonNullable<
+  Extract<Parameters<NextResponse['cookies']['set']>, [string, string, unknown?]>[2]
+>
+
+export type CookieOptions = Omit<SetCookieOptions, 'name' | 'value'>
 
 /** The guest cart lives 30 days after its last write on the API, so the cookie does too. */
 export const CART_MAX_AGE = 30 * 24 * 60 * 60

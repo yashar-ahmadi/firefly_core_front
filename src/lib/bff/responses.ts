@@ -4,11 +4,13 @@ import { NextResponse } from 'next/server'
 const STATUS_MESSAGES: Record<number, string> = {
   403: 'اجازهٔ انجام این درخواست را ندارید.',
   404: 'موردی با این مشخصات پیدا نشد.',
+  413: 'حجم درخواست ارسالی بیش از حد مجاز است.',
   502: 'پاسخ سرویس بیرونی معتبر نیست.',
 }
 const DEFAULT_FAILURE_MESSAGE = 'درخواست شما انجام نشد.'
 
 export const NOT_FOUND_DETAIL = 'یافت نشد.'
+export const TOO_LARGE_DETAIL = 'حجم درخواست ارسالی بیش از حد مجاز است.'
 export const CSRF_DETAIL = 'درخواست از مبدأ معتبر ارسال نشده است. صفحه را دوباره بارگذاری کنید.'
 
 /** Every BFF answer is per-user: no shared cache may keep it. */
@@ -33,13 +35,22 @@ export function emptyResponse(status: number, retryAfter?: string | null): NextR
 }
 
 /** An error envelope shaped like the API's own (`{ msg, code, data: { type, errors } }`). */
-export function errorResponse(status: number, code: string, detail: string): NextResponse {
-  return jsonResponse(status, {
-    msg: STATUS_MESSAGES[status] ?? DEFAULT_FAILURE_MESSAGE,
-    code: status,
-    data: {
-      type: status >= 500 ? 'server_error' : 'client_error',
-      errors: [{ code, detail, attr: null }],
+export function errorResponse(
+  status: number,
+  code: string,
+  detail: string,
+  retryAfter?: string | null,
+): NextResponse {
+  return jsonResponse(
+    status,
+    {
+      msg: STATUS_MESSAGES[status] ?? DEFAULT_FAILURE_MESSAGE,
+      code: status,
+      data: {
+        type: status >= 500 ? 'server_error' : 'client_error',
+        errors: [{ code, detail, attr: null }],
+      },
     },
-  })
+    retryAfter,
+  )
 }

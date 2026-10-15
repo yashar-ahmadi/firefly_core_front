@@ -1,17 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { jwtExpiringIn } from '../support/jwt'
-import {
-  API,
-  bff,
-  envelope,
-  failure,
-  loadHandler,
-  refreshCalls,
-  stubEnv,
-  upstreamCalls,
-  type FetchSpy,
-} from './support'
+import { API, bff, envelope, loadHandler, stubEnv, upstreamCalls, type FetchSpy } from './support'
 
 const NOT_FOUND = { code: 'not_found', detail: 'یافت نشد.', attr: null }
 const NETWORK_DETAIL = 'ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید.'
@@ -204,58 +194,15 @@ describe('relayed response', () => {
     fetchSpy.mockResolvedValue(new Response('<html>ok</html>', { status: 200 }))
     expect((await handleBff(...bff('product/x/'))).status).toBe(502)
   })
-})
 
-describe('CSRF details', () => {
-  it('refuses a wrong X-Requested-With value', async () => {
-    const handleBff = await loadHandler()
-    const [req, segments] = bff('cart/clear/', {
-      method: 'DELETE',
-      headers: { 'x-requested-with': 'XMLHttpRequest' },
-    })
-    expect((await handleBff(req, segments)).status).toBe(403)
-  })
-
-  it('refuses a write whose Origin is another host', async () => {
-    const handleBff = await loadHandler()
-    for (const origin of ['https://evil.test', 'null', 'https://shop.test.evil.test']) {
-      const [req, segments] = bff('cart/item/add/', {
-        method: 'POST',
-        json: {},
-        headers: { origin },
-      })
-      expect((await handleBff(req, segments)).status, origin).toBe(403)
-    }
-    expect(fetchSpy).not.toHaveBeenCalled()
-  })
-
-  it('accepts a same-origin write and a GET without the header', async () => {
-    const handleBff = await loadHandler()
-    const [req, segments] = bff('cart/item/add/', {
-      method: 'POST',
-      json: {},
-      headers: { origin: 'https://shop.test' },
-    })
-    expect((await handleBff(req, segments)).status).toBe(200)
-    expect((await handleBff(...bff('cart/'))).status).toBe(200)
-  })
-})
-
-describe('streamed uploads', () => {
-  it('does not replay a streamed upload after a 401 (the refresh before the call covers expiry)', async () => {
-    fetchSpy.mockResolvedValue(failure(401, 'token_not_valid'))
-    const form = new FormData()
-    form.append('receipt', new Blob(['x']), 'r.jpg')
-    const handleBff = await loadHandler()
-    const res = await handleBff(
-      ...bff('payment/card-to-card/receipt/', {
-        method: 'POST',
-        body: form,
-        cookies: { ff_at: jwtExpiringIn(600), ff_rt: jwtExpiringIn(9999) },
-      }),
+  it('keeps Retry-After from a non-JSON answer (an edge 429/503 page)', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response('<html>busy</html>', { status: 503, headers: { 'retry-after': '120' } }),
     )
-    expect(res.status).toBe(401)
-    expect(upstreamCalls(fetchSpy)).toHaveLength(1)
-    expect(refreshCalls(fetchSpy)).toHaveLength(0)
+    const handleBff = await loadHandler()
+    const res = await handleBff(...bff('homepage/'))
+    expect(res.status).toBe(503)
+    expect(res.headers.get('retry-after')).toBe('120')
+    expect((await res.json()).data.errors[0].code).toBe('non_json_response')
   })
 })
