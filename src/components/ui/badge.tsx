@@ -45,7 +45,7 @@ export function Badge({
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-1 rounded-pill font-medium whitespace-nowrap [&_svg]:shrink-0',
-        size === 'sm' ? 'h-6 px-2 text-xs [&_svg]:size-3.5' : 'h-7 px-2.5 text-sm [&_svg]:size-4',
+        size === 'sm' ? 'h-6 px-2 text-sm [&_svg]:size-3.5' : 'h-7 px-2.5 text-sm [&_svg]:size-4',
         variant === 'solid' ? SOLID[tone] : SOFT[tone],
         className,
       )}

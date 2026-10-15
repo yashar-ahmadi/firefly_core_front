@@ -45,7 +45,12 @@ export function OtpInput({
   const boxes = useRef<Array<HTMLInputElement | null>>([])
   // Focus moves after the parent re-renders with the new value, so handlers see fresh state.
   const pendingFocus = useRef<number | null>(null)
+  // Set by pointerdown, so onFocus can tell a click or tap from keyboard focus.
+  const pointerDown = useRef(false)
   const code = digitsOf(value).slice(0, length)
+  // Roving tab stop: only the first empty box (or the last one when full) is in the tab order,
+  // so Tab enters the group once and the next Tab leaves it.
+  const active = Math.min(code.length, length - 1)
 
   function focusBox(index: number) {
     boxes.current[Math.max(0, Math.min(index, length - 1))]?.focus()
@@ -70,7 +75,7 @@ export function OtpInput({
       pendingFocus.current = focusIndex
       onChange(clipped)
     }
-    if (clipped.length === length) onComplete?.(clipped)
+    if (clipped.length === length && clipped !== code) onComplete?.(clipped)
   }
 
   /** Writes `incoming` digits starting at box `index` (typing, paste or autofill). */
@@ -121,7 +126,7 @@ export function OtpInput({
       dir="ltr"
       aria-label={ariaLabel}
       aria-describedby={describedBy}
-      className={cn('flex justify-center gap-2 sm:gap-3', className)}
+      className={cn('flex justify-start gap-2 sm:gap-3', className)}
     >
       {Array.from({ length }, (_, index) => (
         <input
@@ -135,18 +140,25 @@ export function OtpInput({
           aria-label={`رقم ${toPersianDigits(index + 1)}`}
           aria-invalid={invalid || undefined}
           disabled={disabled}
+          tabIndex={index === active ? 0 : -1}
           value={toPersianDigits(code[index] ?? '')}
-          // Boxes are filled in order: focusing a later empty box jumps to the first empty one.
-          onFocus={(event) =>
-            index > code.length ? focusBox(code.length) : event.currentTarget.select()
-          }
+          onPointerDown={() => {
+            pointerDown.current = true
+          }}
+          // Boxes are filled in order: clicking a later empty box moves to the first empty one.
+          onFocus={(event) => {
+            const fromPointer = pointerDown.current
+            pointerDown.current = false
+            if (fromPointer && index > code.length) focusBox(code.length)
+            else event.currentTarget.select()
+          }}
           onChange={(event) => handleChange(index, event.currentTarget.value)}
           onKeyDown={(event) => handleKeyDown(index, event)}
           onPaste={(event) => handlePaste(index, event)}
           className={cn(
             controlClasses({ invalid, disabled }),
             'h-12 w-full max-w-12 min-w-0 flex-1 border-2 p-0 text-center text-xl font-bold caret-brand-600 sm:h-14 sm:max-w-14 sm:text-2xl',
-            code[index] !== undefined && !invalid && 'border-ink-500',
+            code[index] !== undefined && !invalid && 'border-ink-700',
           )}
         />
       ))}

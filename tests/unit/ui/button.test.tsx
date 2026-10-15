@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { Button } from '@/components/ui/button'
+import { buttonClasses } from '@/components/ui/button-styles'
 import { IconButton } from '@/components/ui/icon-button'
 
 describe('Button', () => {
@@ -34,6 +35,29 @@ describe('Button', () => {
     expect(link).toHaveAttribute('href', '/cart/')
     expect(link.className).toContain('border')
     expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('marks an asChild element busy and disabled while loading', () => {
+    const { rerender } = render(
+      <Button asChild loading>
+        <a href="/checkout/">پرداخت</a>
+      </Button>,
+    )
+    const link = screen.getByRole('link', { name: 'پرداخت' })
+    expect(link).toHaveAttribute('aria-busy', 'true')
+    expect(link).toHaveAttribute('aria-disabled', 'true')
+    rerender(
+      <Button asChild disabled>
+        <a href="/checkout/">پرداخت</a>
+      </Button>,
+    )
+    expect(link).toHaveAttribute('aria-disabled', 'true')
+    expect(link).not.toHaveAttribute('aria-busy')
+  })
+
+  it('gives the link variant a 44px hit area without changing its layout', () => {
+    expect(buttonClasses({ variant: 'link' })).toContain('after:h-11')
+    expect(buttonClasses({ variant: 'link', size: 'sm' })).toContain('after:h-11')
   })
 
   it('forwards className', () => {

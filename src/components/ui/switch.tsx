@@ -36,7 +36,7 @@ export function Switch({ label, description, className, id, ...props }: SwitchPr
         className={cn(
           'pointer-events-none ms-1 block size-4 rounded-full bg-ink-500 shadow-sm',
           'transition-[margin,width,height,background-color] duration-200 ease-out',
-          'data-[state=checked]:ms-5.5 data-[state=checked]:size-5 data-[state=checked]:bg-white',
+          'data-[state=checked]:ms-5 data-[state=checked]:size-5 data-[state=checked]:bg-white',
         )}
       />
     </SwitchPrimitive.Root>

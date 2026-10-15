@@ -42,7 +42,13 @@ export function Button({
 
   if (asChild) {
     return (
-      <Slot.Root ref={ref as Ref<HTMLElement>} className={classes} {...props}>
+      <Slot.Root
+        ref={ref as Ref<HTMLElement>}
+        className={classes}
+        aria-busy={loading || undefined}
+        aria-disabled={disabled || loading || undefined}
+        {...props}
+      >
         {iconStart}
         <Slot.Slottable>{children}</Slot.Slottable>
         {iconEnd}

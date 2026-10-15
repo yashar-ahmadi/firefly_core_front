@@ -1,14 +1,14 @@
 import { cn } from './cn'
 
 // Shared look of text-like form controls (Input, Textarea, Select, OtpInput boxes).
-// The border is ink-400 rather than a lighter grey so the field outline stays visible for
-// older eyes; focus adds the theme's focus colour (3:1 on the page) and a soft brand halo.
+// The border is ink-500, which keeps the field outline at 3:1 or more against white and the page
+// (WCAG 1.4.11); focus adds the theme's focus colour (3:1 on the page) and a soft brand halo.
 
 const FRAME =
-  'rounded-control border border-ink-400 bg-white text-base text-ink-900 transition-[border-color,box-shadow]'
-const HOVER = 'hover:border-ink-500'
+  'rounded-control border border-ink-500 bg-white text-base text-ink-900 transition-[border-color,box-shadow]'
+const HOVER = 'hover:border-ink-600'
 const INVALID = 'border-danger hover:border-danger'
-const DISABLED = 'cursor-not-allowed bg-ink-100 text-ink-500 hover:border-ink-400'
+const DISABLED = 'cursor-not-allowed bg-ink-100 text-ink-500 hover:border-ink-500'
 
 /** Classes for an element that is itself the focusable control (textarea, select). */
 export function controlClasses({

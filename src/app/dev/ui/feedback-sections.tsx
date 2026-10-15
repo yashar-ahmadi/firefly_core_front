@@ -95,7 +95,7 @@ export function FeedbackSections() {
         description="تصویر خراب یا خالی با تصویر جایگزین نمایش داده می‌شود."
       >
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <figure className="grid gap-2">
+          <figure className="grid content-start gap-2">
             <SmartImage
               src={null}
               alt="کالای بدون تصویر"
@@ -105,7 +105,7 @@ export function FeedbackSections() {
             />
             <figcaption className="text-sm text-ink-600">بدون تصویر (۱:۱)</figcaption>
           </figure>
-          <figure className="grid gap-2">
+          <figure className="grid content-start gap-2">
             <SmartImage
               src="https://images.invalid/broken.jpg"
               alt="تصویر خراب"
@@ -115,7 +115,7 @@ export function FeedbackSections() {
             />
             <figcaption className="text-sm text-ink-600">آدرس خراب، جایگزین</figcaption>
           </figure>
-          <figure className="col-span-2 grid gap-2">
+          <figure className="col-span-2 grid content-start gap-2">
             <SmartImage src={null} alt="بنر" ratio="16/9" className="rounded-card" sizes="50vw" />
             <figcaption className="flex items-center gap-1.5 text-sm text-ink-600">
               <PackageSearch aria-hidden className="size-4" />

@@ -6,7 +6,7 @@ import { VisuallyHidden } from './visually-hidden'
 export type RatingSize = 'sm' | 'md'
 
 const SIZES: Record<RatingSize, { star: string; value: string; count: string }> = {
-  sm: { star: 'size-4', value: 'text-sm', count: 'text-xs' },
+  sm: { star: 'size-4', value: 'text-sm', count: 'text-sm' },
   md: { star: 'size-5', value: 'text-base', count: 'text-sm' },
 }
 

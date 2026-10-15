@@ -5,8 +5,8 @@ import { VisuallyHidden } from './visually-hidden'
 export type PriceSize = 'sm' | 'md' | 'lg'
 
 const SIZES: Record<PriceSize, { amount: string; unit: string; original: string; pill: string }> = {
-  sm: { amount: 'text-base', unit: 'text-xs', original: 'text-sm', pill: 'h-5 px-1.5 text-xs' },
-  md: { amount: 'text-lg', unit: 'text-sm', original: 'text-sm', pill: 'h-6 px-2 text-xs' },
+  sm: { amount: 'text-base', unit: 'text-sm', original: 'text-sm', pill: 'h-6 px-1.5 text-sm' },
+  md: { amount: 'text-lg', unit: 'text-sm', original: 'text-sm', pill: 'h-6 px-2 text-sm' },
   lg: { amount: 'text-2xl', unit: 'text-base', original: 'text-base', pill: 'h-7 px-2.5 text-sm' },
 }
 

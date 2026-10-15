@@ -31,6 +31,55 @@ describe('OtpInput', () => {
     expect(screen.getByLabelText('رقم ۶')).toHaveValue('۶')
   })
 
+  it('lets Tab leave an incomplete group: only the active box is in the tab order', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <Harness />
+        <button type="button">تأیید</button>
+      </>,
+    )
+    const boxes = screen.getAllByRole('textbox')
+    expect(boxes.map((box) => box.getAttribute('tabindex'))).toEqual([
+      '0',
+      '-1',
+      '-1',
+      '-1',
+      '-1',
+      '-1',
+    ])
+    await user.tab()
+    expect(boxes[0]).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'تأیید' })).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(boxes[0]).toHaveFocus()
+  })
+
+  it('moves the tab stop to the first empty box and redirects a click on a later box there', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(screen.getByLabelText('رقم ۱'))
+    await user.keyboard('12')
+    expect(screen.getByLabelText('رقم ۳')).toHaveAttribute('tabindex', '0')
+    expect(screen.getByLabelText('رقم ۱')).toHaveAttribute('tabindex', '-1')
+    await user.click(screen.getByLabelText('رقم ۶'))
+    expect(screen.getByLabelText('رقم ۳')).toHaveFocus()
+  })
+
+  it('calls onComplete only when the completed code changes', async () => {
+    const onComplete = vi.fn()
+    const user = userEvent.setup()
+    render(<Harness onComplete={onComplete} />)
+    await user.click(screen.getByLabelText('رقم ۱'))
+    await user.paste('123456')
+    await user.paste('123456')
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    await user.paste('654321')
+    expect(onComplete).toHaveBeenCalledTimes(2)
+    expect(onComplete).toHaveBeenLastCalledWith('654321')
+  })
+
   it('advances on typing, accepts Arabic-Indic digits and moves back on Backspace', async () => {
     const user = userEvent.setup()
     render(<Harness />)

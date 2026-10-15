@@ -49,7 +49,9 @@ export function buttonClasses({
     BASE,
     SIZES[size],
     VARIANTS[variant],
-    variant === 'link' && 'h-auto rounded-sm px-0 motion-safe:active:scale-100',
+    // A link button keeps its text height but gets a 44px tall invisible hit area.
+    variant === 'link' &&
+      'h-auto rounded-sm px-0 motion-safe:active:scale-100 after:absolute after:inset-x-0 after:inset-y-auto after:top-1/2 after:h-11 after:-translate-y-1/2',
     fullWidth && 'w-full',
   )
 }

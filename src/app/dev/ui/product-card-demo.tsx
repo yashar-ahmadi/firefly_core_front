@@ -46,7 +46,10 @@ export function ProductCardDemo({
           )}
         </div>
         <div className="flex flex-1 flex-col gap-2 p-3 sm:p-4">
-          <h3 className="line-clamp-2 min-h-12 text-sm leading-6 font-medium text-ink-800 sm:text-base">
+          <h3
+            dir="auto"
+            className="line-clamp-2 min-h-12 text-sm leading-6 font-medium text-ink-800 sm:text-base"
+          >
             {name}
           </h3>
           <Rating value={rating} count={count} size="sm" compact />
