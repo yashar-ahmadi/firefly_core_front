@@ -10,6 +10,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
+    // next.config sets `trailingSlash: true`; Next bakes it into this variable at build time and
+    // next/link reads it at runtime, so tests see the same hrefs as the app.
+    env: { __NEXT_TRAILING_SLASH: 'true' },
     include: ['tests/unit/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
   },
 })
