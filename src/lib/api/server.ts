@@ -77,6 +77,8 @@ export async function apiFetch<T>(
     method,
     headers,
     body: payload.body,
+    // Never follow a redirect: fetch would re-send X-API-Key and the bearer to the new URL.
+    redirect: 'manual',
     signal: opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout,
     ...(cacheable
       ? { next: { revalidate: opts.revalidate as number, ...(opts.tags && { tags: opts.tags }) } }

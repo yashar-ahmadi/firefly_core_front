@@ -52,7 +52,7 @@ export class ApiError extends Error {
   readonly errors: ApiErrorItem[]
   /** First error's detail (Persian, user-facing), else the envelope `msg`. */
   readonly detail: string
-  /** Seconds to wait, from `data.retry_after` (429), else the `Retry-After` header. */
+  /** Seconds to wait: `data.retry_after`, else (429 only) the `Retry-After` header. */
   readonly retryAfter: number | null
   /** Set on `503 feature_disabled`. */
   readonly feature: FeatureKey | null
@@ -81,10 +81,14 @@ export class ApiError extends Error {
   ): ApiError {
     const data = isRecord(body.data) ? body.data : {}
     const errors = normalizeErrors(data.errors)
+    // The header only means "retry in N seconds" on a 429: a 503 feature_disabled also sends
+    // `Retry-After: 300`, but the feature stays off until an operator switches it back on.
     const retryAfter =
       typeof data.retry_after === 'number' && Number.isFinite(data.retry_after)
         ? data.retry_after
-        : parseRetryAfterHeader(retryAfterHeader)
+        : status === 429
+          ? parseRetryAfterHeader(retryAfterHeader)
+          : null
     return new ApiError({
       status,
       detail: errors[0]?.detail || (typeof body.msg === 'string' ? body.msg : undefined),
@@ -98,6 +102,11 @@ export class ApiError extends Error {
   /** The server answered, but not with the API's JSON envelope (HTML from a proxy or dev server). */
   static nonJson(status: number): ApiError {
     return new ApiError({ status, code: 'non_json_response', detail: NETWORK_ERROR_DETAIL })
+  }
+
+  /** The API answered with a 3xx. Redirects are never followed, so the API key cannot leak. */
+  static upstreamRedirect(): ApiError {
+    return new ApiError({ status: 502, code: 'upstream_redirect', detail: NETWORK_ERROR_DETAIL })
   }
 
   /** No usable response: DNS or connection failure, reset body stream, or timeout. */

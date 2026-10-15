@@ -108,10 +108,19 @@ export function encodeBody(opts: { body?: unknown; formData?: FormData }): Encod
 }
 
 /**
+ * A 3xx, or the opaque redirect a browser returns for `redirect: 'manual'`. Callers that send
+ * the API key use `redirect: 'manual'`, so a redirect surfaces here instead of being followed.
+ */
+export function isRedirect(res: Response): boolean {
+  return res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400)
+}
+
+/**
  * fetch + parseResponse with the shared failure model: a rejected fetch (DNS, refused, reset,
  * timeout) becomes `ApiError { status: 0, code: 'network_error' }`. An abort requested by the
  * caller's own `signal` is not a connectivity problem and propagates unchanged, so React Query
- * and unmounting components can cancel quietly.
+ * and unmounting components can cancel quietly. A redirect response becomes
+ * `ApiError { status: 502, code: 'upstream_redirect' }`.
  */
 export async function sendRequest<T>(
   url: string,
@@ -120,6 +129,7 @@ export async function sendRequest<T>(
 ): Promise<ParsedResponse<T> & { headers: Headers }> {
   try {
     const res = await fetch(url, init)
+    if (isRedirect(res)) throw ApiError.upstreamRedirect()
     const parsed = await parseResponse<T>(res)
     return { ...parsed, headers: res.headers }
   } catch (error) {

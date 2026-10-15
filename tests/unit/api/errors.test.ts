@@ -137,6 +137,24 @@ describe('ApiError', () => {
       expect(ApiError.fromBody(429, body, null).retryAfter).toBeNull()
     })
 
+    it('ignores the Retry-After header on anything but a 429 (503 feature_disabled sends 300)', () => {
+      const disabled = ApiError.fromBody(
+        503,
+        {
+          msg: 'm',
+          data: {
+            type: 'server_error',
+            errors: [{ code: 'feature_disabled', detail: 'd', attr: null }],
+            feature: 'wallet',
+          },
+        },
+        '300',
+      )
+      expect(disabled.retryAfter).toBeNull()
+      expect(disabled.isFeatureDisabled()).toBe(true)
+      expect(ApiError.fromBody(500, { msg: 'm', data: {} }, '30').retryAfter).toBeNull()
+    })
+
     it('only accepts known feature keys', () => {
       const withFeature = (feature: unknown) =>
         ApiError.fromBody(503, {
