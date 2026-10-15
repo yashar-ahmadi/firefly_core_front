@@ -386,9 +386,9 @@ docs/ARCHITECTURE.md, docs/CUSTOMIZATION.md, docs/DEPLOYMENT.md
      - On success, set the new `ff_at` on the response and on the forwarded request cookies (`NextResponse.next({ request: { headers } })`), so Server Components read it.
      - On `invalid` or `inactive`, delete `ff_at`, `ff_rt` and `ff_auth`.
      - On `network`, leave the cookies alone.
-  - Matcher: everything except `_next/static`, `_next/image`, `favicon.ico`, `icons/` and files with an extension other than `.xml`.
+  - Matcher: everything except `_next/static`, `_next/image`, `favicon.ico`, `icons/` and files with an extension other than `.xml` or legacy page extensions (`.html`, `.htm`, `.php`, `.asp`, `.aspx`), plus explicit `/media/:path*`, `/static/:path*`, `/sitemap.xml` (rulings R2 and Task 7).
 - **Route handlers:**
-  - `robots.txt`: `GET robots/?format=txt` with `revalidate: 300`. Return the body byte-exact as `text/plain; charset=utf-8`. If the API fails, return `User-agent: *\nDisallow:\n`.
+  - `robots.txt`: `GET robots/?format=txt` with `revalidate: 300`. Return the body byte-exact as `text/plain; charset=utf-8`. If the API fails and nothing is cached, answer 503 with `Retry-After: 300` and `Cache-Control: no-store` (controller ruling: safer than allow-all).
   - `s/[code]`: as `seo-cache-deploy.md` §5.2. Always 302, never 301, never cached; 404 and 410 use `statusPage` with the Persian copy from the digest. Also set `skipTrailingSlashRedirect`? No: keep `trailingSlash: true` and accept the one 308 hop.
   - Bank callback: accept GET and POST and forward to `${apiUrl}/api/v1/payment/gateway/callback/${gateway}/${token}/`, with the original query, the raw body, `Content-Type`, `X-Forwarded-For` and `redirect: 'manual'`. Relay status and `Location` unchanged. No API key is needed.
 
