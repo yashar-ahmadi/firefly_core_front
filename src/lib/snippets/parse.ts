@@ -43,6 +43,11 @@ const VOID_ELEMENTS = new Set([
 const BODY_ELEMENTS = new Set(['script', 'style', 'noscript'])
 
 const NAME_END = /[\s/>]/
+/**
+ * A tag name the scanner accepts. Anything else after a '<' is text, which also keeps odd operator
+ * input such as `<b)` or `<x[` out of the `RegExp`s built from names below.
+ */
+const TAG_NAME = /^[a-z][a-z0-9:_-]*$/i
 const ATTR_NAME_END = /[\s/>=]/
 const ENTITY = /&(?:#(\d+)|#x([0-9a-f]+)|(amp|lt|gt|quot|apos));/gi
 const NAMED_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
@@ -69,6 +74,7 @@ function readStartTag(src: string, from: number): StartTag | null {
   let i = from + 1
   while (i < src.length && !NAME_END.test(src.charAt(i))) i++
   const name = src.slice(from + 1, i).toLowerCase()
+  if (!TAG_NAME.test(name)) return null
 
   const attrs: Record<string, string> = {}
   let selfClosing = false
@@ -144,8 +150,7 @@ function scriptNode(attrs: Record<string, string>, body: string): SnippetNode {
   return inline === '' ? { tag: 'script', attrs } : { tag: 'script', inline, attrs }
 }
 
-export function parseSnippet(html: string): SnippetNode[] {
-  if (typeof html !== 'string') return []
+function scan(html: string): SnippetNode[] {
   const nodes: SnippetNode[] = []
   let loose = ''
   const flush = () => {
@@ -200,4 +205,22 @@ export function parseSnippet(html: string): SnippetNode[] {
   }
   flush()
   return nodes
+}
+
+/**
+ * Split a snippet into render-ready nodes (see the module comment). Never throws: it runs in the
+ * root layout, so on an unexpected failure the whole snippet is passed through as one `html` node
+ * and the failure is logged once.
+ */
+export function parseSnippet(html: string): SnippetNode[] {
+  if (typeof html !== 'string') return []
+  try {
+    return scan(html)
+  } catch (error) {
+    console.error(
+      '[snippets] could not parse a snippet; passing it through as html:',
+      error instanceof Error ? error.message : error,
+    )
+    return html.trim() === '' ? [] : [{ tag: 'html', inline: html }]
+  }
 }

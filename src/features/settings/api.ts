@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/api/errors'
 import { apiFetch } from '@/lib/api/server'
 import { FEATURE_KEYS, isFeatureKey, type FeatureKey } from '@/lib/api/types/common'
 import type {
+  AuthSettings,
   CategoryCard,
   CategoryNode,
   FeatureState,
@@ -26,6 +27,19 @@ import type {
 const REVALIDATE_SECONDS = 300
 const FEATURES_REVALIDATE_SECONDS = 60
 
+/** The safe `auth` block: every sign-in method off. A fresh object, so callers cannot share it. */
+function disabledAuth(): AuthSettings {
+  return {
+    google_login_enabled: false,
+    google_client_id: null,
+    sms_otp_enabled: false,
+    telegram_otp_enabled: false,
+    available_otp_methods: [],
+    registration_methods: [],
+    default_otp_methods: { email: 'email' },
+  }
+}
+
 /** `GET global/settings/`: shop identity, contact data, footer HTML and the `auth` block. */
 export const getSiteSettings = cache(async (): Promise<SiteSettings | null> =>
   guarded('getSiteSettings', null, async () => {
@@ -34,7 +48,9 @@ export const getSiteSettings = cache(async (): Promise<SiteSettings | null> =>
       tags: ['settings'],
     })
     if (!isRecord(data)) throw new Error('unexpected settings payload')
-    return data as unknown as SiteSettings
+    // `auth` is always present per the contract; if it is not, login and registration stay off.
+    const auth = isRecord(data.auth) ? data.auth : disabledAuth()
+    return { ...data, auth } as unknown as SiteSettings
   }),
 )
 

@@ -62,6 +62,39 @@ describe('getSiteSettings', () => {
   })
 })
 
+describe('getSiteSettings auth block', () => {
+  const disabled = {
+    google_login_enabled: false,
+    google_client_id: null,
+    sms_otp_enabled: false,
+    telegram_otp_enabled: false,
+    available_otp_methods: [],
+    registration_methods: [],
+    default_otp_methods: { email: 'email' },
+  }
+
+  it.each([
+    ['missing', undefined],
+    ['null', null],
+    ['a string', 'x'],
+    ['an array', []],
+  ])('defaults to everything off when auth is %s', async (_label, auth) => {
+    fetchSpy.mockImplementation(async () => envelope({ name: 'فروشگاه', auth }))
+    const settings = await (await loadApi()).getSiteSettings()
+    expect(settings).toMatchObject({ name: 'فروشگاه', auth: disabled })
+  })
+
+  it('keeps a real auth block as it is and hands out a fresh default each time', async () => {
+    const auth = { ...disabled, google_login_enabled: true, google_client_id: 'id' }
+    fetchSpy.mockImplementation(async () => envelope({ name: 'x', auth }))
+    expect((await (await loadApi()).getSiteSettings())?.auth).toEqual(auth)
+    fetchSpy.mockImplementation(async () => envelope({ name: 'x' }))
+    const a = await (await loadApi()).getSiteSettings()
+    const b = await (await loadApi()).getSiteSettings()
+    expect(a?.auth).not.toBe(b?.auth)
+  })
+})
+
 describe('getFeatureStatus', () => {
   const row = (feature_key: string, is_enabled: boolean, disable_reason: string | null = null) => ({
     feature_key,
@@ -175,12 +208,13 @@ describe('paginated loaders', () => {
     expect((first?.init as { next?: Next }).next).toEqual({ revalidate: 300, tags: ['socials'] })
   })
 
-  it('stop at the page guard when next never ends', async () => {
+  it('fail with the fallback, logging once, when next never ends', async () => {
     fetchSpy.mockImplementation(async () => page([social(1)], 'http://api/x?page=99'))
     const { getSocials } = await loadApi()
-    const socials = await getSocials()
+    expect(await getSocials()).toEqual([])
     expect(fetchSpy).toHaveBeenCalledTimes(20)
-    expect(socials).toHaveLength(20)
+    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(errorSpy.mock.calls[0]?.join(' ')).toContain('global/socials has more than 20 pages')
   })
 
   it('return the fallback when a later page fails', async () => {

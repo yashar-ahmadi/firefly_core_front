@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { parseSnippet } from '@/lib/snippets/parse'
 
 // The two dev snippets: the content.md/seo-cache-deploy.md fixture and the live extra-snippets rows.
@@ -153,5 +153,45 @@ describe('parseSnippet comments and everything else', () => {
     expect(parseSnippet('')).toEqual([])
     expect(parseSnippet('  \n ')).toEqual([])
     expect(parseSnippet(undefined as unknown as string)).toEqual([])
+  })
+})
+
+describe('parseSnippet never throws', () => {
+  it.each([
+    ['a <b) c>', 'a <b) c>'],
+    ['<x[ y>', '<x[ y>'],
+    ['<(a)>text<*b>', '<(a)>text<*b>'],
+    ['<a.b>x</a.b>', '<a.b>x</a.b>'],
+  ])('keeps %s as text when the tag name is not a name', (input, inline) => {
+    expect(parseSnippet(input)).toEqual([{ tag: 'html', inline }])
+  })
+
+  it('still finds real tags after a malformed one', () => {
+    expect(parseSnippet('<x[ y><script>1</script>')).toEqual([
+      { tag: 'html', inline: '<x[ y>' },
+      { tag: 'script', inline: '1', attrs: {} },
+    ])
+  })
+
+  it('accepts namespaced and custom element names', () => {
+    expect(parseSnippet('<svg:rect a="1"></svg:rect><my-el_1>x</my-el_1>')).toEqual([
+      { tag: 'html', inline: '<svg:rect a="1"></svg:rect><my-el_1>x</my-el_1>' },
+    ])
+  })
+
+  it('passes the whole snippet through as html and logs once on an unexpected failure', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const indexOf = vi.spyOn(String.prototype, 'indexOf').mockImplementationOnce(() => {
+      throw new Error('boom')
+    })
+    try {
+      expect(parseSnippet('<script>1</script>')).toEqual([
+        { tag: 'html', inline: '<script>1</script>' },
+      ])
+      expect(error).toHaveBeenCalledTimes(1)
+    } finally {
+      indexOf.mockRestore()
+      error.mockRestore()
+    }
   })
 })

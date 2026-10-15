@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildCategoryTree } from '@/features/settings/category-tree'
-import type { CategoryCard } from '@/lib/api/types/settings'
+import type { CategoryCard, CategoryNode } from '@/lib/api/types/settings'
 import { calls, envelope, stubEnv, type FetchSpy } from '../bff/support'
 
 function card(id: number, parent_id: number | null, path = `c${id}`): CategoryCard {
@@ -23,6 +23,8 @@ function card(id: number, parent_id: number | null, path = `c${id}`): CategoryCa
 }
 
 const ids = (nodes: Array<{ id: number }>) => nodes.map((n) => n.id)
+const allIds = (nodes: CategoryNode[]): number[] =>
+  nodes.flatMap((node) => [node.id, ...allIds(node.children)])
 
 describe('buildCategoryTree', () => {
   it('nests children under their parent and keeps API order at every level', () => {
@@ -56,6 +58,29 @@ describe('buildCategoryTree', () => {
     const tree = buildCategoryTree([card(1, 1), card(2, null), card(2, null), card(3, 2)])
     expect(ids(tree)).toEqual([1, 2])
     expect(ids(tree[1]!.children)).toEqual([3])
+  })
+
+  it('breaks a longer parent cycle instead of dropping its nodes', () => {
+    const tree = buildCategoryTree([card(1, 2), card(2, 3), card(3, 1), card(4, null)])
+    expect(ids(tree).sort()).toEqual([1, 4])
+    expect(allIds(tree).sort()).toEqual([1, 2, 3, 4])
+    expect(() => JSON.stringify(tree)).not.toThrow()
+  })
+
+  it('breaks a two-node cycle, keeping a branch that hangs off it under its parent', () => {
+    // 1 <-> 2 is the loop; 3 is a child of 1 and 4 a child of 3.
+    const tree = buildCategoryTree([card(5, null), card(1, 2), card(2, 1), card(3, 1), card(4, 3)])
+    expect(ids(tree)).toEqual([5, 1])
+    expect(allIds(tree).sort()).toEqual([1, 2, 3, 4, 5])
+    const loopRoot = tree[1]!
+    expect(ids(loopRoot.children).sort()).toEqual([2, 3])
+    expect(() => JSON.stringify(tree)).not.toThrow()
+  })
+
+  it('leaves a healthy tree untouched when another part has a cycle', () => {
+    const tree = buildCategoryTree([card(1, null), card(2, 1), card(3, 4), card(4, 3)])
+    expect(ids(tree[0]!.children)).toEqual([2])
+    expect(allIds(tree).sort()).toEqual([1, 2, 3, 4])
   })
 
   it('does not mutate its input', () => {

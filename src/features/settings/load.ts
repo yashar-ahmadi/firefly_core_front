@@ -35,7 +35,10 @@ export async function guarded<T>(loader: string, fallback: T, load: () => Promis
   }
 }
 
-/** Every row of a paginated list, following `next` (the page number is kept here, never the URL). */
+/**
+ * Every row of a paginated list, following `next` (the page number is kept here, never the URL).
+ * Throws when a page is unusable or the list is longer than `MAX_PAGES`: never a partial list.
+ */
 export async function fetchAllRows(
   path: string,
   options: { revalidate: number; tags: string[] },
@@ -52,6 +55,7 @@ export async function fetchAllRows(
     rows.push(...data.results)
     if (!data.next) return rows
   }
-  console.error(`[settings] ${path} has more than ${MAX_PAGES} pages; the rest is ignored`)
-  return rows
+  // A list this long is a misbehaving `next` link; a partial list would be misleading (a category
+  // tree with missing parents), so this is a failure like any other and `guarded` reports it once.
+  throw new Error(`${path} has more than ${MAX_PAGES} pages`)
 }
