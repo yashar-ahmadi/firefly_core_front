@@ -76,8 +76,34 @@ describe('CommentList', () => {
       signal: expect.any(AbortSignal),
     })
     const list = screen.getByRole('list', { name: 'دیدگاه\u{200C}ها' })
-    expect(within(list).getAllByRole('article')).toHaveLength(2)
+    const articles = within(list).getAllByRole('article')
+    expect(articles).toHaveLength(2)
     expect(screen.queryByRole('button', { name: 'نمایش بیشتر' })).toBeNull()
+    // The button is gone (last page): the focus moves to the first new entry, not to <body>.
+    await waitFor(() => expect(articles[1]).toHaveFocus())
+  })
+
+  it('keeps the loaded entries when the next page fails, with a retry beside the button', async () => {
+    const user = userEvent.setup()
+    mocks.bffFetch
+      .mockResolvedValueOnce({ data: commentPage([comment()], 1, 2), msg: '', status: 200 })
+      .mockRejectedValueOnce(new ApiError({ status: 429, code: 'throttled' }))
+      .mockResolvedValueOnce({
+        data: commentPage([comment({ id: 10001, name: 'سارا احمدی' })], 2, 2),
+        msg: '',
+        status: 200,
+      })
+    renderList(21)
+    act(() => intersect())
+    await user.click(await screen.findByRole('button', { name: 'نمایش بیشتر' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('ادامه\u{0654} فهرست بارگذاری نشد.')
+    // The first page stays, and no full-list error replaces it.
+    expect(screen.getByText('محمد رضایی')).toBeInTheDocument()
+    expect(screen.queryByText('دیدگاه\u{200C}ها بارگذاری نشد.')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'تلاش دوباره' }))
+    expect(await screen.findByText('سارا احمدی')).toBeInTheDocument()
+    expect(screen.getByText('محمد رضایی')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('says when the list cannot be loaded, and tries again', async () => {

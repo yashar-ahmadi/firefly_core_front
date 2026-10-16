@@ -15,7 +15,7 @@ const COLLAPSED = 'max-h-96 overflow-hidden'
  * Long content collapsed to 24rem behind «read more» (MORE). Collapsing is CSS only: the whole
  * content is in the server HTML (search engines read it) and stays in the page. The button
  * appears once the content is measured taller than the box; until then (and without script)
- * the box is simply 24rem high.
+ * the box is simply 24rem high. Focus moving into the collapsed part (a link) opens it.
  */
 export function ReadMore({ children }: { children: ReactNode }) {
   const id = useId()
@@ -29,7 +29,8 @@ export function ReadMore({ children }: { children: ReactNode }) {
     if (!box || open) return
     const measure = () => setTall(box.scrollHeight > box.clientHeight + 1)
     measure()
-    // Images and fonts arriving later change the height.
+    // Images and fonts arriving later change the height (where the browser can tell).
+    if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(measure)
     observer.observe(box)
     for (const child of box.children) observer.observe(child)
@@ -47,6 +48,10 @@ export function ReadMore({ children }: { children: ReactNode }) {
       <div
         ref={boxRef}
         id={id}
+        // The keyboard reaching a link in the collapsed part opens it: nothing focused is hidden.
+        onFocus={() => {
+          if (tall && !open) setOpen(true)
+        }}
         className={cn(
           'relative',
           !open && COLLAPSED,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { focusInView } from '@/components/ui/focus-in-view'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -9,6 +9,9 @@ import { useFeature } from '@/features/settings/feature-context'
 import type { CommentType } from '@/lib/api/types/catalog'
 import { CommentThread } from './comment-thread'
 import { useComments } from './use-comments'
+
+const MORE_FAILED = 'ادامه\u{0654} فهرست بارگذاری نشد.'
+const RETRY = 'تلاش دوباره'
 
 const COPY: Record<CommentType, { list: string; empty: string; failed: string }> = {
   comment: {
@@ -51,6 +54,8 @@ export interface CommentListProps {
  * The approved reviews or questions, newest first (the API's only order), loaded in the
  * browser once the list comes near the viewport, then page by page with «نمایش بیشتر». With a
  * count of zero nothing is requested. Questions can be answered in place while comments are on.
+ * A page that fails to load leaves the entries already shown, with its error and a retry
+ * beside the button; a new page moves the focus to its first entry once it is rendered.
  */
 export function CommentList({ slug, type, count }: CommentListProps) {
   const copy = COPY[type]
@@ -59,19 +64,29 @@ export function CommentList({ slug, type, count }: CommentListProps) {
   const replies = useFeature('product_comments').enabled && type === 'question'
   const query = useComments(slug, type, { enabled: seen && count > 0 })
   const comments = query.data?.pages.flatMap((page) => page.results) ?? []
+  // The index of the first entry of the page asked for, focused once it is rendered (the button
+  // may be gone: the last page). `fetchNextPage` resolves before React renders the page.
+  const focusIndex = useRef<number | null>(null)
+
+  useEffect(() => {
+    const index = focusIndex.current
+    if (index === null || comments.length <= index) return
+    focusIndex.current = null
+    focusInView(listRef.current?.querySelectorAll<HTMLElement>(':scope > li > article')[index])
+  }, [comments.length])
 
   const showMore = async () => {
-    const shown = comments.length
-    await query.fetchNextPage()
-    // The first new entry takes the focus: the button may be gone (last page).
-    focusInView(listRef.current?.querySelectorAll<HTMLElement>(':scope > li > article')[shown])
+    focusIndex.current = comments.length
+    const result = await query.fetchNextPage()
+    // Failed: the focus stays on the button (now the retry).
+    if (result.isFetchNextPageError) focusIndex.current = null
   }
 
   if (count <= 0) return <p className="py-2 text-base text-ink-600">{copy.empty}</p>
 
   return (
     <div ref={ref} className="flex flex-col">
-      {query.isSuccess ? (
+      {query.data ? (
         <ol ref={listRef} aria-label={copy.list} className="flex flex-col divide-y divide-ink-100">
           {comments.map((comment) => (
             <CommentThread key={comment.id} comment={comment} slug={slug} canReply={replies} />
@@ -81,21 +96,27 @@ export function CommentList({ slug, type, count }: CommentListProps) {
         <div className="flex flex-wrap items-center gap-3 py-2">
           <p className="text-base text-ink-700">{copy.failed}</p>
           <Button variant="outline" onClick={() => void query.refetch()}>
-            تلاش دوباره
+            {RETRY}
           </Button>
         </div>
       ) : (
         <Placeholders count={count} label={`در حال بارگذاری ${copy.list}`} />
       )}
       {query.hasNextPage && (
-        <Button
-          variant="outline"
-          loading={query.isFetchingNextPage}
-          onClick={() => void showMore()}
-          className="mt-2 self-center"
-        >
-          نمایش بیشتر
-        </Button>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          {query.isFetchNextPageError && (
+            <p role="alert" className="text-base text-danger">
+              {MORE_FAILED}
+            </p>
+          )}
+          <Button
+            variant="outline"
+            loading={query.isFetchingNextPage}
+            onClick={() => void showMore()}
+          >
+            {query.isFetchNextPageError ? RETRY : 'نمایش بیشتر'}
+          </Button>
+        </div>
       )}
     </div>
   )

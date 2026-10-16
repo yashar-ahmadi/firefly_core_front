@@ -7,9 +7,18 @@ import { FeatureProvider, type FeatureMap } from '@/features/settings/feature-co
 import { ApiError } from '@/lib/api/errors'
 import { clientProviders } from '../support/providers'
 
-const mocks = vi.hoisted(() => ({ bffFetch: vi.fn() }))
+const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), loaded: { review: 0, question: 0 } }))
 
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
+// Counts the loads of the form modules: they load only when a form is opened (next/dynamic).
+vi.mock('@/features/product/components/reviews/review-form', async (importOriginal) => {
+  mocks.loaded.review += 1
+  return importOriginal()
+})
+vi.mock('@/features/product/components/reviews/question-form', async (importOriginal) => {
+  mocks.loaded.question += 1
+  return importOriginal()
+})
 
 const SLUG = 'samsung-galaxy-s25-ultra'
 const PATH = `product/detail/${SLUG}/comment/submit/`
@@ -40,16 +49,18 @@ beforeEach(() => {
 })
 
 describe('CommentComposer for reviews', () => {
-  it('opens the review form in place, and closes it again', async () => {
+  it('loads and opens the review form in place, and closes it again', async () => {
     const user = renderComposer('comment')
     const open = screen.getByRole('button', { name: 'ثبت دیدگاه' })
     expect(open).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('form')).toBeNull()
+    expect(mocks.loaded.review).toBe(0)
     await user.click(open)
     expect(open).toHaveAttribute('aria-expanded', 'true')
-    const form = screen.getByRole('form', { name: 'ثبت دیدگاه' })
+    const form = await screen.findByRole('form', { name: 'ثبت دیدگاه' })
+    expect(mocks.loaded.review).toBe(1)
     expect(open).toHaveAttribute('aria-controls', form.parentElement!.id)
-    expect(screen.getByRole('textbox', { name: /^متن دیدگاه/ })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('textbox', { name: /^متن دیدگاه/ })).toHaveFocus())
     await user.click(screen.getByRole('button', { name: 'انصراف' }))
     expect(screen.queryByRole('form')).toBeNull()
     expect(open).toHaveFocus()
@@ -59,7 +70,7 @@ describe('CommentComposer for reviews', () => {
     mocks.bffFetch.mockResolvedValue({ data: {}, msg: OK, status: 201 })
     const user = renderComposer('comment')
     await user.click(screen.getByRole('button', { name: 'ثبت دیدگاه' }))
-    await user.type(screen.getByRole('textbox', { name: /^متن دیدگاه/ }), 'عالی')
+    await user.type(await screen.findByRole('textbox', { name: /^متن دیدگاه/ }), 'عالی')
     await user.type(screen.getByRole('textbox', { name: /^نام \(/ }), 'سارا')
     await user.click(screen.getByRole('button', { name: 'ارسال دیدگاه' }))
     const status = await screen.findByRole('status')
@@ -84,7 +95,7 @@ describe('CommentComposer for reviews', () => {
     )
     const user = renderComposer('comment')
     await user.click(screen.getByRole('button', { name: 'ثبت دیدگاه' }))
-    await user.type(screen.getByRole('textbox', { name: /^متن دیدگاه/ }), 'عالی')
+    await user.type(await screen.findByRole('textbox', { name: /^متن دیدگاه/ }), 'عالی')
     await user.type(screen.getByRole('textbox', { name: /^نام \(/ }), 'سارا')
     await user.click(screen.getByRole('button', { name: 'ارسال دیدگاه' }))
     await waitFor(() => expect(screen.queryByRole('form')).toBeNull())
@@ -96,8 +107,10 @@ describe('CommentComposer for questions (QuestionForm)', () => {
   it('asks a text-only question', async () => {
     mocks.bffFetch.mockResolvedValue({ data: {}, msg: OK, status: 201 })
     const user = renderComposer('question')
+    expect(mocks.loaded.question).toBe(0)
     await user.click(screen.getByRole('button', { name: 'ثبت پرسش' }))
-    const form = screen.getByRole('form', { name: 'ثبت پرسش' })
+    const form = await screen.findByRole('form', { name: 'ثبت پرسش' })
+    expect(mocks.loaded.question).toBe(1)
     expect(screen.queryByRole('radio')).toBeNull()
     expect(screen.queryByRole('textbox', { name: /^عنوان/ })).toBeNull()
     await user.type(within(form).getByRole('textbox', { name: /^متن پرسش/ }), 'گارانتی دارد؟')

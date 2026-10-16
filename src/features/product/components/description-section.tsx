@@ -28,22 +28,15 @@ export function introParts(description: string | null, content: string | null): 
   return lead === null && html === null ? null : { lead, html }
 }
 
-export interface DescriptionSectionProps {
-  /** Plain text («توضیحات»). */
-  description: string | null
-  /** Operator HTML («نقد و بررسی»). */
-  content: string | null
-}
-
 /**
  * «معرفی» (product digest §3.10): the plain-text description with its line breaks, then the
  * operator's content, collapsed behind «read more» when tall. Operators often open the content
- * with the description itself: then it is shown once. Nothing when both are empty.
+ * with the description itself: then it is shown once. The page works out `intro` once
+ * (`introParts`, which also decides whether the tab exists) and renders this only when it is
+ * not null.
  */
-export function DescriptionSection({ description, content }: DescriptionSectionProps) {
-  const parts = introParts(description, content)
-  if (parts === null) return null
-  const { lead, html } = parts
+export function DescriptionSection({ intro }: { intro: IntroParts }) {
+  const { lead, html } = intro
   return (
     <SectionCard id={INTRO_ID} title={INTRO_TITLE}>
       <div className="flex max-w-4xl flex-col gap-4">

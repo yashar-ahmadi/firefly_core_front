@@ -5,7 +5,6 @@
 interface Registration {
   callback: IntersectionObserverCallback
   targets: Set<Element>
-  options: IntersectionObserverInit | undefined
 }
 
 const registrations = new Set<Registration>()
@@ -13,8 +12,8 @@ const registrations = new Set<Registration>()
 export class FakeIntersectionObserver {
   private readonly registration: Registration
 
-  constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
-    this.registration = { callback, targets: new Set(), options }
+  constructor(callback: IntersectionObserverCallback) {
+    this.registration = { callback, targets: new Set() }
     registrations.add(this.registration)
   }
 
@@ -43,11 +42,6 @@ export function intersect(targets?: Element[], isIntersecting = true): void {
     const entries = hit.map((target) => ({ target, isIntersecting }) as IntersectionObserverEntry)
     registration.callback(entries, {} as IntersectionObserver)
   }
-}
-
-/** The options of the observers alive now. */
-export function observerOptions(): (IntersectionObserverInit | undefined)[] {
-  return [...registrations].map((registration) => registration.options)
 }
 
 export function resetIntersections(): void {

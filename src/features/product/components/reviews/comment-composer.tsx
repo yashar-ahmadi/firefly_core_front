@@ -1,13 +1,34 @@
 'use client'
 
 import { CircleCheck, MessageSquarePlus, Reply } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { focusInView } from '@/components/ui/focus-in-view'
+import { Spinner } from '@/components/ui/spinner'
 import { useFeature } from '@/features/settings/feature-context'
 import type { CommentType } from '@/lib/api/types/catalog'
-import { QuestionForm } from './question-form'
-import { ReviewForm } from './review-form'
+
+/** While a form's code arrives (the first open only). */
+function FormLoading() {
+  return (
+    <div className="grid h-40 place-items-center">
+      <Spinner size="lg" label="در حال آماده\u{200C}سازی فرم" className="text-brand-600" />
+    </div>
+  )
+}
+
+// The forms' code loads the first time one is opened (or when the pointer comes near).
+const ReviewForm = dynamic(() => import('./review-form').then((module) => module.ReviewForm), {
+  ssr: false,
+  loading: FormLoading,
+})
+const QuestionForm = dynamic(
+  () => import('./question-form').then((module) => module.QuestionForm),
+  { ssr: false, loading: FormLoading },
+)
+const preload = (question: boolean) =>
+  void (question ? import('./question-form') : import('./review-form'))
 
 const OPEN: Record<CommentType, string> = { comment: 'ثبت دیدگاه', question: 'ثبت پرسش' }
 const REPLY = 'پاسخ'
@@ -30,15 +51,11 @@ export function CommentComposer({ slug, type, parentId }: CommentComposerProps) 
   const feature = useFeature('product_comments')
   const panelId = useId()
   const buttonRef = useRef<HTMLButtonElement>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
   const statusRef = useRef<HTMLParagraphElement>(null)
   const [open, setOpen] = useState(false)
   const [done, setDone] = useState<string | null>(null)
   const reply = parentId !== undefined
 
-  useEffect(() => {
-    if (open) focusInView(panelRef.current?.querySelector('textarea'))
-  }, [open])
   useEffect(() => {
     if (done) focusInView(statusRef.current)
   }, [done])
@@ -56,7 +73,8 @@ export function CommentComposer({ slug, type, parentId }: CommentComposerProps) 
     setOpen(false)
     setDone(message)
   }
-  const formProps = { slug, parentId, onDone: finish, onCancel: close }
+  const formProps = { slug, parentId, onDone: finish, onCancel: close, autoFocus: true }
+  const question = type === 'question' && !reply
 
   return (
     <div className="flex flex-col items-start gap-3">
@@ -70,18 +88,15 @@ export function CommentComposer({ slug, type, parentId }: CommentComposerProps) 
           setOpen(!open)
           setDone(null)
         }}
+        onPointerEnter={() => preload(question)}
+        onFocus={() => preload(question)}
         iconStart={reply ? <Reply aria-hidden /> : <MessageSquarePlus aria-hidden />}
         className={reply ? '-ms-3.5' : undefined}
       >
         {reply ? REPLY : OPEN[type]}
       </Button>
-      <div ref={panelRef} id={panelId} className="w-full empty:hidden">
-        {open &&
-          (type === 'question' && !reply ? (
-            <QuestionForm {...formProps} />
-          ) : (
-            <ReviewForm {...formProps} />
-          ))}
+      <div id={panelId} className="w-full empty:hidden">
+        {open && (question ? <QuestionForm {...formProps} /> : <ReviewForm {...formProps} />)}
         {done && (
           <p
             ref={statusRef}

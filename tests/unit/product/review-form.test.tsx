@@ -258,11 +258,27 @@ describe('ReviewForm controls', () => {
     expect(within(list).getAllByRole('listitem')).toHaveLength(10)
     expect(field(POSITIVE)).toBeDisabled()
     expect(add).toBeDisabled()
+    // The box is disabled at ten: the focus goes to the last point's remove button.
+    expect(within(list).getByRole('button', { name: 'حذف «مورد 10»' })).toHaveFocus()
     const remove = within(list).getByRole('button', { name: 'حذف «مورد 3»' })
     expect(remove).toHaveClass('size-11')
     await user.click(remove)
     expect(within(list).getAllByRole('listitem')).toHaveLength(9)
     expect(field(POSITIVE)).toBeEnabled()
+    // The focus moves to the next point's remove button, never to <body>.
+    await waitFor(() =>
+      expect(within(list).getByRole('button', { name: 'حذف «مورد 4»' })).toHaveFocus(),
+    )
+  })
+
+  it('after removing the last point, the focus goes to the previous one, then to the box', async () => {
+    const { user } = renderForm()
+    await user.type(field(POSITIVE), 'دوربین{Enter}')
+    await user.type(field(POSITIVE), 'باتری{Enter}')
+    await user.click(screen.getByRole('button', { name: 'حذف «باتری»' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'حذف «دوربین»' })).toHaveFocus())
+    await user.click(screen.getByRole('button', { name: 'حذف «دوربین»' }))
+    await waitFor(() => expect(field(POSITIVE)).toHaveFocus())
   })
 
   it('has a honeypot no person can reach', () => {

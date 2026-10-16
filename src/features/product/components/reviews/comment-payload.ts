@@ -1,7 +1,7 @@
 import type { CommentSubmitBody } from '@/lib/api/types/catalog'
 
-// The comment form's values, the request body and where the API's errors go (product digest
-// §3.13). Pure: safe in any bundle.
+// The comment form's words, values, request body and where the API's errors go (product
+// digest §3.13). Pure: safe in any bundle.
 
 /** At most ten points per list, each up to 255 characters (the API's limits). */
 export const MAX_POINTS = 10
@@ -10,6 +10,30 @@ export const MAX_POINT_LENGTH = 255
 /** A root review (rating, title and points allowed), a root question, or a reply (text only). */
 export type CommentMode = 'comment' | 'question' | 'reply'
 
+/** Each mode's words: the form's name, the text label, its missing-text error and the send button. */
+export const COMMENT_COPY: Record<
+  CommentMode,
+  { title: string; text: string; missing: string; send: string }
+> = {
+  comment: {
+    title: 'ثبت دیدگاه',
+    text: 'متن دیدگاه',
+    missing: 'متن دیدگاه را بنویسید.',
+    send: 'ارسال دیدگاه',
+  },
+  question: {
+    title: 'ثبت پرسش',
+    text: 'متن پرسش',
+    missing: 'متن پرسش را بنویسید.',
+    send: 'ارسال پرسش',
+  },
+  reply: {
+    title: 'ثبت پاسخ',
+    text: 'متن پاسخ',
+    missing: 'متن پاسخ را بنویسید.',
+    send: 'ارسال پاسخ',
+  },
+}
 export interface CommentValues {
   review: string
   /** Guests only. */

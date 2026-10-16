@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DescriptionSection } from '@/features/product/components/description-section'
+import { DescriptionSection, introParts } from '@/features/product/components/description-section'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { resolveServerTree } from '../support/server-tree'
 
@@ -25,12 +25,13 @@ vi.mock('@/config/store-config', async () => {
 stubBrowserApis()
 
 const MORE = 'ادامه\u{0654} مطلب'
-const CONTENT = '<p>دوربین ۲۰۰ مگاپیکسلی</p><ul><li>باتری ۵۰۰۰</li></ul>'
+const CONTENT =
+  '<p>دوربین ۲۰۰ مگاپیکسلی</p><ul><li>باتری ۵۰۰۰</li></ul><p><a href="/page/warranty/">گارانتی</a></p>'
 
 async function renderSection(description: string | null, content: string | null) {
-  const tree = await resolveServerTree(
-    (await DescriptionSection({ description, content })) as ReactNode,
-  )
+  const intro = introParts(description, content)
+  if (intro === null) throw new Error('nothing to show')
+  const tree = await resolveServerTree((await DescriptionSection({ intro })) as ReactNode)
   return render(<>{tree}</>)
 }
 
@@ -59,9 +60,9 @@ describe('DescriptionSection («معرفی»)', () => {
     expect(screen.getAllByText('دوربین ۲۰۰ مگاپیکسلی')).toHaveLength(1)
   })
 
-  it('renders nothing without a description or content', async () => {
-    const { container } = await renderSection(null, '<p>&nbsp;</p>')
-    expect(container).toBeEmptyDOMElement()
+  it('has nothing to show without a description or content (no section, no tab)', () => {
+    expect(introParts(null, '<p>&nbsp;</p>')).toBeNull()
+    expect(introParts('  ', null)).toBeNull()
   })
 
   it('needs no expander for short content', async () => {
@@ -83,5 +84,23 @@ describe('DescriptionSection («معرفی»)', () => {
     expect(more).toHaveAttribute('aria-expanded', 'true')
     expect(more).toHaveTextContent('بستن')
     expect(box).not.toHaveClass('max-h-96')
+  })
+
+  it('opens when the keyboard reaches a link hidden in the collapsed part', async () => {
+    overflowing(2000)
+    await renderSection(null, CONTENT)
+    const more = await screen.findByRole('button', { name: MORE })
+    act(() => screen.getByRole('link', { name: 'گارانتی' }).focus())
+    expect(more).toHaveAttribute('aria-expanded', 'true')
+    expect(document.getElementById(more.getAttribute('aria-controls')!)).not.toHaveClass('max-h-96')
+  })
+
+  it('still offers the expander where ResizeObserver is missing', async () => {
+    vi.stubGlobal('ResizeObserver', undefined)
+    overflowing(2000)
+    await renderSection(null, CONTENT)
+    expect(await screen.findByRole('button', { name: MORE })).toBeInTheDocument()
+    vi.unstubAllGlobals()
+    stubBrowserApis()
   })
 })

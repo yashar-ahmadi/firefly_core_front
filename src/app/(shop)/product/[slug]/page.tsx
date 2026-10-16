@@ -148,9 +148,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         {/* The bar stays stuck while these four sections pass, then leaves with them. */}
         <div className="flex flex-col gap-4 md:gap-6">
           <ProductSectionsNav items={sections} />
-          {intro && (
-            <DescriptionSection description={product.description} content={product.content} />
-          )}
+          {intro && <DescriptionSection intro={intro} />}
           {hasSpecs && (
             <SectionCard id={SPECS.id} title={SPECS.title}>
               <div className="max-w-4xl">

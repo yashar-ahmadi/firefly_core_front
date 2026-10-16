@@ -31,9 +31,10 @@ test.describe('product page sections', () => {
     expect(errors).toEqual([])
   })
 
-  test('the section bar scrolls to the reviews, clear of the header and the bar', async ({
+  test('the section bar scrolls to the reviews, just under the header and the bar', async ({
     page,
   }) => {
+    const errors = watchErrors(page)
     await page.goto(S25)
     const link = bar(page).getByRole('link', { name: new RegExp(`^${REVIEWS}`) })
     await link.click()
@@ -41,16 +42,23 @@ test.describe('product page sections', () => {
     await expect(heading).toBeInViewport()
     await expect(link).toHaveAttribute('aria-current', 'true')
     await expect(reviews(page)).toBeFocused()
-    // Wait for the smooth scroll and the header's compact switch to settle.
+    await expect(page).toHaveURL(new RegExp(`${S25}#reviews$`))
+    // Once the smooth scroll and the header's compact switch settle, the section's top sits
+    // 8px under the bar (0 to 16 allowed): never under it, and not far below.
+    const gap = async (target: typeof heading) => {
+      const [barBox, box] = await Promise.all([bar(page).boundingBox(), target.boundingBox()])
+      return barBox && box ? Math.round(box.y - (barBox.y + barBox.height)) : -1
+    }
     await expect
       .poll(async () => {
-        const [barBox, headingBox] = await Promise.all([
-          bar(page).boundingBox(),
-          heading.boundingBox(),
-        ])
-        return barBox && headingBox ? headingBox.y - (barBox.y + barBox.height) : -1
+        const value = await gap(reviews(page))
+        return value >= 0 && value <= 16 ? 'in place' : value
       })
-      .toBeGreaterThanOrEqual(0)
+      .toBe('in place')
+    // The heading itself is clear of the bar (the card's padding is above it).
+    expect(await gap(heading)).toBeGreaterThan(0)
+    await page.waitForLoadState('load')
+    expect(errors).toEqual([])
   })
 
   test('the specifications join the values of a row', async ({ page }) => {
@@ -62,6 +70,7 @@ test.describe('product page sections', () => {
   test('a guest review without a name is stopped at the name field, nothing sent', async ({
     page,
   }) => {
+    const errors = watchErrors(page)
     const sent: string[] = []
     await page.route('**/comment/submit/**', (route) => {
       sent.push(route.request().url())
@@ -78,6 +87,8 @@ test.describe('product page sections', () => {
     await expect(name).toHaveAccessibleDescription('نام خود را بنویسید.')
     await expect(name).toBeFocused()
     expect(sent).toEqual([])
+    await page.waitForLoadState('load')
+    expect(errors).toEqual([])
   })
 })
 

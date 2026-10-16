@@ -1,7 +1,7 @@
 'use client'
 
 import { CircleAlert, CircleMinus, CirclePlus, Plus, Star, X } from 'lucide-react'
-import { useId, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/components/ui/cn'
 import { IconButton } from '@/components/ui/icon-button'
@@ -122,11 +122,34 @@ export function PointsInput({ kind, points, draft, onChange, error }: PointsInpu
   const full = points.length >= MAX_POINTS
   const hintId = `${id}hint`
   const errorId = `${id}error`
+  const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  // Where the focus goes once the list has changed: a remove button (by index) or the box. The
+  // removed button, or the box disabled at ten, would otherwise drop it to <body>.
+  const pendingFocus = useRef<number | 'input' | null>(null)
+
+  useEffect(() => {
+    const target = pendingFocus.current
+    if (target === null) return
+    pendingFocus.current = null
+    if (target === 'input') inputRef.current?.focus()
+    else listRef.current?.querySelectorAll('button')[target]?.focus()
+  }, [points])
 
   const addDraft = () => {
     const text = draft.trim()
     if (!text || full) return
-    onChange(points.includes(text) ? [...points] : [...points, text], '')
+    const next = points.includes(text) ? [...points] : [...points, text]
+    if (next.length >= MAX_POINTS) pendingFocus.current = next.length - 1
+    onChange(next, '')
+  }
+  const remove = (index: number) => {
+    // The next point's button (the previous one for the last), or the box when none is left.
+    pendingFocus.current = points.length > 1 ? Math.min(index, points.length - 2) : 'input'
+    onChange(
+      points.filter((_, kept) => kept !== index),
+      draft,
+    )
   }
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
@@ -141,6 +164,7 @@ export function PointsInput({ kind, points, draft, onChange, error }: PointsInpu
       </label>
       <div className="flex gap-2">
         <Input
+          ref={inputRef}
           id={`${id}input`}
           value={draft}
           maxLength={MAX_POINT_LENGTH}
@@ -170,8 +194,8 @@ export function PointsInput({ kind, points, draft, onChange, error }: PointsInpu
       </p>
       {error && <FieldError id={errorId} message={error} />}
       {points.length > 0 && (
-        <ul aria-label={label} className="flex flex-wrap gap-2">
-          {points.map((point) => (
+        <ul ref={listRef} aria-label={label} className="flex flex-wrap gap-2">
+          {points.map((point, index) => (
             <li
               key={point}
               className="flex max-w-full items-center gap-1.5 rounded-pill border border-ink-200 bg-ink-50 ps-3"
@@ -183,12 +207,7 @@ export function PointsInput({ kind, points, draft, onChange, error }: PointsInpu
               <IconButton
                 label={`حذف «${point}»`}
                 icon={<X aria-hidden />}
-                onClick={() =>
-                  onChange(
-                    points.filter((kept) => kept !== point),
-                    draft,
-                  )
-                }
+                onClick={() => remove(index)}
               />
             </li>
           ))}

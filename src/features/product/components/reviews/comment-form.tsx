@@ -20,30 +20,11 @@ import {
   type CommentErrors,
   type CommentMode,
   type CommentValues,
+  COMMENT_COPY as COPY,
 } from './comment-payload'
 import { PointsInput, StarRatingInput } from './review-fields'
 import { commentsKey } from './use-comments'
 
-const COPY: Record<CommentMode, { title: string; text: string; missing: string; send: string }> = {
-  comment: {
-    title: 'ثبت دیدگاه',
-    text: 'متن دیدگاه',
-    missing: 'متن دیدگاه را بنویسید.',
-    send: 'ارسال دیدگاه',
-  },
-  question: {
-    title: 'ثبت پرسش',
-    text: 'متن پرسش',
-    missing: 'متن پرسش را بنویسید.',
-    send: 'ارسال پرسش',
-  },
-  reply: {
-    title: 'ثبت پاسخ',
-    text: 'متن پاسخ',
-    missing: 'متن پاسخ را بنویسید.',
-    send: 'ارسال پاسخ',
-  },
-}
 const NAME_MISSING = 'نام خود را بنویسید.'
 const DONE = 'نظر شما ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
 const FAILED = 'خطایی رخ داد. لطفاً دوباره تلاش کنید.'
@@ -58,6 +39,8 @@ export interface CommentFormProps {
   /** After the API accepted it (201): its moderation notice. The fields are reset. */
   onDone: (message: string) => void
   onCancel?: () => void
+  /** Focus the text box once mounted (the form was just opened). */
+  autoFocus?: boolean
 }
 
 /**
@@ -69,7 +52,14 @@ export interface CommentFormProps {
  * and anything else (no connection, a page that is not the API, too many requests) above the
  * buttons with its own message. A switched-off feature hides the form (CommentComposer).
  */
-export function CommentForm({ slug, mode, parentId, onDone, onCancel }: CommentFormProps) {
+export function CommentForm({
+  slug,
+  mode,
+  parentId,
+  onDone,
+  onCancel,
+  autoFocus = false,
+}: CommentFormProps) {
   const copy = COPY[mode]
   const { hasSession } = useSession()
   const queryClient = useQueryClient()
@@ -83,6 +73,10 @@ export function CommentForm({ slug, mode, parentId, onDone, onCancel }: CommentF
   const [askName, setAskName] = useState(false)
   const guest = !hasSession || askName
   const review = mode === 'comment'
+
+  useEffect(() => {
+    if (autoFocus) focusInView(formRef.current?.querySelector('textarea'))
+  }, [autoFocus])
 
   useEffect(() => {
     if (attempt > 0)

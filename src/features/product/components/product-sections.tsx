@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { TOP_ZONE } from '@/components/layout/scroll-state'
 import { cn } from '@/components/ui/cn'
 import { usePrefersReducedMotion } from '@/components/ui/use-media-query'
@@ -52,14 +52,23 @@ function rootLength(name: string): number {
   return raw.endsWith('rem') ? value * (Number.parseFloat(style.fontSize) || 16) : value
 }
 
+/** What a hand scroll starts with; a programmatic scroll fires none of these. */
+const HAND_SCROLL = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const
+
 /**
  * The section in the reading band, the first one when two are; between sections the last one
- * stays. Above the first section (the top of the page) none is.
+ * stays. Above the first section (the top of the page) none is. `pin(id)` marks a section the
+ * bar scrolls to and holds it while that scroll passes other sections, and when a short last
+ * section never reaches the band, until the visitor scrolls by hand. Without
+ * IntersectionObserver only the pressed tab is marked.
  */
 function useActiveSection(ids: readonly string[]): [string | null, (id: string) => void] {
   const [active, setActive] = useState<string | null>(null)
+  const pinned = useRef(false)
   const key = ids.join(' ')
+
   useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return
     const order = key.split(' ')
     const inBand = new Set<string>()
     const observer = new IntersectionObserver(
@@ -68,6 +77,7 @@ function useActiveSection(ids: readonly string[]): [string | null, (id: string) 
           if (entry.isIntersecting) inBand.add(entry.target.id)
           else inBand.delete(entry.target.id)
         }
+        if (pinned.current) return
         const first = order.find((id) => inBand.has(id))
         if (first) return setActive(first)
         // The first section left the band downwards: the visitor went back above the sections.
@@ -83,21 +93,38 @@ function useActiveSection(ids: readonly string[]): [string | null, (id: string) 
     }
     return () => observer.disconnect()
   }, [key])
-  return [active, setActive]
+
+  useEffect(() => {
+    const release = () => {
+      pinned.current = false
+    }
+    for (const type of HAND_SCROLL) {
+      window.addEventListener(type, release, { capture: true, passive: true })
+    }
+    return () => {
+      for (const type of HAND_SCROLL) window.removeEventListener(type, release, { capture: true })
+    }
+  }, [])
+
+  const pin = useCallback((id: string) => {
+    pinned.current = true
+    setActive(id)
+  }, [])
+  return [active, pin]
 }
 
 /**
  * The product page's in-page tab bar: anchor links to its sections, sticky under the header,
  * scrolling sideways when the links do not fit. A press scrolls the section just under the
- * header and the bar (at once under reduced motion) and moves the focus there; the section
- * being read is marked (`aria-current`). Without script the links still jump (the sections have
- * a scroll margin).
+ * header and the bar (at once under reduced motion), moves the focus there and puts its `#id`
+ * in the URL; the section being read is marked (`aria-current`). Without script the links still
+ * jump (the sections have a scroll margin).
  */
 export function ProductSectionsNav({ items }: { items: readonly SectionLink[] }) {
   const navRef = useRef<HTMLElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const reducedMotion = usePrefersReducedMotion()
-  const [active, setActive] = useActiveSection(items.map((item) => item.id))
+  const [active, pin] = useActiveSection(items.map((item) => item.id))
 
   // Keep the marked link in view on phones, where the bar scrolls sideways.
   useEffect(() => {
@@ -127,7 +154,10 @@ export function ProductSectionsNav({ items }: { items: readonly SectionLink[] })
     })
     window.scrollTo({ top, behavior: reducedMotion ? 'auto' : 'smooth' })
     section.focus({ preventScroll: true })
-    setActive(id)
+    // Shareable: the hash joins the URL (the rest kept, no new history entry). Next's router
+    // keeps its own state in `history.state`, so that is passed back untouched.
+    window.history.replaceState(window.history.state, '', `#${id}`)
+    pin(id)
   }
 
   return (

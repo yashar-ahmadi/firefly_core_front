@@ -38,7 +38,9 @@ const section = (id: string) => document.getElementById(id)!
 beforeEach(() => {
   resetIntersections()
   media.set(() => false)
+  vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  window.history.replaceState(null, '', '/product/samsung-galaxy-s25-ultra/?variant=10002')
 })
 
 afterEach(() => {
@@ -80,12 +82,16 @@ describe('ProductSectionsNav', () => {
     expect(within(bar()).getByRole('list')).toHaveClass('overflow-x-auto')
   })
 
-  it('scrolls smoothly to the section and moves the focus there', async () => {
+  it('scrolls smoothly to the section, moves the focus there and puts it in the URL', async () => {
     const user = userEvent.setup()
     renderBar()
     await user.click(within(bar()).getByRole('link', { name: /^دیدگاه/ }))
     expect(window.scrollTo).toHaveBeenCalledWith({ top: expect.any(Number), behavior: 'smooth' })
     expect(section('reviews')).toHaveFocus()
+    // Shareable, the rest of the URL kept, no new history entry.
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe(
+      '/product/samsung-galaxy-s25-ultra/?variant=10002#reviews',
+    )
   })
 
   it('jumps without animation under reduced motion', async () => {
@@ -111,5 +117,30 @@ describe('ProductSectionsNav', () => {
     // Between sections (none in the band) the last one stays marked.
     act(() => intersect([section('reviews')], false))
     expect(link(/^دیدگاه/)).toHaveAttribute('aria-current', 'true')
+  })
+
+  it('keeps the pressed tab marked while its scroll passes other sections, until a hand scroll', async () => {
+    const user = userEvent.setup()
+    renderBar()
+    const link = (name: RegExp) => within(bar()).getByRole('link', { name })
+    await user.click(link(/^پرسش/))
+    expect(link(/^پرسش/)).toHaveAttribute('aria-current', 'true')
+    // The smooth scroll crosses the reviews, and a short section may never reach the band.
+    act(() => intersect([section('reviews')]))
+    expect(link(/^پرسش/)).toHaveAttribute('aria-current', 'true')
+    // The visitor scrolls by hand: the band decides again.
+    act(() => {
+      window.dispatchEvent(new WheelEvent('wheel'))
+    })
+    act(() => intersect([section('reviews')]))
+    expect(link(/^دیدگاه/)).toHaveAttribute('aria-current', 'true')
+  })
+
+  it('still navigates where IntersectionObserver is missing', async () => {
+    vi.stubGlobal('IntersectionObserver', undefined)
+    const user = userEvent.setup()
+    renderBar()
+    await user.click(within(bar()).getByRole('link', { name: /^پرسش/ }))
+    expect(section('questions')).toHaveFocus()
   })
 })

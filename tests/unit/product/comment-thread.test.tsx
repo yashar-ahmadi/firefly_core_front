@@ -91,8 +91,17 @@ describe('CommentThread', () => {
     const second = reply(7, '2026-06-21T10:00:00+03:30', { replies: [third] })
     const first = reply(6, '2026-06-20T10:00:00+03:30', { replies: [second] })
     renderThread(comment({ replies: [first] }))
-    const depths = articles().map((node) => node.closest('li')?.getAttribute('data-depth'))
-    expect(depths).toEqual(['0', '1', '2', '2', '2'])
+    const items = articles().map((node) => node.closest('li')!)
+    expect(items.map((item) => item.getAttribute('data-depth'))).toEqual(['0', '1', '2', '2', '2'])
+    // Each reply list is indented from its parent's start, except under depth 2: the replies of
+    // a depth-2 entry stay at depth 2's indent.
+    const replyList = (item: HTMLElement) => item.querySelector(':scope > ol')!
+    expect(replyList(items[0]!)).toHaveClass('ms-3', 'ps-3', 'border-s-2')
+    expect(replyList(items[1]!)).toHaveClass('ms-3', 'ps-3', 'border-s-2')
+    for (const item of items.slice(2, 4)) {
+      expect(replyList(item).className).not.toMatch(/(?:^|\s)(?:md:)?(?:ms|ps)-\d/)
+      expect(replyList(item)).not.toHaveClass('border-s-2')
+    }
   })
 
   it('offers a reply form under a question when replies are allowed', async () => {
@@ -101,6 +110,6 @@ describe('CommentThread', () => {
     const open = screen.getByRole('button', { name: 'پاسخ' })
     expect(open).toHaveAttribute('aria-expanded', 'false')
     await user.click(open)
-    expect(screen.getByRole('form', { name: 'ثبت پاسخ' })).toBeInTheDocument()
+    expect(await screen.findByRole('form', { name: 'ثبت پاسخ' })).toBeInTheDocument()
   })
 })

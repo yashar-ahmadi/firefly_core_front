@@ -9,6 +9,8 @@ export interface ReviewFormProps {
   /** After the API accepted it (201), with its moderation notice; the form is reset. */
   onDone: (message: string) => void
   onCancel?: () => void
+  /** Focus the text box once mounted. */
+  autoFocus?: boolean
 }
 
 /**
@@ -16,7 +18,7 @@ export interface ReviewFormProps {
  * to ten pros and ten cons, and a guest's name and optional e-mail; with `parentId`, a reply.
  * Nothing is inserted into the list: the entry waits for moderation.
  */
-export function ReviewForm({ slug, parentId, onDone, onCancel }: ReviewFormProps) {
+export function ReviewForm({ slug, parentId, onDone, onCancel, autoFocus }: ReviewFormProps) {
   return (
     <CommentForm
       slug={slug}
@@ -24,6 +26,7 @@ export function ReviewForm({ slug, parentId, onDone, onCancel }: ReviewFormProps
       parentId={parentId}
       onDone={onDone}
       onCancel={onCancel}
+      autoFocus={autoFocus}
     />
   )
 }
