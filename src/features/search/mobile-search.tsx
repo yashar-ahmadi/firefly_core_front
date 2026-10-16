@@ -2,7 +2,15 @@
 
 import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react'
 import { useHydrated } from '@/components/ui/use-media-query'
 import { WidgetBoundary } from '@/components/ui/widget-boundary'
 import { useT } from '@/lib/i18n/i18n-context'
@@ -81,7 +89,10 @@ export function MobileSearch({ className }: { className?: string }) {
     if (state.open) setState({ ...state, open: false })
   }
 
-  useEffect(() => {
+  // In the commit that makes the field writable, not after it: a passive effect can run a task
+  // later (React yields between the two when the main thread is busy), leaving a writable field
+  // without the focus in between.
+  useLayoutEffect(() => {
     if (failed) fieldRef.current?.focus()
   }, [failed])
 
