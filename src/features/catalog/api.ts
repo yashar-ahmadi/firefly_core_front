@@ -19,7 +19,9 @@ export {
 
 /**
  * Server loaders of the public catalog. Every read is anonymous: no token, no cart token and no
- * visitor IP, so one Data Cache entry (and the HTML built from it) serves everyone. `cache()`
+ * visitor IP, so one Data Cache entry (and the HTML built from it) serves everyone. The exception
+ * is a long-tail listing query (`isLongTail`), which carries the visitor IP: a per-visitor entry,
+ * charged to the visitor's API rate limit. Detail 404s are remembered for a minute. `cache()`
  * dedupes the calls within one render (`generateMetadata` plus the page). Tags: the entity tag
  * (`product:`, `category:`, `brand:` or `list:` plus the decoded slug) or `home`, then `catalog`
  * on every read, so `revalidateTag('catalog')` refreshes the whole catalog.

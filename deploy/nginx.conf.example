@@ -128,6 +128,18 @@ server {
         access_log off;
     }
 
+    # Optional (recommended): a per-IP rate limit on the catalog pages, so one address cannot spend
+    # the storefront's shared anonymous API budget with made-up slugs and queries. Needs, at http
+    # level (outside this server block):
+    #   limit_req_zone $binary_remote_addr zone=firefly_catalog:10m rate=10r/s;
+    # The burst is generous: client navigations and card-link prefetches hit these paths too.
+    # location ~ ^/(product|product-category|brand|categories|search)/ {
+    #     limit_req zone=firefly_catalog burst=60 nodelay;
+    #     limit_req_status 429;
+    #     proxy_pass http://firefly_storefront;
+    #     proxy_buffering off;
+    # }
+
     # Everything else: pages, /api/bff/ (the BFF), robots.txt, /s/<code> short links, and the paths
     # the storefront forwards to the API itself (/media/, /static/, /sitemap.xml and the bank
     # callback /api/v1/payment/gateway/callback/...). Methods, bodies and the trailing slash are

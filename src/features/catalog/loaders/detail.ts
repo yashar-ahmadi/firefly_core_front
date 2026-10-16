@@ -4,7 +4,7 @@ import {
   CATALOG_TAG,
   ENTITY_REVALIDATE,
   oneSegment,
-  orNotFound,
+  orRememberedNotFound,
   read,
 } from '@/features/catalog/loaders/read'
 import type {
@@ -22,13 +22,15 @@ const PRODUCT_REVALIDATE = 60
  * A detail loader: null for a slug that cannot be one segment, or on a 404; throws otherwise.
  * `<kind>/list/` is routed to the list endpoint, so for categories, brands and list pages a record
  * whose slug is `list` cannot be fetched (product digest §11.4): that slug is null too.
+ * A 404 is remembered for a minute in process memory, so a repeated unknown slug asks nothing.
  */
 function detailLoader<T>(endpoint: string, tag: string, revalidate: number, listReserved: boolean) {
   return cache(async (slug: string): Promise<T | null> => {
     const segment = oneSegment(slug)
     if (segment === null || (listReserved && segment.text === 'list')) return null
-    return orNotFound(() =>
-      read<T>(`${endpoint}/${segment.path}`, {
+    const path = `${endpoint}/${segment.path}`
+    return orRememberedNotFound(path, () =>
+      read<T>(path, {
         revalidate,
         tags: [`${tag}:${segment.text}`, CATALOG_TAG],
       }),

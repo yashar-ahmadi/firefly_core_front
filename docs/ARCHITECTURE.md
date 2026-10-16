@@ -141,8 +141,20 @@ re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
 so uncached calls (BFF, redirect resolution, short links, token refresh, bank callback) send
 `X-Forwarded-For: <visitor IP>`. The IP is read from `CLIENT_IP_HEADER` (default `x-real-ip`), which
 must be a header the edge **overwrites**; a client-appendable `X-Forwarded-For` would be spoofable.
-Cached shared reads never carry it (it would split the cache per visitor). The backend must trust
-the storefront (`TRUSTED_PROXY_IPS`); see DEPLOYMENT.md.
+Cached shared reads never carry it (it would split the cache per visitor), with one deliberate
+exception: a **long-tail** listing query (`isLongTail` in `features/catalog/loaders/listing.ts`: a
+`search` term, `min_price`/`max_price`, `attribute_values` or more than one `brand`) sends the
+visitor IP. Next's fetch cache key covers every request header (`generateCacheKey` in
+`next/dist/server/lib/incremental-cache` hashes the URL, method, headers, body and fetch options),
+so such a read gets a per-visitor cache entry, still cached 60 s, and each miss is charged to the
+visitor's own API rate limit rather than to the storefront's single address. Plain listings (no
+parameters, or only `sort`, `page`, the boolean toggles or a single brand) stay shared. The API's
+own 404s for product, category, brand and list-page slugs (and unknown filter contexts) are
+remembered in process memory for 60 s, at most 500 keys, least recently used out first
+(`features/catalog/loaders/missing.ts`); other failures are never remembered, and
+`revalidateTag` does not clear this list. DEPLOYMENT.md recommends a per-IP nginx `limit_req` on
+the catalog paths on top. The backend must trust the storefront (`TRUSTED_PROXY_IPS`); see
+DEPLOYMENT.md.
 
 **Why `FIREFLY_API_URL` must be the public API origin.** Django builds media URLs from the request
 `Host` (and Node's `fetch` ignores a custom `Host`), and the rewrite target of forwarded paths is
@@ -219,8 +231,9 @@ Never cached (`cache: 'no-store'`, and `Cache-Control: no-store` on our response
 - token refresh, the bank callback, the robots 503 fallback and `/healthz/`;
 - forwarded `/media/`, `/static/` and `/sitemap.xml` (proxied as is; the backend's headers apply).
 
-Rules for later plans (from the spec and `seo-cache-deploy.md` §10): never send `Authorization` or a
-per-visitor `X-Forwarded-For` on a cached read; personal data (wishlist hearts, cart contents and
+Rules for later plans (from the spec and `seo-cache-deploy.md` §10): never send `Authorization` on a
+cached read, nor a per-visitor `X-Forwarded-For` (except on a long-tail listing query, see Visitor
+IP); personal data (wishlist hearts, cart contents and
 count, account details) is fetched client-side through the BFF, never rendered into the HTML; fetch
 blog post detail once per render (`GET` increments the view counter).
 
