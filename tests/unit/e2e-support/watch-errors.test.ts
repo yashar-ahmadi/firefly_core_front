@@ -26,9 +26,13 @@ describe('isExpectedFailure', () => {
   })
 
   it('lets through only 404s from the routes not built yet', () => {
-    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/search/?_rsc=abc')).toBe(true)
-    expect(isExpectedFailure(SERVER_ERROR, 'http://localhost:3000/search/?_rsc=abc')).toBe(false)
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/cart/?_rsc=abc')).toBe(true)
+    expect(isExpectedFailure(SERVER_ERROR, 'http://localhost:3000/cart/?_rsc=abc')).toBe(false)
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/product/x/')).toBe(false)
+  })
+
+  it('reports a 404 from the search page, which exists now', () => {
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/search/?_rsc=abc')).toBe(false)
   })
 
   it('reports every other message', () => {

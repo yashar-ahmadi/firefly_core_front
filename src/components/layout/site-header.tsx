@@ -75,7 +75,7 @@ export async function SiteHeader() {
 
         <div className="pointer-events-auto border-b border-ink-200 bg-white transition-shadow md:hidden scrolled:shadow-md">
           <div className={cn(CONTAINER, 'flex h-14 items-center')}>
-            <HeaderSearchForm size="md" className="flex-1" />
+            <HeaderSearchForm size="md" overlay className="flex-1" />
           </div>
         </div>
 

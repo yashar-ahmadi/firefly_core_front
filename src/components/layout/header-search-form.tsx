@@ -1,67 +1,34 @@
 'use client'
 
-import { Search } from 'lucide-react'
-import Form from 'next/form'
-import { useId } from 'react'
-import { HIT_AREA_SQUARE } from '@/components/ui/button-styles'
-import { cn } from '@/components/ui/cn'
-import { useT } from '@/lib/i18n/i18n-context'
+import { WidgetBoundary } from '@/components/ui/widget-boundary'
+import { MobileSearch } from '@/features/search/mobile-search'
+import { PlainSearchForm } from '@/features/search/search-form'
+import type { SearchFieldSize } from '@/features/search/search-field'
+import { SuggestBox } from '@/features/search/suggest-box'
 
 /**
- * The header's search box: a plain GET form to `/search/?q=…` (client-side navigation through
- * next/form). An empty query is not sent. Plan 2 adds suggestions and the phone search overlay.
+ * The shop's search box, a GET form to `/search/?q=…` in every form (it works without JS):
+ * - by default the suggest box (suggestions and recent searches under the field);
+ * - `overlay` (the phone header, below md): a field that opens the full-screen search overlay.
+ * A suggest box that fails to render leaves the plain form in its place (WidgetBoundary).
  */
 export function HeaderSearchForm({
   size = 'lg',
+  overlay = false,
   className,
 }: {
   /** `lg` is 48px (desktop and tablet), `md` 44px (phones). */
-  size?: 'md' | 'lg'
+  size?: SearchFieldSize
+  overlay?: boolean
   className?: string
 }) {
-  const t = useT()
-  const id = useId()
+  if (overlay) return <MobileSearch className={className} />
   return (
-    <Form
-      action="/search/"
-      role="search"
-      className={cn('relative flex items-center', className)}
-      onSubmit={(event) => {
-        const input = event.currentTarget.elements.namedItem('q')
-        if (input instanceof HTMLInputElement && input.value.trim() === '') {
-          event.preventDefault()
-          input.focus()
-        }
-      }}
+    <WidgetBoundary
+      name="search-box"
+      fallback={<PlainSearchForm size={size} className={className} />}
     >
-      <label htmlFor={id} className="sr-only">
-        {t('search')}
-      </label>
-      <input
-        id={id}
-        name="q"
-        type="search"
-        enterKeyHint="search"
-        autoComplete="off"
-        placeholder={t('search_placeholder')}
-        className={cn(
-          'w-full rounded-control border border-transparent bg-ink-100 ps-12 pe-4 text-base text-ink-900 placeholder:text-ink-500',
-          'transition-[background-color,border-color,box-shadow] duration-150 hover:bg-ink-200/70',
-          'focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15 focus:outline-none',
-          '[&::-webkit-search-cancel-button]:appearance-none',
-          size === 'lg' ? 'h-12' : 'h-11',
-        )}
-      />
-      <button
-        type="submit"
-        aria-label={t('search')}
-        className={cn(
-          'absolute start-1 grid size-10 cursor-pointer place-items-center rounded-control text-ink-500 transition-colors hover:text-brand-700',
-          HIT_AREA_SQUARE,
-        )}
-      >
-        <Search aria-hidden className="size-5" />
-      </button>
-    </Form>
+      <SuggestBox size={size} className={className} />
+    </WidgetBoundary>
   )
 }

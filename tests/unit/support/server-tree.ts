@@ -21,6 +21,11 @@ export async function resolveServerTree(node: ReactNode): Promise<ReactNode> {
   }
   const { children } = element.props
   if (children === undefined || typeof children === 'function') return element
-  const resolved = await resolveServerTree(children)
-  return cloneElement(element, undefined, resolved)
+  // Several children go back as separate arguments, as JSX passed them: one array argument
+  // would read as a list and make React ask for keys.
+  if (Array.isArray(children)) {
+    const resolved = await Promise.all(children.map((child: ReactNode) => resolveServerTree(child)))
+    return cloneElement(element, undefined, ...resolved)
+  }
+  return cloneElement(element, undefined, await resolveServerTree(children))
 }

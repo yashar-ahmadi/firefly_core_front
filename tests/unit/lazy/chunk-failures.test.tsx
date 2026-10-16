@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { HeaderSearchForm } from '@/components/layout/header-search-form'
 import { ProductGallery } from '@/features/product/components/product-gallery'
 import { CommentComposer } from '@/features/product/components/reviews/comment-composer'
 import { QuickViewHost } from '@/features/quick-view/quick-view-host'
@@ -36,6 +37,7 @@ vi.mock('@/features/quick-view/quick-view', () => mocks.broken('QuickView'))
 vi.mock('@/features/product/components/gallery-lightbox', () => mocks.broken('GalleryLightbox'))
 vi.mock('@/features/product/components/reviews/review-form', () => mocks.broken('ReviewForm'))
 vi.mock('@/features/product/components/reviews/question-form', () => mocks.broken('QuestionForm'))
+vi.mock('@/features/search/search-overlay', () => mocks.broken('SearchOverlay'))
 vi.mock('@/lib/navigation/hard-navigation', () => ({
   loadPage: mocks.loadPage,
   reloadPage: mocks.reloadPage,
@@ -115,5 +117,19 @@ describe('a comment form whose code cannot load', () => {
     expect(alert).toHaveTextContent('فرم بارگذاری نشد.')
     fireEvent.click(within(alert).getByRole('button', { name: 'بارگذاری دوباره صفحه' }))
     expect(mocks.reloadPage).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the phone search overlay whose code cannot load', () => {
+  it('leaves the header field a plain search field, focused for typing', async () => {
+    withProviders(<HeaderSearchForm size="md" overlay />)
+    const field = screen.getByRole('searchbox', { name: 'جستجو' })
+    await waitFor(() => expect(field).toHaveAttribute('readonly'))
+    fireEvent.click(field)
+    await waitFor(() => expect(field).not.toHaveAttribute('readonly'))
+    expect(field).toHaveFocus()
+    expect(field).not.toHaveAttribute('aria-haspopup')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('search')).toHaveAttribute('action', '/search/')
   })
 })

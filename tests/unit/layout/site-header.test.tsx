@@ -21,7 +21,10 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('server-only', () => ({}))
-vi.mock('next/navigation', () => ({ usePathname: () => mocks.pathname }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => mocks.pathname,
+  useRouter: () => ({ push: vi.fn() }),
+}))
 vi.mock('@/config/store-config', async () => {
   const pure = await import('@/config/resolve-store-config')
   const { parseServerEnv: parse } = await import('@/config/env-schema')
@@ -104,13 +107,16 @@ describe('SiteHeader', () => {
     const logo = within(banner).getByRole('img', { name: 'فایرفلای' })
     expect(logo).toHaveAttribute('src', expect.stringContaining('site-logo.png'))
     expect(within(banner).getByRole('link', { name: 'فایرفلای' })).toHaveAttribute('href', '/')
-    // Two forms (phones and wider screens); CSS shows one of them.
+    // Two forms (wider screens, then phones); CSS shows one of them.
     const searches = within(banner).getAllByRole('search', { hidden: true })
     expect(searches).toHaveLength(2)
-    for (const search of searches) {
-      expect(search).toHaveAttribute('action', '/search/')
-      expect(within(search).getByRole('searchbox', { hidden: true })).toHaveAttribute('name', 'q')
-    }
+    for (const search of searches) expect(search).toHaveAttribute('action', '/search/')
+    const [wide, phone] = searches
+    // Wider screens: the suggest box. Phones: a field that opens the search overlay.
+    expect(within(wide!).getByRole('combobox', { hidden: true })).toHaveAttribute('name', 'q')
+    const field = within(phone!).getByRole('searchbox', { hidden: true })
+    expect(field).toHaveAttribute('name', 'q')
+    expect(field).toHaveAttribute('aria-haspopup', 'dialog')
   })
 
   it('shows the announcement as plain text', async () => {
