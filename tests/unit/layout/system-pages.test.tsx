@@ -60,9 +60,9 @@ describe('NotFoundView', () => {
     expect(illustration).toHaveAttribute('aria-hidden', 'true')
   })
 
-  it('offers a search form that GETs /search/?q=', async () => {
+  it('offers a search form that GETs /search/?q=, its landmark named apart from the header', async () => {
     await renderNotFound()
-    const search = screen.getByRole('search')
+    const search = screen.getByRole('search', { name: 'جستجو در فروشگاه' })
     expect(search).toHaveAttribute('action', '/search/')
     expect(within(search).getByRole('searchbox')).toHaveAttribute('name', 'q')
   })

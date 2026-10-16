@@ -11,13 +11,14 @@ import { SUGGEST_GROUPS, type SuggestOption } from './suggest-options'
 
 /**
  * A row of the list. Hover tints it grey; the highlighted (keyboard) option is tinted brand and
- * marked by a bar at its start edge in brand-600, which stands out at well over 3:1 against
- * the white panel and the tint, so the highlight never rests on a pale background alone.
+ * marked by a bar at its start edge in the theme's focus colour (`--focus`, the lightest brand
+ * shade with 3:1 on the page whatever the operator's brand colour), so the highlight never
+ * rests on a pale background alone.
  */
 const OPTION = cn(
   'relative flex min-h-11 w-full cursor-pointer items-center gap-3 px-4 py-1.5 text-start text-base text-ink-800',
   'transition-colors hover:bg-ink-50 aria-selected:bg-brand-50 aria-selected:text-ink-900',
-  'before:absolute before:inset-y-1 before:start-0 before:w-1 before:rounded-e-full before:bg-brand-600',
+  'before:absolute before:inset-y-1 before:start-0 before:w-1 before:rounded-e-full before:bg-(--focus)',
   'before:opacity-0 aria-selected:before:opacity-100',
 )
 const GROUP_LABEL = 'px-4 pt-3 pb-1 text-sm font-bold text-ink-600'

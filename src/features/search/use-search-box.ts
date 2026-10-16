@@ -47,8 +47,10 @@ export interface SearchBox {
  * - Enter goes to the highlighted option; with none, the form submits as usual.
  * - Escape closes the list, then (closed) clears the field. A handler that already took the
  *   key (the overlay's dialog) wins.
- * - Delete or Backspace forgets the highlighted recent search (the field is empty then, so
- *   nothing else is lost) and moves the highlight to the next one.
+ * - Delete or Backspace forgets the highlighted recent search and moves the highlight to the
+ *   next one. Recent searches are listed only while the field holds nothing searchable (empty,
+ *   or spaces alone), so the key would at most have deleted a space. A held key removes one:
+ *   its auto-repeats are swallowed.
  * Choosing anything remembers the query among the recent searches. `inline` lists are always
  * shown (the overlay); others open on focus and typing. `onDone` runs after a navigation.
  */
@@ -128,6 +130,7 @@ export function useSearchBox({
       case 'Backspace': {
         if (active?.kind !== 'recent') return
         event.preventDefault()
+        if (event.repeat) return
         const next = options[activeIndex + 1] ?? options[activeIndex - 1]
         remove(active.term)
         setActiveKey(next?.key ?? null)

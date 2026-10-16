@@ -11,6 +11,8 @@ import { categoryHref } from './menu-tree'
 
 /** How many top-level categories are offered as a way on. */
 const CATEGORY_LIMIT = 8
+/** Names the page's `search` landmark apart from the header's. */
+const SEARCH_LABEL = 'جستجو در فروشگاه'
 
 /**
  * public/images/not-found.svg is one colour at several opacities; as a mask over a brand-coloured
@@ -53,7 +55,7 @@ export async function NotFoundView() {
       </h1>
       <p className="mt-3 max-w-xl text-base leading-8 text-ink-600">{t('not_found_text')}</p>
 
-      <HeaderSearchForm className="mt-8 w-full max-w-lg" />
+      <HeaderSearchForm label={SEARCH_LABEL} className="mt-8 w-full max-w-lg" />
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Link href="/" className={buttonClasses()}>

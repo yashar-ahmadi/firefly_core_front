@@ -136,6 +136,8 @@ describe('SuggestBox', () => {
     await userEvent.keyboard('{ArrowDown}')
     expect(text(active(input))).toBe(SEARCH_ALL('سامسونگ'))
     expect(active(input)).toHaveAttribute('aria-selected', 'true')
+    // The highlight's bar is drawn in the theme's focus colour (3:1 on the page by design).
+    expect(active(input)?.className).toContain('before:bg-(--focus)')
     await userEvent.keyboard('{ArrowDown}')
     expect(text(active(input))).toBe('شارژر دیواری سامسونگ ۲۵ وات')
     await userEvent.keyboard('{ArrowUp}{ArrowUp}')
@@ -291,6 +293,16 @@ describe('SuggestBox recent searches', () => {
     await userEvent.keyboard('{ArrowDown}{Delete}')
     expect(useRecentSearches.getState().items).toEqual(['گوشی سامسونگ'])
     expect(text(active(input))).toBe('گوشی سامسونگ')
+    expect(input).toHaveValue('')
+  })
+
+  it('a held Delete or Backspace removes one recent search, not one per auto-repeat', async () => {
+    const input = renderBox()
+    await userEvent.click(input)
+    await userEvent.keyboard('{ArrowDown}{Backspace>4}')
+    expect(useRecentSearches.getState().items).toEqual(['گوشی سامسونگ', 'لپ تاپ'])
+    await userEvent.keyboard('{/Backspace}{Delete>4/}')
+    expect(useRecentSearches.getState().items).toEqual(['لپ تاپ'])
     expect(input).toHaveValue('')
   })
 
