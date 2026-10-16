@@ -60,16 +60,16 @@ test.describe('edge', () => {
     expect(res.headers()['location']).toMatch(/\/product\/list\/flagship-phones\/$/)
   })
 
-  test('a short-link prefetch answers an uncached 204 instead of redirecting', async ({
+  test('a short-link prefetch is never redirected: 204 for the router, 503 for the browser', async ({
     request,
   }) => {
-    const prefetches: Record<string, string>[] = [
-      { 'next-router-prefetch': '1' },
-      { 'sec-purpose': 'prefetch' },
+    const prefetches: [Record<string, string>, number][] = [
+      [{ 'next-router-prefetch': '1' }, 204],
+      [{ 'sec-purpose': 'prefetch' }, 503],
     ]
-    for (const headers of prefetches) {
+    for (const [headers, status] of prefetches) {
       const res = await request.get('/s/phone-fest/', { maxRedirects: 0, headers })
-      expect(res.status()).toBe(204)
+      expect(res.status()).toBe(status)
       expect(res.headers()['cache-control']).toBe('no-store')
       expect(res.headers()['location']).toBeUndefined()
     }

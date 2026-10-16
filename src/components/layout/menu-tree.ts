@@ -1,7 +1,8 @@
 import type { CategoryNode, MenuNode } from '@/lib/api/types/settings'
 
-// Pure helpers for the shell's menus: category links, the main-menu fallback, own-origin links
-// and the active state. Safe in Server and Client Components.
+// Pure helpers for the shell's menus: category links, the main-menu fallback and the active
+// state (own-origin links: storeHref in @/lib/links/store-href). Safe in Server and Client
+// Components.
 
 /** What the shell needs of a category: sent to the browser instead of the full card. */
 export interface CategoryLinkNode {
@@ -56,21 +57,6 @@ export function navItems(
   categories: readonly (CategoryLinkNode | CategoryNode)[],
 ): MenuNode[] {
   return menu.length > 0 ? menu : categoriesToMenu(categories)
-}
-
-/**
- * The href for a menu URL. An absolute URL on the shop's own origin (an operator may paste one)
- * becomes a path, so it routes on the client; anything else is kept as typed.
- */
-export function menuHref(url: string, siteUrl: string | undefined): string {
-  if (url.startsWith('/') || !siteUrl) return url
-  try {
-    const target = new URL(url)
-    if (target.origin !== new URL(siteUrl).origin) return url
-    return `${target.pathname}${target.search}${target.hash}`
-  } catch {
-    return url
-  }
 }
 
 function normalizePath(path: string): string {

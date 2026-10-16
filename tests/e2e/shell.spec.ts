@@ -64,10 +64,10 @@ test.describe('shell', () => {
 
     const roots = page.getByRole('list', { name: CATEGORIES })
     await expect(roots.getByText('کالای دیجیتال')).toBeVisible()
-    await expect(page.getByRole('link', { name: 'گوشی موبایل' })).toHaveAttribute(
-      'href',
-      '/product-category/digital/mobile-phone/',
-    )
+    // In the header: the home page below has category tiles and products named alike.
+    await expect(
+      page.getByRole('banner').getByRole('link', { name: 'گوشی موبایل', exact: true }),
+    ).toHaveAttribute('href', '/product-category/digital/mobile-phone/')
 
     await page.keyboard.press('Escape')
     await expect(trigger).toHaveAttribute('aria-expanded', 'false')

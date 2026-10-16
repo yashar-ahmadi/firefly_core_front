@@ -41,6 +41,8 @@ export interface CarouselProps {
   ariaLabel: string
   showArrows?: boolean
   showDots?: boolean
+  /** Keeps the track 56px in from both sides wherever arrows show: they sit beside the cards. */
+  arrowGutters?: boolean
   className?: string
 }
 
@@ -63,6 +65,17 @@ function useEmblaValue<T>(api: EmblaApi | undefined, read: (api: EmblaApi) => T,
   )
 }
 
+/** `arrowGutters`: `mx-14` from `sm` up at each breakpoint where the slides overflow. */
+function gutterClasses(count: number, perView: SlidesPerView): string {
+  const md = perView.md ?? perView.base
+  const lg = perView.lg ?? md
+  return cn(
+    count > perView.base && 'sm:mx-14',
+    count > md ? 'md:mx-14' : 'md:mx-0',
+    count > lg ? 'lg:mx-14' : 'lg:mx-0',
+  )
+}
+
 // Arrows overlay the edges from `sm` up. On phones they would cover slide content, so swiping,
 // the peeking next slide and the dots do the job there. An arrow at the end of the track is
 // `aria-disabled`, not `disabled`, so keyboard focus is never stranded on a dead button: it
@@ -77,7 +90,8 @@ const ARROW = cn(
  * what fits in view; arrows and dots appear only when there is something to scroll to.
  *
  * From `sm` up the 44px arrows overlay the slides 8–52px from each edge, so keep slide text and
- * buttons at least 56px (`px-14`) in from both inline edges when arrows show.
+ * buttons at least 56px (`px-14`) in from both inline edges when arrows show, or pass
+ * `arrowGutters` to move the track out from under them.
  */
 export function Carousel({
   children,
@@ -87,6 +101,7 @@ export function Carousel({
   ariaLabel,
   showArrows = true,
   showDots = false,
+  arrowGutters = false,
   className,
 }: CarouselProps) {
   const slides = Children.toArray(children)
@@ -152,7 +167,14 @@ export function Carousel({
     >
       <div className="relative">
         {/* Inline-size containment: the long slide track never widens a grid or flex parent. */}
-        <div ref={viewportRef} className="overflow-hidden [contain:inline-size]">
+        <div
+          ref={viewportRef}
+          data-carousel-viewport=""
+          className={cn(
+            'overflow-hidden [contain:inline-size]',
+            arrowGutters && showArrows && gutterClasses(slides.length, slidesPerView),
+          )}
+        >
           <div className="-ms-3 flex touch-pan-y touch-pinch-zoom sm:-ms-4">
             {/* Each slide is a one-cell grid, so its content stretches to the tallest slide. */}
             {slides.map((slide, index) => (
@@ -191,7 +213,13 @@ export function Carousel({
       </div>
 
       {controlsRow && (
-        <div className="mt-2 flex min-h-11 items-center justify-center gap-2">
+        <div
+          className={cn(
+            'mt-2 flex min-h-11 items-center justify-center gap-2',
+            // Under reduced motion autoplay never runs: a row only for its pause button is empty.
+            !showDots && 'motion-reduce:hidden',
+          )}
+        >
           {autoplay && (
             <IconButton
               ref={toggleRef}

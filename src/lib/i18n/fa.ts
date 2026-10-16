@@ -12,6 +12,7 @@ export const fa: Record<string, string> = {
   currency: 'تومان',
   add_to_cart: 'افزودن به سبد خرید',
   cart: 'سبد خرید',
+  recently_viewed: 'بازدیدهای اخیر',
 
   // Search and navigation
   search: 'جستجو',

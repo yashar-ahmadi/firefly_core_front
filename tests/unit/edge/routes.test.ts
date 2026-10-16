@@ -76,14 +76,24 @@ describe('short links', () => {
     return GET(req, { params: Promise.resolve({ code }) })
   }
 
+  it("answers the Next.js router's prefetch with an uncached 204 and counts no visit", async () => {
+    const res = await visit('phone-fest', { 'next-router-prefetch': '1' })
+    expect(res.status).toBe(204)
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(res.headers.get('location')).toBeNull()
+    expect(await res.text()).toBe('')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  // A 2xx would be kept as the prefetched answer and the click would never reach the API; a
+  // non-2xx makes the browser discard it, so the click navigates (and is counted) normally.
   it.each<Record<string, string>>([
-    { 'next-router-prefetch': '1' },
     { purpose: 'prefetch' },
     { 'sec-purpose': 'prefetch' },
     { 'sec-purpose': 'prefetch;prerender' },
-  ])('answers a prefetch (%o) with an uncached 204 and counts no visit', async (headers) => {
+  ])('answers a browser speculative prefetch (%o) with an uncached 503', async (headers) => {
     const res = await visit('phone-fest', headers)
-    expect(res.status).toBe(204)
+    expect(res.status).toBe(503)
     expect(res.headers.get('cache-control')).toBe('no-store')
     expect(res.headers.get('location')).toBeNull()
     expect(await res.text()).toBe('')

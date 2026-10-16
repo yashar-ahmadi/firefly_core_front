@@ -7,7 +7,7 @@ import { cn } from '@/components/ui/cn'
 import type { MenuNode } from '@/lib/api/types/settings'
 import { useOptionalStoreConfig } from '@/lib/config-context'
 import { isShortLinkPath } from '@/lib/links/short-link'
-import { menuHref } from './menu-tree'
+import { isStorePath, storeHref } from '@/lib/links/store-href'
 
 export interface MenuLinkProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
   node: MenuNode
@@ -63,7 +63,7 @@ export function MenuLink({
   )
   if (node.url === null) return <span {...props}>{content}</span>
 
-  const href = menuHref(node.url, config?.siteUrl)
+  const href = storeHref(node.url, config?.siteUrl)
   const handleClick = (event: MouseEvent<HTMLElement>) => {
     onClick?.(event)
     // A handler that cancels the click (a first tap that only opens a submenu) is not a visit.
@@ -76,7 +76,7 @@ export function MenuLink({
       </a>
     )
   }
-  if (href.startsWith('/') && !href.startsWith('//') && !isShortLinkPath(href)) {
+  if (isStorePath(href) && !isShortLinkPath(href)) {
     return (
       <Link href={href} prefetch={prefetch} onClick={handleClick} {...props}>
         {content}

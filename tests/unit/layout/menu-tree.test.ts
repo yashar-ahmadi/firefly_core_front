@@ -4,7 +4,6 @@ import {
   categoryHref,
   isActivePath,
   isPlaceholderImage,
-  menuHref,
   navItems,
   slimCategories,
 } from '@/components/layout/menu-tree'
@@ -69,28 +68,6 @@ describe('slimCategories', () => {
     const [digital] = slimCategories(sampleTree())
     expect(Object.keys(digital).sort()).toEqual(['children', 'icon', 'id', 'image', 'name', 'path'])
     expect(digital.children).toHaveLength(2)
-  })
-})
-
-describe('menuHref', () => {
-  it('keeps paths and foreign URLs as they are', () => {
-    expect(menuHref('/product/x/', 'https://shop.ir/')).toBe('/product/x/')
-    expect(menuHref('https://blog.example.com/a/', 'https://shop.ir/')).toBe(
-      'https://blog.example.com/a/',
-    )
-  })
-
-  it('strips the shop own origin so the link routes on the client', () => {
-    expect(menuHref('https://shop.ir/product/list/?a=1#top', 'https://shop.ir/')).toBe(
-      '/product/list/?a=1#top',
-    )
-    expect(menuHref('https://shop.ir', 'https://shop.ir/')).toBe('/')
-    expect(menuHref('http://shop.ir/x/', 'https://shop.ir/')).toBe('http://shop.ir/x/')
-  })
-
-  it('leaves a URL alone when the site URL is unknown or invalid', () => {
-    expect(menuHref('https://shop.ir/x/', undefined)).toBe('https://shop.ir/x/')
-    expect(menuHref('https://shop.ir/x/', 'not a url')).toBe('https://shop.ir/x/')
   })
 })
 

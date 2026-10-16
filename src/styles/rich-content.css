@@ -103,9 +103,11 @@
 /* Tailwind's preflight makes every img a block, which would break lines around an image inside
    a paragraph. Keep images in the text flow; figures, videos and images that sit directly in
    the content become blocks. (A `p > img:only-child` rule would be wrong here: :only-child
-   ignores text nodes, so it also matches "text <img> text".) */
+   ignores text nodes, so it also matches "text <img> text".) An inline image sits on the text
+   baseline by default, leaving a gap under it for descenders: centre it on the line instead. */
 .rich-content img {
   display: inline-block;
+  vertical-align: middle;
 }
 
 .rich-content :is(video, figure img) {
