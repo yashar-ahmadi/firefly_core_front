@@ -32,12 +32,22 @@ function lineWarning(line: CartLine): string | null {
   }
 }
 
+export interface MiniCartLineProps {
+  line: CartLine
+  onNavigate: () => void
+  /** The bin was pressed: the line is on its way out (the list moves the focus once it is). */
+  onRemoving?: () => void
+  /** The removal was refused: the line stays. */
+  onRemoveFailed?: () => void
+}
+
 /**
  * One line of the mini-cart: image, name and variant, a warning when it cannot be ordered, the
  * quantity stepper (bounded by the line's own limits, debounced) and the line total from the API,
  * dimmed while a change is on its way. The bin removes the line at once; the toast confirms it.
+ * The stepper is locked while the line is being saved or removed.
  */
-export function MiniCartLine({ line, onNavigate }: { line: CartLine; onNavigate: () => void }) {
+export function MiniCartLine({ line, onNavigate, onRemoving, onRemoveFailed }: MiniCartLineProps) {
   const nameId = useId()
   const href = `/product/${encodeURIComponent(line.product_slug)}/`
   const quantity = useUpdateCartLine(line)
@@ -74,6 +84,7 @@ export function MiniCartLine({ line, onNavigate }: { line: CartLine; onNavigate:
                 href={href}
                 prefetch={false}
                 onClick={onNavigate}
+                data-line-name=""
                 className="transition-colors hover:text-brand-700"
               >
                 {line.product_name}
@@ -91,9 +102,10 @@ export function MiniCartLine({ line, onNavigate }: { line: CartLine; onNavigate:
             icon={<Trash2 />}
             loading={removing}
             disabled={quantity.isSaving}
-            onClick={() => {
+            onClick={async () => {
               quantity.cancel()
-              void remove(line.variant_id)
+              onRemoving?.()
+              if (!(await remove(line.variant_id))) onRemoveFailed?.()
             }}
             className="-me-2 -mt-1.5 text-ink-500 hover:bg-danger/10 hover:text-danger"
           />
@@ -108,7 +120,7 @@ export function MiniCartLine({ line, onNavigate }: { line: CartLine; onNavigate:
             min={min}
             max={max}
             onChange={quantity.setQuantity}
-            loading={quantity.isSaving}
+            loading={quantity.isSaving || removing}
           />
           <Price
             amount={line.line_total}

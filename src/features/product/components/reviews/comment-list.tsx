@@ -76,10 +76,13 @@ export function CommentList({ slug, type, count }: CommentListProps) {
   }, [comments.length])
 
   const showMore = async () => {
-    focusIndex.current = comments.length
+    const index = comments.length
+    focusIndex.current = index
     const result = await query.fetchNextPage()
-    // Failed: the focus stays on the button (now the retry).
-    if (result.isFetchNextPageError) focusIndex.current = null
+    const loaded = result.data?.pages.reduce((sum, page) => sum + page.results.length, 0) ?? 0
+    // Failed: the focus stays on the button (now the retry). Nothing new (the list shrank): no
+    // entry will take the focus, so a later refresh must not either.
+    if (result.isFetchNextPageError || loaded <= index) focusIndex.current = null
   }
 
   if (count <= 0) return <p className="py-2 text-base text-ink-600">{copy.empty}</p>

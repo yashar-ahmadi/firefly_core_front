@@ -13,7 +13,7 @@ import { formatToman } from '@/lib/format'
 import type { Cart } from '@/lib/api/types/cart'
 import { minWidth, stubBrowserApis } from '../support/dom-stubs'
 import { clientProviders } from '../support/providers'
-import { cart, cartLine, MSG_REMOVED, result } from './support'
+import { cart, cartLine, deferred, MSG_REMOVED, result } from './support'
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), error: vi.fn(), success: vi.fn() }))
 
@@ -182,6 +182,51 @@ describe('MiniCart', () => {
     expect(mocks.bffFetch).toHaveBeenCalledWith('cart/item/10001/remove/', { method: 'DELETE' })
     await waitFor(() => expect(within(sheet).getAllByRole('listitem')).toHaveLength(1))
     expect(mocks.success).toHaveBeenCalledWith(MSG_REMOVED)
+  })
+
+  it("locks the line's stepper while its removal is on its way", async () => {
+    const removing = deferred<ReturnType<typeof result>>()
+    mocks.bffFetch.mockImplementation((path: string) =>
+      path.endsWith('/remove/') ? removing.promise : Promise.resolve(result(TWO_LINES)),
+    )
+    renderWith(<MiniCart open onOpenChange={vi.fn()} />, TWO_LINES)
+    const sheet = await screen.findByRole('dialog', { name: 'سبد خرید' })
+    const [first] = within(sheet).getAllByRole('listitem')
+    await userEvent.click(within(first!).getByRole('button', { name: 'حذف از سبد خرید' }))
+    await waitFor(() =>
+      expect(within(first!).getByRole('button', { name: 'افزایش تعداد' })).toBeDisabled(),
+    )
+    await act(async () => removing.resolve(result(cart([TWO_LINES.lines[1]!]), MSG_REMOVED)))
+  })
+
+  it('moves the focus to the next line once a line is removed', async () => {
+    const remaining = cart([TWO_LINES.lines[1]!])
+    mocks.bffFetch.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.endsWith('/remove/') ? result(remaining, MSG_REMOVED) : result(TWO_LINES),
+      ),
+    )
+    renderWith(<MiniCart open onOpenChange={vi.fn()} />, TWO_LINES)
+    const sheet = await screen.findByRole('dialog', { name: 'سبد خرید' })
+    const [first] = within(sheet).getAllByRole('listitem')
+    await userEvent.click(within(first!).getByRole('button', { name: 'حذف از سبد خرید' }))
+    await waitFor(() =>
+      expect(within(sheet).getByRole('link', { name: 'تلویزیون هایسنس ۵۵ اینچ U7' })).toHaveFocus(),
+    )
+  })
+
+  it('moves the focus to the sheet title when the last line is removed', async () => {
+    const one = cart([cartLine()])
+    mocks.bffFetch.mockImplementation((path: string) =>
+      Promise.resolve(path.endsWith('/remove/') ? result(cart(), MSG_REMOVED) : result(one)),
+    )
+    renderWith(<MiniCart open onOpenChange={vi.fn()} />, one)
+    const sheet = await screen.findByRole('dialog', { name: 'سبد خرید' })
+    await userEvent.click(within(sheet).getByRole('button', { name: 'حذف از سبد خرید' }))
+    await within(sheet).findByRole('heading', { name: 'سبد خرید شما خالی است' })
+    // Not the dialog itself (where Radix puts the focus of a removed element): its title.
+    const title = within(sheet).getByRole('heading', { name: 'سبد خرید' })
+    await waitFor(() => expect(title).toContainElement(document.activeElement as HTMLElement))
   })
 
   it('offers the home page when the cart is empty', async () => {

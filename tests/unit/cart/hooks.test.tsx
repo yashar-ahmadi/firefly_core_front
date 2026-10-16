@@ -62,12 +62,75 @@ beforeEach(() => {
 })
 
 describe('cartCount', () => {
-  it('sums the line quantities, and is 0 without a cart', () => {
+  it("reads the API's item_count, and is 0 without a cart", () => {
     expect(cartCount(undefined)).toBe(0)
     expect(cartCount(cart())).toBe(0)
     expect(
       cartCount(cart([cartLine({ quantity: 2 }), cartLine({ variant_id: 10062, quantity: 3 })])),
     ).toBe(5)
+    // The API's figure as it is, never a sum made here.
+    expect(cartCount(cart([cartLine({ quantity: 2 })], { item_count: 7 }))).toBe(7)
+  })
+})
+
+describe('cart writes', () => {
+  it('run one at a time: a removal waits for an add still on its way', async () => {
+    const adding = deferred<ReturnType<typeof result>>()
+    mocks.bffFetch.mockImplementation((path: string) =>
+      path === 'cart/item/add/' ? adding.promise : Promise.resolve(result(cart())),
+    )
+    const { result: hook } = setup(
+      () => ({ add: useAddToCart(), remove: useRemoveCartLine() }),
+      cart([cartLine()]),
+    )
+    let added: Promise<boolean> | undefined
+    let removed: Promise<boolean> | undefined
+    act(() => {
+      added = hook.current.add.add(10062, 1, PRODUCT)
+    })
+    act(() => {
+      removed = hook.current.remove.remove(10001)
+    })
+    await waitFor(() => expect(callsWith('POST')).toHaveLength(1))
+    // Queued behind the add (mutation scope «cart»): nothing sent yet.
+    expect(callsWith('DELETE')).toHaveLength(0)
+    await act(async () => {
+      adding.resolve(result(cart([cartLine(), cartLine({ variant_id: 10062 })]), MSG_ADDED))
+      await added
+    })
+    await act(async () => {
+      await removed
+    })
+    expect(callsWith('DELETE')).toHaveLength(1)
+  })
+
+  it('a quantity change waits for an add still on its way', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const adding = deferred<ReturnType<typeof result>>()
+      mocks.bffFetch.mockImplementation((path: string) =>
+        path === 'cart/item/add/' ? adding.promise : Promise.resolve(result(cart([cartLine()]))),
+      )
+      const line = cartLine()
+      const { result: hook } = setup(
+        () => ({ add: useAddToCart(), line: useUpdateCartLine(line) }),
+        cart([line]),
+      )
+      act(() => {
+        void hook.current.add.add(10062, 1, PRODUCT)
+      })
+      act(() => hook.current.line.setQuantity(3))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(QUANTITY_DEBOUNCE_MS + 10)
+      })
+      expect(callsWith('PUT')).toHaveLength(0)
+      await act(async () => {
+        adding.resolve(result(cart([line, cartLine({ variant_id: 10062 })]), MSG_ADDED))
+      })
+      await waitFor(() => expect(callsWith('PUT')).toHaveLength(1))
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

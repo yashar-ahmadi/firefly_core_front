@@ -19,6 +19,11 @@ import { showAddedToCartToast } from './components/added-to-cart-toast'
 
 /** The query holding the `Cart`. */
 export const CART_KEY = ['cart'] as const
+/**
+ * Every cart write shares this mutation scope, so they run one at a time in the order made:
+ * each answer is the whole cart after that write, and a later write's answer must land last.
+ */
+const CART_WRITES = { id: 'cart' }
 /** The stepper sends its final value this long after the last tap. */
 export const QUANTITY_DEBOUNCE_MS = 400
 
@@ -33,9 +38,9 @@ async function storeCart(client: QueryClient, cart: Cart): Promise<void> {
   client.setQueryData(CART_KEY, cart)
 }
 
-/** Items in the cart: the sum of the line quantities (the API's `item_count`). */
+/** Items in the cart: the API's `item_count` (the sum of the line quantities); 0 without one. */
 export function cartCount(cart: Cart | undefined): number {
-  return cart?.lines.reduce((sum, line) => sum + line.quantity, 0) ?? 0
+  return cart?.item_count ?? 0
 }
 
 /** The stepper's bounds for a line: its own minimum, and what it can hold now (never 0). */
@@ -108,6 +113,7 @@ export function useAddToCart(): AddToCart {
   const client = useQueryClient()
   const inFlight = useRef(false)
   const mutation = useMutation({
+    scope: CART_WRITES,
     mutationFn: ({ variant, quantity }: AddVariables) => cartApi.add(variant, quantity),
     onSuccess: async ({ data, msg }, { meta, toast }) => {
       await storeCart(client, data)
@@ -162,6 +168,7 @@ export function useUpdateCartLine(
   const timer = useRef<{ id: ReturnType<typeof setTimeout>; send: () => void } | null>(null)
 
   const mutation = useMutation({
+    scope: CART_WRITES,
     mutationFn: (quantity: number) => cartApi.setQuantity(variant, quantity),
     onSuccess: ({ data }) => storeCart(client, data),
     onError: (error) => {
@@ -213,8 +220,11 @@ export function useUpdateCartLine(
 }
 
 export interface RemoveCartLine {
-  /** Removes a variant's line. Never rejects: a refusal is shown as a toast. */
-  remove: (variant: number) => Promise<void>
+  /**
+   * Removes a variant's line; resolves true once the line is gone (or was already). Never
+   * rejects: a refusal is shown as a toast and resolves false.
+   */
+  remove: (variant: number) => Promise<boolean>
   isPending: boolean
 }
 
@@ -226,6 +236,7 @@ export interface RemoveCartLine {
 export function useRemoveCartLine(): RemoveCartLine {
   const client = useQueryClient()
   const mutation = useMutation({
+    scope: CART_WRITES,
     mutationFn: (variant: number) => cartApi.remove(variant),
     onSuccess: async ({ data, msg }) => {
       await storeCart(client, data)
@@ -242,8 +253,10 @@ export function useRemoveCartLine(): RemoveCartLine {
   const remove = async (variant: number) => {
     try {
       await mutation.mutateAsync(variant)
-    } catch {
-      // Handled by onError.
+      return true
+    } catch (error) {
+      // Shown by onError; a line already gone is what the shopper wanted.
+      return error instanceof ApiError && error.code === 'cart_item_not_found'
     }
   }
 

@@ -2,7 +2,7 @@
 
 import { ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Price } from '@/components/ui/price'
@@ -53,7 +53,22 @@ function MiniCartSummary({ cart, onNavigate }: { cart: Cart; onNavigate: () => v
   )
 }
 
-function MiniCartBody({ onNavigate }: { onNavigate: () => void }) {
+interface Removal {
+  /** The line being removed. */
+  variant: number
+  /** Its place in the list: the line now there gets the focus. */
+  index: number
+}
+
+function MiniCartBody({
+  onNavigate,
+  listRef,
+  removal,
+}: {
+  onNavigate: () => void
+  listRef: RefObject<HTMLUListElement | null>
+  removal: RefObject<Removal | null>
+}) {
   const t = useT()
   const { data: cart, isError, refetch } = useCart()
 
@@ -91,12 +106,47 @@ function MiniCartBody({ onNavigate }: { onNavigate: () => void }) {
   }
 
   return (
-    <ul className="divide-y divide-ink-100">
-      {cart.lines.map((line) => (
-        <MiniCartLine key={line.variant_id} line={line} onNavigate={onNavigate} />
+    <ul ref={listRef} className="divide-y divide-ink-100">
+      {cart.lines.map((line, index) => (
+        <MiniCartLine
+          key={line.variant_id}
+          line={line}
+          onNavigate={onNavigate}
+          onRemoving={() => {
+            removal.current = { variant: line.variant_id, index }
+          }}
+          onRemoveFailed={() => {
+            if (removal.current?.variant === line.variant_id) removal.current = null
+          }}
+        />
       ))}
     </ul>
   )
+}
+
+/**
+ * Where the focus goes once a removed line has left the cart (its bin button went with it): the
+ * line that took its place (else the new last one), or the sheet's title when the cart is empty.
+ * Keyed on the line actually being gone: the cart a write returns may render before the
+ * removal's promise settles.
+ */
+function useFocusAfterRemoval(cart: Cart | undefined) {
+  const removal = useRef<Removal | null>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const titleRef = useRef<HTMLSpanElement>(null)
+  const lines = cart?.lines
+  useEffect(() => {
+    const removed = removal.current
+    if (!removed || !lines || lines.some((line) => line.variant_id === removed.variant)) return
+    removal.current = null
+    if (lines.length === 0) {
+      titleRef.current?.focus()
+      return
+    }
+    const names = listRef.current?.querySelectorAll<HTMLElement>('[data-line-name]')
+    names?.[Math.min(removed.index, lines.length - 1)]?.focus()
+  }, [lines])
+  return { removal, listRef, titleRef }
 }
 
 export interface MiniCartProps {
@@ -115,6 +165,7 @@ export function MiniCart({ open, onOpenChange }: MiniCartProps) {
   const { data: cart, refetch } = useCart()
   const close = () => onOpenChange(false)
   const filled = cart !== undefined && !cart.is_empty
+  const { removal, listRef, titleRef } = useFocusAfterRemoval(cart)
 
   useEffect(() => {
     // Joins a read already on its way rather than restarting it.
@@ -125,11 +176,16 @@ export function MiniCart({ open, onOpenChange }: MiniCartProps) {
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title={t('cart')}
+      title={
+        // Focusable from code only: it takes the focus when the last line is removed.
+        <span ref={titleRef} tabIndex={-1} className="outline-none">
+          {t('cart')}
+        </span>
+      }
       description={filled ? `${formatNumber(cartCount(cart))} کالا` : undefined}
       footer={filled ? <MiniCartSummary cart={cart} onNavigate={close} /> : undefined}
     >
-      <MiniCartBody onNavigate={close} />
+      <MiniCartBody onNavigate={close} listRef={listRef} removal={removal} />
     </Sheet>
   )
 }

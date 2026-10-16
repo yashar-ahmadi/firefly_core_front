@@ -27,8 +27,11 @@ const QuestionForm = dynamic(
   () => import('./question-form').then((module) => module.QuestionForm),
   { ssr: false, loading: FormLoading },
 )
-const preload = (question: boolean) =>
-  void (question ? import('./question-form') : import('./review-form'))
+/** A failed download is ignored here: opening the form tries again. */
+const preload = (question: boolean) => {
+  const load = question ? import('./question-form') : import('./review-form')
+  load.catch(() => {})
+}
 
 const OPEN: Record<CommentType, string> = { comment: 'ثبت دیدگاه', question: 'ثبت پرسش' }
 const REPLY = 'پاسخ'

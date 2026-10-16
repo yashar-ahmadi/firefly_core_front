@@ -18,15 +18,18 @@ const PATH = `product/detail/${SLUG}/comment/list/`
 
 vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
 
-function renderList(count: number, type: 'comment' | 'question' = 'comment') {
-  const { wrapper: Base } = clientProviders()
+function renderListWithClient(count: number, type: 'comment' | 'question' = 'comment') {
+  const { client, wrapper: Base } = clientProviders()
   const wrapper = ({ children }: { children: ReactNode }) => (
     <Base>
       <FeatureProvider initial={{}}>{children}</FeatureProvider>
     </Base>
   )
-  return render(<CommentList slug={SLUG} type={type} count={count} />, { wrapper })
+  return { ...render(<CommentList slug={SLUG} type={type} count={count} />, { wrapper }), client }
 }
+
+const renderList = (count: number, type: 'comment' | 'question' = 'comment') =>
+  renderListWithClient(count, type)
 
 beforeEach(() => {
   mocks.bffFetch.mockReset()
@@ -81,6 +84,35 @@ describe('CommentList', () => {
     expect(screen.queryByRole('button', { name: 'نمایش بیشتر' })).toBeNull()
     // The button is gone (last page): the focus moves to the first new entry, not to <body>.
     await waitFor(() => expect(articles[1]).toHaveFocus())
+  })
+
+  it('forgets the focus it owed when the next page adds nothing', async () => {
+    const user = userEvent.setup()
+    mocks.bffFetch
+      .mockResolvedValueOnce({ data: commentPage([comment()], 1, 2), msg: '', status: 200 })
+      // The list shrank meanwhile: page 2 is empty.
+      .mockResolvedValueOnce({ data: commentPage([], 2, 2), msg: '', status: 200 })
+    const { client } = renderListWithClient(21)
+    act(() => intersect())
+    const more = await screen.findByRole('button', { name: 'نمایش بیشتر' })
+    await user.click(more)
+    await waitFor(() => expect(mocks.bffFetch).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'نمایش بیشتر' })).toBeNull())
+    // Later the list grows (a refresh): the new entry must not take the focus then.
+    mocks.bffFetch
+      .mockResolvedValueOnce({
+        data: commentPage([comment(), comment({ id: 10001, name: 'سارا احمدی' })], 1, 1),
+        msg: '',
+        status: 200,
+      })
+      .mockResolvedValue({ data: commentPage([], 2, 1), msg: '', status: 200 })
+    const outside = document.createElement('button')
+    document.body.append(outside)
+    outside.focus()
+    await act(() => client.invalidateQueries())
+    expect(await screen.findByText('سارا احمدی')).toBeInTheDocument()
+    expect(outside).toHaveFocus()
+    outside.remove()
   })
 
   it('keeps the loaded entries when the next page fails, with a retry beside the button', async () => {
