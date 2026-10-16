@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { assertDevOnly } from '../dev-only'
 import { ControlSections } from './control-sections'
 import { DisplaySections } from './display-sections'
 import { NavigationSections } from './navigation-sections'
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 }
 
 export default function UiShowcasePage() {
-  if (process.env.NODE_ENV === 'production') notFound()
+  assertDevOnly()
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-10 lg:px-8">

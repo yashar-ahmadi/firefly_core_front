@@ -5,7 +5,7 @@ import {
   type ListingApiQuery,
   type ListingContext,
 } from '@/features/catalog/listing-params'
-import { ApiError } from '@/lib/api/errors'
+import { ApiError, isApiNotFound } from '@/lib/api/errors'
 import { apiFetch, type QueryInit } from '@/lib/api/server'
 import type {
   BrandCard,
@@ -58,12 +58,15 @@ async function read<T>(path: string, options: ReadOptions): Promise<T> {
   return data
 }
 
-/** null on a 404 (an unknown or draft record); every other failure is thrown. */
+/**
+ * null on the API's own 404 (an unknown or draft record); every other failure is thrown, a 404
+ * page from a proxy in front of the API included.
+ */
 async function orNotFound<T>(load: () => Promise<T>): Promise<T | null> {
   try {
     return await load()
   } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return null
+    if (isApiNotFound(error)) return null
     throw error
   }
 }

@@ -99,6 +99,22 @@ describe.each<[DetailLoader, string, string, number]>([
     expect(await api[loader]('nope')).toBeNull()
   })
 
+  it('throws on a 404 that is not the API (a proxy or dev-server HTML page)', async () => {
+    mocks.fetch.mockImplementation(
+      async () =>
+        new Response('<html><body>Not Found</body></html>', {
+          status: 404,
+          headers: { 'content-type': 'text/html' },
+        }),
+    )
+    const api = await loadCatalog()
+    await expect(api[loader]('x')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 404,
+      code: 'non_json_response',
+    })
+  })
+
   it('throws on any other failure', async () => {
     mocks.fetch.mockImplementation(async () => failure(503, 'feature_disabled'))
     const api = await loadCatalog()

@@ -15,7 +15,7 @@ export function RadioGroup({ className, dir = 'rtl', ...props }: RadioGroupProps
 export interface RadioGroupItemProps extends ComponentProps<typeof RadioPrimitive.Item> {
   label: ReactNode
   description?: ReactNode
-  /** `card` draws a bordered, tappable option that highlights when chosen. */
+  /** `card` draws a bordered (ink-500, 3:1), tappable option that highlights when chosen. */
   variant?: 'plain' | 'card'
   /** Extra content at the end of the row, e.g. a price. */
   aside?: ReactNode
@@ -39,7 +39,7 @@ export function RadioGroupItem({
       className={cn(
         'flex min-h-11 items-start gap-3',
         variant === 'card'
-          ? 'rounded-card border border-ink-300 bg-white p-4 transition-colors hover:border-ink-400 has-data-[state=checked]:border-brand has-data-[state=checked]:bg-brand-50 has-data-[state=checked]:ring-1 has-data-[state=checked]:ring-brand'
+          ? 'rounded-card border border-ink-500 bg-white p-4 transition-colors hover:border-ink-600 has-data-[state=checked]:border-brand has-data-[state=checked]:bg-brand-50 has-data-[state=checked]:ring-1 has-data-[state=checked]:ring-brand'
           : 'py-2',
         className,
       )}

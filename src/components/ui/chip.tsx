@@ -11,7 +11,11 @@ export interface ChipProps extends ComponentProps<'button'> {
   icon?: ReactNode
 }
 
-/** A pill-shaped button for filters and quick choices: 40px tall with a 44px hit area. */
+/**
+ * A pill-shaped button for filters and quick choices: 40px tall with a 44px hit area. The
+ * outline is ink-500 (at least 3:1 on white and the page, WCAG 1.4.11): it is what shows the
+ * chip is a control.
+ */
 export function Chip({
   selected,
   removable = false,
@@ -33,7 +37,7 @@ export function Chip({
         HIT_AREA,
         selected
           ? 'border-brand bg-brand-50 text-brand-800 hover:bg-brand-100'
-          : 'border-ink-300 bg-white text-ink-700 hover:border-ink-400 hover:bg-ink-50',
+          : 'border-ink-500 bg-white text-ink-700 hover:border-ink-600 hover:bg-ink-50',
         removable && 'pe-3',
         className,
       )}

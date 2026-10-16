@@ -69,6 +69,25 @@ describe('display primitives', () => {
     expect(screen.getByRole('button', { name: 'سامسونگ' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('outlines an unselected chip and a card radio in ink-500 (3:1 boundary, WCAG 1.4.11)', () => {
+    render(
+      <>
+        <Chip selected={false}>اپل</Chip>
+        <Chip removable aria-label="حذف فیلتر اپل">
+          اپل
+        </Chip>
+        <RadioGroup>
+          <RadioGroupItem variant="card" value="post" label="پست" />
+        </RadioGroup>
+      </>,
+    )
+    expect(screen.getByRole('button', { name: 'اپل' })).toHaveClass('border-ink-500')
+    expect(screen.getByRole('button', { name: 'حذف فیلتر اپل' })).toHaveClass('border-ink-500')
+    expect(screen.getByRole('radio', { name: 'پست' }).closest('.rounded-card')).toHaveClass(
+      'border-ink-500',
+    )
+  })
+
   it('announces a standalone spinner with its label', () => {
     render(<Spinner label="در حال بارگذاری" />)
     expect(screen.getByRole('status')).toHaveTextContent('در حال بارگذاری')

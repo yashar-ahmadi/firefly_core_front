@@ -32,11 +32,20 @@ export type ListingContext = { category?: string; brand?: string; list?: string 
 type RawParams = Record<string, string | string[] | undefined>
 
 const BOOLEAN_KEYS = ['in_stock', 'is_special', 'has_discount', 'special_first'] as const
+const CONTEXT_KEYS = [
+  'category',
+  'brand',
+  'list',
+] as const satisfies readonly (keyof ListingContext)[]
 
 /** The raw limit of `search/`; the list endpoint only uses the first 8 words anyway. */
 const MAX_SEARCH_LENGTH = 200
 /** Bounds the API URL a hand-made link can produce. */
 const MAX_LIST_ENTRIES = 50
+/** Longer category, list or brand slugs are dropped: cut short, they would name another one. */
+const MAX_SLUG_LENGTH = 200
+/** The API refuses any value holding U+0000 (400 `null_characters_not_allowed`). */
+const NUL = '\u{0}'
 
 /** The first string of a scalar parameter (a repeated key arrives as an array). */
 function first(value: unknown): string | undefined {
@@ -44,18 +53,33 @@ function first(value: unknown): string | undefined {
   return typeof item === 'string' ? item : undefined
 }
 
-function text(value: unknown): string | undefined {
-  return first(value)?.trim() || undefined
+/** Trimmed; undefined when blank or when it holds U+0000. */
+function clean(value: string): string | undefined {
+  const trimmed = value.trim()
+  return trimmed !== '' && !trimmed.includes(NUL) ? trimmed : undefined
 }
 
-/** Every non-blank comma-separated entry, across repeated keys. */
+function text(value: unknown): string | undefined {
+  const item = first(value)
+  return item === undefined ? undefined : clean(item)
+}
+
+/** Every clean comma-separated entry, across repeated keys. */
 function entries(value: unknown): string[] {
   const items = Array.isArray(value) ? value : [value]
   return items
     .filter((item): item is string => typeof item === 'string')
     .flatMap((item) => item.split(','))
-    .map((entry) => entry.trim())
-    .filter((entry) => entry !== '')
+    .map(clean)
+    .filter((entry): entry is string => entry !== undefined)
+}
+
+function isSlugSized(value: string): boolean {
+  return Array.from(value).length <= MAX_SLUG_LENGTH
+}
+
+function slug(value: string | undefined): string | undefined {
+  return value !== undefined && isSlugSized(value) ? value : undefined
 }
 
 function unique<T>(items: T[]): T[] {
@@ -81,6 +105,8 @@ function flag(value: unknown): boolean | undefined {
 /**
  * Read a listing query from Next `searchParams`. Never throws: unknown keys (`limit` included, the
  * page size being the store setting) and invalid values are dropped, so the API never answers 400.
+ * - Values holding U+0000 are dropped, and so are category, list and brand slugs over 200
+ *   characters; the search term is cut to 200.
  * - `brand` and `attribute_values` are comma-separated; repeated keys are merged, duplicates dropped.
  * - Prices and `page` must be non-negative integers (Persian digits allowed); `page < 1` is dropped.
  * - Booleans are `true`/`false`/`1`/`0`; `sort` must be one of `SORT_VALUES`.
@@ -98,11 +124,11 @@ export function parseListingParams(
   const search = text(sp.search)
   if (search) query.search = Array.from(search).slice(0, MAX_SEARCH_LENGTH).join('')
 
-  const category = text(sp.category)
+  const category = slug(text(sp.category))
   if (category) query.category = category
-  const brand = unique(entries(sp.brand))
+  const brand = unique(entries(sp.brand).filter(isSlugSized))
   if (brand.length > 0) query.brand = brand
-  const list = text(sp.list)
+  const list = slug(text(sp.list))
   if (list) query.list = list
 
   const context = opts.context ?? {}
@@ -134,6 +160,18 @@ export function parseListingParams(
   if (page !== undefined && page >= 1) query.page = page
 
   return query
+}
+
+/**
+ * The query without the keys the route context supplies: what the browser URL holds on that
+ * route. The filter UI writes these back to the URL, never the context's own keys.
+ */
+export function withoutContext(q: ListingApiQuery, context: ListingContext): ListingApiQuery {
+  const rest = { ...q }
+  for (const key of CONTEXT_KEYS) {
+    if (context[key] !== undefined) delete rest[key]
+  }
+  return rest
 }
 
 function count(value: number | undefined): string | undefined {
@@ -172,4 +210,10 @@ export function toSearchParams(q: ListingApiQuery): URLSearchParams {
   const kept = pairs.filter((pair): pair is [string, string] => Boolean(pair[1]))
   kept.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
   return new URLSearchParams(kept)
+}
+
+/** A listing URL: `basePath` (with its trailing slash) plus the query, or the bare path. */
+export function listingHref(basePath: string, q: ListingApiQuery): string {
+  const search = toSearchParams(q).toString()
+  return search ? `${basePath}?${search}` : basePath
 }

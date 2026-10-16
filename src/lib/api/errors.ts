@@ -135,3 +135,11 @@ export class ApiError extends Error {
     return result
   }
 }
+
+/**
+ * Whether the API itself answered 404 (its JSON envelope). A 404 page from a proxy or the dev
+ * server in front of it (`non_json_response`) is an outage, never a missing record.
+ */
+export function isApiNotFound(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 404 && error.code !== 'non_json_response'
+}

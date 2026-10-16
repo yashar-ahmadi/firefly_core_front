@@ -100,6 +100,19 @@ describe('getFilters', () => {
     expect(nextOf(call)).toEqual({ revalidate: 60, tags: ['category:nope', 'catalog'] })
   })
 
+  it('throws on a 404 that is not the API (a proxy or dev-server HTML page)', async () => {
+    mocks.fetch.mockImplementation(
+      async () =>
+        new Response('Not Found', { status: 404, headers: { 'content-type': 'text/html' } }),
+    )
+    const { getFilters } = await loadCatalog()
+    await expect(getFilters({ category: 'mobile-phone' })).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 404,
+      code: 'non_json_response',
+    })
+  })
+
   it('sends only the first context, in the API priority category > brand > list', async () => {
     mocks.fetch.mockImplementation(async () => envelope({ categories: [] }))
     const { getFilters } = await loadCatalog()

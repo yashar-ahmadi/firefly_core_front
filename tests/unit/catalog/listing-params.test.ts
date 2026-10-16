@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseListingParams } from '@/features/catalog/listing-params'
+import { parseListingParams, withoutContext } from '@/features/catalog/listing-params'
 import { SORT_VALUES } from '@/lib/api/types/catalog'
 
 describe('parseListingParams', () => {
@@ -186,6 +186,29 @@ describe('parseListingParams', () => {
     expect(parseListingParams({ brand: brands }).brand).toHaveLength(50)
   })
 
+  it('drops values holding U+0000, which the API answers with 400 null_characters_not_allowed', () => {
+    const nul = '\u{0}'
+    expect(
+      parseListingParams({
+        search: `گوشی${nul}`,
+        category: `mobile${nul}phone`,
+        list: nul,
+        brand: `apple,sam${nul}sung, ${nul} `,
+        attribute_values: `10005,1${nul}0`,
+      }),
+    ).toEqual({ brand: ['apple'], attribute_values: [10005] })
+    expect(parseListingParams({ search: [`a${nul}`, 'b'] })).toEqual({})
+  })
+
+  it('drops category, list and brand entries longer than 200 characters', () => {
+    const ok = 'ک'.repeat(200)
+    const tooLong = 'ک'.repeat(201)
+    expect(parseListingParams({ category: ok, list: ok, brand: `${ok},${tooLong},apple` })).toEqual(
+      { category: ok, list: ok, brand: [ok, 'apple'] },
+    )
+    expect(parseListingParams({ category: tooLong, list: tooLong, brand: tooLong })).toEqual({})
+  })
+
   it('never throws on hostile input', () => {
     const hostile = [
       {},
@@ -198,5 +221,21 @@ describe('parseListingParams', () => {
       { search: null as unknown as string },
     ]
     for (const sp of hostile) expect(() => parseListingParams(sp)).not.toThrow()
+  })
+})
+
+describe('withoutContext', () => {
+  it('drops the keys the route context supplies and keeps the URL filters', () => {
+    const query = { category: 'laptop', brand: ['apple'], list: 'deals', sort: 'sale' as const }
+    expect(withoutContext(query, { category: 'mobile-phone' })).toEqual({
+      brand: ['apple'],
+      list: 'deals',
+      sort: 'sale',
+    })
+    expect(withoutContext(query, { brand: 'samsung', list: 'flagship-phones' })).toEqual({
+      category: 'laptop',
+      sort: 'sale',
+    })
+    expect(withoutContext(query, {})).toEqual(query)
   })
 })
