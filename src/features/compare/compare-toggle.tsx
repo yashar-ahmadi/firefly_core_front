@@ -2,12 +2,12 @@
 
 import { GitCompareArrows } from 'lucide-react'
 import { cn } from '@/components/ui/cn'
-import { notify } from '@/components/ui/toaster'
 import {
-  cardActionClasses,
-  cardChipClasses,
-  type CardActionSize,
-} from '@/features/catalog/components/card-styles'
+  overlayButtonClasses,
+  overlayChipClasses,
+  type OverlayButtonSize,
+} from '@/components/ui/overlay-button-styles'
+import { notify } from '@/components/ui/toaster'
 import { toPersianDigits } from '@/lib/format'
 import { usePersistHydration } from '@/lib/store/persisted'
 import type { CompareItem } from './compare-item'
@@ -19,7 +19,9 @@ const LIST_FULL = `حداکثر ${toPersianDigits(COMPARE_MAX)} کالا را م
 
 export interface CompareToggleProps {
   item: CompareItem
-  size?: CardActionSize
+  size?: OverlayButtonSize
+  /** Id of the element naming the product (the card's name link), for `aria-describedby`. */
+  describedBy?: string
   className?: string
 }
 
@@ -27,7 +29,7 @@ export interface CompareToggleProps {
  * Adds the product to the compare list or takes it out (`aria-pressed`). Invisible until the
  * saved list has been read, so it never shows "not compared" for a compared product.
  */
-export function CompareToggle({ item, size = 'sm', className }: CompareToggleProps) {
+export function CompareToggle({ item, size = 'sm', describedBy, className }: CompareToggleProps) {
   const hydrated = usePersistHydration(useCompare)
   const selected = useCompare((state) => state.items.some((listed) => listed.slug === item.slug))
   const add = useCompare((state) => state.add)
@@ -38,15 +40,16 @@ export function CompareToggle({ item, size = 'sm', className }: CompareTogglePro
       type="button"
       aria-pressed={selected}
       aria-label={selected ? LABEL_REMOVE : LABEL_ADD}
+      aria-describedby={describedBy}
       onClick={() => {
         if (selected) remove(item.slug)
         else if (add(item) === 'full') notify.info(LIST_FULL)
       }}
-      className={cn(cardActionClasses(size), !hydrated && 'invisible', className)}
+      className={cn(overlayButtonClasses(size), !hydrated && 'invisible', className)}
     >
       <span
         className={cn(
-          cardChipClasses(size),
+          overlayChipClasses(size),
           selected &&
             'bg-brand text-brand-fg group-hover/action:bg-brand-700 group-hover/action:text-brand-fg',
         )}

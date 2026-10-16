@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/components/ui/cn'
 import { Price } from '@/components/ui/price'
@@ -10,7 +10,7 @@ import type { CardProduct } from '@/features/catalog/card-product'
 import { compareItemFrom } from '@/features/compare/compare-item'
 import { CompareToggle } from '@/features/compare/compare-toggle'
 import { HeartButton } from '@/features/wishlist/heart-button'
-import { badgeColors } from './badge-colors'
+import { CardImageLabels } from './card-image-labels'
 import {
   CARD_BODY,
   CARD_IMAGE_OVERLAY,
@@ -19,7 +19,6 @@ import {
   CARD_SURFACE,
   REVEAL_ON_HOVER,
 } from './card-styles'
-import { DiscountTimer } from './discount-timer'
 import { QuickViewButton } from './quick-view-button'
 
 /** The representative variant's labels shown as chips. */
@@ -45,8 +44,9 @@ export interface ProductCardProps {
 /**
  * The product card. An `<article>` whose name link stretches over the whole card (its
  * `::after`), so the card is one tab stop and one click target; the heart, compare, quick view
- * and add buttons sit above that link as siblings, never inside it. Server-renderable: only those
- * buttons, the image and the countdown are client leaves.
+ * and add buttons sit above that link as siblings, never inside it. Labels on the image come
+ * after the name in the DOM (read first), the buttons after the price (focused after the link).
+ * Server-renderable: only those buttons, the image and the countdown are client leaves.
  */
 export function ProductCard({
   product,
@@ -57,7 +57,8 @@ export function ProductCard({
 }: ProductCardProps) {
   const unavailable = !product.in_stock && showOutOfStockLabel
   const chips = product.default_variant_attributes.slice(0, MAX_CHIPS)
-  const timedDiscount = product.has_discount ? product.discount_time_remaining : null
+  // Names the card's buttons (aria-describedby): twenty «افزودن به مقایسه» need telling apart.
+  const nameId = useId()
 
   return (
     <article
@@ -69,7 +70,7 @@ export function ProductCard({
       <div className="relative">
         <SmartImage
           src={product.image}
-          alt={product.name}
+          alt=""
           ratio="1/1"
           skeleton
           sizes={IMAGE_SIZES}
@@ -78,21 +79,6 @@ export function ProductCard({
           className="rounded-control bg-ink-50"
           imgClassName="transition-transform duration-300 ease-out motion-safe:group-hover/card:scale-[1.03]"
         />
-        {unavailable && (
-          <span className="absolute inset-0 grid place-items-center rounded-control bg-white/60">
-            <span className="rounded-pill bg-ink-800 px-3 py-0.5 text-sm font-bold text-white">
-              ناموجود
-            </span>
-          </span>
-        )}
-        {product.badge && (
-          <span
-            className="absolute start-2 bottom-2 block h-6 max-w-[calc(100%-1rem)] truncate rounded-pill px-2.5 text-sm leading-6 font-medium"
-            style={badgeColors(product.badge)}
-          >
-            {product.badge.name}
-          </span>
-        )}
       </div>
 
       <div className={CARD_BODY}>
@@ -101,6 +87,7 @@ export function ProductCard({
           className={cn(CARD_NAME_BOX, 'line-clamp-2 text-base leading-7 font-medium text-ink-800')}
         >
           <Link
+            id={nameId}
             href={`/product/${encodeURIComponent(product.slug)}/`}
             prefetch={false}
             className={cn(
@@ -111,6 +98,8 @@ export function ProductCard({
             {product.name}
           </Link>
         </h3>
+
+        <CardImageLabels product={product} unavailable={unavailable} />
 
         <div className="flex h-6 flex-wrap gap-1 overflow-hidden">
           {chips.map((chip) => (
@@ -131,8 +120,6 @@ export function ProductCard({
           )}
         </div>
 
-        {timedDiscount !== null && <DiscountTimer endsAt={timedDiscount} />}
-
         <div className={CARD_PRICE_BOX}>
           <Price
             amount={product.final_price}
@@ -143,18 +130,28 @@ export function ProductCard({
           />
         </div>
 
-        {/* Over the image, but after the name in the DOM: tab and reading order is the link,
-            then these buttons, then the add button. */}
+        {/* Over the image too, after the price in the DOM: the focus order is the name link,
+            these buttons, then the add button. */}
         <div className={CARD_IMAGE_OVERLAY}>
           <div className="pointer-events-auto absolute start-0 top-0">
-            <HeartButton productId={product.id} slug={product.slug} className={REVEAL_ON_HOVER} />
+            <HeartButton
+              productId={product.id}
+              slug={product.slug}
+              describedBy={nameId}
+              className={REVEAL_ON_HOVER}
+            />
           </div>
           <div className="pointer-events-auto absolute end-0 top-0 flex flex-col">
-            <CompareToggle item={compareItemFrom(product)} className={REVEAL_ON_HOVER} />
+            <CompareToggle
+              item={compareItemFrom(product)}
+              describedBy={nameId}
+              className={REVEAL_ON_HOVER}
+            />
             {onQuickView && (
               <QuickViewButton
                 slug={product.slug}
                 onQuickView={onQuickView}
+                describedBy={nameId}
                 className={REVEAL_ON_HOVER}
               />
             )}

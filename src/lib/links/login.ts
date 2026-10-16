@@ -1,8 +1,10 @@
 /**
- * `/login/?next=<path>`, readable (slashes kept); the home page and the auth pages send no
- * `next`. `path` may carry a query string. Pure: safe in any bundle.
+ * `/login/?next=<path>`, readable (slashes kept). `path` may carry a query string or a hash.
+ * The home page (with or without a query) and the auth pages send no `next`. Pure: safe in any
+ * bundle.
  */
 export function loginHref(path: string): string {
-  if (path === '/' || /^\/(?:login|register)\//.test(path)) return '/login/'
+  const pathname = path.split(/[?#]/, 1)[0] ?? path
+  if (pathname === '/' || /^\/(?:login|register)\//.test(pathname)) return '/login/'
   return `/login/?next=${encodeURIComponent(path).replace(/%2F/gi, '/')}`
 }

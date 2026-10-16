@@ -104,6 +104,32 @@ describe('ProductCard', () => {
     expect(within(card()).getByRole('timer')).toBeInTheDocument()
   })
 
+  it('puts the countdown on the image beside the badge, so a timed card adds no row', () => {
+    const textColumn = () =>
+      within(card()).getByRole('link', { name: NAME }).closest('h3')!.parentElement!
+    const plain = renderCard(discountedCard())
+    const plainRows = textColumn().children.length
+    plain.unmount()
+
+    renderCard(discountedCard({ discount_time_remaining: Date.now() + 3_600_000 }))
+    expect(textColumn().children).toHaveLength(plainRows)
+    // The pill shares the image-info box with the badge.
+    expect(within(card()).getByText('پرفروش').parentElement).toContainElement(
+      within(card()).getByRole('timer'),
+    )
+  })
+
+  it('shows one day or more as days, and the clock under a day', () => {
+    const { unmount } = renderCard(
+      discountedCard({ discount_time_remaining: Date.now() + (2 * 24 + 5) * 3_600_000 }),
+    )
+    expect(within(card()).getByRole('timer').textContent).toBe('۲ روز')
+    unmount()
+
+    renderCard(discountedCard({ discount_time_remaining: Date.now() + 3_723_000 }))
+    expect(within(card()).getByRole('timer').textContent).toMatch(/^۰۱:۰۲:۰[۲۳]$/u)
+  })
+
   it('hides a countdown whose deal is already over (a cached page)', () => {
     renderCard(discountedCard({ discount_time_remaining: Date.now() - 60_000 }))
     expect(within(card()).queryByRole('timer')).toBeNull()
@@ -151,5 +177,43 @@ describe('ProductCard', () => {
       'aria-pressed',
       'true',
     )
+  })
+
+  it('reads the name first: the stock label and the badge come after it', () => {
+    renderCard(cardFixture({ in_stock: false }))
+    const link = within(card()).getByRole('link', { name: NAME })
+    for (const text of [OUT_OF_STOCK, 'پرفروش']) {
+      const label = within(card()).getByText(text)
+      expect(link.compareDocumentPosition(label) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+  })
+
+  it('leaves the image without alt text, since the name link beside it says it all', () => {
+    renderCard(cardFixture())
+    expect(card().querySelector('img')).toHaveAttribute('alt', '')
+  })
+
+  it('describes each action button with the product name', () => {
+    const { wrapper } = clientProviders()
+    render(<ProductCard product={cardFixture()} showOutOfStockLabel onQuickView={vi.fn()} />, {
+      wrapper,
+    })
+    const buttons = within(card()).getAllByRole('button')
+    expect(buttons).toHaveLength(3)
+    for (const button of buttons) expect(button).toHaveAccessibleDescription(NAME)
+  })
+
+  it('reveals the action buttons on hover only where hover exists', () => {
+    const { wrapper } = clientProviders()
+    render(<ProductCard product={cardFixture()} showOutOfStockLabel onQuickView={vi.fn()} />, {
+      wrapper,
+    })
+    for (const button of within(card()).getAllByRole('button')) {
+      expect(button).toHaveClass(
+        '[@media(hover:hover)]:opacity-0',
+        'group-hover/card:opacity-100',
+        'group-focus-within/card:opacity-100',
+      )
+    }
   })
 })

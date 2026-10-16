@@ -24,19 +24,21 @@ function discounted(slug: string, percent: number, changes: Partial<ProductCard>
   })
 }
 
-/** Two days and five hours after the dev server loaded this module. */
-const DEAL_ENDS_AT = Date.now() + (2 * 24 + 5) * 3_600_000
+const HOUR = 3_600_000
+
+/** A timed deal ending `hours` after the dev server loaded this module. */
+function endsIn(hours: number): Partial<ProductCard> {
+  const end = Date.now() + hours * HOUR
+  return { discount_end_time: new Date(end).toISOString(), discount_time_remaining: end }
+}
 
 export const SHOWCASE_PRODUCTS: ProductCard[] = [
-  // Discount with a badge.
-  discounted('samsung-galaxy-s25-ultra', 25),
-  // Timed discount: the countdown row.
-  discounted('apple-iphone-16-pro-max', 12, {
-    discount_end_time: new Date(DEAL_ENDS_AT).toISOString(),
-    discount_time_remaining: DEAL_ENDS_AT,
-  }),
-  // The longest badge, three variant labels (two chips shown).
-  card('xiaomi-redmi-note-14-pro'),
+  // Discount with a badge, ending within a day: the ticking clock pill.
+  discounted('samsung-galaxy-s25-ultra', 25, endsIn(5)),
+  // A deal two days out: the pill shows days.
+  discounted('apple-iphone-16-pro-max', 12, endsIn(2 * 24 + 5)),
+  // The longest badge with a timed deal (the badge yields to the pill); two of three chips.
+  discounted('xiaomi-redmi-note-14-pro', 8, endsIn(9)),
   // Out of stock.
   card('chips-pack-family'),
   // No rating yet.

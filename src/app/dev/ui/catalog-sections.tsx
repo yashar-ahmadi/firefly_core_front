@@ -25,15 +25,30 @@ export function ProductCardSection() {
         </div>
       </Demo>
 
-      <Demo label="کارت در کنار اسکلت بارگذاری خودش: هم‌اندازه" className={SIDE_BY_SIDE}>
+      <Demo
+        label="کارت در کنار اسکلت بارگذاری خودش: هم‌اندازه، با پیشنهاد زمان‌دار هم"
+        className={SIDE_BY_SIDE}
+      >
         <div data-showcase="card-plain">
-          <ProductCard product={showcaseProduct('hisense-tv-55-u7')} showOutOfStockLabel />
+          <ProductCard product={showcaseProduct('apple-macbook-air-m4')} showOutOfStockLabel />
+        </div>
+        <div data-showcase="card-timed">
+          <ProductCard product={showcaseProduct('xiaomi-redmi-note-14-pro')} showOutOfStockLabel />
         </div>
         <div data-showcase="skeleton-plain">
           <ProductCardSkeleton />
         </div>
+      </Demo>
+
+      <Demo
+        label="یک لمس برای کالای ساده؛ کالای چندگزینه‌ای مشاهده سریع را باز می‌کند"
+        className={SIDE_BY_SIDE}
+      >
         <div data-showcase="card-action">
-          <ProductCardDemo product={showcaseProduct('xiaomi-redmi-note-14-pro')} />
+          <ProductCardDemo product={showcaseProduct('hisense-tv-55-u7')} />
+        </div>
+        <div data-showcase="card-quick">
+          <ProductCardDemo product={showcaseProduct('apple-iphone-16-pro-max')} />
         </div>
         <div data-showcase="skeleton-action">
           <ProductCardSkeleton withAction />

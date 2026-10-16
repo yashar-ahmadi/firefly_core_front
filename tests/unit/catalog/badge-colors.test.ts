@@ -20,7 +20,7 @@ describe('badgeColors', () => {
     })
     expect(badgeColors({ badge_color: '#6a1b9a', text_color: '#fff' })).toEqual({
       backgroundColor: '#6a1b9a',
-      color: '#ffffff',
+      color: '#fff',
     })
   })
 
@@ -31,6 +31,21 @@ describe('badgeColors', () => {
         color: readableTextOn('#1565C0'),
       })
     }
+  })
+
+  it('accepts colours with alpha, judging contrast on their opaque part', () => {
+    expect(badgeColors({ badge_color: '#FF6D00CC', text_color: '#FFFFFF' })).toEqual({
+      backgroundColor: '#FF6D00CC',
+      color: readableTextOn('#FF6D00'),
+    })
+    expect(badgeColors({ badge_color: '#1565C0FF', text_color: '#FFFFFF80' })).toEqual({
+      backgroundColor: '#1565C0FF',
+      color: '#FFFFFF80',
+    })
+    expect(badgeColors({ badge_color: '#15cf', text_color: '#fff' })).toEqual({
+      backgroundColor: '#15cf',
+      color: '#fff',
+    })
   })
 
   it('uses a neutral background when the badge colour cannot be read', () => {
