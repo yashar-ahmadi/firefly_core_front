@@ -1,10 +1,5 @@
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
 import { cn } from '@/components/ui/cn'
+import { Disclosure } from '@/components/ui/disclosure'
 import type { MenuNode } from '@/lib/api/types/settings'
 import type { Translate } from '@/lib/i18n/translator'
 import { FOOTER_HEADING } from './footer-styles'
@@ -67,8 +62,8 @@ function FooterLinks({ nodes, nested = false }: { nodes: readonly MenuNode[]; ne
 }
 
 /**
- * The footer menu: columns from md, an accordion (every column closed) on phones. Both are in
- * the HTML and CSS shows one, so links never depend on JavaScript to appear on wide screens.
+ * The footer menu: columns from md, native disclosures (every column closed) on phones. Both are
+ * in the HTML and CSS shows one; neither needs JavaScript, and the links are always in the page.
  */
 export function FooterMenu({ items, t }: { items: readonly MenuNode[]; t: Translate }) {
   const columns = footerColumns(items, t('useful_links'))
@@ -103,23 +98,24 @@ export function FooterMenu({ items, t }: { items: readonly MenuNode[]; t: Transl
         })}
       </div>
 
-      <Accordion type="multiple" className="border-y border-ink-200 md:hidden">
+      <div className="border-y border-ink-200 md:hidden">
         {panels.map(({ column, own }) => (
-          <AccordionItem key={column.key} value={column.key}>
-            <AccordionTrigger level={2} className="font-bold">
-              {column.title}
-            </AccordionTrigger>
-            <AccordionContent className="pb-3">
-              {own && (
-                <MenuLink node={own} prefetch={false} className={cn(LINK, 'font-medium')}>
-                  {t('menu_view', { name: own.title })}
-                </MenuLink>
-              )}
-              <FooterLinks nodes={column.links} />
-            </AccordionContent>
-          </AccordionItem>
+          <Disclosure
+            key={column.key}
+            title={column.title}
+            level={2}
+            summaryClassName="font-bold"
+            contentClassName="pb-3"
+          >
+            {own && (
+              <MenuLink node={own} prefetch={false} className={cn(LINK, 'font-medium')}>
+                {t('menu_view', { name: own.title })}
+              </MenuLink>
+            )}
+            <FooterLinks nodes={column.links} />
+          </Disclosure>
         ))}
-      </Accordion>
+      </div>
     </nav>
   )
 }

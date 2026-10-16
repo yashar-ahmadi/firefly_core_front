@@ -1,19 +1,13 @@
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
+import { Disclosure } from '@/components/ui/disclosure'
 import type { QuestionAnswer } from '@/lib/api/types/catalog'
 
 const HEADING_ID = 'admin-faq'
 
 /**
- * The operator's FAQ of a category or list page (not shoppers' questions): an accordion, one
- * answer open at a time. The answers are plain text (line breaks kept). They stay in the HTML
- * while closed, so search engines read them: `forceMount` keeps Radix from unmounting them, and
- * since it also keeps Radix from setting `hidden`, a closed panel's body is hidden by CSS on the
- * panel's own `data-state`. Nothing when there is no usable item.
+ * The operator's FAQ of a category or list page (not shoppers' questions): each question a native
+ * disclosure, one answer open at a time where the browser supports named `<details>`. The answers
+ * are plain text (line breaks kept). They stay in the HTML while closed, so search engines read
+ * them, and no JavaScript is needed to open them. Nothing when there is no usable item.
  */
 export function AdminFaq({ items }: { items: readonly QuestionAnswer[] }) {
   const usable = items.filter((item) => item.question.trim() && item.answer.trim())
@@ -24,19 +18,11 @@ export function AdminFaq({ items }: { items: readonly QuestionAnswer[] }) {
         پرسش‌های متداول
       </h2>
       <div className="rounded-card bg-white px-4 shadow-card md:px-6">
-        <Accordion type="single" collapsible>
-          {usable.map((item, index) => (
-            <AccordionItem key={index} value={`faq-${index}`}>
-              <AccordionTrigger>{item.question.trim()}</AccordionTrigger>
-              <AccordionContent
-                forceMount
-                className="leading-8 whitespace-pre-line [[data-state=closed]>&]:hidden"
-              >
-                {item.answer.trim()}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        {usable.map((item, index) => (
+          <Disclosure key={index} name={HEADING_ID} title={item.question.trim()}>
+            <p className="leading-8 whitespace-pre-line">{item.answer.trim()}</p>
+          </Disclosure>
+        ))}
       </div>
     </section>
   )

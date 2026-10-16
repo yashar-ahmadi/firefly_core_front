@@ -220,7 +220,7 @@ describe('the category page', () => {
       expect(listing.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     }
     expect(screen.getByRole('button', { name: 'مطالعهٔ نکات' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'گارانتی دارد؟' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'گارانتی دارد؟' })).toBeInTheDocument()
   })
 })
 

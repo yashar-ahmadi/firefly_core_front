@@ -58,9 +58,9 @@ test.describe('system pages', () => {
     const footer = page.getByRole('contentinfo')
     const menu = footer.getByRole('navigation', { name: 'پیوندهای پایین صفحه' })
 
-    // Phones keep the columns in an accordion: open it first.
+    // Phones fold the columns into disclosures: open it first (its summary holds the heading).
     if (isPhone(page)) {
-      await menu.getByRole('button', { name: 'لینک‌های مفید' }).click()
+      await menu.locator('summary', { hasText: 'لینک‌های مفید' }).click()
     }
     const terms = menu.getByRole('link', { name: 'قوانین و مقررات' })
     await expect(terms).toBeVisible()

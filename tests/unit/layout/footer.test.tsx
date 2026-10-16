@@ -154,15 +154,21 @@ describe('SiteFooter: menu columns', () => {
     ])
   })
 
-  it('also offers the columns as an accordion (shown on phones)', async () => {
+  it('also offers the columns as native disclosures (shown on phones), links in the HTML', async () => {
     const user = userEvent.setup()
     await renderFooter()
     const nav = screen.getByRole('navigation', { name: 'پیوندهای پایین صفحه' })
-    const trigger = within(nav).getByRole('button', { name: 'لینک‌های مفید' })
-    expect(trigger).toHaveAttribute('aria-expanded', 'false')
-    await user.click(trigger)
-    expect(trigger).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getAllByRole('link', { name: 'قوانین و مقررات' })).toHaveLength(2)
+    const summary = within(nav)
+      .getAllByRole('heading', { level: 2, name: 'لینک‌های مفید' })
+      .map((heading) => heading.closest('summary'))
+      .find((element) => element !== null)!
+    const details = summary.parentElement!
+    expect(details.tagName).toBe('DETAILS')
+    expect(details).not.toHaveAttribute('open')
+    // Closed, its links are still in the page (no script needed to show them).
+    expect(screen.getAllByRole('link', { name: 'قوانین و مقررات', hidden: true })).toHaveLength(2)
+    await user.click(summary)
+    expect(details).toHaveAttribute('open')
   })
 
   it('renders no menu without footer items', async () => {

@@ -225,7 +225,7 @@ describe('the curated list page', () => {
       listPageFixture({ question_answers: [{ question: 'ارسال رایگان است؟', answer: 'بله.' }] }),
     )
     await show(ListPage(slugProps('flagship-phones')))
-    expect(screen.getByRole('button', { name: 'ارسال رایگان است؟' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 3, name: 'ارسال رایگان است؟' })).toBeInTheDocument()
   })
 
   it('is not found for an unknown list, with a not-found title', async () => {

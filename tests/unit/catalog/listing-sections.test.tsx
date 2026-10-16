@@ -34,25 +34,23 @@ describe('AdminFaq', () => {
     { question: '  ', answer: 'بی‌پرسش' },
   ]
 
-  it('keeps every answer in the page, the closed ones hidden, one open at a time', async () => {
+  it('lists each question as a native disclosure, every answer in the page while closed', async () => {
     const user = userEvent.setup()
     render(<AdminFaq items={items} />)
     const section = screen.getByRole('region', { name: 'پرسش‌های متداول' })
-    expect(
-      within(section)
-        .getAllByRole('button')
-        .map((button) => button.textContent),
-    ).toEqual(['گارانتی دارد؟', 'ارسال رایگان است؟'])
-    // In the HTML while closed (for search engines), hidden by the closed panel's CSS.
+    const questions = within(section).getAllByRole('heading', { level: 3 })
+    expect(questions.map((heading) => heading.textContent)).toEqual([
+      'گارانتی دارد؟',
+      'ارسال رایگان است؟',
+    ])
+    // In the HTML while closed, for search engines; the browser hides it until opened.
     const answer = screen.getByText('بالای ده میلیون تومان.')
-    expect(answer.parentElement).toHaveAttribute('data-state', 'closed')
-    expect(answer).toHaveClass('[[data-state=closed]>&]:hidden')
-
-    await user.click(screen.getByRole('button', { name: 'ارسال رایگان است؟' }))
-    expect(answer.parentElement).toHaveAttribute('data-state', 'open')
-    await user.click(screen.getByRole('button', { name: 'گارانتی دارد؟' }))
-    expect(answer.parentElement).toHaveAttribute('data-state', 'closed')
-    expect(screen.getByText(/هجده ماه/).parentElement).toHaveAttribute('data-state', 'open')
+    const details = answer.closest('details')!
+    expect(details).not.toHaveAttribute('open')
+    expect(details).toHaveAttribute('name', 'admin-faq')
+    await user.click(questions[1]!.closest('summary')!)
+    expect(details).toHaveAttribute('open')
+    expect(answer).toHaveClass('whitespace-pre-line')
   })
 
   it('renders nothing without a usable question and answer', () => {
