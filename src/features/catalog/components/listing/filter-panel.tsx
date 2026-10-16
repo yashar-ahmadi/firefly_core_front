@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   Accordion,
   AccordionContent,
@@ -28,13 +28,16 @@ const byCodePoint = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
 /**
  * Every filter of a listing, reading and writing the URL: the three switches, then collapsible
- * groups (all open at first) for category, brand, price and each attribute. Each group is
+ * groups for category, brand, price and each attribute. Every group is open unless the visitor
+ * closed it, so a group that a navigation adds (a category's attributes) shows open too. Each group is
  * labelled for assistive tech (a fieldset legend or a named radio group). Used in the desktop
  * sidebar and in the phone's filter sheet.
  */
 export function FilterPanel({ groups }: { groups: FacetGroups }) {
   const { query, set } = useListingUrl()
   const chosenIds = query.attribute_values ?? []
+  // The groups the visitor closed; any other group is open, including one added later.
+  const [closed, setClosed] = useState<ReadonlySet<string>>(() => new Set())
 
   const sections: { value: string; title: string; body: ReactNode }[] = []
   if (groups.categories.length > 0) {
@@ -131,7 +134,21 @@ export function FilterPanel({ groups }: { groups: FacetGroups }) {
         ))}
       </fieldset>
       {sections.length > 0 && (
-        <Accordion type="multiple" defaultValue={sections.map((section) => section.value)}>
+        <Accordion
+          type="multiple"
+          value={sections.map((section) => section.value).filter((value) => !closed.has(value))}
+          onValueChange={(open) => {
+            const shown = new Set(open)
+            setClosed((current) => {
+              const next = new Set(current)
+              for (const section of sections) {
+                if (shown.has(section.value)) next.delete(section.value)
+                else next.add(section.value)
+              }
+              return next
+            })
+          }}
+        >
           {sections.map((section) => (
             <Group key={section.value} value={section.value} title={section.title}>
               {section.body}
