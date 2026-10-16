@@ -66,30 +66,34 @@ server {
     ssl_session_cache   shared:firefly_ssl:10m;
     ssl_session_timeout 1d;
 
-    # add_header is not inherited by a location that has its own add_header: repeat it there.
+    # HSTS only: the app itself sends X-Frame-Options, CSP frame-ancestors, X-Content-Type-Options
+    # and Referrer-Policy on every response (next.config.ts), so they are not repeated here (nginx
+    # would send them twice). add_header is not inherited by a location that has its own
+    # add_header: repeat this line there.
     add_header Strict-Transport-Security "max-age=31536000" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     # Receipt (card-to-card) and avatar uploads are up to 5 MB, plus multipart overhead.
     client_max_body_size 6m;
 
     # --- Compression ------------------------------------------------------------------------------
-    # nginx owns compression: the app is built with `compress: false` and is asked for identity
-    # bodies (Accept-Encoding cleared below), so gzip and brotli apply to everything it sends.
+    # nginx compresses once, with brotli or gzip: Accept-Encoding is cleared towards the app (below),
+    # so the app answers with identity bodies. (The app gzips by itself only when no proxy strips
+    # that header.) text/x-component is the RSC payload of every client-side navigation.
     gzip on;
     gzip_vary on;
     gzip_proxied any;
     gzip_comp_level 5;
     gzip_min_length 1024;
-    gzip_types text/plain text/css text/xml application/xml application/javascript
-               application/json application/manifest+json image/svg+xml font/ttf;
+    gzip_types text/plain text/css text/xml text/x-component application/xml
+               application/javascript application/json application/manifest+json image/svg+xml
+               font/ttf;
 
     brotli on;
     brotli_comp_level 5;
     brotli_min_length 1024;
-    brotli_types text/plain text/css text/xml application/xml application/javascript
-                 application/json application/manifest+json image/svg+xml font/ttf;
+    brotli_types text/plain text/css text/xml text/x-component application/xml
+                 application/javascript application/json application/manifest+json image/svg+xml
+                 font/ttf;
 
     # --- Proxy headers ----------------------------------------------------------------------------
     proxy_http_version 1.1;
@@ -103,7 +107,7 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Host $host;
-    # Uncompressed bodies from the app, so the gzip/brotli settings above can compress them.
+    # Identity bodies from the app, so the brotli/gzip settings above compress each response once.
     proxy_set_header Accept-Encoding "";
     proxy_read_timeout 60s;
 
@@ -114,11 +118,11 @@ server {
         expires 1y;
         add_header Cache-Control "public, immutable";
         add_header Strict-Transport-Security "max-age=31536000" always;
-        add_header X-Content-Type-Options "nosniff" always;
     }
 
-    # Liveness probe for load balancers and monitoring: answers without calling the API. Note the
-    # trailing slash (/healthz without it is a 308 redirect).
+    # Health probe for load balancers and monitoring: 200 "ok", or 503 "unhealthy" when the app's
+    # environment is invalid; it never calls the API. Note the trailing slash (/healthz without it
+    # is a 308 redirect).
     location = /healthz/ {
         proxy_pass http://firefly_storefront;
         access_log off;

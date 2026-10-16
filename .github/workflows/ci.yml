@@ -1,6 +1,7 @@
-# Checks every push and pull request to main. End-to-end tests are not run here: they need the
-# Firefly backend with its sample data (a separate repository), so Playwright runs locally
-# before each push (see docs/DEPLOYMENT.md).
+# Checks every push and pull request to main: the code (typecheck, lint, format, unit tests and a
+# production build) and the Docker image (built, started and probed on /healthz/). End-to-end tests
+# are not run here: they need the Firefly backend with its sample data (a separate repository), so
+# Playwright runs locally before each push (see docs/DEPLOYMENT.md).
 name: CI
 
 on:
@@ -42,3 +43,77 @@ jobs:
       - run: pnpm test
       # No backend is needed: all shop configuration is read at runtime.
       - run: pnpm build
+
+  docker:
+    name: Docker image builds, starts and passes its health check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      IMAGE: firefly-front:ci
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v4
+
+      # The image as deploy builds it (no backend needed). `load` hands it to the local Docker
+      # engine so the steps below can run it; nothing is pushed anywhere.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE }}
+          build-args: FIREFLY_API_URL=https://api.example.ir
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Dummy but schema-valid production values: the probe validates the environment and never
+      # calls the API, so the container must become healthy with no backend at all.
+      - name: Start the image with a valid environment
+        run: |
+          docker run -d --name front -p 127.0.0.1:3000:3000 \
+            -e FIREFLY_API_URL=https://api.example.ir \
+            -e FIREFLY_API_KEY=ci-dummy-key \
+            -e SITE_URL=https://shop.example.ir \
+            "$IMAGE"
+
+      - name: /healthz/ answers 200 ok
+        run: |
+          for attempt in $(seq 1 30); do
+            body=$(curl -fsS http://127.0.0.1:3000/healthz/) && break
+            sleep 2
+          done
+          echo "healthz: ${body:-no answer}"
+          test "$body" = ok
+
+      # The image's own HEALTHCHECK (BusyBox wget, every 30 s): wait for Docker to report it.
+      - name: Docker reports the container healthy
+        run: |
+          for attempt in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' front)
+            echo "health: $status"
+            [ "$status" = healthy ] && exit 0
+            [ "$status" = unhealthy ] && break
+            sleep 5
+          done
+          docker inspect --format '{{json .State.Health}}' front
+          exit 1
+
+      # A container without its required variables must not pass the probe.
+      - name: /healthz/ answers 503 without the required environment
+        run: |
+          docker run -d --name broken -p 127.0.0.1:3001:3000 "$IMAGE"
+          for attempt in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3001/healthz/) || true
+            [ "$code" != 000 ] && break
+            sleep 2
+          done
+          echo "broken healthz: $code"
+          test "$code" = 503
+          docker logs broken 2>&1 | grep -F '[healthz] unhealthy'
+
+      - name: Container logs
+        if: always()
+        run: |
+          docker logs front || true
+          docker logs broken || true

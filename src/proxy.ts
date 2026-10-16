@@ -21,7 +21,7 @@ const GONE_MESSAGE = 'این صفحه دیگر وجود ندارد و جایگز
 
 const SESSION_COOKIES = [COOKIE.access, COOKIE.refresh, COOKIE.flag]
 const SKIPPED_PREFIX = /^\/(?:_next|api|s|icons)\//
-/** The liveness probe (src/app/healthz): never a redirect lookup or a session refresh. */
+/** The health probe (src/app/healthz): never a redirect lookup or a session refresh. */
 const HEALTH_CHECK = /^\/healthz\/?$/
 /**
  * The last segment has a file extension, other than `.xml` and the legacy page extensions that
@@ -124,11 +124,13 @@ async function withSession(
 }
 
 export async function proxy(request: NextRequest): Promise<Response> {
-  const env = getServerEnv()
   const { pathname } = request.nextUrl
-  if (isForwarded(pathname)) return forward(request, env.FIREFLY_API_URL)
+  // Forwarded paths come first: `/media/a.png` also looks like an asset file.
+  if (isForwarded(pathname)) return forward(request, getServerEnv().FIREFLY_API_URL)
+  // Skipped paths never read the environment, so the health probe reports a broken one itself.
   if (isSkipped(pathname)) return NextResponse.next()
 
+  const env = getServerEnv()
   const forwardedFor = getClientIp(request.headers, env.CLIENT_IP_HEADER)
   const redirect = await redirectFor(request, forwardedFor)
   if (redirect !== null) return redirect

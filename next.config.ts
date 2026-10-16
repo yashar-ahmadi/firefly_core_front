@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { securityHeaderRules } from './src/config/security-headers'
 
 type RemotePattern = NonNullable<NonNullable<NextConfig['images']>['remotePatterns']>[number]
 type HttpProtocol = 'http' | 'https'
@@ -54,11 +55,13 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   output: 'standalone',
   poweredByHeader: false,
-  // The reverse proxy in front (deploy/nginx.conf.example) compresses with gzip and brotli; Next's
-  // own gzip would hand it already-encoded bodies and nginx would pass them on untouched. Without
-  // a compressing proxy in front the site still works, just uncompressed.
-  compress: false,
+  // Next gzips only when the request accepts it. The nginx example strips Accept-Encoding towards
+  // the app, so behind it Next sends identity and nginx compresses once (brotli or gzip); without a
+  // compressing proxy in front, Next's gzip still applies.
+  compress: true,
   reactStrictMode: true,
+  // X-Frame-Options, CSP frame-ancestors, nosniff and Referrer-Policy on every response.
+  headers: async () => securityHeaderRules(),
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: buildRemotePatterns(),

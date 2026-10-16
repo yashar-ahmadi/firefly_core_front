@@ -57,8 +57,9 @@ COPY --from=build --chown=node:node /app/public ./public
 USER node
 EXPOSE 3000
 
-# Liveness only (src/app/healthz): no API call, so a backend outage never marks the storefront
-# unhealthy. The trailing slash avoids the 308 that trailingSlash: true sends for /healthz.
+# src/app/healthz validates the runtime environment (503 when a variable is missing or invalid)
+# and makes no API call, so a backend outage never marks the storefront unhealthy. The trailing
+# slash avoids the 308 that trailingSlash: true sends for /healthz.
 # BusyBox wget ships with the Alpine base image.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/healthz/" >/dev/null || exit 1
