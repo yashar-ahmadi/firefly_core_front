@@ -33,6 +33,23 @@ describe('StickyBuyBar', () => {
     expect(within(bar()).getByText('۷۸٬۵۰۰٬۰۰۰')).toBeInTheDocument()
   })
 
+  it('marks itself for the CSS that hides the bottom navigation, and sits above it', () => {
+    renderWithProduct(<StickyBuyBar />, { product: s25Product() })
+    // Rendered in the server HTML: `body:has([data-sticky-buy-bar])` hides the nav from the
+    // first paint.
+    expect(bar()).toHaveAttribute('data-sticky-buy-bar')
+    // Above the navigation (z-40): where `:has()` is missing, the bar still covers it.
+    expect(bar()).toHaveClass('z-41')
+    expect(bar()).not.toHaveClass('z-40')
+  })
+
+  it('flags the body while it is mounted (browsers without :has()), and clears it after', () => {
+    const { unmount } = renderWithProduct(<StickyBuyBar />, { product: s25Product() })
+    expect(document.body).toHaveAttribute('data-buy-bar-shown')
+    unmount()
+    expect(document.body).not.toHaveAttribute('data-buy-bar-shown')
+  })
+
   it('adds the selected variant with the quantity chosen in the buy box', async () => {
     const user = userEvent.setup()
     mocks.bffFetch.mockResolvedValue(result(cart([cartLine({ quantity: 2 })]), MSG_ADDED))

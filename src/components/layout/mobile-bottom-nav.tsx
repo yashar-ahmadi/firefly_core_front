@@ -11,12 +11,6 @@ import { BOTTOM_BAR_FRAME, BOTTOM_BAR_ROW, BOTTOM_BAR_SPACER } from './bottom-ba
 
 /** Pages that bring their own bottom bar and its room (checkout's "pay" bar). */
 const HIDDEN_ON = /^\/checkout(?:\/|$)/
-/**
- * The product page brings its buy bar, which is as tall as this navigation: the navigation steps
- * aside and keeps the room at the end of the page (the bar sits inside the page, before the
- * footer). `/product/list/…` are listings.
- */
-const BUY_BAR_ON = /^\/product\/(?!list\/)[^/]+\/$/
 
 interface Tab {
   href: string
@@ -33,8 +27,9 @@ const under = (pathname: string, ...prefixes: string[]) =>
 /**
  * The phone's bottom navigation (below md): home, categories, cart and account. The current tab
  * is brand-coloured with a filled icon. It slides away while scrolling down and is not shown
- * during checkout, nor on a product page (whose buy bar takes its place). It also reserves its
- * height at the end of the page, so nothing hides under it.
+ * during checkout. While a page's own buy bar is mounted (the product page) a rule in
+ * globals.css hides it (`data-bottom-nav`); its spacer stays, since the bar is as tall. It
+ * reserves its height at the end of the page, so nothing hides under either bar.
  */
 export function MobileBottomNav() {
   const t = useT()
@@ -42,7 +37,6 @@ export function MobileBottomNav() {
   const { hasSession } = useSession()
   const cartLabel = useCartLabel()
   if (HIDDEN_ON.test(pathname)) return null
-  if (BUY_BAR_ON.test(pathname)) return <div aria-hidden className={BOTTOM_BAR_SPACER} />
 
   const tabs: Tab[] = [
     { href: '/', label: t('home'), icon: House, active: pathname === '/' },
@@ -71,6 +65,7 @@ export function MobileBottomNav() {
     <>
       <div aria-hidden className={BOTTOM_BAR_SPACER} />
       <nav
+        data-bottom-nav=""
         aria-label={t('bottom_navigation')}
         className={cn(
           BOTTOM_BAR_FRAME,

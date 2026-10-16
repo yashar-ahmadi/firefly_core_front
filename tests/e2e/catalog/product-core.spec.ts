@@ -39,6 +39,8 @@ const isPhone = (page: Page) => (page.viewportSize()?.width ?? 0) < MD
 const buyBox = (page: Page) => page.getByRole('region', { name: 'خرید', exact: true })
 const buyBar = (page: Page) => page.getByRole('region', { name: 'نوار خرید' })
 const axis = (page: Page, name: string) => page.getByRole('radiogroup', { name })
+/** Includes a hidden one, so `toBeHidden` checks the element rather than its absence. */
+const bottomNav = (page: Page) => page.locator('nav[data-bottom-nav]')
 
 test.describe('product page', () => {
   test('shows the name, a price in Toman and the colour axis, and hydrates cleanly', async ({
@@ -155,11 +157,23 @@ test.describe('product page', () => {
     await expect(opener).toBeFocused()
   })
 
-  test('phones get the buy bar in place of the bottom navigation', async ({ page }) => {
+  test('phones get the buy bar in place of the bottom navigation, until they leave', async ({
+    page,
+  }) => {
     test.skip(!isPhone(page), 'the bar is for phones (below md)')
     await page.goto(S25)
     await expect(buyBar(page).getByRole('button', { name: ADD })).toBeVisible()
-    await expect(page.getByRole('navigation', { name: 'منوی پایین' })).toHaveCount(0)
+    // In the page, hidden by CSS (not left out by the URL).
+    await expect(bottomNav(page)).toHaveCount(1)
+    await expect(bottomNav(page)).toBeHidden()
+    // A client-side move to a listing unmounts the bar: the navigation is back.
+    await page
+      .getByRole('navigation', { name: 'مسیر صفحه' })
+      .getByRole('link', { name: 'گوشی موبایل' })
+      .click()
+    await expect(page).toHaveURL(/\/product-category\/digital\/mobile-phone\/$/)
+    await expect(bottomNav(page)).toBeVisible()
+    await expect(buyBar(page)).toHaveCount(0)
   })
 
   test('carries its SEO head: canonical, the product image and both JSON-LD blocks', async ({
@@ -192,6 +206,28 @@ test.describe('product page status and stock', () => {
     const response = await page.goto('/product/does-not-exist/')
     expect(response?.status()).toBe(404)
     await expect(page).toHaveTitle(/^صفحه پیدا نشد \|/)
+  })
+
+  test('a missing product keeps the bottom navigation on a 375px phone (no buy bar there)', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/product/does-not-exist/')
+    await expect(bottomNav(page)).toBeVisible()
+    await expect(buyBar(page)).toHaveCount(0)
+  })
+})
+
+test.describe('product page server HTML on a phone', () => {
+  // Before any script runs: the navigation is already hidden by CSS, so it never flashes.
+  test.use({ javaScriptEnabled: false, viewport: { width: 375, height: 812 } })
+
+  test('hides the bottom navigation behind the buy bar from the first paint', async ({ page }) => {
+    await page.goto(S25)
+    await expect(buyBar(page)).toBeVisible()
+    // In the page, hidden by CSS (not left out by the URL).
+    await expect(bottomNav(page)).toHaveCount(1)
+    await expect(bottomNav(page)).toBeHidden()
   })
 
   test('an out-of-stock product offers the back-in-stock form', async ({ page }) => {

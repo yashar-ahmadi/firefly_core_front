@@ -2,6 +2,7 @@
 
 import { BOTTOM_BAR_FRAME, BOTTOM_BAR_ROW } from '@/components/layout/bottom-bar'
 import { BellRing } from 'lucide-react'
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
@@ -13,13 +14,36 @@ import { NOTIFY_ME_ID, NOTIFY_ME_TITLE } from './notify-me'
 import { PriceBlock } from './price-block'
 import { useProduct } from './product-provider'
 
+/** Mounted bars: the body flag stays while any is on the page. */
+let mounted = 0
+
 /**
- * The phone's buy bar, fixed to the bottom below md where the bottom navigation would be (the
- * navigation steps aside on product pages and keeps this bar's room at the end of the page):
- * the variant's price and «add to cart» with the quantity chosen in the buy box. When nothing
- * of the product can be bought, it leads to the back-in-stock form instead (when that is on).
+ * Hides the bottom navigation while the bar is mounted, from the first paint and never by URL
+ * (a missing product's 404 page keeps the navigation):
+ * - `data-sticky-buy-bar` is in the server HTML, and `body:has([data-sticky-buy-bar])
+ *   [data-bottom-nav]` (globals.css) hides the navigation before any script runs;
+ * - browsers without `:has()` get `body[data-buy-bar-shown]` once this mounts; until then the
+ *   bar sits one layer above the navigation and covers it (they are equally tall).
+ * The navigation keeps its spacer, so the bar's room stays at the end of the page.
+ */
+function useBodyFlag() {
+  useEffect(() => {
+    mounted += 1
+    document.body.setAttribute('data-buy-bar-shown', '')
+    return () => {
+      mounted -= 1
+      if (mounted === 0) document.body.removeAttribute('data-buy-bar-shown')
+    }
+  }, [])
+}
+
+/**
+ * The phone's buy bar, fixed to the bottom below md in place of the bottom navigation: the
+ * variant's price and «add to cart» with the quantity chosen in the buy box. When nothing of the
+ * product can be bought, it leads to the back-in-stock form instead (when that is on).
  */
 export function StickyBuyBar() {
+  useBodyFlag()
   const { product, variant, quantity } = useProduct()
   const notifications = useFeature('stock_notifications')
   const unavailable = unavailableLabel(product, variant)
@@ -45,7 +69,7 @@ export function StickyBuyBar() {
       </Button>
     )
   return (
-    <section aria-label="نوار خرید" className={BOTTOM_BAR_FRAME}>
+    <section data-sticky-buy-bar="" aria-label="نوار خرید" className={cn(BOTTOM_BAR_FRAME, 'z-41')}>
       <div className={cn('flex items-center gap-3 px-4', BOTTOM_BAR_ROW)}>
         {action}
         <PriceBlock variant={variant} size="sm" countdown={false} className="shrink-0" />

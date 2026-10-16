@@ -244,6 +244,21 @@
   }
 }
 
+/*
+ * A page's own phone buy bar (the product page's StickyBuyBar) takes the bottom navigation's
+ * place while it is mounted; the navigation's spacer keeps the room (the bars are equally tall).
+ * `:has()` reads the bar's marker in the server HTML, so the navigation never flashes. Browsers
+ * without `:has()` get the body flag the bar sets once mounted (until then the bar covers the
+ * navigation, one layer above it). Two rules: an unknown selector voids a whole selector list.
+ */
+body:has([data-sticky-buy-bar]) [data-bottom-nav] {
+  display: none;
+}
+
+body[data-buy-bar-shown] [data-bottom-nav] {
+  display: none;
+}
+
 @layer base {
   html {
     font-size: 16px;
