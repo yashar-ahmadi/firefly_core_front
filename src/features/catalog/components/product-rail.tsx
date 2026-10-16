@@ -1,6 +1,6 @@
 import { Carousel, type SlidesPerView } from '@/components/ui/carousel'
 import type { CardProduct } from '@/features/catalog/card-product'
-import { cardAction } from './card-action'
+import { CardScope } from './card-scope'
 import { ProductCard } from './product-card'
 
 /** Two and a bit cards on phones, three and a half on tablets, five from lg. */
@@ -20,16 +20,19 @@ export interface ProductRailProps {
  * Client Components.
  */
 export function ProductRail({ products, ariaLabel, showOutOfStockLabel }: ProductRailProps) {
+  // One CardScope per rail: the cards' buttons share its subscriptions.
   return (
-    <Carousel ariaLabel={ariaLabel} slidesPerView={PER_VIEW} arrowGutters>
-      {products.map((product) => (
-        <ProductCard
-          key={product.id}
-          product={product}
-          showOutOfStockLabel={showOutOfStockLabel}
-          addSlot={(nameId) => cardAction(product, nameId)}
-        />
-      ))}
-    </Carousel>
+    <CardScope>
+      <Carousel ariaLabel={ariaLabel} slidesPerView={PER_VIEW} arrowGutters>
+        {products.map((product) => (
+          <ProductCard
+            key={product.id}
+            product={product}
+            showOutOfStockLabel={showOutOfStockLabel}
+            withAction
+          />
+        ))}
+      </Carousel>
+    </CardScope>
   )
 }

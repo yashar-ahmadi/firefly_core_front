@@ -1,4 +1,11 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
+import {
+  MutationObserver,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type MutationOptions,
+  type QueryClient,
+} from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { notify } from '@/components/ui/toaster'
 import { bffFetch } from '@/lib/api/client'
@@ -90,19 +97,21 @@ export interface ToggleWishlist {
   isPending: boolean
 }
 
-/**
- * An optimistic wishlist toggle. The heart flips at once; a failure flips it back and shows the
- * API's message, and a 401 (session gone) goes to login. After the last toggle settles the ids
- * are read again, so the cache ends up matching the server.
- */
-export function useToggleWishlist(): ToggleWishlist {
-  const { hasSession } = useSession()
-  const router = useRouter()
-  const client = useQueryClient()
+type Router = Pick<ReturnType<typeof useRouter>, 'push'>
+type ToggleResult = Awaited<ReturnType<typeof bffFetch<{ is_in_wishlist: boolean } | null>>>
 
-  const mutation = useMutation({
+/**
+ * The optimistic toggle as mutation options. The heart flips at once; a failure flips it back
+ * and shows the API's message, and a 401 (session gone) goes to login. After the last toggle
+ * settles the ids are read again, so the cache ends up matching the server.
+ */
+function toggleOptions(
+  client: QueryClient,
+  router: Router,
+): MutationOptions<ToggleResult, Error, ToggleVariables> {
+  return {
     mutationKey: TOGGLE_KEY,
-    mutationFn: ({ slug, save }: ToggleVariables) =>
+    mutationFn: ({ slug, save }) =>
       bffFetch<{ is_in_wishlist: boolean } | null>(`product/detail/${slug}/wishlist/`, {
         method: save ? 'POST' : 'DELETE',
       }),
@@ -126,15 +135,48 @@ export function useToggleWishlist(): ToggleWishlist {
         void client.invalidateQueries({ queryKey: WISHLIST_IDS_KEY })
       }
     },
-  })
+  }
+}
+
+/** Whether `id` is among the cached saved ids. */
+const isSaved = (client: QueryClient, id: number) =>
+  client.getQueryData<number[]>(WISHLIST_IDS_KEY)?.includes(id) ?? false
+
+/**
+ * One toggle without a hook: the mutation is created when it is called (a product card creates
+ * none until its heart is pressed). Guests go to the login page. Never rejects.
+ */
+export function toggleWishlistOnce(
+  client: QueryClient,
+  router: Router,
+  hasSession: boolean,
+  { id, slug }: { id: number; slug: string },
+): Promise<void> {
+  if (!hasSession) {
+    router.push(loginHref(currentPath()))
+    return Promise.resolve()
+  }
+  return new MutationObserver(client, toggleOptions(client, router))
+    .mutate({ id, slug, save: !isSaved(client, id) })
+    .then(
+      () => undefined,
+      () => undefined,
+    )
+}
+
+/** The optimistic wishlist toggle (`toggleOptions`) as a hook, for a single heart. */
+export function useToggleWishlist(): ToggleWishlist {
+  const { hasSession } = useSession()
+  const router = useRouter()
+  const client = useQueryClient()
+  const mutation = useMutation(toggleOptions(client, router))
 
   const toggle = ({ id, slug }: { id: number; slug: string }) => {
     if (!hasSession) {
       router.push(loginHref(currentPath()))
       return
     }
-    const saved = client.getQueryData<number[]>(WISHLIST_IDS_KEY)?.includes(id) ?? false
-    mutation.mutate({ id, slug, save: !saved })
+    mutation.mutate({ id, slug, save: !isSaved(client, id) })
   }
 
   return { toggle, isPending: mutation.isPending }

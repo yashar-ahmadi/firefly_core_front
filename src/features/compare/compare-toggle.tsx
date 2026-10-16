@@ -28,38 +28,49 @@ export interface CompareToggleProps {
 }
 
 /**
- * Adds the product to the compare list or takes it out (`aria-pressed`). Invisible until the
- * saved list has been read, so it never shows "not compared" for a compared product. A full
- * list says so; a product of another category than the list's first is added with a note
- * (spec §8.12: compatible categories are expected, not enforced). Not shown while the shop has
- * comparison switched off.
+ * Adds `item` to the compare list, or takes it out when `selected`. A full list says so; a
+ * product of another category than the list's first is added with a note (spec §8.12:
+ * compatible categories are expected, not enforced).
  */
-export function CompareToggle({ item, size = 'sm', describedBy, className }: CompareToggleProps) {
-  const hydrated = usePersistHydration(useCompare)
-  const selected = useCompare((state) => state.items.some((listed) => listed.slug === item.slug))
-  const add = useCompare((state) => state.add)
-  const remove = useCompare((state) => state.remove)
-  // The shop's switch: off, there is no compare page to fill a list for.
-  const enabled = useOptionalStoreConfig()?.features.compare !== false
-  if (!enabled) return null
+export function toggleCompare(item: CompareItem, selected: boolean): void {
+  const { add, remove } = useCompare.getState()
+  if (selected) {
+    remove(item.slug)
+    return
+  }
+  const result = add(item)
+  if (result === 'full') notify.info(LIST_FULL)
+  else if (result === 'added' && isOtherCategory(useCompare.getState().items[0], item)) {
+    notify.info(OTHER_CATEGORY)
+  }
+}
 
+export interface CompareToggleViewProps {
+  selected: boolean
+  /** The saved list has been read: invisible before, so it never shows a wrong state. */
+  hydrated: boolean
+  size?: OverlayButtonSize
+  describedBy?: string
+  className?: string
+  onClick: () => void
+}
+
+/** The toggle's markup, without state: CompareToggle, and a product card's actions. */
+export function CompareToggleView({
+  selected,
+  hydrated,
+  size = 'sm',
+  describedBy,
+  className,
+  onClick,
+}: CompareToggleViewProps) {
   return (
     <button
       type="button"
       aria-pressed={selected}
       aria-label={selected ? LABEL_REMOVE : LABEL_ADD}
       aria-describedby={describedBy}
-      onClick={() => {
-        if (selected) {
-          remove(item.slug)
-          return
-        }
-        const result = add(item)
-        if (result === 'full') notify.info(LIST_FULL)
-        else if (result === 'added' && isOtherCategory(useCompare.getState().items[0], item)) {
-          notify.info(OTHER_CATEGORY)
-        }
-      }}
+      onClick={onClick}
       className={cn(overlayButtonClasses(size), !hydrated && 'invisible', className)}
     >
       <span
@@ -72,5 +83,29 @@ export function CompareToggle({ item, size = 'sm', describedBy, className }: Com
         <GitCompareArrows aria-hidden />
       </span>
     </button>
+  )
+}
+
+/**
+ * Adds the product to the compare list or takes it out (`aria-pressed`, see `toggleCompare`).
+ * Invisible until the saved list has been read, so it never shows "not compared" for a compared
+ * product. Not shown while the shop has comparison switched off.
+ */
+export function CompareToggle({ item, size = 'sm', describedBy, className }: CompareToggleProps) {
+  const hydrated = usePersistHydration(useCompare)
+  const selected = useCompare((state) => state.items.some((listed) => listed.slug === item.slug))
+  // The shop's switch: off, there is no compare page to fill a list for.
+  const enabled = useOptionalStoreConfig()?.features.compare !== false
+  if (!enabled) return null
+
+  return (
+    <CompareToggleView
+      selected={selected}
+      hydrated={hydrated}
+      size={size}
+      describedBy={describedBy}
+      className={className}
+      onClick={() => toggleCompare(item, selected)}
+    />
   )
 }

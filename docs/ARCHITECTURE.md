@@ -296,6 +296,20 @@ signed-in header to another.
   the `Accordion` where either matters or the state is driven from code (the listing filters).
   Server Components must not import a heavy client primitive just to wrap a trigger (a `Dialog`
   imported by a Server Component ships with every page that renders it).
+- **Product cards.** A card's heart, compare toggle, quick view icon and add slot are one client
+  island (`CardActions`), not four: they read their grid's or rail's `CardScope` (one hydration
+  flag, one wishlist-ids query and one compare-list subscription for every card), and the heart
+  and the add button create their mutation only when pressed (`toggleWishlistOnce`,
+  `addToCartOnce`). A card outside a grid or rail brings its own scope. The single buttons
+  (`HeartButton`, `CompareToggle`, `AddToCartButton`, `QuickViewLink`) keep their hooks for the
+  buy box, quick view and the compare table and share their markup with the island.
+- **Total Blocking Time** (Playwright, 412×823, 4× CPU, 150 ms RTT, 1.6 Mbps; long-task time
+  over 50 ms from FCP to load + 5 s) stays around 600–800 ms on a 24-card listing. The card
+  island took about 80–120 ms off; the rest is the evaluation of the scripts with the inline RSC
+  payload (one task of about 330–450 ms), the relayout when Vazirmatn arrives (about 130–200 ms)
+  and React's single hydration commit (about 270 ms). Tried and dropped: a Suspense boundary per
+  card (36 separate commits, but in one 1 s task), a plain `<a>` instead of `next/link` (no
+  change), no web font (worse).
 - **The phone search overlay and the iOS keyboard.** iOS raises the keyboard only for a field the
   visitor taps or one focused inside the tap's own event handling. The phone header field
   (`features/search/mobile-search.tsx`) is therefore a real, writable input (never read-only

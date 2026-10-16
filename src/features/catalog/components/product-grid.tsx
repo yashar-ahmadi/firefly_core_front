@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { VisuallyHidden } from '@/components/ui/visually-hidden'
 import type { CardProduct } from '@/features/catalog/card-product'
-import { cardAction } from './card-action'
+import { CardScope } from './card-scope'
 import { ProductCard } from './product-card'
 import { ProductCardSkeleton } from './product-card-skeleton'
 
@@ -51,19 +51,22 @@ export function ProductGrid({
   if (products.length === 0) {
     return emptyState ?? <EmptyState icon={<PackageSearch />} title="کالایی یافت نشد" />
   }
+  // One CardScope per grid: the cards' buttons share its subscriptions.
   return (
-    <ul aria-label={label} className={GRID[columns]}>
-      {products.map((product, index) => (
-        <li key={product.id} className="min-w-0">
-          <ProductCard
-            product={product}
-            priority={index < priorityCount}
-            showOutOfStockLabel={showOutOfStockLabel}
-            addSlot={withAction ? (nameId) => cardAction(product, nameId) : undefined}
-          />
-        </li>
-      ))}
-    </ul>
+    <CardScope>
+      <ul aria-label={label} className={GRID[columns]}>
+        {products.map((product, index) => (
+          <li key={product.id} className="min-w-0">
+            <ProductCard
+              product={product}
+              priority={index < priorityCount}
+              showOutOfStockLabel={showOutOfStockLabel}
+              withAction={withAction}
+            />
+          </li>
+        ))}
+      </ul>
+    </CardScope>
   )
 }
 

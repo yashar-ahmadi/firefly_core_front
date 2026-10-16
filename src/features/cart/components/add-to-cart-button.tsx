@@ -50,24 +50,64 @@ export function AddToCartButton({
 }: AddToCartButtonProps) {
   const t = useT()
   const { add, isPending } = useAddToCart()
-  const unavailable = variantId === null
 
+  return (
+    <AddToCartButtonView
+      unavailable={variantId === null}
+      pending={isPending}
+      disabled={disabled}
+      size={size}
+      fullWidth={fullWidth}
+      label={label ?? t('add_to_cart')}
+      variant={variant}
+      describedBy={describedBy}
+      className={className}
+      onClick={async () => {
+        if (variantId === null) return
+        if (await add(variantId, quantity, product)) onAdded?.()
+      }}
+    />
+  )
+}
+
+export interface AddToCartButtonViewProps extends Pick<
+  AddToCartButtonProps,
+  'disabled' | 'size' | 'fullWidth' | 'variant' | 'describedBy' | 'className'
+> {
+  /** No variant to buy: disabled, reading «ناموجود». */
+  unavailable: boolean
+  /** The add is on its way: a spinner, `aria-busy`, presses ignored. */
+  pending: boolean
+  label: string
+  onClick: () => void
+}
+
+/** The button's markup, without state: AddToCartButton, and a product card's actions. */
+export function AddToCartButtonView({
+  unavailable,
+  pending,
+  disabled = false,
+  size = 'md',
+  fullWidth = false,
+  label,
+  variant = 'primary',
+  describedBy,
+  className,
+  onClick,
+}: AddToCartButtonViewProps) {
   return (
     <Button
       variant={variant}
       size={size}
       fullWidth={fullWidth}
-      loading={isPending}
+      loading={pending}
       disabled={disabled || unavailable}
       iconStart={unavailable ? undefined : <ShoppingCart />}
       aria-describedby={describedBy}
-      onClick={async () => {
-        if (variantId === null) return
-        if (await add(variantId, quantity, product)) onAdded?.()
-      }}
+      onClick={onClick}
       className={className}
     >
-      {unavailable ? OUT_OF_STOCK : (label ?? t('add_to_cart'))}
+      {unavailable ? OUT_OF_STOCK : label}
     </Button>
   )
 }

@@ -35,8 +35,26 @@ export interface QuickViewLinkProps {
 export function QuickViewLink({ slug, describedBy, className }: QuickViewLinkProps) {
   const hydrated = useHydrated()
   const enabled = useOptionalStoreConfig()?.features.quickView !== false
-  const upgraded = hydrated && enabled
+  return (
+    <QuickViewLinkView
+      slug={slug}
+      describedBy={describedBy}
+      className={className}
+      upgraded={hydrated && enabled}
+    />
+  )
+}
 
+/**
+ * QuickViewLink's markup, without hooks: `upgraded` once hydrated and while quick view is on.
+ * A product card's actions (CardActions) render it with their own hydration flag.
+ */
+export function QuickViewLinkView({
+  slug,
+  describedBy,
+  className,
+  upgraded,
+}: QuickViewLinkProps & { upgraded: boolean }) {
   const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
     if (!upgraded || isModified(event)) return
     if (openQuickView(slug)) event.preventDefault()

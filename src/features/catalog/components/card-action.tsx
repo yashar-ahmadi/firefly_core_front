@@ -9,13 +9,28 @@ import { QuickViewLink } from '@/features/quick-view/quick-view-link'
  * the padding narrows, so the label fits without widening the card. Queries the card's add slot
  * (`@container` in ProductCard); elsewhere it never applies.
  */
-const NARROW = '@max-[8.875rem]:px-3 @max-[8.875rem]:[&_svg:not(.animate-spin)]:hidden'
+export const NARROW = '@max-[8.875rem]:px-3 @max-[8.875rem]:[&_svg:not(.animate-spin)]:hidden'
+
+/** The card's add label: shorter than the buy box's, for narrow cards. */
+export const CARD_ADD_LABEL = 'افزودن به سبد'
 
 /** What the decision reads: a list card has it all; the compare table builds it from a detail. */
 export type ActionProduct = Pick<
   CardProduct,
   'slug' | 'name' | 'image' | 'type' | 'in_stock' | 'default_variant_id' | 'order_limit_min'
 >
+
+/**
+ * The one-tap decision (spec §8.3): `choose` for a variable product (quick view first), `add`
+ * for one with a default variant, null when there is nothing to sell. Pure: the server's
+ * `cardAction` and the card's client `CardActions` share it.
+ */
+export function cardActionKind(
+  product: Pick<ActionProduct, 'type' | 'default_variant_id'>,
+): 'choose' | 'add' | null {
+  if (product.type === 'variable') return 'choose'
+  return product.default_variant_id === null ? null : 'add'
+}
 
 /**
  * The add slot of a product card or column, the one place the one-tap ruling is decided (spec
@@ -29,10 +44,11 @@ export type ActionProduct = Pick<
  * line up. Server-renderable: both controls are client leaves.
  */
 export function cardAction(product: ActionProduct, describedBy?: string): ReactNode {
-  if (product.type === 'variable') {
+  const kind = cardActionKind(product)
+  if (kind === 'choose') {
     return <QuickViewLink slug={product.slug} describedBy={describedBy} className={NARROW} />
   }
-  if (product.default_variant_id === null) return undefined
+  if (kind === null || product.default_variant_id === null) return undefined
   return (
     <AddToCartButton
       variantId={product.in_stock ? product.default_variant_id : null}
@@ -41,7 +57,7 @@ export function cardAction(product: ActionProduct, describedBy?: string): ReactN
       size="sm"
       variant="secondary"
       fullWidth
-      label="افزودن به سبد"
+      label={CARD_ADD_LABEL}
       describedBy={describedBy}
       className={NARROW}
     />

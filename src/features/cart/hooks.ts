@@ -1,4 +1,12 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import {
+  MutationObserver,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type MutationOptions,
+  type QueryClient,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 import { useRef } from 'react'
 import { notify } from '@/components/ui/toaster'
 import { useHydrated } from '@/components/ui/use-media-query'
@@ -81,7 +89,7 @@ export interface AddToCart {
   isPending: boolean
 }
 
-interface AddVariables {
+export interface AddVariables {
   variant: number
   quantity: number
   meta: { name: string; image: string }
@@ -89,22 +97,43 @@ interface AddVariables {
 }
 
 /**
- * `POST cart/item/add/`. Success stores the returned cart and shows the «added» toast; a refusal
- * (limit, stock, a switched-off feature, throttling) shows the API's Persian detail and leaves the
- * cache alone. Adding is not idempotent, so a second call while one is in flight is ignored.
+ * `POST cart/item/add/` as mutation options. Success stores the returned cart and shows the
+ * «added» toast; a refusal (limit, stock, a switched-off feature, throttling) shows the API's
+ * Persian detail and leaves the cache alone.
  */
-export function useAddToCart(): AddToCart {
-  const client = useQueryClient()
-  const inFlight = useRef(false)
-  const mutation = useMutation({
+function addToCartOptions(
+  client: QueryClient,
+): MutationOptions<Awaited<ReturnType<typeof cartApi.add>>, Error, AddVariables> {
+  return {
     scope: CART_WRITES,
-    mutationFn: ({ variant, quantity }: AddVariables) => cartApi.add(variant, quantity),
+    mutationFn: ({ variant, quantity }) => cartApi.add(variant, quantity),
     onSuccess: async ({ data, msg }, { meta, toast }) => {
       await storeCart(client, data)
       if (toast) showAddedToCartToast({ ...meta, message: msg })
     },
     onError: (error) => notify.error(errorDetail(error)),
-  })
+  }
+}
+
+/**
+ * One add without a hook: the mutation is created when it is called (a product card creates
+ * none until its button is pressed). Resolves true once the cart has it; never rejects.
+ */
+export function addToCartOnce(client: QueryClient, variables: AddVariables): Promise<boolean> {
+  return new MutationObserver(client, addToCartOptions(client)).mutate(variables).then(
+    () => true,
+    () => false,
+  )
+}
+
+/**
+ * `POST cart/item/add/` (see `addToCartOptions`). Adding is not idempotent, so a second call
+ * while one is in flight is ignored.
+ */
+export function useAddToCart(): AddToCart {
+  const client = useQueryClient()
+  const inFlight = useRef(false)
+  const mutation = useMutation(addToCartOptions(client))
 
   const add: AddToCart['add'] = async (variant, quantity, meta, options = {}) => {
     if (inFlight.current) return false

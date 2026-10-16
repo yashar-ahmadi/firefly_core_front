@@ -7,19 +7,11 @@ import { Rating } from '@/components/ui/rating'
 import { SmartImage } from '@/components/ui/smart-image'
 import { VisuallyHidden } from '@/components/ui/visually-hidden'
 import type { CardProduct } from '@/features/catalog/card-product'
+import { productPath } from '@/features/catalog/listing-routes'
 import { compareItemFrom } from '@/features/compare/compare-item'
-import { CompareToggle } from '@/features/compare/compare-toggle'
-import { QuickViewButton } from '@/features/quick-view/quick-view-button'
-import { HeartButton } from '@/features/wishlist/heart-button'
+import { CardActions, type CardActionsProduct } from './card-actions'
 import { CardImageLabels } from './card-image-labels'
-import {
-  CARD_BODY,
-  CARD_IMAGE_OVERLAY,
-  CARD_NAME_BOX,
-  CARD_PRICE_BOX,
-  CARD_SURFACE,
-  REVEAL_ON_HOVER,
-} from './card-styles'
+import { CARD_BODY, CARD_NAME_BOX, CARD_PRICE_BOX, CARD_SURFACE } from './card-styles'
 
 /** The representative variant's labels shown as chips. */
 const MAX_CHIPS = 2
@@ -35,11 +27,19 @@ export interface ProductCardProps {
   priority?: boolean
   /** The shop's setting: mark out-of-stock products with «ناموجود» and mute their price. */
   showOutOfStockLabel: boolean
+  /** The shop's add slot under the price (one-tap add or «انتخاب ویژگی‌ها», `cardActionKind`). */
+  withAction?: boolean
   /**
-   * The add-to-cart control, placed under the price above the card link. A function gets the
-   * id of the name link, for its `aria-describedby` (see `cardAction`).
+   * Another control in the add slot (when not `withAction`). A function gets the id of the name
+   * link, for its `aria-describedby`.
    */
   addSlot?: ReactNode | ((nameId: string) => ReactNode)
+}
+
+/** What the card's client island needs: nothing else of the card is sent to the browser twice. */
+function actionsProduct(product: CardProduct): CardActionsProduct {
+  const { id, slug, name, image, type, in_stock, default_variant_id, order_limit_min } = product
+  return { id, slug, name, image, type, in_stock, default_variant_id, order_limit_min }
 }
 
 /**
@@ -47,19 +47,21 @@ export interface ProductCardProps {
  * `::after`), so the card is one tab stop and one click target; the heart, compare, quick view
  * and add buttons sit above that link as siblings, never inside it. Labels on the image come
  * after the name in the DOM (read first), the buttons after the price (focused after the link).
- * Server-renderable: only those buttons, the image and the countdown are client leaves.
+ * Server-renderable: the buttons are one client island (CardActions, reading its grid's
+ * CardScope), and the image and the countdown are client leaves.
  */
 export function ProductCard({
   product,
   priority = false,
   showOutOfStockLabel,
+  withAction = false,
   addSlot,
 }: ProductCardProps) {
   const unavailable = !product.in_stock && showOutOfStockLabel
   const chips = product.default_variant_attributes.slice(0, MAX_CHIPS)
   // Names the card's buttons (aria-describedby): twenty «افزودن به مقایسه» need telling apart.
   const nameId = useId()
-  const action = typeof addSlot === 'function' ? addSlot(nameId) : addSlot
+  const slot = withAction ? null : typeof addSlot === 'function' ? addSlot(nameId) : addSlot
 
   return (
     <article
@@ -89,7 +91,7 @@ export function ProductCard({
         >
           <Link
             id={nameId}
-            href={`/product/${encodeURIComponent(product.slug)}/`}
+            href={productPath(product.slug)}
             prefetch={false}
             className={cn(
               "after:absolute after:inset-0 after:rounded-card after:content-['']",
@@ -131,28 +133,13 @@ export function ProductCard({
           />
         </div>
 
-        {/* Over the image too, after the price in the DOM: the focus order is the name link,
-            these buttons, then the add button. */}
-        <div className={CARD_IMAGE_OVERLAY}>
-          <div className="pointer-events-auto absolute start-0 top-0">
-            <HeartButton
-              productId={product.id}
-              slug={product.slug}
-              describedBy={nameId}
-              className={REVEAL_ON_HOVER}
-            />
-          </div>
-          <div className="pointer-events-auto absolute end-0 top-0 flex flex-col">
-            <CompareToggle
-              item={compareItemFrom(product)}
-              describedBy={nameId}
-              className={REVEAL_ON_HOVER}
-            />
-            <QuickViewButton slug={product.slug} describedBy={nameId} className={REVEAL_ON_HOVER} />
-          </div>
-        </div>
-
-        {action && <div className="@container relative z-[1] mt-1">{action}</div>}
+        <CardActions
+          product={actionsProduct(product)}
+          compareItem={compareItemFrom(product)}
+          nameId={nameId}
+          withAction={withAction}
+        />
+        {slot && <div className="@container relative z-[1] mt-1">{slot}</div>}
       </div>
     </article>
   )

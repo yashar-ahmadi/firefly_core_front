@@ -24,6 +24,51 @@ export interface HeartButtonProps {
   className?: string
 }
 
+export interface HeartButtonViewProps {
+  saved: boolean
+  /** A signed-in visitor's ids are still loading: `aria-disabled`, clicks ignored by the caller. */
+  waiting: boolean
+  /** Each new value remounts the icon, replaying the beat (0: no beat yet). */
+  beats: number
+  size?: OverlayButtonSize
+  describedBy?: string
+  className?: string
+  onClick: () => void
+}
+
+/** The heart's markup, without state: HeartButton, and a product card's actions (CardActions). */
+export function HeartButtonView({
+  saved,
+  waiting,
+  beats,
+  size = 'sm',
+  describedBy,
+  className,
+  onClick,
+}: HeartButtonViewProps) {
+  return (
+    <button
+      type="button"
+      aria-pressed={saved}
+      aria-label={saved ? LABEL_REMOVE : LABEL_SAVE}
+      aria-describedby={describedBy}
+      aria-disabled={waiting || undefined}
+      onClick={onClick}
+      className={cn(overlayButtonClasses(size), className)}
+    >
+      <span
+        className={cn(overlayChipClasses(size), saved && 'text-sale group-hover/action:text-sale')}
+      >
+        <Heart
+          key={beats}
+          aria-hidden
+          className={cn(saved && 'fill-current', beats > 0 && 'motion-safe:animate-heart')}
+        />
+      </span>
+    </button>
+  )
+}
+
 /**
  * The wishlist heart: pressed (and filled) when the product is saved. Guests are sent to the
  * login page. The heart beats on each toggle, never on the first render.
@@ -49,29 +94,19 @@ export function HeartButton({
   const [beats, setBeats] = useState(0)
 
   return (
-    <button
-      type="button"
-      aria-pressed={saved}
-      aria-label={saved ? LABEL_REMOVE : LABEL_SAVE}
-      aria-describedby={describedBy}
-      aria-disabled={waiting || undefined}
+    <HeartButtonView
+      saved={saved}
+      waiting={waiting}
+      beats={beats}
+      size={size}
+      describedBy={describedBy}
+      className={className}
       onClick={() => {
         // One request at a time per heart; the optimistic state already shows the change.
         if (waiting || isPending) return
         setBeats((count) => count + 1)
         toggle({ id: productId, slug })
       }}
-      className={cn(overlayButtonClasses(size), className)}
-    >
-      <span
-        className={cn(overlayChipClasses(size), saved && 'text-sale group-hover/action:text-sale')}
-      >
-        <Heart
-          key={beats}
-          aria-hidden
-          className={cn(saved && 'fill-current', beats > 0 && 'motion-safe:animate-heart')}
-        />
-      </span>
-    </button>
+    />
   )
 }
