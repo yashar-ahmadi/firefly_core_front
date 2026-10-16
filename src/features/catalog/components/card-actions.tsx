@@ -23,7 +23,7 @@ export interface CardActionsProps {
   compareItem: CompareItem
   /** The card's name link: describes every button (`aria-describedby`). */
   nameId: string
-  /** Also the add slot: one-tap add or «انتخاب ویژگی‌ها» (`cardActionKind`). */
+  /** Also the add slot: a one-tap add, or the variant chooser (`cardActionKind`). */
   withAction: boolean
 }
 

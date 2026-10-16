@@ -27,7 +27,7 @@ export interface ProductCardProps {
   priority?: boolean
   /** The shop's setting: mark out-of-stock products with «ناموجود» and mute their price. */
   showOutOfStockLabel: boolean
-  /** The shop's add slot under the price (one-tap add or «انتخاب ویژگی‌ها», `cardActionKind`). */
+  /** The shop's add slot under the price: a one-tap add or the variant chooser (`cardActionKind`). */
   withAction?: boolean
   /**
    * Another control in the add slot (when not `withAction`). A function gets the id of the name
