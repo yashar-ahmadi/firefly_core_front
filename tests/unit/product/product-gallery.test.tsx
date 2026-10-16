@@ -124,6 +124,22 @@ describe('ProductGallery', () => {
     expect(embla.api.scrollTo).toHaveBeenLastCalledWith(1, false)
   })
 
+  it('keeps 44px dots with eight images or more: they wrap instead of shrinking', () => {
+    const many = s25Product({
+      gallery: Array.from({ length: 9 }, (_, index) => ({
+        id: index + 1,
+        image: `https://api.shop.ir/media/g${index}.jpg`,
+        alt: `تصویر ${index + 1}`,
+      })),
+    })
+    renderWithProduct(<ProductGallery />, { product: many })
+    const group = screen.getByRole('group', { name: 'انتخاب تصویر' })
+    expect(group).toHaveClass('flex-wrap')
+    const dots = within(group).getAllByRole('button')
+    expect(dots).toHaveLength(10)
+    for (const dot of dots) expect(dot).toHaveClass('size-11', 'shrink-0')
+  })
+
   it("shows the newly chosen variant's image, back on the first slide", async () => {
     const user = userEvent.setup()
     renderWithProduct(

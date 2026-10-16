@@ -1,0 +1,168 @@
+'use client'
+
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { TOP_ZONE } from '@/components/layout/scroll-state'
+import { cn } from '@/components/ui/cn'
+import { usePrefersReducedMotion } from '@/components/ui/use-media-query'
+import { formatNumber } from '@/lib/format'
+
+export interface SectionLink {
+  /** The section element's id, the link's `#hash`. */
+  id: string
+  label: string
+  /** Shown beside the label when above zero (reviews, questions). */
+  count?: number
+}
+
+const LABEL = 'بخش\u{200C}های صفحه\u{0654} محصول'
+/** Room between the bar and a section's top once scrolled there. */
+const GAP = 8
+/** The band of the viewport where a section counts as the one being read. */
+const READING_BAND = '-35% 0px -60% 0px'
+
+export interface ScrollTarget {
+  /** The section's top in page coordinates. */
+  targetTop: number
+  currentY: number
+  /** The header's height in full and compact (px). */
+  full: number
+  compact: number
+  /** The section bar's height (px). */
+  bar: number
+}
+
+/**
+ * Where to scroll so a section's top sits just under the sticky header and the section bar.
+ * The header shrinks while the page scrolls down and comes back while it scrolls up (and in the
+ * top zone): going down it is the compact one that ends up above the section, otherwise the full
+ * one. Pure.
+ */
+export function sectionScrollTop({ targetTop, currentY, full, compact, bar }: ScrollTarget) {
+  const underCompact = targetTop - compact - bar - GAP
+  if (underCompact > currentY && underCompact > TOP_ZONE) return underCompact
+  return Math.max(0, targetTop - full - bar - GAP)
+}
+
+/** A length custom property of <html> (globals.css) in px; 0 when it is not set. */
+function rootLength(name: string): number {
+  const style = getComputedStyle(document.documentElement)
+  const raw = style.getPropertyValue(name).trim()
+  const value = Number.parseFloat(raw)
+  if (!Number.isFinite(value)) return 0
+  return raw.endsWith('rem') ? value * (Number.parseFloat(style.fontSize) || 16) : value
+}
+
+/**
+ * The section in the reading band, the first one when two are; between sections the last one
+ * stays. Above the first section (the top of the page) none is.
+ */
+function useActiveSection(ids: readonly string[]): [string | null, (id: string) => void] {
+  const [active, setActive] = useState<string | null>(null)
+  const key = ids.join(' ')
+  useEffect(() => {
+    const order = key.split(' ')
+    const inBand = new Set<string>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) inBand.add(entry.target.id)
+          else inBand.delete(entry.target.id)
+        }
+        const first = order.find((id) => inBand.has(id))
+        if (first) return setActive(first)
+        // The first section left the band downwards: the visitor went back above the sections.
+        const top = entries.find((entry) => entry.target.id === order[0] && !entry.isIntersecting)
+        const below = top?.boundingClientRect?.top ?? -Infinity
+        if (below >= (top?.rootBounds?.bottom ?? Infinity)) setActive(null)
+      },
+      { rootMargin: READING_BAND },
+    )
+    for (const id of order) {
+      const section = document.getElementById(id)
+      if (section) observer.observe(section)
+    }
+    return () => observer.disconnect()
+  }, [key])
+  return [active, setActive]
+}
+
+/**
+ * The product page's in-page tab bar: anchor links to its sections, sticky under the header,
+ * scrolling sideways when the links do not fit. A press scrolls the section just under the
+ * header and the bar (at once under reduced motion) and moves the focus there; the section
+ * being read is marked (`aria-current`). Without script the links still jump (the sections have
+ * a scroll margin).
+ */
+export function ProductSectionsNav({ items }: { items: readonly SectionLink[] }) {
+  const navRef = useRef<HTMLElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const reducedMotion = usePrefersReducedMotion()
+  const [active, setActive] = useActiveSection(items.map((item) => item.id))
+
+  // Keep the marked link in view on phones, where the bar scrolls sideways.
+  useEffect(() => {
+    const list = listRef.current
+    const link = active ? list?.querySelector(`a[href="#${active}"]`) : null
+    if (!list || !link || typeof list.scrollBy !== 'function') return
+    const box = list.getBoundingClientRect()
+    const { left, right } = link.getBoundingClientRect()
+    const delta =
+      left < box.left ? left - box.left - 16 : right > box.right ? right - box.right + 16 : 0
+    if (delta !== 0) list.scrollBy({ left: delta, behavior: reducedMotion ? 'auto' : 'smooth' })
+  }, [active, reducedMotion])
+
+  const go = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return
+    }
+    const section = document.getElementById(id)
+    if (!section) return
+    event.preventDefault()
+    const top = sectionScrollTop({
+      targetTop: section.getBoundingClientRect().top + window.scrollY,
+      currentY: window.scrollY,
+      full: rootLength('--header-full'),
+      compact: rootLength('--header-compact'),
+      bar: navRef.current?.offsetHeight ?? 0,
+    })
+    window.scrollTo({ top, behavior: reducedMotion ? 'auto' : 'smooth' })
+    section.focus({ preventScroll: true })
+    setActive(id)
+  }
+
+  return (
+    <nav
+      ref={navRef}
+      aria-label={LABEL}
+      className="sticky top-(--header-offset) z-30 -mx-4 border-b border-ink-200 bg-white shadow-sm transition-[top] duration-200 ease-out lg:-mx-6"
+    >
+      <ul
+        ref={listRef}
+        className="flex [scrollbar-width:none] overflow-x-auto px-1.5 md:px-2 lg:px-4 [&::-webkit-scrollbar]:hidden"
+      >
+        {items.map((item) => (
+          <li key={item.id} className="shrink-0">
+            <a
+              href={`#${item.id}`}
+              aria-current={active === item.id ? 'true' : undefined}
+              onClick={(event) => go(event, item.id)}
+              className={cn(
+                'relative flex min-h-12 items-center gap-1.5 px-2.5 text-base font-medium whitespace-nowrap text-ink-700 transition-colors hover:text-ink-900 sm:px-3 md:px-4',
+                'after:absolute after:inset-x-2 after:bottom-0 after:h-[3px] after:rounded-t-full after:bg-transparent',
+                'aria-[current=true]:text-brand-700 aria-[current=true]:after:bg-brand',
+                'focus-visible:-outline-offset-2',
+              )}
+            >
+              {item.label}
+              {item.count !== undefined && item.count > 0 && (
+                <span className="min-w-6 rounded-pill bg-ink-100 px-1.5 text-center text-sm leading-6 text-ink-700">
+                  {formatNumber(item.count)}
+                </span>
+              )}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}

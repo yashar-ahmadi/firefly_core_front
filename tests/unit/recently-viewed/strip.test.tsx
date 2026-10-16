@@ -76,3 +76,27 @@ describe('RecentlyViewedStrip', () => {
     expect(within(cards[1]!).queryByRole('button', { name: /افزودن به سبد/ })).toBeNull()
   })
 })
+
+describe('RecentlyViewedStrip on a product page', () => {
+  it('leaves out the product being viewed', async () => {
+    save(3)
+    const { wrapper } = clientProviders()
+    render(<RecentlyViewedStrip showOutOfStockLabel excludeSlug="product-1" />, { wrapper })
+    const region = await screen.findByRole('region', { name: TITLE })
+    const names = within(region)
+      .getAllByRole('article')
+      .map((card) => within(card).getAllByRole('link')[0]!.textContent)
+    expect(names).toEqual(['کالای 2', 'کالای 3'])
+  })
+
+  it('renders nothing when the product being viewed is the only one', async () => {
+    save(1)
+    const { wrapper } = clientProviders()
+    const { container } = render(
+      <RecentlyViewedStrip showOutOfStockLabel excludeSlug="product-1" />,
+      { wrapper },
+    )
+    await waitFor(() => expect(useRecentlyViewed.persist.hasHydrated()).toBe(true))
+    expect(container).toBeEmptyDOMElement()
+  })
+})

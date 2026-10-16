@@ -16,7 +16,7 @@ export interface ScrollState {
 /** Smaller movements (jitter, rubber-banding) do not change direction. */
 const THRESHOLD = 8
 /** Above this the header is always shown in full: roughly the announcement plus the header. */
-const TOP_ZONE = 160
+export const TOP_ZONE = 160
 
 /**
  * The next state for scroll position `y`. Movements accumulate from the anchor until they pass

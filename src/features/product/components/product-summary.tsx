@@ -2,18 +2,14 @@ import Link from 'next/link'
 import { Rating } from '@/components/ui/rating'
 import { badgeColors } from '@/features/catalog/components/badge-colors'
 import { brandPath } from '@/features/catalog/listing-routes'
-import type { ProductDetail, ProductSpecification } from '@/lib/api/types/catalog'
+import type { ProductDetail } from '@/lib/api/types/catalog'
 import { formatNumber, toPersianDigits } from '@/lib/format'
+import { specText } from './specifications-table'
 import { VariantPicker } from './variant-picker'
 
 /** The key specs shown beside the picker; the full table comes further down the page. */
 const MAX_KEY_SPECS = 5
 const KEY_SPECS = 'ویژگی\u{200C}های اصلی'
-
-/** A spec row's text (product digest §5.7): the values joined, else the free text; '' if none. */
-export function specText(row: Pick<ProductSpecification, 'values' | 'custom_attribute_value'>) {
-  return row.values.length > 0 ? row.values.join('، ') : (row.custom_attribute_value ?? '').trim()
-}
 
 /**
  * The highlighted specs worth a box at the top: not empty, and not an axis of the picker (which

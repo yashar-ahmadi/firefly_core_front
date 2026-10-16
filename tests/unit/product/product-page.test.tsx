@@ -10,7 +10,11 @@ import { resolveServerTree } from '../support/server-tree'
 import { s25Product } from './fixtures'
 import { resetRouter, router } from './router'
 
-const mocks = vi.hoisted(() => ({ getProductDetail: vi.fn(), providerProps: [] as unknown[] }))
+const mocks = vi.hoisted(() => ({
+  getProductDetail: vi.fn(),
+  getProductSettings: vi.fn(),
+  providerProps: [] as unknown[],
+}))
 
 vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', async () => ({
@@ -20,7 +24,10 @@ vi.mock('next/navigation', async () => ({
   },
 }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: vi.fn() }))
-vi.mock('@/features/catalog/api', () => ({ getProductDetail: mocks.getProductDetail }))
+vi.mock('@/features/catalog/api', () => ({
+  getProductDetail: mocks.getProductDetail,
+  getProductSettings: mocks.getProductSettings,
+}))
 vi.mock('@/features/settings/api', () => ({
   getTranslations: async () => ({}),
   getSiteSettings: async () => ({ name: 'فایرفلای', phone: '+982191000000' }),
@@ -54,6 +61,13 @@ stubBrowserApis()
 
 const SLUG = 'samsung-galaxy-s25-ultra'
 const NOT_FOUND_TITLE = { absolute: 'صفحه پیدا نشد | فایرفلای' }
+const SETTINGS = {
+  paginator_number: 24,
+  show_out_of_stock_label: true,
+  related_items_display_status: true,
+  related_items_number: 8,
+}
+const RELATED = 'محصولات مرتبط'
 
 function props(slug = SLUG) {
   return { params: Promise.resolve({ slug }) }
@@ -75,6 +89,7 @@ beforeEach(() => {
   resetRouter()
   mocks.providerProps.length = 0
   mocks.getProductDetail.mockResolvedValue(s25Product())
+  mocks.getProductSettings.mockResolvedValue(SETTINGS)
 })
 
 describe('the product route: status codes (R9)', () => {
@@ -111,7 +126,7 @@ describe('the product page', () => {
       'aria-current',
       'page',
     )
-    expect(screen.getByRole('link', { name: /سامسونگ/ })).toHaveAttribute('href', '/brand/samsung/')
+    expect(screen.getByRole('link', { name: 'سامسونگ' })).toHaveAttribute('href', '/brand/samsung/')
     expect(screen.getByText('شناسه محصول:').parentElement).toHaveTextContent('شناسه محصول: ۰۱۰۰۰۱')
     expect(screen.getAllByRole('button', { name: 'افزودن به سبد خرید' }).length).toBeGreaterThan(0)
     expect(screen.queryByText('این صفحه هنوز منتشر نشده است')).toBeNull()
@@ -197,6 +212,88 @@ describe('the product page', () => {
     await renderPage()
     const banner = screen.getByText('این صفحه هنوز منتشر نشده است')
     expect(banner).toHaveAttribute('role', 'status')
+  })
+})
+
+describe('the product page below the fold', () => {
+  it('has the section bar and the sections in order: intro, specs, reviews, questions', async () => {
+    const { container } = await renderPage()
+    const bar = screen.getByRole('navigation', { name: 'بخش\u{200C}های صفحه\u{0654} محصول' })
+    expect(
+      within(bar)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['#intro', '#specs', '#reviews', '#questions'])
+    const ids = [...container.querySelectorAll('section[id]')].map((section) => section.id)
+    expect(ids.filter((id) => ['intro', 'specs', 'reviews', 'questions'].includes(id))).toEqual([
+      'intro',
+      'specs',
+      'reviews',
+      'questions',
+    ])
+    expect(screen.getByRole('region', { name: 'مشخصات' })).toHaveTextContent('مشکی، نقره ای، طلایی')
+    expect(screen.getByRole('region', { name: 'دیدگاه\u{200C}ها' })).toContainElement(
+      screen.getByRole('list', { name: 'امتیازها' }),
+    )
+    expect(screen.getByRole('button', { name: 'ثبت دیدگاه' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'ثبت پرسش' })).toBeInTheDocument()
+  })
+
+  it("then the shop's FAQ, the related products and no bundle for a plain product", async () => {
+    await renderPage()
+    expect(screen.getByRole('heading', { name: 'پرسش\u{200C}های متداول' })).toBeInTheDocument()
+    const rail = screen.getByRole('region', { name: RELATED })
+    expect(within(rail).getAllByRole('article')).toHaveLength(3)
+    expect(screen.queryByRole('region', { name: 'محتویات بسته' })).toBeNull()
+  })
+
+  it('honours the related-products settings: the switch and the number', async () => {
+    mocks.getProductSettings.mockResolvedValue({ ...SETTINGS, related_items_number: 2 })
+    const { unmount } = await renderPage()
+    expect(
+      within(screen.getByRole('region', { name: RELATED })).getAllByRole('article'),
+    ).toHaveLength(2)
+    unmount()
+    mocks.getProductSettings.mockResolvedValue({ ...SETTINGS, related_items_display_status: false })
+    await renderPage()
+    expect(screen.queryByRole('region', { name: RELATED })).toBeNull()
+  })
+
+  it("lists a bundle's contents", async () => {
+    mocks.getProductDetail.mockResolvedValue(
+      s25Product({
+        is_collection: true,
+        bundle_items: [
+          {
+            variant: 10042,
+            product_name: 'پاوربانک انکر ۲۰۰۰۰ میلی آمپرساعت',
+            variant_name: null,
+            quantity: 1,
+            image: 'https://api.shop.ir/media/a.jpg',
+          },
+          {
+            variant: 10044,
+            product_name: 'کابل شارژ USB-C بیسوس ۱۰۰ وات',
+            variant_name: 'رنگ: مشکی',
+            quantity: 2,
+            image: 'https://api.shop.ir/media/b.jpg',
+          },
+        ],
+      }),
+    )
+    await renderPage()
+    const bundle = screen.getByRole('region', { name: 'محتویات بسته' })
+    const items = within(bundle).getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+    expect(items[1]).toHaveTextContent('کابل شارژ USB-C بیسوس ۱۰۰ وات')
+    expect(items[1]).toHaveTextContent('رنگ: مشکی')
+    expect(items[1]).toHaveTextContent('۲ عدد')
+  })
+
+  it('loads no reviews or questions on the server (they load in the browser when seen)', async () => {
+    await renderPage()
+    expect(mocks.getProductDetail).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText('در حال بارگذاری دیدگاه\u{200C}ها')).toBeInTheDocument()
   })
 })
 

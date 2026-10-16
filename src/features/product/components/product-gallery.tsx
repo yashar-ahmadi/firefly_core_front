@@ -112,7 +112,12 @@ export function ProductGallery() {
       </section>
 
       {several && (
-        <div role="group" aria-label="انتخاب تصویر" className="flex justify-center md:hidden">
+        // Eight images or more wrap onto a second row: each dot keeps its 44px target.
+        <div
+          role="group"
+          aria-label="انتخاب تصویر"
+          className="flex flex-wrap justify-center md:hidden"
+        >
           {slides.map((slide, index) => (
             <button
               key={`${index}-${slide.src}`}
@@ -120,7 +125,7 @@ export function ProductGallery() {
               aria-label={`تصویر ${toPersianDigits(index + 1)}`}
               aria-current={index === selected ? 'true' : undefined}
               onClick={() => go(index)}
-              className="group grid size-11 place-items-center rounded-full"
+              className="group grid size-11 shrink-0 place-items-center rounded-full"
             >
               <span className="h-2.5 w-2.5 rounded-full bg-ink-300 transition-[width,background-color] duration-200 group-aria-[current=true]:w-7 group-aria-[current=true]:bg-brand" />
             </button>

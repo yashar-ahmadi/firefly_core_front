@@ -18,6 +18,8 @@ export interface RatingProps {
   size?: RatingSize
   /** One star and the score, for narrow places such as product cards on phones. */
   compact?: boolean
+  /** false: the stars without the score beside them (shown larger elsewhere). */
+  showValue?: boolean
   className?: string
 }
 
@@ -31,7 +33,14 @@ function stars(className: string) {
  * Five stars filled to the score (fractions included), the score and the rating count.
  * The stars are one image labelled «امتیاز ۴٫۵ از ۵». `compact` shows a single star instead.
  */
-export function Rating({ value, count, size = 'md', compact = false, className }: RatingProps) {
+export function Rating({
+  value,
+  count,
+  size = 'md',
+  compact = false,
+  showValue = true,
+  className,
+}: RatingProps) {
   const s = SIZES[size]
   const score = Math.min(5, Math.max(0, Math.round((Number.isFinite(value) ? value : 0) * 10) / 10))
   const shownScore = formatNumber(score)
@@ -57,9 +66,11 @@ export function Rating({ value, count, size = 'md', compact = false, className }
           </span>
         </span>
       )}
-      <span aria-hidden className={cn('font-semibold text-ink-800', s.value)}>
-        {shownScore}
-      </span>
+      {showValue && (
+        <span aria-hidden className={cn('font-semibold text-ink-800', s.value)}>
+          {shownScore}
+        </span>
+      )}
       {count !== undefined && (
         <span className={cn('text-ink-500', s.count)}>
           ({formatNumber(count)}

@@ -226,21 +226,21 @@
 /*
  * The height of the sticky header's visible part, for sticky elements below it (`top-(--header-offset)`).
  * Mirrors the row heights in site-header.tsx: phones 56 + 56 px (compact: the search row only),
- * from md 72 + 48 px (compact: the first row only).
+ * from md 72 + 48 px (compact: the first row only). `--header-full` and `--header-compact` are
+ * both heights whatever the state, for scripts that scroll to a spot (product-sections.tsx).
  */
 :root {
-  --header-offset: 7rem;
+  --header-full: 7rem;
+  --header-compact: 3.5rem;
+  --header-offset: var(--header-full);
 
   &[data-compact] {
-    --header-offset: 3.5rem;
+    --header-offset: var(--header-compact);
   }
 
   @media (width >= 48rem) {
-    --header-offset: 7.5rem;
-
-    &[data-compact] {
-      --header-offset: 4.5rem;
-    }
+    --header-full: 7.5rem;
+    --header-compact: 4.5rem;
   }
 }
 
