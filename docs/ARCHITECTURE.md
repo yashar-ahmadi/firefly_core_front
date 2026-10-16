@@ -58,15 +58,28 @@ adds the server-only `FIREFLY_API_KEY`.
 Browser ──► Next.js (storefront origin)
              ├─ proxy.ts (Node runtime, page requests)
              │    1. /media/*, /static/*, /sitemap.xml ──rewrite──► Firefly API (no cookies, no auth)
-             │    2. skip _next, /api/*, /s/*, /icons/*, asset files
+             │    2. skip _next, /api/*, /s/*, /icons/*, /healthz/, asset files
              │    3. GET/HEAD: redirect rules (redirects/resolve/) ──► 301 / 302 / 410 page
              │    4. access token expiring? refresh it (Set-Cookie + forwarded Cookie for this render)
              ├─ Server Components ──apiFetch──► Firefly API     (X-API-Key; cached anonymous reads)
              ├─ /api/bff/[...path] ──────────► Firefly API     (browser actions: cart, auth, account…)
              ├─ /api/v1/payment/gateway/callback/<gateway>/<token>/ ──► Django (GET+POST, body as is)
              ├─ /robots.txt (route handler, robots/?format=txt, byte for byte)
-             └─ /s/<code>   (route handler, short links, always a fresh 302)
+             ├─ /s/<code>   (route handler, short links, always a fresh 302)
+             └─ /healthz/   (route handler, liveness: 200 "ok", no API call, no shell)
 ```
+
+**Health.** `/healthz/` is the container `HEALTHCHECK` and load-balancer probe. It answers without
+the API, the settings or the environment, so a backend outage never marks the storefront unhealthy
+(`/robots.txt`, which does need the API, is the separate connectivity check). With
+`trailingSlash: true`, `/healthz` without the slash is a 308 to `/healthz/`.
+
+**Edge proxy duties.** Compression belongs to the reverse proxy: `next.config.ts` sets
+`compress: false` and the nginx example clears `Accept-Encoding` towards the app, so its gzip and
+brotli apply to every response (without a compressing proxy the site works, uncompressed). The
+standalone server keeps idle keep-alive sockets for `KEEP_ALIVE_TIMEOUT` (65 s in the image and in
+`start-standalone.mjs`), longer than nginx's upstream `keepalive_timeout` (60 s), so nginx never
+reuses a socket Node has closed.
 
 **Transports.** `apiFetch` (`@/lib/api/server`, server-only) and `bffFetch` (`@/lib/api/client`,
 browser) share one contract: paths always end with `/`, the `{ msg, code, data }` envelope is
@@ -170,7 +183,7 @@ Never cached (`cache: 'no-store'`, and `Cache-Control: no-store` on our response
 - every BFF call (cart, auth, account, orders, payment status, search…);
 - `redirects/resolve/` (counts hits; a disabled rule must stop at once) — 1 s timeout, fails open;
 - `shortener/<code>/` (each 200 counts a visit; the answer is always a 302, never a 301);
-- token refresh, the bank callback, and the robots 503 fallback;
+- token refresh, the bank callback, the robots 503 fallback and `/healthz/`;
 - forwarded `/media/`, `/static/` and `/sitemap.xml` (proxied as is; the backend's headers apply).
 
 Rules for later plans (from the spec and `seo-cache-deploy.md` §10): never send `Authorization` or a
@@ -236,7 +249,8 @@ once per render (`GET` increments the view counter).
 src/
   app/                     routes only; (shop)/ has the header+footer layout; _shell/ holds
                            root-layout helpers (metadata, theme head); dev/ui is a dev-only showcase
-                           (404 in production); api/bff, api/v1/payment/…, robots.txt, s/[code]
+                           (404 in production); api/bff, api/v1/payment/…, robots.txt, s/[code],
+                           healthz
   features/<domain>/       server loaders (`api.ts`, server-only), components, hooks, utils
   components/ui/           design-system primitives (Button, Sheet, Dialog, Carousel, Price…)
   components/layout/       shell pieces (SiteHeader, MegaMenu, MobileBottomNav, SiteFooter…)

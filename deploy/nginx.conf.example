@@ -15,9 +15,14 @@
 #   load_module modules/ngx_http_brotli_filter_module.so;
 #   load_module modules/ngx_http_brotli_static_module.so;
 
+# One upstream per shop: a second shop on this host needs its own upstream name and port
+# (e.g. `upstream firefly_shop2 { server 127.0.0.1:3001; ... }`), referenced by its server block.
 upstream firefly_storefront {
     server 127.0.0.1:3000;
     keepalive 32;
+    # nginx 1.15.3+. Must stay below the app's KEEP_ALIVE_TIMEOUT (65 s in the image), so nginx drops an
+    # idle connection before Node does; the other way round, nginx can reuse a closed socket (502).
+    keepalive_timeout 60s;
 }
 
 # Plain HTTP: ACME challenges, then everything to HTTPS.
@@ -39,7 +44,7 @@ server {
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    http2 on;
+    http2 on;    # nginx 1.25.1+; older versions: `listen 443 ssl http2;` instead
     server_name www.<shop.example.ir>;
 
     ssl_certificate     /etc/letsencrypt/live/<shop.example.ir>/fullchain.pem;
@@ -70,6 +75,8 @@ server {
     client_max_body_size 6m;
 
     # --- Compression ------------------------------------------------------------------------------
+    # nginx owns compression: the app is built with `compress: false` and is asked for identity
+    # bodies (Accept-Encoding cleared below), so gzip and brotli apply to everything it sends.
     gzip on;
     gzip_vary on;
     gzip_proxied any;
@@ -96,6 +103,8 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Host $host;
+    # Uncompressed bodies from the app, so the gzip/brotli settings above can compress them.
+    proxy_set_header Accept-Encoding "";
     proxy_read_timeout 60s;
 
     # Build assets have content hashes in their names: cache them for a year.
@@ -106,6 +115,13 @@ server {
         add_header Cache-Control "public, immutable";
         add_header Strict-Transport-Security "max-age=31536000" always;
         add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    # Liveness probe for load balancers and monitoring: answers without calling the API. Note the
+    # trailing slash (/healthz without it is a 308 redirect).
+    location = /healthz/ {
+        proxy_pass http://firefly_storefront;
+        access_log off;
     }
 
     # Everything else: pages, /api/bff/ (the BFF), robots.txt, /s/<code> short links, and the paths

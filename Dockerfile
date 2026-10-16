@@ -39,10 +39,14 @@ RUN pnpm build
 FROM node:${NODE_VERSION}-alpine AS runner
 WORKDIR /app
 # Production mode: the development URL defaults never apply in a container.
+# KEEP_ALIVE_TIMEOUT (ms, read by server.js): idle keep-alive sockets must outlive the reverse
+# proxy's upstream keepalive_timeout (60 s in deploy/nginx.conf.example), or nginx may reuse a
+# socket Node has just closed and answer 502. Node's default is 5 s.
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    KEEP_ALIVE_TIMEOUT=65000
 
 # The server needs write access to .next/ only (image and data caches); run as the image's
 # unprivileged `node` user.
@@ -53,9 +57,10 @@ COPY --from=build --chown=node:node /app/public ./public
 USER node
 EXPOSE 3000
 
-# robots.txt is served by the app and needs the API (it answers 503 when the API is unreachable
-# and nothing is cached), so a healthy container is one that can reach the backend too.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD wget -qO- http://127.0.0.1:3000/robots.txt > /dev/null || exit 1
+# Liveness only (src/app/healthz): no API call, so a backend outage never marks the storefront
+# unhealthy. The trailing slash avoids the 308 that trailingSlash: true sends for /healthz.
+# BusyBox wget ships with the Alpine base image.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/healthz/" >/dev/null || exit 1
 
 CMD ["node", "server.js"]

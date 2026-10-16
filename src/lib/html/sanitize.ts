@@ -64,6 +64,10 @@ const ATTRIBUTE_VALUES: Record<string, readonly string[]> = {
 const REL_TOKENS = new Set(['nofollow', 'sponsored', 'ugc'])
 const MEDIA_PATH = /^\/(?:media|static)\//
 const ABSOLUTE = /^(?:[a-z][a-z\d+.-]*:)?\/\//i
+/** Leading and trailing C0 controls and spaces: the URL parser ignores them. */
+const URL_EDGE_JUNK = /^[\u{0}- ]+|[\u{0}- ]+$/gu
+/** Tabs and line breaks: the URL parser drops them anywhere in a URL. */
+const URL_TAB_OR_NEWLINE = /[\t\n\r]/g
 const TABLE_OPEN = /<table(?=[\s>])/g
 const TABLE_CLOSE = /<\/table>/g
 const TABLE_WRAP = '<div class="table-wrap" role="region" tabindex="0" aria-label="جدول">'
@@ -77,23 +81,26 @@ function originOf(url: string | undefined): string | null {
   }
 }
 
+/** `value` as the URL parser reads it (so `\u{1}//host` is `//host`), before any check on it. */
+function asParsed(value: string): string {
+  return value.replace(URL_EDGE_JUNK, '').replace(URL_TAB_OR_NEWLINE, '')
+}
+
 /** `/media/x.png` on the API origin; anything else as written. */
 function absolutize(value: string | undefined, apiOrigin: string | null): string | undefined {
   if (value === undefined || apiOrigin === null) return value
-  const trimmed = value.trim()
-  return MEDIA_PATH.test(trimmed) ? `${apiOrigin}${trimmed}` : value
+  const parsed = asParsed(value)
+  return MEDIA_PATH.test(parsed) ? `${apiOrigin}${parsed}` : value
 }
 
 /**
  * Whether a link leaves the shop: an absolute or protocol-relative URL on another origin.
- * Browsers drop tabs and line breaks from URLs and read `\` as `/` in http(s) URLs, so
- * `/\host`, `\\host` and `/<tab>/host` are protocol-relative too: normalise before checking.
+ * Browsers ignore leading and trailing C0 controls and spaces, drop tabs and line breaks, and
+ * read `\` as `/` in http(s) URLs, so `\u{1}//host`, `/\host`, `\\host` and `/<tab>/host` are
+ * protocol-relative too: normalise the same way before checking.
  */
 function isExternal(href: string, siteOrigin: string | null): boolean {
-  const normalised = href
-    .trim()
-    .replace(/[\t\n\r]/g, '')
-    .replaceAll('\\', '/')
+  const normalised = asParsed(href).replaceAll('\\', '/')
   if (!ABSOLUTE.test(normalised)) return false
   try {
     return new URL(normalised, siteOrigin ?? 'https://invalid.invalid').origin !== siteOrigin

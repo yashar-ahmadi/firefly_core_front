@@ -53,7 +53,7 @@ pnpm dev             # http://localhost:3000
 
 ## مستندات
 
-- [راهنمای استقرار](docs/DEPLOYMENT.md): Docker، متغیرها، nginx، تنظیمات بک‌اند، عیب‌یابی
+- [راهنمای استقرار](docs/DEPLOYMENT.md): Docker، متغیرها، nginx، تنظیمات بک‌اند، بررسی سلامت (`/healthz/`)، عیب‌یابی
 - [راهنمای سفارشی‌سازی](docs/CUSTOMIZATION.md): نوع فروشگاه، رنگ و فونت، آنچه از پنل می‌آید، کلیدهای ترجمه
 - [Architecture](docs/ARCHITECTURE.md) (انگلیسی): لایه‌ها، BFF، کوکی‌ها، کش، قواعد رندر، ساختار پوشه‌ها
 - [مشکلات بک‌اند](docs/BACKEND-ISSUES.md)، [خلاصهٔ APIها](docs/backend-integration/)، [طراحی](docs/superpowers/specs/2026-10-15-storefront-design.md)
@@ -73,7 +73,8 @@ httpOnly cookies. All shop configuration is read at runtime; the only build inpu
 Quick start: `corepack enable && pnpm install && pnpm dev` against a local backend on
 `http://localhost:8000`. Production: `docker build --build-arg FIREFLY_API_URL=https://api.example.ir
 -t firefly-front .`, then `docker run --env-file .env -p 127.0.0.1:3000:3000 firefly-front` behind
-nginx. `pnpm test:e2e` runs Playwright (mobile, tablet, desktop) against the standalone production
+nginx (which owns compression; the app is built with `compress: false`). `/healthz/` is the
+liveness probe and never calls the API. `pnpm test:e2e` runs Playwright (mobile, tablet, desktop) against the standalone production
 server and a backend with sample data; CI runs typecheck, lint, format check, unit tests and build.
 
 Docs: [DEPLOYMENT.md](docs/DEPLOYMENT.md) and [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) (Persian),

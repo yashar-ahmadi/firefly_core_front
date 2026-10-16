@@ -250,13 +250,22 @@ describe('session refresh', () => {
     expect(refreshAccess).not.toHaveBeenCalled()
   })
 
-  it.each(['/api/bff/cart/', '/s/phone-fest/', '/_next/static/x.js', '/logo.svg'])(
-    'does no session work on %s',
-    async (path) => {
-      const { proxy } = await load()
-      await proxy(request(path, { cookies: { ff_rt: refresh } }))
-      expect(refreshAccess).not.toHaveBeenCalled()
-      expect(knownSources).not.toHaveBeenCalled()
-    },
-  )
+  it.each([
+    '/api/bff/cart/',
+    '/s/phone-fest/',
+    '/_next/static/x.js',
+    '/logo.svg',
+    '/healthz',
+    '/healthz/',
+  ])('does no session work on %s', async (path) => {
+    const { proxy } = await load()
+    const res = await proxy(request(path, { cookies: { ff_rt: refresh } }))
+    expect(refreshAccess).not.toHaveBeenCalled()
+    expect(knownSources).not.toHaveBeenCalled()
+    expect(resolveRedirect).not.toHaveBeenCalled()
+    // Passed through untouched: no rewrite, no cookies, no request header changes.
+    expect(res.headers.get('x-middleware-next')).toBe('1')
+    expect(res.headers.getSetCookie()).toEqual([])
+    expect(forwardedCookies(res)).toBeUndefined()
+  })
 })

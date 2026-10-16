@@ -199,6 +199,17 @@ describe('sanitizeOperatorHtml: links and images', () => {
     )
   })
 
+  it('reads hrefs as browsers do: leading and trailing C0 controls and spaces are ignored', () => {
+    for (const lead of ['\u{0}', '\u{1}', '\u{8}', '\t', '\n', ' \u{1F} ']) {
+      const script = dom(`<a href="${lead}javascript:alert(1)${lead}">پیوند</a>`, SITE)
+      const href = script.querySelector('a')?.getAttribute('href')
+      // Removed, or harmless once a browser resolves it against the page.
+      if (href) expect(new URL(href, SITE).protocol, JSON.stringify(lead)).not.toBe('javascript:')
+      const external = dom(`<a href="${lead}//evil.example/${lead}">پیوند</a>`, SITE)
+      expect(external.querySelector('a'), JSON.stringify(lead)).toHaveAttribute('target', '_blank')
+    }
+  })
+
   it('keeps internal, mailto and tel links in the same tab', () => {
     const container = dom(
       '<a href="/page/about/" target="_self">درباره</a><a href="mailto:hi@shop.ir">ایمیل</a>' +

@@ -11,7 +11,7 @@ import { getClientIp } from '@/lib/http/client-ip'
 /**
  * Runs before every page (Node.js runtime), in this order:
  * 1. `/media/*`, `/static/*` and `/sitemap.xml` are proxied to the Django backend.
- * 2. Next internals, route handlers (`/api/*`, `/s/*`) and asset files are left alone.
+ * 2. Next internals, route handlers (`/api/*`, `/s/*`, `/healthz/`) and asset files are left alone.
  * 3. GET/HEAD: operator redirect rules answer 301/302, or 410 with a status page.
  * 4. An expiring or missing access token is refreshed, for the browser and for this render.
  */
@@ -21,6 +21,8 @@ const GONE_MESSAGE = 'این صفحه دیگر وجود ندارد و جایگز
 
 const SESSION_COOKIES = [COOKIE.access, COOKIE.refresh, COOKIE.flag]
 const SKIPPED_PREFIX = /^\/(?:_next|api|s|icons)\//
+/** The liveness probe (src/app/healthz): never a redirect lookup or a session refresh. */
+const HEALTH_CHECK = /^\/healthz\/?$/
 /**
  * The last segment has a file extension, other than `.xml` and the legacy page extensions that
  * operators may redirect from older platforms (`.html`, `.htm`, `.php`, `.asp`, `.aspx`).
@@ -32,7 +34,7 @@ function isForwarded(pathname: string): boolean {
 }
 
 function isSkipped(pathname: string): boolean {
-  return SKIPPED_PREFIX.test(pathname) || ASSET_FILE.test(pathname)
+  return SKIPPED_PREFIX.test(pathname) || HEALTH_CHECK.test(pathname) || ASSET_FILE.test(pathname)
 }
 
 /** Proxy to the API host, without the visitor's session cookies or credentials. */
@@ -136,11 +138,11 @@ export async function proxy(request: NextRequest): Promise<Response> {
 export const config = {
   matcher: [
     {
-      // Pages only: no Next internals, route handlers, robots.txt, icons or asset files (`.xml`
-      // and legacy page extensions are kept, as in ASSET_FILE). Prefetches skip the proxy so
-      // they never count a redirect hit.
+      // Pages only: no Next internals, route handlers, robots.txt, the health check, icons or
+      // asset files (`.xml` and legacy page extensions are kept, as in ASSET_FILE). Prefetches
+      // skip the proxy so they never count a redirect hit.
       source:
-        '/((?!_next/|api/|s/|icons/|favicon\\.ico|robots\\.txt|.*\\.(?!xml$|html?$|php$|aspx?$)[^/.]+$).*)',
+        '/((?!_next/|api/|s/|icons/|favicon\\.ico|robots\\.txt|healthz/?$|.*\\.(?!xml$|html?$|php$|aspx?$)[^/.]+$).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },

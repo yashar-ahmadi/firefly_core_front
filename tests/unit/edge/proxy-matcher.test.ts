@@ -33,6 +33,7 @@ describe('matcher', () => {
     '/product.php?id=7',
     '/default.asp',
     '/shop/list.aspx',
+    '/healthz-tips/',
   ])('runs on %s', async (url) => {
     expect(await matches(url)).toBe(true)
   })
@@ -44,6 +45,8 @@ describe('matcher', () => {
     '/api/v1/payment/gateway/callback/zarinpal/abc/',
     '/s/phone-fest/',
     '/robots.txt',
+    '/healthz',
+    '/healthz/',
     '/favicon.ico',
     '/icons/icon-192.png',
     '/logo.svg',

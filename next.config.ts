@@ -54,6 +54,10 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   output: 'standalone',
   poweredByHeader: false,
+  // The reverse proxy in front (deploy/nginx.conf.example) compresses with gzip and brotli; Next's
+  // own gzip would hand it already-encoded bodies and nginx would pass them on untouched. Without
+  // a compressing proxy in front the site still works, just uncompressed.
+  compress: false,
   reactStrictMode: true,
   images: {
     formats: ['image/avif', 'image/webp'],
