@@ -15,6 +15,7 @@ import { isApiNotFound } from '@/lib/api/errors'
 import type { ProductCard } from '@/lib/api/types/catalog'
 import type { Paginated } from '@/lib/api/types/common'
 import { toPersianDigits } from '@/lib/format'
+import { useLeavingPage } from '@/lib/navigation/router-navigation'
 import { GRID_GAP_TOP, ProductGrid } from '../product-grid'
 import { focusListingResults } from './listing-focus'
 import { useListingPending } from './use-listing-url'
@@ -55,10 +56,11 @@ const pageOf = (params: URLSearchParams) =>
  * page shown appears alone with the pager on it (checked in the browser).
  *
  * Next turns a native `replaceState` into a router restore that discards a navigation in flight,
- * so a filter, sort or page change always wins: a pending listing transition or a pager click
- * aborts the request (nothing is appended, the URL is left alone), and no request starts while
- * a transition is pending. Remount it (a `key` per query) when the query changes; going to
- * another page of the same query starts over.
+ * so any navigation always wins: a click on any same-origin link on the page (the pager, a card,
+ * the header), the start of any router navigation (a filter or sort change, a push from code,
+ * Back) or a pending listing transition aborts the request (nothing is appended, the URL is left
+ * alone), and no request starts while one is pending. Remount it (a `key` per query) when the
+ * query changes; going to another page of the same query starts over.
  */
 export function LoadMore({
   apiQuery,
@@ -88,7 +90,8 @@ export function LoadMore({
   const focusPage = useRef<number | null>(null)
   const request = useRef<AbortController | null>(null)
   useEffect(() => () => request.current?.abort(), [])
-  const pending = useListingPending()
+  const leaving = useLeavingPage(() => request.current?.abort())
+  const pending = useListingPending() || leaving
   useEffect(() => {
     if (pending) request.current?.abort()
   }, [pending])
@@ -176,15 +179,12 @@ export function LoadMore({
         </div>
       )}
 
-      {/* A page link wins over a request in flight (see above). */}
-      <div onClickCapture={() => request.current?.abort()}>
-        <Pagination
-          page={last}
-          totalPages={total}
-          hrefFor={(target) => listingHref(basePath, { ...urlQuery, page: target })}
-          className="mt-6 border-t border-ink-200 pt-6"
-        />
-      </div>
+      <Pagination
+        page={last}
+        totalPages={total}
+        hrefFor={(target) => listingHref(basePath, { ...urlQuery, page: target })}
+        className="mt-6 border-t border-ink-200 pt-6"
+      />
     </div>
   )
 }

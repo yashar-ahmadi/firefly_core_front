@@ -4,7 +4,7 @@ import { Children, isValidElement, type ReactElement, type ReactNode } from 'rea
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ShopLayout from '@/app/(shop)/layout'
-import ShopNotFound from '@/app/(shop)/not-found'
+import ShopNotFound, { generateMetadata as shopNotFoundMetadata } from '@/app/(shop)/not-found'
 import ErrorPage from '@/app/error'
 import GlobalError from '@/app/global-error'
 import NotFound, { generateMetadata as notFoundMetadata } from '@/app/not-found'
@@ -94,6 +94,12 @@ describe('not-found.tsx and the shop shell', () => {
   it('shows only the 404 body for notFound() inside the shop layout', () => {
     expect(ShopNotFound().type).toBe(NotFoundView)
     expect(ShopLayout({ children: null }).type).toBe(ShopShell)
+  })
+
+  it("titles a shop page's notFound() like an unknown URL (a page's own metadata is dropped)", async () => {
+    expect((await shopNotFoundMetadata()).title).toEqual({
+      absolute: 'صفحه پیدا نشد | فایرفلای',
+    })
   })
 
   it('puts the footer between the page and the bottom navigation', () => {

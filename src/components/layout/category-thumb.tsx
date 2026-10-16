@@ -8,13 +8,19 @@ import { isPlaceholderImage, type CategoryLinkNode } from './menu-tree'
 /**
  * A category's round picture: its image (or icon), else, when the API only has its grey
  * placeholder or the file fails, the first letter of the name on a brand tint. Decorative: the
- * name is always shown next to it.
+ * name is always shown next to it. Also a brand's logo: `fit="contain"` in a square frame (give
+ * it a `rounded-*` class), so the logo is never cut.
  */
 export function CategoryThumb({
   category,
+  fit = 'cover',
+  sizes = '80px',
   className,
 }: {
-  category: Pick<CategoryLinkNode, 'name' | 'image' | 'icon'>
+  category: Pick<CategoryLinkNode, 'name' | 'image'> & { icon?: string | null }
+  fit?: 'cover' | 'contain'
+  /** The `sizes` of the picture: its rendered width. */
+  sizes?: string
   className?: string
 }) {
   const src = [category.image, category.icon].find((url) => !isPlaceholderImage(url))
@@ -38,7 +44,8 @@ export function CategoryThumb({
       src={src}
       alt=""
       ratio="1/1"
-      sizes="80px"
+      sizes={sizes}
+      fit={fit}
       onError={() => setFailed(src)}
       className={cn('shrink-0 rounded-full bg-ink-100 ring-1 ring-ink-200', className)}
     />

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildHomeMetadata, propertyMetaTags } from '@/features/home/home-metadata'
+import { buildHomeMetadata } from '@/features/home/home-metadata'
+import { propertyMetaTags } from '@/features/seo/page-metadata'
 import type { HomePage } from '@/lib/api/types/catalog'
 
 const SHOP = { name: 'فایرفلای', slogan: 'فروشگاه اینترنتی کالای اصل' }

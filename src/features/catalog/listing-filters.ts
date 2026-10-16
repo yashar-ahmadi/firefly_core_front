@@ -149,7 +149,13 @@ export function activeFilters(q: ListingApiQuery, groups: FacetGroups): ActiveFi
     chips.push({
       key: 'category',
       label: name ?? q.category,
-      patch: { category: undefined },
+      // As choosing another category: values and price bounds belong to the category.
+      patch: {
+        category: undefined,
+        attribute_values: undefined,
+        min_price: undefined,
+        max_price: undefined,
+      },
     })
   }
   for (const slug of q.brand ?? []) {

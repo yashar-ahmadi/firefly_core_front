@@ -1,18 +1,10 @@
 import type { Metadata } from 'next'
-import { storeName } from '@/app/_shell/metadata'
 import { NotFoundView } from '@/components/layout/not-found-view'
 import { ShopShell } from '@/components/layout/shop-shell'
-import { getStoreConfig } from '@/config/store-config'
-import { getSiteSettings, getTranslations } from '@/features/settings/api'
-import { createTranslator } from '@/lib/i18n/translator'
+import { notFoundMetadata } from '@/features/seo/not-found-metadata'
 
-export async function generateMetadata(): Promise<Metadata> {
-  const [settings, translations] = await Promise.all([getSiteSettings(), getTranslations()])
-  const t = createTranslator(translations)
-  // The root layout's title template does not reach the root segment: compose it here.
-  return {
-    title: { absolute: `${t('not_found_meta_title')} | ${storeName(getStoreConfig(), settings)}` },
-  }
+export function generateMetadata(): Promise<Metadata> {
+  return notFoundMetadata()
 }
 
 /**

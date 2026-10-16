@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { parseListingParams, withoutContext } from '@/features/catalog/listing-params'
+import {
+  parseListingParams,
+  withDefaultSort,
+  withoutContext,
+} from '@/features/catalog/listing-params'
 import { SORT_VALUES } from '@/lib/api/types/catalog'
 
 describe('parseListingParams', () => {
@@ -221,6 +225,17 @@ describe('parseListingParams', () => {
       { search: null as unknown as string },
     ]
     for (const sp of hostile) expect(() => parseListingParams(sp)).not.toThrow()
+  })
+})
+
+describe('withDefaultSort', () => {
+  it("adds the route's default sort only when the URL has none", () => {
+    expect(withDefaultSort({ brand: ['apple'] }, 'sale')).toEqual({
+      brand: ['apple'],
+      sort: 'sale',
+    })
+    expect(withDefaultSort({ sort: 'price-asc' }, 'sale')).toEqual({ sort: 'price-asc' })
+    expect(withDefaultSort({ page: 2 }, undefined)).toEqual({ page: 2 })
   })
 })
 

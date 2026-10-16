@@ -216,6 +216,23 @@ export function getProductList(q: ListingApiQuery): Promise<Paginated<ProductCar
   return listProducts(toSearchParams(q).toString())
 }
 
+/**
+ * Whether `q` asks for a page past the last, which a listing answers with `notFound()`: for
+ * `generateMetadata`, whose output Next would otherwise stream for the 404. Page 1 always exists
+ * and costs nothing; a later page makes the listing's own list request (shared through the
+ * cache). Other failures are thrown.
+ */
+export async function isPastLastPage(q: ListingApiQuery): Promise<boolean> {
+  if ((q.page ?? 1) <= 1) return false
+  try {
+    await getProductList(q)
+    return false
+  } catch (error) {
+    if (isApiNotFound(error)) return true
+    throw error
+  }
+}
+
 type FilterKind = 'category' | 'brand' | 'list'
 
 /** The API's own priority when several contexts are sent. */

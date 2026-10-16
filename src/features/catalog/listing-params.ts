@@ -163,6 +163,17 @@ export function parseListingParams(
 }
 
 /**
+ * The listing's API query: the route's default sort (a category's or list's `default_sorting`)
+ * when the URL chose none. The API does not apply it itself.
+ */
+export function withDefaultSort(
+  q: ListingApiQuery,
+  defaultSort: SortValue | undefined,
+): ListingApiQuery {
+  return q.sort === undefined && defaultSort ? { ...q, sort: defaultSort } : q
+}
+
+/**
  * The query without the keys the route context supplies: what the browser URL holds on that
  * route. The filter UI writes these back to the URL, never the context's own keys.
  */

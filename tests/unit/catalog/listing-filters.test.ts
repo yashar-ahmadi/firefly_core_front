@@ -119,7 +119,13 @@ describe('activeFilters', () => {
     const patches = Object.fromEntries(chips.map((chip) => [chip.label, chip.patch]))
     expect(patches['اپل']).toEqual({ brand: ['xiaomi'] })
     expect(patches['رنگ: مشکی']).toEqual({ attribute_values: [10015] })
-    expect(patches['لپ تاپ و الترابوک']).toEqual({ category: undefined })
+    // As choosing another category does: values and bounds belong to the category.
+    expect(patches['لپ تاپ و الترابوک']).toStrictEqual({
+      category: undefined,
+      attribute_values: undefined,
+      min_price: undefined,
+      max_price: undefined,
+    })
     expect(patches['از ۲٬۰۰۰٬۰۰۰ تومان']).toEqual({ min_price: undefined, max_price: undefined })
     expect(patches['فقط کالاهای موجود']).toEqual({ in_stock: undefined })
   })

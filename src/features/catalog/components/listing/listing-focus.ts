@@ -7,7 +7,8 @@ export const LISTING_RESULTS_ID = 'listing-results'
 /**
  * Moves focus to the results heading: where focus goes when the control that had it disappears
  * (the last chip, «حذف همه», the empty state's «حذف فیلترها», a load-more that found the end).
+ * The page does not scroll: the visitor stays where they were reading.
  */
 export function focusListingResults(): void {
-  document.getElementById(LISTING_RESULTS_ID)?.focus()
+  document.getElementById(LISTING_RESULTS_ID)?.focus({ preventScroll: true })
 }

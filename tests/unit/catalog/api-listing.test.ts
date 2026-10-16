@@ -90,6 +90,31 @@ describe('getProductList', () => {
   })
 })
 
+describe('isPastLastPage', () => {
+  it('asks nothing for the first page: it always exists', async () => {
+    const { isPastLastPage } = await loadCatalog()
+    expect(await isPastLastPage({ category: 'mobile-phone' })).toBe(false)
+    expect(await isPastLastPage({ page: 1 })).toBe(false)
+    expect(mocks.fetch).not.toHaveBeenCalled()
+  })
+
+  it("is true when the API answers a later page's list with 404", async () => {
+    mocks.fetch.mockImplementation(async () => failure(404, 'not_found'))
+    const { isPastLastPage } = await loadCatalog()
+    expect(await isPastLastPage({ category: 'mobile-phone', page: 999 })).toBe(true)
+    expect(calls(mocks.fetch)[0]?.url).toBe(`${API}product/list/?category=mobile-phone&page=999`)
+  })
+
+  it('is false when that page exists, and lets other failures through', async () => {
+    mocks.fetch.mockImplementation(async () => envelope({ count: 30, results: [] }))
+    const { isPastLastPage } = await loadCatalog()
+    expect(await isPastLastPage({ page: 2 })).toBe(false)
+    mocks.fetch.mockImplementation(async () => failure(500, 'server_error'))
+    const fresh = await loadCatalog()
+    await expect(fresh.isPastLastPage({ page: 3 })).rejects.toMatchObject({ status: 500 })
+  })
+})
+
 describe('getFilters', () => {
   it('resolves null on a 404 envelope', async () => {
     mocks.fetch.mockImplementation(async () => failure(404, 'not_found'))

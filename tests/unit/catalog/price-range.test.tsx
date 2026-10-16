@@ -82,6 +82,24 @@ describe('PriceRange inputs', () => {
     expect(onCommit).toHaveBeenLastCalledWith({ min: undefined, max: 60_000_000 })
   })
 
+  it('reads dots before groups of exactly three digits as thousands separators (1.250.000)', async () => {
+    const { onCommit, min, max, user } = renderRange()
+    await user.clear(min)
+    await user.type(min, '1.500.000{Enter}')
+    expect(onCommit).toHaveBeenLastCalledWith({ min: 1_500_000, max: undefined })
+    expect(min).toHaveValue('۱٬۵۰۰٬۰۰۰')
+    await user.clear(max)
+    await user.type(max, '۴۰.۰۰۰.۰۰۰{Enter}')
+    expect(onCommit).toHaveBeenLastCalledWith({ min: 1_500_000, max: 40_000_000 })
+    // A dot before two or four digits is still a decimal point.
+    await user.clear(max)
+    await user.type(max, '30000000.50{Enter}')
+    expect(onCommit).toHaveBeenLastCalledWith({ min: 1_500_000, max: 30_000_000 })
+    await user.clear(max)
+    await user.type(max, '20000000.5000{Enter}')
+    expect(onCommit).toHaveBeenLastCalledWith({ min: 1_500_000, max: 20_000_000 })
+  })
+
   it('follows the URL when it changes (back and forward)', () => {
     const { min, max, view, onCommit } = renderRange({ min: 5_000_000 })
     expect(min).toHaveValue('۵٬۰۰۰٬۰۰۰')

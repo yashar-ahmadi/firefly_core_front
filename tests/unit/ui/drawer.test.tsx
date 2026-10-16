@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import Link from 'next/link'
 import { describe, expect, it } from 'vitest'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/drawer'
@@ -9,7 +10,7 @@ describe('Drawer', () => {
     const user = userEvent.setup()
     render(
       <Drawer trigger={<Button>منو</Button>} title="دسته‌بندی‌ها">
-        <a href="/product-category/mobile/">موبایل</a>
+        <Link href="/product-category/mobile/">موبایل</Link>
       </Drawer>,
     )
     await user.click(screen.getByRole('button', { name: 'منو' }))

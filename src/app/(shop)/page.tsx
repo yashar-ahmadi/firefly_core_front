@@ -4,9 +4,10 @@ import { CONTAINER } from '@/components/layout/container'
 import { cn } from '@/components/ui/cn'
 import { getStoreConfig } from '@/config/store-config'
 import { getHomePage, getProductSettings } from '@/features/catalog/api'
-import { buildHomeMetadata, propertyMetaTags } from '@/features/home/home-metadata'
+import { buildHomeMetadata } from '@/features/home/home-metadata'
 import { SectionRenderer } from '@/features/home/sections/section-renderer'
 import { RecentlyViewedStrip } from '@/features/recently-viewed/strip'
+import { propertyMetaTags } from '@/features/seo/page-metadata'
 import { getSiteSettings } from '@/features/settings/api'
 
 /** The homepage SEO fields over the shop's name and slogan (content.md §6.9). */

@@ -13,6 +13,7 @@ import {
 import {
   parseListingParams,
   toSearchParams,
+  withDefaultSort,
   withoutContext,
   type ListingApiQuery,
   type ListingContext,
@@ -112,8 +113,7 @@ export async function ProductListing({
   title,
 }: ProductListingProps) {
   const query = parseListingParams(await searchParams, { context })
-  const apiQuery: ListingApiQuery =
-    query.sort === undefined && defaultSort ? { ...query, sort: defaultSort } : query
+  const apiQuery = withDefaultSort(query, defaultSort)
   const urlQuery = withoutContext(query, context)
   const extra = filterContexts(context, query)
   const [list, { filters, base }, settings, tree, listPage] = await Promise.all([

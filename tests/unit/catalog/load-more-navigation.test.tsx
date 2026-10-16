@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api/errors'
+import { announceRouterNavigation } from '@/lib/navigation/router-navigation'
 import { focusedElement } from '../support/dom-stubs'
 import { BASE_PATH, listPage, renderLoadMore } from './load-more-support'
 import { go, navigation, resetNavigation, useRealScheduling } from './navigation-harness'
@@ -74,6 +75,50 @@ describe('LoadMore and the page links', () => {
   beforeEach(() => document.addEventListener('click', stopNavigation, true))
   afterEach(() => document.removeEventListener('click', stopNavigation, true))
 
+  /** A link elsewhere on the page (the header, a card), outside the listing. */
+  function linkTo(href: string, attributes: Record<string, string> = {}) {
+    const link = document.createElement('a')
+    link.href = href
+    link.textContent = 'پیوند'
+    for (const [name, value] of Object.entries(attributes)) link.setAttribute(name, value)
+    document.body.append(link)
+    return link
+  }
+
+  afterEach(() => {
+    for (const link of document.querySelectorAll('body > a')) link.remove()
+  })
+
+  it('a click on any same-origin link on the page aborts a request in flight', async () => {
+    const held = heldRequest()
+    const user = renderLoadMore()
+    await user.click(loadMoreButton())
+    fireEvent.click(linkTo('/brand/apple/').appendChild(document.createElement('span')))
+    expect(held.signal?.aborted).toBe(true)
+    await act(async () => held.answer(2))
+    expect(replaceState).not.toHaveBeenCalled()
+    expect(screen.queryByRole('list', { name: 'صفحهٔ ۲' })).toBeNull()
+  })
+
+  it('ignores clicks that do not leave this tab for this shop', async () => {
+    const held = heldRequest()
+    const user = renderLoadMore()
+    await user.click(loadMoreButton())
+    const link = linkTo('/brand/apple/')
+    fireEvent.click(link, { ctrlKey: true })
+    fireEvent.click(link, { metaKey: true })
+    fireEvent.click(link, { shiftKey: true })
+    fireEvent.click(link, { altKey: true })
+    fireEvent.click(link, { button: 1 })
+    fireEvent.click(linkTo('/brand/apple/', { target: '_blank' }))
+    fireEvent.click(linkTo('/media/catalog.pdf', { download: '' }))
+    fireEvent.click(linkTo('https://other.example/'))
+    fireEvent.click(document.body)
+    expect(held.signal?.aborted).toBe(false)
+    await act(async () => held.answer(2))
+    expect(await screen.findByRole('list', { name: 'صفحهٔ ۲' })).toBeInTheDocument()
+  })
+
   it('a page link click aborts a request in flight', async () => {
     const held = heldRequest()
     const user = renderLoadMore()
@@ -110,5 +155,48 @@ describe('LoadMore and the page links', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'نمایش بیشتر' })).toBeNull())
     expect(focusedElement()).toBe(screen.getByRole('heading', { name: 'کالاها' }))
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+})
+
+describe('LoadMore and router navigations', () => {
+  it('aborts its request when any router navigation starts (a push from code, Back)', async () => {
+    const held = heldRequest()
+    const user = renderLoadMore()
+    await user.click(loadMoreButton())
+    act(() => announceRouterNavigation('/login/?next=%2F'))
+    expect(held.signal?.aborted).toBe(true)
+    await act(async () => held.answer(2))
+    expect(replaceState).not.toHaveBeenCalled()
+    expect(screen.queryByRole('list', { name: 'صفحهٔ ۲' })).toBeNull()
+  })
+
+  it('stays off while that navigation is pending, until the URL changes', async () => {
+    bff.fetch.mockResolvedValue({ data: listPage([4], 2), msg: '', status: 200 })
+    const user = renderLoadMore()
+    act(() => announceRouterNavigation('/brand/apple/'))
+    expect(loadMoreButton()).toBeDisabled()
+    await user.click(loadMoreButton())
+    expect(bff.fetch).not.toHaveBeenCalled()
+    act(() => go('brand=apple&in_stock=true'))
+    expect(loadMoreButton()).toBeEnabled()
+  })
+
+  it('is not held by a navigation to the URL already shown', () => {
+    renderLoadMore()
+    act(() => announceRouterNavigation(`/?brand=apple`))
+    expect(loadMoreButton()).toBeEnabled()
+  })
+
+  it('gives up waiting for a navigation that never lands here', () => {
+    vi.useFakeTimers()
+    try {
+      renderLoadMore()
+      act(() => announceRouterNavigation('/brand/apple/'))
+      expect(loadMoreButton()).toBeDisabled()
+      act(() => vi.advanceTimersByTime(10_000))
+      expect(loadMoreButton()).toBeEnabled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

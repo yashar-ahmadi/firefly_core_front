@@ -51,14 +51,18 @@ function pairOf(value: PriceBounds, bounds: { min: number; max: number }): Pair 
 
 /** A decimal point: Latin, or the Arabic decimal separator «٫» (U+066B). */
 const DECIMAL_POINT = /[.\u{066B}]/u
+/** A dot before exactly three digits groups thousands («1.250.000»), as many keyboards write. */
+const DOT_GROUPING = /\.(?=\d{3}(?!\d))/g
 
 /**
- * A typed price: digits in any script, with grouping separators and spaces ignored. Prices are
- * whole tomans, so anything after a decimal point is ignored («1.5» reads as 1). undefined when
+ * A typed price: digits in any script, with grouping separators and spaces ignored. A dot before
+ * exactly three digits is a thousands separator («1.250.000»); otherwise prices are whole tomans,
+ * so anything after a decimal point is ignored («1.5» and «1.50» read as 1). undefined when
  * there is no digit at all (the field then goes back to its previous value).
  */
 function parsePrice(text: string): number | undefined {
-  const whole = toLatinDigits(text).split(DECIMAL_POINT)[0] ?? ''
+  const ungrouped = toLatinDigits(text).replace(DOT_GROUPING, '')
+  const whole = ungrouped.split(DECIMAL_POINT)[0] ?? ''
   const digits = whole.replace(/\D/g, '')
   return digits === '' ? undefined : Number(digits)
 }

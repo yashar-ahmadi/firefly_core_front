@@ -13,7 +13,10 @@ export interface SortSelectProps {
   defaultSort: SortValue
 }
 
-/** The sort dropdown: a native select (best on phones and with assistive tech). */
+/**
+ * The sort dropdown: a native select (best on phones and with assistive tech). Below sm it has
+ * no icon, so the longest label («پرفروش ترین») fits half of a 320px phone's row.
+ */
 export function SortSelect({ options, defaultSort }: SortSelectProps) {
   const { query, set } = useListingUrl()
   const id = useId()
@@ -28,7 +31,7 @@ export function SortSelect({ options, defaultSort }: SortSelectProps) {
       <div className="relative w-full lg:w-52">
         <ArrowDownWideNarrow
           aria-hidden
-          className="pointer-events-none absolute start-3.5 top-1/2 z-[1] size-5 -translate-y-1/2 text-ink-600"
+          className="pointer-events-none absolute start-3.5 top-1/2 z-[1] size-5 -translate-y-1/2 text-ink-600 max-sm:hidden"
         />
         <Select
           id={id}
@@ -37,7 +40,7 @@ export function SortSelect({ options, defaultSort }: SortSelectProps) {
             const sort = event.target.value
             if (isSortValue(sort)) set({ sort: sort === defaultSort ? undefined : sort })
           }}
-          className="ps-11"
+          className="ps-3.5 pe-9 sm:ps-11"
         >
           {options.map((option) => (
             <option key={option.value} value={option.value}>
