@@ -7,7 +7,7 @@ import { cn } from './cn'
 
 /**
  * Collapsible sections (Radix) for FAQs, product details and filter groups. Each trigger is a
- * button inside an h3 with `aria-expanded`; each panel is a region named by its trigger.
+ * button inside a heading (h3 unless `level` says otherwise) with `aria-expanded`; each panel is a region named by its trigger.
  * `type="single" collapsible` opens one at a time, `type="multiple"` any number.
  */
 export function Accordion({
@@ -32,26 +32,33 @@ export function AccordionItem({
 export function AccordionTrigger({
   className,
   children,
+  level = 3,
   ...props
-}: ComponentProps<typeof AccordionPrimitive.Trigger>) {
+}: ComponentProps<typeof AccordionPrimitive.Trigger> & {
+  /** Heading level of the element around the button (default 3). */
+  level?: 2 | 3 | 4
+}) {
+  const Heading = `h${level}` as const
   return (
-    <AccordionPrimitive.Header className="flex">
-      <AccordionPrimitive.Trigger
-        className={cn(
-          'group flex min-h-14 flex-1 cursor-pointer items-center justify-between gap-4 py-3 text-start text-base font-medium text-ink-900',
-          'transition-colors duration-150 hover:text-brand-800 disabled:cursor-not-allowed disabled:opacity-50',
-          className,
-        )}
-        {...props}
-      >
-        {children}
-        <span
-          aria-hidden
-          className="grid size-8 shrink-0 place-items-center rounded-full bg-ink-100 text-ink-600 transition-colors group-hover:bg-brand-50 group-hover:text-brand-700"
+    <AccordionPrimitive.Header asChild className="flex">
+      <Heading>
+        <AccordionPrimitive.Trigger
+          className={cn(
+            'group flex min-h-14 flex-1 cursor-pointer items-center justify-between gap-4 py-3 text-start text-base font-medium text-ink-900',
+            'transition-colors duration-150 hover:text-brand-800 disabled:cursor-not-allowed disabled:opacity-50',
+            className,
+          )}
+          {...props}
         >
-          <ChevronDown className="size-5 group-data-[state=open]:rotate-180 motion-safe:transition-transform motion-safe:duration-200" />
-        </span>
-      </AccordionPrimitive.Trigger>
+          {children}
+          <span
+            aria-hidden
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-ink-100 text-ink-600 transition-colors group-hover:bg-brand-50 group-hover:text-brand-700"
+          >
+            <ChevronDown className="size-5 group-data-[state=open]:rotate-180 motion-safe:transition-transform motion-safe:duration-200" />
+          </span>
+        </AccordionPrimitive.Trigger>
+      </Heading>
     </AccordionPrimitive.Header>
   )
 }

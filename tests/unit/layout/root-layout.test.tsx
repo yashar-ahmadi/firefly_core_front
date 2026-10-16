@@ -131,7 +131,7 @@ describe('RootLayout', () => {
       [SnippetHtmlZone, 'top'],
       [Snippets, 'top_of_body'],
       [Providers, undefined],
-      [SnippetHtmlZone, 'bottom'],
+      // The bottom zone (trust seals) is placed by the shop footer, not here (R8).
       [Snippets, 'bottom_of_body'],
     ])
   })

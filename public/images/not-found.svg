@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240" fill="none">
+  <!-- One colour (currentColor) at several opacities: the page uses this file as a CSS mask
+       over a brand-coloured box, so the shop's own colour paints it. -->
+  <ellipse cx="160" cy="216" rx="108" ry="10" fill="currentColor" fill-opacity=".1"/>
+  <circle cx="160" cy="112" r="100" fill="currentColor" fill-opacity=".07"/>
+  <circle cx="58" cy="68" r="6" fill="currentColor" fill-opacity=".3"/>
+  <circle cx="272" cy="56" r="4" fill="currentColor" fill-opacity=".4"/>
+  <path d="M252 86v16M244 94h16M70 146v12M64 152h12" stroke="currentColor" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/>
+  <rect x="88" y="34" width="124" height="160" rx="16" fill="currentColor" fill-opacity=".16"/>
+  <rect x="108" y="60" width="64" height="10" rx="5" fill="currentColor" fill-opacity=".5"/>
+  <rect x="108" y="84" width="84" height="8" rx="4" fill="currentColor" fill-opacity=".28"/>
+  <rect x="108" y="102" width="72" height="8" rx="4" fill="currentColor" fill-opacity=".28"/>
+  <rect x="108" y="120" width="48" height="8" rx="4" fill="currentColor" fill-opacity=".28"/>
+  <circle cx="200" cy="140" r="40" fill="currentColor" fill-opacity=".12"/>
+  <circle cx="200" cy="140" r="40" stroke="currentColor" stroke-width="12"/>
+  <path d="M230 170l28 28" stroke="currentColor" stroke-width="18" stroke-linecap="round"/>
+  <path d="M188 130a12 12 0 1 1 18 10.4c-3.6 2-6 4.4-6 8.6" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="200" cy="160" r="4.5" fill="currentColor"/>
+</svg>

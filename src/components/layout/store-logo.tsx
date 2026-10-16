@@ -9,21 +9,29 @@ import { useOptionalStoreConfig } from '@/lib/config-context'
 
 /**
  * The shop's logo, linking home. The box has a fixed size (no layout shift whatever the file's
- * proportions) and the image sits at its start. Without a logo, or when the file fails, the
+ * proportions) and the image sits at its start. Without a logo, or when every file fails, the
  * name is shown as a wordmark in its place, named like the image would be.
  */
 export function StoreLogo({
   src,
+  fallbackSrc = null,
   name,
+  priority = true,
   className,
 }: {
   src: string | null
+  /** Tried when `src` is missing or fails (the footer: `logo2`, then `logo`). */
+  fallbackSrc?: string | null
   name: string
+  /** Load eagerly at high priority (the header); `false` lazy-loads it (the footer). */
+  priority?: boolean
   className?: string
 }) {
   const config = useOptionalStoreConfig()
-  const [failedSrc, setFailedSrc] = useState<string | null>(null)
-  const showImage = Boolean(src) && src !== failedSrc
+  const [failed, setFailed] = useState<readonly string[]>([])
+  const shown = [src, fallbackSrc].find(
+    (candidate): candidate is string => Boolean(candidate) && !failed.includes(candidate as string),
+  )
 
   return (
     <Link
@@ -33,17 +41,18 @@ export function StoreLogo({
         className,
       )}
     >
-      {showImage && src ? (
+      {shown ? (
         <Image
-          src={src}
+          key={shown}
+          src={shown}
           alt={name}
           width={160}
           height={40}
           sizes="160px"
-          loading="eager"
-          fetchPriority="high"
-          unoptimized={!isOptimizable(src, config?.mediaOrigin)}
-          onError={() => setFailedSrc(src)}
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : undefined}
+          unoptimized={!isOptimizable(shown, config?.mediaOrigin)}
+          onError={() => setFailed((list) => [...list, shown])}
           // The start side of the box (right in RTL).
           className="size-full object-contain object-right ltr:object-left"
         />

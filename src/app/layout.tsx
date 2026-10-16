@@ -52,8 +52,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           {children}
         </Providers>
-        {/* Task 13 moves this zone into the footer's trust-badge area. */}
-        <SnippetHtmlZone position="bottom" />
+        {/* The bottom HTML zone (trust seals) is in the shop footer, which renders before
+            these scripts; layouts without that footer place <SnippetHtmlZone position="bottom" />. */}
         <Snippets position="bottom_of_body" />
       </body>
     </html>

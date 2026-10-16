@@ -76,6 +76,7 @@ export const SECTIONS = [
   { id: 'accordion', title: 'بخش‌های تاشو' },
   { id: 'carousel', title: 'اسلایدر' },
   { id: 'scroll', title: 'ناحیه پیمایش' },
+  { id: 'breadcrumbs', title: 'مسیر صفحه' },
 ] as const
 
 export function sectionTitle(id: (typeof SECTIONS)[number]['id']): string {

@@ -1,4 +1,5 @@
 import 'server-only'
+import type { ReactNode } from 'react'
 import { getSnippets } from '@/features/settings/api'
 import { renderSnippetNode, snippetNodes } from '@/features/settings/snippet-nodes'
 import type { SnippetNode } from '@/lib/snippets/parse'
@@ -48,18 +49,41 @@ const ZONE_CLASSES: Record<SnippetZone, string | undefined> = {
 }
 
 /**
- * The visible HTML of the body snippets (trust seals such as eNamad, a widget's mount point):
- * `top` holds `top_of_body`, `bottom` holds `bottom_of_body` and `outside_of_body`, centred.
- * Render each zone once, before its slot's `<Snippets>`, so the markup exists when the scripts
- * run. The root layout places `top` right after <body> opens and `bottom` at the end of the
- * page; the footer can take `bottom` instead. Nothing is rendered without HTML.
+ * The zone's markup, or null without HTML: for a Server Component that must know whether the
+ * zone is empty before it renders a heading for it (the footer's «نمادهای اعتماد»).
  */
-export async function SnippetHtmlZone({ position }: { position: SnippetZone }) {
+export async function renderSnippetHtmlZone(
+  position: SnippetZone,
+  className: string | undefined = ZONE_CLASSES[position],
+): Promise<ReactNode> {
   const nodes = (await slotNodes(ZONE_SLOTS[position])).filter(({ node }) => node.tag === 'html')
   if (nodes.length === 0) return null
   return (
-    <div data-snippet-zone={position} className={ZONE_CLASSES[position]}>
+    <div data-snippet-zone={position} className={className}>
       {nodes.map(({ key, node }) => renderSnippetNode(node, key))}
     </div>
   )
+}
+
+/**
+ * The visible HTML of the body snippets (trust seals such as eNamad, a widget's mount point):
+ * `top` holds `top_of_body`, `bottom` holds `bottom_of_body` and `outside_of_body`. Render each
+ * zone once per page, before its slot's `<Snippets>`, so the markup exists when the scripts run.
+ * Nothing is rendered without HTML; `className` replaces the default (centred row) classes.
+ *
+ * Where operators' HTML appears:
+ * - `top`: right after <body> opens, on every page (the root layout).
+ * - `bottom`: inside the shop footer, as the «نمادهای اعتماد» block (site-footer.tsx). Layouts
+ *   without that footer (a future checkout layout, say) must place `<SnippetHtmlZone
+ *   position="bottom" />` themselves, or the seals do not show there. Their scripts still run
+ *   from `<Snippets position="bottom_of_body">` at the end of <body> on every page.
+ */
+export async function SnippetHtmlZone({
+  position,
+  className,
+}: {
+  position: SnippetZone
+  className?: string
+}) {
+  return renderSnippetHtmlZone(position, className ?? ZONE_CLASSES[position])
 }

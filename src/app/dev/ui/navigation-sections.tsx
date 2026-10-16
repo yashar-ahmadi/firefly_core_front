@@ -4,6 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
+import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { Button } from '@/components/ui/button'
 import { Carousel } from '@/components/ui/carousel'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -72,6 +73,17 @@ const BRANDS = [
   'ایسوس',
   'اچ‌پی',
   'دل',
+]
+
+const CATEGORY_CRUMBS = [
+  { name: 'کالای دیجیتال', href: '/product-category/digital/' },
+  { name: 'گوشی موبایل', href: '/product-category/digital/mobile-phone/' },
+]
+
+const PRODUCT_CRUMBS = [
+  ...CATEGORY_CRUMBS,
+  { name: 'سامسونگ', href: '/brand/samsung/' },
+  { name: 'گوشی موبایل سامسونگ مدل Galaxy S25 Ultra ظرفیت ۵۱۲ گیگابایت رم ۱۲ گیگابایت' },
 ]
 
 export function NavigationSections() {
@@ -185,6 +197,21 @@ export function NavigationSections() {
             </ScrollArea>
           </Demo>
         </div>
+      </Section>
+
+      <Section
+        id="breadcrumbs"
+        title={sectionTitle('breadcrumbs')}
+        description="خانه با نماد، جداکننده‌ها به سمت چپ، صفحه فعلی بدون پیوند. در عرض کم، ردیف افقی پیمایش می‌شود."
+      >
+        <Demo label="صفحه دسته‌بندی" className="block">
+          <Breadcrumbs items={CATEGORY_CRUMBS} />
+        </Demo>
+        <Demo label="صفحه کالا با نام بلند، در عرض گوشی" className="block max-w-sm">
+          <div className="rounded-card border border-ink-200 px-2">
+            <Breadcrumbs items={PRODUCT_CRUMBS} />
+          </div>
+        </Demo>
       </Section>
     </>
   )

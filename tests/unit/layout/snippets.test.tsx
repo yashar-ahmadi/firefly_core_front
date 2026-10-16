@@ -203,6 +203,16 @@ describe('<Snippets>', () => {
     )
   })
 
+  it('lets the layout that places the zone style it', async () => {
+    serve(snippet('outside_of_body', 'script', '<a href="https://seal.example/">نشان</a>'))
+    const html = renderToStaticMarkup(
+      await SnippetHtmlZone({ position: 'bottom', className: 'flex flex-wrap gap-3' }),
+    )
+    const zone = parse(html).querySelector('[data-snippet-zone="bottom"]')
+    expect(zone?.className).toBe('flex flex-wrap gap-3')
+    expect(zone?.querySelector('a[href="https://seal.example/"]')).not.toBeNull()
+  })
+
   it('renders no zone when there is no HTML', async () => {
     serve(
       snippet('top_of_body', 'script', '<script>top()</script>'),
