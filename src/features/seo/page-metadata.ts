@@ -71,8 +71,8 @@ export interface PageSeo {
   /** The social cards' description when there is no `description` (the home page: the slogan). */
   socialDescription?: string | null
   keywords?: string | null
-  /** A path (resolved against the layout's `metadataBase`) or an absolute URL. */
-  canonical: string
+  /** A path (resolved against the layout's `metadataBase`) or an absolute URL; null for none. */
+  canonical: string | null
   image?: string | null
   siteName?: string | null
   card: 'summary' | 'summary_large_image'
@@ -84,7 +84,7 @@ export interface PageSeo {
 /**
  * - title: absolute (backend titles usually name the shop already), else none of ours.
  * - description, keywords: an operator meta row of that name, else the SEO field, when set.
- * - canonical and `og:url`: `canonical`.
+ * - canonical and `og:url`: `canonical`, none when null.
  * - Open Graph (website, fa_IR) and Twitter: titles, descriptions and the image set explicitly;
  *   a field the operator wrote as a meta tag (og:title, twitter:card…) is left out here.
  * - other operator meta tags: `name=` ones through `other`; see `propertyMetaTags` for the rest.
@@ -105,7 +105,7 @@ export function pageMetadata(seo: PageSeo): Metadata {
     ...(description ? { description } : {}),
     ...(keywords ? { keywords } : {}),
     ...(seo.robots ? { robots: seo.robots } : {}),
-    alternates: { canonical: seo.canonical },
+    ...(seo.canonical ? { alternates: { canonical: seo.canonical } } : {}),
     openGraph: ours(
       [
         ['type', 'og:type', 'website'],

@@ -34,9 +34,10 @@ test.describe('category page', () => {
     expect(crumbs.itemListElement.at(-1)?.item).toBe(`http://localhost:3000${PHONES}`)
   })
 
-  test('a filtered URL is noindex, follow', async ({ page }) => {
+  test('a filtered URL is noindex, follow, with no canonical', async ({ page }) => {
     await page.goto(`${PHONES}?brand=apple`)
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow')
+    await expect(page.locator('link[rel="canonical"]')).toHaveCount(0)
   })
 
   test('a root category links its subcategories', async ({ page }) => {
@@ -199,10 +200,8 @@ test.describe('curated list and generic listing', () => {
     ).toBeVisible()
     await expect(page).toHaveTitle(/^تخفیف‌ها \|/)
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow')
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-      'href',
-      'http://localhost:3000/product/list/',
-    )
+    // Filtered: no canonical to the bare listing beside the noindex (a mixed signal).
+    await expect(page.locator('link[rel="canonical"]')).toHaveCount(0)
   })
 
   test('load more appends the next page and records it in the URL', async ({ page }) => {

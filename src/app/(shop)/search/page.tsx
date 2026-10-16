@@ -13,6 +13,7 @@ import {
   SearchStart,
   SearchThrottled,
 } from '@/features/search/results/search-states'
+import { hasQuery } from '@/features/catalog/listing-routes'
 import { seoMetadata } from '@/features/seo/metadata'
 import { shopName } from '@/features/seo/shop-name'
 import { getCategoryTree } from '@/features/settings/api'
@@ -38,8 +39,15 @@ function termOf(sp: SearchParams): string | null {
 }
 
 export async function generateMetadata({ searchParams }: SearchPageProps): Promise<Metadata> {
-  const q = termOf(await searchParams)
-  const meta = seoMetadata({ path: SEARCH_PATH, noindex: true, siteName: await shopName() })
+  const sp = await searchParams
+  const q = termOf(sp)
+  const meta = seoMetadata({
+    path: SEARCH_PATH,
+    noindex: true,
+    // `/search/?q=…` is another URL than `/search/`: no canonical (noindex says it all).
+    noCanonical: hasQuery(sp),
+    siteName: await shopName(),
+  })
   if (q === null) return { ...meta, title: TITLE }
   // The same call as the page's (React cache): one search per request.
   const outcome = await searchCatalog(q)

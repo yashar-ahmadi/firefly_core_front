@@ -19,7 +19,7 @@ import {
 } from '@/features/catalog/listing-routes'
 import { siteBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { JsonLd } from '@/features/seo/json-ld'
-import { seoMetadata } from '@/features/seo/metadata'
+import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
 import { shopName } from '@/features/seo/shop-name'
 
@@ -57,6 +57,11 @@ export async function generateMetadata({
   return seoMetadata({
     pageTitle: category.page_title,
     description: category.page_description,
+    fallbackDescription: metaExcerpt(
+      category.short_description,
+      category.description,
+      category.content,
+    ),
     keywords: category.page_keywords,
     image: isPlaceholderImage(category.image) ? null : category.image,
     path,

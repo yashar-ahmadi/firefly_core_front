@@ -250,8 +250,9 @@ Rendering rules: `content.md` §6.3–6.8. LCP rule: only the first image of the
     - **Brand:** hero with logo (70 px) and name, then the listing with context brand, then content and breadcrumb JSON-LD.
     - **Brands index `/brand/`:** a grid of all brands with logo and name.
     - **List page:** as `product.md` §6.6.
-    - **Generic `/product/list/`:** the title is built from the params (`has_discount` → «تخفیف‌ها», `sort=sale` → «پرفروش‌ترین‌ها», `sort=date-desc` → «جدیدترین‌ها», `is_special` → «پیشنهادهای ویژه», otherwise «همهٔ محصولات»). Robots `noindex, follow`. Canonical is self without query.
-    - Listings with any query parameter other than `page` use `robots: { index: false, follow: true }`. Paginated pages keep `index` with a self canonical including `page`.
+    - **Generic `/product/list/`:** the title is built from the params (`has_discount` → «تخفیف‌ها», `sort=sale` → «پرفروش‌ترین‌ها», `sort=date-desc` → «جدیدترین‌ها», `is_special` → «پیشنهادهای ویژه», otherwise «همهٔ محصولات»). Robots `noindex, follow`. Canonical is self without query (only on the bare path; a filtered URL has none).
+    - Listings with any query parameter other than `page` use `robots: { index: false, follow: true }` and **no canonical** (final-review ruling: noindex plus a canonical to another URL is a mixed signal; the same goes for a filtered generic listing and `/search/?q=`). Paginated pages keep `index` with a self canonical including `page`, and their title ends with «- صفحهٔ N» (Persian digits).
+    - An empty `page_description` falls back to the entity's own text (`short_description`, `description`, then `content` as plain text, about 155 characters), never the shop's slogan.
 
 - [ ] **Step 1: Write failing tests.**
   - `seoMetadata({ pageTitle: 'X', description: '', path: '/a/' })` has `title.absolute === 'X'`, no `description` key and `alternates.canonical === '/a/'`.

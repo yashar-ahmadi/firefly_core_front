@@ -5,7 +5,7 @@ import { cn } from '@/components/ui/cn'
 import { getListPage, isPastLastPage } from '@/features/catalog/api'
 import { ProductListing } from '@/features/catalog/components/listing/product-listing'
 import { parseListingParams } from '@/features/catalog/listing-params'
-import { genericListingTitle, LISTING_PATH } from '@/features/catalog/listing-routes'
+import { genericListingTitle, hasQuery, LISTING_PATH } from '@/features/catalog/listing-routes'
 import { seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
 import { shopName } from '@/features/seo/shop-name'
@@ -26,14 +26,21 @@ async function listingTitle(sp: SearchParams): Promise<string> {
 export async function generateMetadata({ searchParams }: ListingPageProps): Promise<Metadata> {
   const sp = await searchParams
   if (await isPastLastPage(parseListingParams(sp))) return notFoundMetadata()
-  const meta = seoMetadata({ path: LISTING_PATH, noindex: true, siteName: await shopName() })
+  const meta = seoMetadata({
+    path: LISTING_PATH,
+    noindex: true,
+    // Filtered, it is another URL than the bare path: no canonical (noindex says it all).
+    noCanonical: hasQuery(sp),
+    siteName: await shopName(),
+  })
   return { ...meta, title: await listingTitle(sp) }
 }
 
 /**
  * `/product/list/?…`, the generic listing (product digest §6.5): the whole store filtered by the
  * query (menu links, homepage «see all»). It has no SEO data of its own: the title is built from
- * the query, and it is `noindex, follow` with the bare path as canonical. No loading.tsx (R9):
+ * the query, and it is `noindex, follow`; the bare path is its own canonical, a filtered URL has
+ * none. No loading.tsx (R9):
  * a page past the last answers 404.
  */
 export default async function ListingPage({ searchParams }: ListingPageProps) {

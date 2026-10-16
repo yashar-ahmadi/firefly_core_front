@@ -111,6 +111,8 @@ describe('the search page without a term', () => {
     expect(meta.title).toBe('جستجو')
     expect(meta.robots).toEqual({ index: false, follow: true })
     expect(mocks.apiFetch).not.toHaveBeenCalled()
+    const bare = await generateMetadata(props({}))
+    expect(bare.alternates).toEqual({ canonical: '/search/' })
   })
 })
 
@@ -145,6 +147,8 @@ describe('the search page with a term', () => {
     const meta = await generateMetadata(props({ q: 'گوشي' }))
     expect(meta.title).toBe('جستجو: گوشی')
     expect(meta.robots).toEqual({ index: false, follow: true })
+    // `/search/?q=…` is not `/search/`: no canonical pointing there beside the noindex.
+    expect(meta).not.toHaveProperty('alternates')
   })
 
   it('shows the products as a grid with their add buttons, and each other group as a list', async () => {

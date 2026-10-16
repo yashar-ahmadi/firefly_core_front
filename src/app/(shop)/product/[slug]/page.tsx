@@ -43,7 +43,7 @@ import { StickyBuyBar } from '@/features/product/components/sticky-buy-bar'
 import { RecentlyViewedStrip } from '@/features/recently-viewed/strip'
 import { siteBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { JsonLd } from '@/features/seo/json-ld'
-import { seoMetadata } from '@/features/seo/metadata'
+import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
 import { siteProductJsonLd } from '@/features/seo/product-json-ld'
 import { shopName } from '@/features/seo/shop-name'
@@ -63,6 +63,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const meta = seoMetadata({
     pageTitle: product.page_title,
     description: product.page_description,
+    fallbackDescription: metaExcerpt(product.description, product.content),
     keywords: product.page_keywords,
     // `?variant=` is the same page: the canonical is always the product.
     canonical: product.canonical_link,

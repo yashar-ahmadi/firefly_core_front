@@ -146,7 +146,8 @@ describe('the brand page', () => {
 
   it('takes its title and description from the backend', async () => {
     const meta = await brandMetadata(slugProps('samsung', { page: '2' }))
-    expect(meta.title).toEqual({ absolute: 'خرید محصولات سامسونگ' })
+    // An indexable later page says which page it is.
+    expect(meta.title).toEqual({ absolute: 'خرید محصولات سامسونگ - صفحهٔ ۲' })
     expect(meta.description).toBe('لیست کامل محصولات سامسونگ با قیمت روز و ارسال سریع.')
     expect(meta.alternates).toEqual({ canonical: '/brand/samsung/?page=2' })
     expect(meta).not.toHaveProperty('robots')
@@ -238,7 +239,9 @@ describe('the curated list page', () => {
     const meta = await listPageMetadata(slugProps('flagship-phones', { sort: 'price-asc' }))
     expect(meta.title).toEqual({ absolute: 'گوشی های پرچمدار' })
     expect(meta.robots).toEqual({ index: false, follow: true })
-    expect(meta.alternates).toEqual({ canonical: '/product/list/flagship-phones/' })
+    // No canonical to the clean page: with noindex that is a mixed signal.
+    expect(meta).not.toHaveProperty('alternates')
+    expect(meta.openGraph).not.toHaveProperty('url')
     expect(meta.openGraph).toMatchObject({ siteName: 'فایرفلای' })
   })
 })
@@ -260,11 +263,17 @@ describe('the generic listing', () => {
     expect(meta.title).toBe('پرفروش‌ترین‌ها')
   })
 
-  it('is always noindex, follow with the bare path as canonical', async () => {
+  it('is always noindex, follow; filtered, it has no canonical', async () => {
     const meta = await listingMetadata(searchProps({ has_discount: 'true', page: '2' }))
     expect(meta.title).toBe('تخفیف‌ها')
     expect(meta.robots).toEqual({ index: false, follow: true })
-    expect(meta.alternates).toEqual({ canonical: '/product/list/' })
+    expect(meta).not.toHaveProperty('alternates')
     expect(meta.openGraph).toMatchObject({ siteName: 'فایرفلای' })
+  })
+
+  it('keeps the bare path as its own canonical', async () => {
+    const meta = await listingMetadata(searchProps({}))
+    expect(meta.robots).toEqual({ index: false, follow: true })
+    expect(meta.alternates).toEqual({ canonical: '/product/list/' })
   })
 })

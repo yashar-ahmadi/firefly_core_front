@@ -12,7 +12,7 @@ import { parseListingParams, withDefaultSort } from '@/features/catalog/listing-
 import { listingIndexing, listPagePath } from '@/features/catalog/listing-routes'
 import { breadcrumbTrail, siteBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { JsonLd } from '@/features/seo/json-ld'
-import { seoMetadata } from '@/features/seo/metadata'
+import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
 import { shopName } from '@/features/seo/shop-name'
 
@@ -33,6 +33,7 @@ export async function generateMetadata({ params, searchParams }: ListPageProps):
   return seoMetadata({
     pageTitle: list.page_title,
     description: list.page_description,
+    fallbackDescription: metaExcerpt(list.description, list.content),
     keywords: list.page_keywords,
     path,
     siteName: await shopName(),

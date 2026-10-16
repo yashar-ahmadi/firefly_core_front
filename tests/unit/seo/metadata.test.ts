@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { seoMetadata } from '@/features/seo/metadata'
+import { META_DESCRIPTION_LENGTH, metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import { pageMetadata } from '@/features/seo/page-metadata'
 
 /** Every key, at any depth, that is set to `undefined` (it would wipe the layout's value). */
@@ -142,5 +142,49 @@ describe('pageMetadata', () => {
     expect(meta).not.toHaveProperty('description')
     expect(meta.openGraph).toMatchObject({ description: 'slogan' })
     expect(meta.twitter).toMatchObject({ description: 'slogan' })
+  })
+})
+
+describe('description fallback (instead of the shop slogan)', () => {
+  it('uses the fallback when the page description is empty, for the cards too', () => {
+    const meta = seoMetadata({ path: '/a/', description: ' ', fallbackDescription: 'متن کوتاه' })
+    expect(meta.description).toBe('متن کوتاه')
+    expect(meta.openGraph).toMatchObject({ description: 'متن کوتاه' })
+    expect(
+      seoMetadata({ path: '/a/', description: 'اصلی', fallbackDescription: 'x' }).description,
+    ).toBe('اصلی')
+  })
+
+  it('takes the first candidate with text, as plain text', () => {
+    expect(metaExcerpt(null, '', '<p>نقد <b>و</b> بررسی&nbsp;کامل</p>')).toBe('نقد و بررسی کامل')
+    expect(metaExcerpt('  خلاصه  ', 'توضیح')).toBe('خلاصه')
+    expect(metaExcerpt(null, undefined, '<p> </p>')).toBeNull()
+  })
+
+  it('cuts a long text at a word, about 155 characters, with «…»', () => {
+    const long = Array.from({ length: 60 }, (_, i) => `واژه${i}`).join(' ')
+    const excerpt = metaExcerpt(long)!
+    expect(Array.from(excerpt).length).toBeLessThanOrEqual(META_DESCRIPTION_LENGTH)
+    expect(excerpt.endsWith('…')).toBe(true)
+    expect(long.startsWith(excerpt.slice(0, -1))).toBe(true)
+    expect(excerpt.slice(0, -1).endsWith(' ')).toBe(false)
+  })
+})
+
+describe('paginated and filtered listings', () => {
+  it('adds «صفحهٔ N» to the title of a later page', () => {
+    expect(seoMetadata({ path: '/a/', pageTitle: 'گوشی', page: 3 }).title).toEqual({
+      absolute: 'گوشی - صفحهٔ ۳',
+    })
+    expect(seoMetadata({ path: '/a/', pageTitle: 'گوشی', page: 1 }).title).toEqual({
+      absolute: 'گوشی',
+    })
+  })
+
+  it('writes no canonical and no og:url with noCanonical', () => {
+    const meta = seoMetadata({ path: '/a/', noindex: true, noCanonical: true })
+    expect(meta).not.toHaveProperty('alternates')
+    expect(meta.openGraph).not.toHaveProperty('url')
+    expect(meta.robots).toEqual({ index: false, follow: true })
   })
 })

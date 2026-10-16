@@ -57,25 +57,27 @@ describe('listingIndexing', () => {
     })
   })
 
-  it('a later page stays indexable with a canonical of its own', () => {
+  it('a later page stays indexable with a canonical of its own and its number', () => {
     expect(listingIndexing({ page: '3' }, { path, canonicalLink: 'https://shop.ir/x/' })).toEqual({
       canonical: '/brand/apple/?page=3',
       noindex: false,
+      page: 3,
     })
     expect(listingIndexing({ page: '۲' }, { path })).toEqual({
       canonical: '/brand/apple/?page=2',
       noindex: false,
+      page: 2,
     })
   })
 
-  it('any other parameter is noindex, follow, canonical to the clean path', () => {
+  it('any other parameter is noindex, follow, with no canonical (not one to another URL)', () => {
     expect(listingIndexing({ brand: 'apple', page: '2' }, { path })).toEqual({
-      canonical: path,
       noindex: true,
+      noCanonical: true,
     })
     expect(listingIndexing({ utm_source: 'x' }, { path, canonicalLink: null })).toEqual({
-      canonical: path,
       noindex: true,
+      noCanonical: true,
     })
     // An unreadable page is no page: the clean canonical.
     expect(listingIndexing({ page: 'abc' }, { path })).toEqual({ canonical: path, noindex: false })

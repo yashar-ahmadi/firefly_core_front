@@ -13,7 +13,7 @@ import { parseListingParams } from '@/features/catalog/listing-params'
 import { BRANDS_PATH, brandPath, listingIndexing } from '@/features/catalog/listing-routes'
 import { trailBreadcrumb, type TrailStep } from '@/features/seo/breadcrumb-json-ld'
 import { JsonLd } from '@/features/seo/json-ld'
-import { seoMetadata } from '@/features/seo/metadata'
+import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
 import { shopName } from '@/features/seo/shop-name'
 import { getTranslations } from '@/features/settings/api'
@@ -38,6 +38,7 @@ export async function generateMetadata({
   return seoMetadata({
     pageTitle: brand.page_title,
     description: brand.page_description,
+    fallbackDescription: metaExcerpt(brand.description, brand.content),
     keywords: brand.page_keywords,
     image: isPlaceholderImage(brand.image) ? null : brand.image,
     // The logo is a 70×70 crop: too small for the large card.

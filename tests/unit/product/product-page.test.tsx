@@ -344,6 +344,14 @@ describe('product metadata', () => {
     expect(meta.twitter).toMatchObject({ card: 'summary_large_image', images: [product.image] })
   })
 
+  it('falls back to the product text, not the shop slogan, without a page description', async () => {
+    mocks.getProductDetail.mockResolvedValue(
+      s25Product({ page_description: '', description: 'گوشی پرچمدار سامسونگ با قلم.' }),
+    )
+    const meta = await generateMetadata(props())
+    expect(meta.description).toBe('گوشی پرچمدار سامسونگ با قلم.')
+  })
+
   it('is noindex, nofollow for a draft seen in a staff preview', async () => {
     mocks.getProductDetail.mockResolvedValue(s25Product({ is_unpublished: true }))
     expect((await generateMetadata(props())).robots).toEqual({ index: false, follow: false })
