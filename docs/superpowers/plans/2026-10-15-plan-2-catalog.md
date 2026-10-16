@@ -184,16 +184,19 @@ tests/unit/** , tests/e2e/catalog/**
 - Consumes: `getHomePage`, `getProductSettings`, `ProductCard`, `Carousel`, `SmartImage`.
 - Produces:
   - `SectionRenderer({ sections: HomeSection[] })` switches on `type`. Unknown types render `null`.
-  - `StoreLink({ href, children, className, newTab? })`: an internal `/…` href gives Next `Link`; an absolute href gives `<a rel="noopener">`.
+  - `StoreLink({ href, children, className, newTab? })`: an internal `/…` href gives Next `Link`; an absolute href gives `<a rel="noopener">`. A short-link href (`/s/<code>`, tested with `isShortLinkPath()` from `@/lib/links/short-link`, as `MenuLink` does) is always a plain `<a>`: never a Next `Link`, since its prefetch would count a visit on every page view.
   - `RichContent({ html, className? })` renders trusted backend HTML in `.rich-content`, and intercepts clicks on root-relative links for client-side navigation.
   - `seeAllHref(section: HomeSection): string | null` follows `content.md` §6.1 and §6.5: the operator link wins; otherwise `/product/list/?${new URLSearchParams(listing_query)}`.
 
 Rendering rules: `content.md` §6.3–6.8. LCP rule: only the first image of the first image section gets `priority`. The slider autoplays every 6 s, pauses on hover, focus and touch, and is not autoplayed under reduced motion. Banner grid by count, per the table in `content.md` §6.4. Category grid: a circle or rounded tile with image and name, in a horizontal scroller on mobile. The post carousel uses a compact post card (image, title, date) linking to `/blog/<slug>/`. The page metadata comes from the homepage SEO fields (`title: { absolute: page_title }` when non-empty). After the sections comes the `RecentlyViewedStrip` (client; renders nothing when empty).
 
+**Carousel rails:** a product (or post) rail inside `Carousel` must reserve inline padding for the arrows (at least 56 px each side while arrows show) or place the arrows outside the track: the 44 px arrows sit 8 px from the edges and otherwise overlap the first and last cards from `sm` up.
+
 - [ ] **Step 1: Write failing tests.**
   - `SectionRenderer` with an unknown type renders nothing.
   - A product carousel with `listing_query: { sort: 'sale', in_stock: 'true', special_first: 'false' }` and `link: null` renders a «مشاهدهٔ همه» link to `/product/list/?sort=sale&in_stock=true&special_first=false`.
   - A slider item with `mobile_image` renders a `<source media="(max-width: 767px)">`.
+  - `StoreLink` with `href="/s/phone-fest/"` renders a plain `<a>` (no Next `Link`), and with `href="/product/x/"` a Next `Link`.
 - [ ] **Step 2:** FAIL. **Step 3:** Implement. **Step 4:** PASS.
 - [ ] **Step 5: e2e `home.spec.ts`** (all projects):
   - the first slide title «کمپین جمعهٔ سیاه» is visible;
@@ -271,7 +274,8 @@ Rendering rules: `content.md` §6.3–6.8. LCP rule: only the first image of the
 
 **Files:**
 - Create: `src/features/product/variant.ts`, and in `src/features/product/components/`: `product-gallery.tsx`, `gallery-lightbox.tsx`, `product-summary.tsx`, `variant-picker.tsx`, `buy-box.tsx`, `sticky-buy-bar.tsx`, `notify-me.tsx`, `wholesale-note.tsx`, `share-button.tsx`, `record-recently-viewed.tsx`, `product-provider.tsx` (client context holding the selected variant)
-- Create: `src/app/(shop)/product/[slug]/page.tsx`, `src/app/(shop)/product/[slug]/loading.tsx`
+- Create: `src/app/(shop)/product/[slug]/page.tsx`
+- No `loading.tsx` for this segment (R9): a segment `loading.tsx` streams the page and turns `notFound()` into a 200 soft 404. Await the product and call `notFound()` before any `<Suspense>`; stream only secondary sections (reviews, related products) through in-page `<Suspense>`.
 - Test: `tests/unit/product/variant.test.ts`, `tests/unit/product/buy-box.test.tsx`, `tests/unit/product/notify-me.test.tsx`
 
 **Interfaces:**
@@ -331,7 +335,7 @@ Rendering rules: `content.md` §6.3–6.8. LCP rule: only the first image of the
 4. «پرسش‌ها»: list and «ثبت پرسش».
 5. Consider-before-buying and the admin FAQ, when present.
 6. The bundle contents when `is_collection`.
-7. Related products in a carousel, honouring `related_items_display_status`.
+7. Related products in a carousel, honouring `related_items_display_status`. The rail reserves inline padding for the arrows or places them outside the track (Task 4, «Carousel rails»): the 44 px arrows 8 px from the edges otherwise overlap the card edges from `sm` up.
 8. The recently-viewed strip, excluding the current product.
 
 - [ ] **Step 1: Write failing tests.**
@@ -392,12 +396,14 @@ Rendering rules: `content.md` §6.3–6.8. LCP rule: only the first image of the
     - errors become `null`.
   - `SuggestBox`: a combobox (`role="combobox"`, listbox options, arrow navigation, Enter goes to the highlighted item or submits to `/search/?q=`). Groups: products (thumbnail and name), categories and brands. Shows «جستجوی «{q}» در همهٔ محصولات». Recent searches show when the input is empty and focused.
   - `/search/?q=`: server-rendered, `cache: 'no-store'`. Calls `search/?q=` with the visitor's `X-Forwarded-For`. Shows `data.query` in the heading «نتایج جستجو برای «…»» and the groups (products as a grid, with categories, brands, posts and pages as compact lists). Each group's «مشاهدهٔ همه» appears when `count > items.length` and `listing_query` is set; product groups link to `/product/list/?…`. An empty state when `total === 0`, with tips and popular categories. `noindex`.
+  - An empty or whitespace-only `q` (`/search/`, `/search/?q=%20`) never calls `search/`: the header's search form may prefetch `/search/`, and every search call is logged by the backend. It renders the empty/tips state only.
 
 - [ ] **Step 1: Write failing tests** with fake timers and mocked `bffFetch`:
   - typing `'گ'` sends no request;
   - typing `'گوش'` quickly then `'گوشی'` sends exactly one request, for `'گوشی'`, after 250 ms;
   - a late response for an older query is ignored;
-  - a rejected request yields `data: null` without throwing.
+  - a rejected request yields `data: null` without throwing;
+  - the `/search/` page with `q` missing, empty or only whitespace renders the tips state and makes no `search/` call (mocked `apiFetch` not called).
 - [ ] **Step 2:** FAIL. **Step 3:** Implement. **Step 4:** PASS.
 - [ ] **Step 5: e2e `search.spec.ts`:**
   - typing «سامسونگ» in the header shows a suggestion list containing «سامسونگ», and Enter goes to `/search/?q=…` showing product results;

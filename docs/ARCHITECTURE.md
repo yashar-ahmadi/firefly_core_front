@@ -66,27 +66,42 @@ Browser ──► Next.js (storefront origin)
              ├─ /api/v1/payment/gateway/callback/<gateway>/<token>/ ──► Django (GET+POST, body as is)
              ├─ /robots.txt (route handler, robots/?format=txt, byte for byte)
              ├─ /s/<code>   (route handler, short links, always a fresh 302)
-             └─ /healthz/   (route handler, liveness: 200 "ok", no API call, no shell)
+             └─ /healthz/   (route handler: env valid → 200 "ok", else 503; no API call, no shell)
 ```
 
-**Health.** `/healthz/` is the container `HEALTHCHECK` and load-balancer probe. It answers without
-the API, the settings or the environment, so a backend outage never marks the storefront unhealthy
-(`/robots.txt`, which does need the API, is the separate connectivity check). With
+**Health.** `/healthz/` is the container `HEALTHCHECK` and load-balancer probe. It validates the
+runtime environment (`getServerEnv()`, spec §6.2) and nothing else: 200 `ok`, or 503 `unhealthy`
+(no detail in the response; the invalid variable names are logged once). It never calls the API or
+loads the settings, so a backend outage never marks the storefront unhealthy (`/robots.txt`, which
+does need the API, is the separate connectivity check). The check runs on the first probe rather
+than in `instrumentation.ts`, so `next build` still needs no runtime variables. With
 `trailingSlash: true`, `/healthz` without the slash is a 308 to `/healthz/`.
 
-**Edge proxy duties.** Compression belongs to the reverse proxy: `next.config.ts` sets
-`compress: false` and the nginx example clears `Accept-Encoding` towards the app, so its gzip and
-brotli apply to every response (without a compressing proxy the site works, uncompressed). The
-standalone server keeps idle keep-alive sockets for `KEEP_ALIVE_TIMEOUT` (65 s in the image and in
-`start-standalone.mjs`), longer than nginx's upstream `keepalive_timeout` (60 s), so nginx never
-reuses a socket Node has closed.
+**Compression.** The nginx example clears `Accept-Encoding` towards the app, so the app answers
+with identity bodies and nginx compresses each response once, with brotli or gzip (its types include
+`text/x-component`, the RSC payload of client-side navigations). `next.config.ts` keeps
+`compress: true`: Next gzips only when the request accepts it, which happens only when no proxy
+strips the header, so a deployment without a compressing proxy is still gzipped.
+
+**Security headers.** `next.config.ts` `headers()` (`src/config/security-headers.ts`) sends on every
+response: `X-Frame-Options: SAMEORIGIN` and `Content-Security-Policy: frame-ancestors 'self'`
+(clickjacking), `X-Content-Type-Options: nosniff` and `Referrer-Policy:
+strict-origin-when-cross-origin`. The CSP has only that directive; a script/style policy needs
+nonces (see «Operator content» below). Forwarded `/media/`, `/static/` and `/sitemap.xml` answers
+keep the API's own values where it sets the same header, and `/_next/image` keeps Next's image
+sandbox CSP. nginx adds only HSTS.
+
+**Keep-alive.** The standalone server keeps idle keep-alive sockets for `KEEP_ALIVE_TIMEOUT` (65 s
+in the image and in `start-standalone.mjs`), longer than nginx's upstream `keepalive_timeout`
+(60 s), so nginx never reuses a socket Node has closed.
 
 **Transports.** `apiFetch` (`@/lib/api/server`, server-only) and `bffFetch` (`@/lib/api/client`,
 browser) share one contract: paths always end with `/`, the `{ msg, code, data }` envelope is
 unwrapped, and every failure is an `ApiError { status, code, errors, detail, retryAfter, feature }`
 (a non-JSON body such as a proxy's HTML 502 is `non_json_response`, a timeout or lost connection is
-`status: 0, code: 'network_error'`). `apiFetch` defaults to a 10 s timeout and `redirect: 'manual'`
-so the API key is never re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
+`status: 0, code: 'network_error'`). `apiFetch` defaults to a 10 s timeout (the shell loaders use
+3.5 s, short links 3 s, redirect lookups 1 s) and `redirect: 'manual'` so the API key is never
+re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
 
 **BFF** (`src/app/api/bff/[...path]/route.ts`, logic in `src/lib/bff/`):
 
@@ -174,7 +189,7 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 | `global/get-translation/fa/` (fallback `global/languages/`) | `getTranslations()` | 300 s | `translations` |
 | `product/category/list/` (all pages) | `getCategoryTree()` | 300 s | `categories` |
 | `robots/?format=txt` | `/robots.txt` route | 300 s (fetch level) | — |
-| `redirects/list/` (rule sources only) | `knownSources()`, in process memory | 5 min | — |
+| `redirects/list/` (rule sources only) | `knownSources()`, in process memory | 5 min (a failed load is retried after 30 s) | — |
 | `/_next/static/*` | browser / CDN | 1 year, immutable | — |
 | optimised images (`/_next/image`) | `.next/cache/images` | Next default (4 h) or upstream max-age | — |
 
@@ -182,14 +197,24 @@ Never cached (`cache: 'no-store'`, and `Cache-Control: no-store` on our response
 
 - every BFF call (cart, auth, account, orders, payment status, search…);
 - `redirects/resolve/` (counts hits; a disabled rule must stop at once) — 1 s timeout, fails open;
-- `shortener/<code>/` (each 200 counts a visit; the answer is always a 302, never a 301);
+- `shortener/<code>/` (each 200 counts a visit; the answer is always a 302, never a 301). A
+  prefetch of `/s/<code>` (`next-router-prefetch`, `Purpose: prefetch`, `Sec-Purpose: prefetch`)
+  gets an uncached 204 without an API call, and storefront links to `/s/` are plain `<a>` elements
+  (`isShortLinkPath()` in `lib/links/short-link.ts`), never a prefetching Next `Link`;
 - token refresh, the bank callback, the robots 503 fallback and `/healthz/`;
 - forwarded `/media/`, `/static/` and `/sitemap.xml` (proxied as is; the backend's headers apply).
 
 Rules for later plans (from the spec and `seo-cache-deploy.md` §10): never send `Authorization` or a
-per-visitor `X-Forwarded-For` on a cached read; personal bits (wishlist hearts, cart badge, user
-menu) are fetched client-side through the BFF so public HTML stays shared; fetch blog post detail
-once per render (`GET` increments the view counter).
+per-visitor `X-Forwarded-For` on a cached read; personal data (wishlist hearts, cart contents and
+count, account details) is fetched client-side through the BFF, never rendered into the HTML; fetch
+blog post detail once per render (`GET` increments the view counter).
+
+The HTML is nevertheless not identical for every visitor: the root layout reads the `ff_auth` flag
+cookie on the server (`hasSession`), so the header is rendered signed in (account menu) or signed
+out («ورود | ثبت‌نام») from the first byte, without a flash. Pages are rendered per request and sent
+with `Cache-Control: private, no-store`; a shared or edge cache of HTML (CDN, nginx `proxy_cache`)
+must either vary on the `ff_auth` cookie or not cache HTML at all, or it would serve one visitor's
+signed-in header to another.
 
 ## Rendering rules
 
@@ -239,9 +264,11 @@ once per render (`GET` increments the view counter).
   the start or end of `<body>`; loose body HTML renders **visibly** in `<SnippetHtmlZone>` (top) or
   in the footer's trust-badge zone (bottom and `outside_of_body`) — eNamad-style seals are `<a><img>`.
   `on*` and `style` attributes on snippet script/meta/link nodes are dropped with a warning (React
-  cannot render them). Scripts run on the first full page load only. A future CSP must be
-  nonce-based (Next's inline RSC scripts, the per-announcement inline script, snippets, the theme
-  `<style>`).
+  cannot render them). Bare (tagless) script and style snippets are escaped (`</script` →
+  `<\/script`, `<!--` → `\x3C!--`, `</style` → `<\/style`) so they cannot end their wrapper
+  early. Scripts run on the first full page load only. The only CSP today is `frame-ancestors`; a
+  script/style policy must be nonce-based (Next's inline RSC scripts, the per-announcement inline
+  script, snippets, the theme `<style>`).
 
 ## Folder conventions
 
@@ -255,8 +282,8 @@ src/
   components/ui/           design-system primitives (Button, Sheet, Dialog, Carousel, Price…)
   components/layout/       shell pieces (SiteHeader, MegaMenu, MobileBottomNav, SiteFooter…)
   lib/                     framework-agnostic code: api, auth, bff, edge, html, http, format,
-                           i18n, query, session, snippets, theme
-  config/                  env schema, presets, store config
+                           i18n, links, query, session, snippets, theme
+  config/                  env schema, presets, store config, security headers
   styles/                  globals.css (Tailwind v4 @theme, tokens), rich-content.css
   proxy.ts                 the Next 16 proxy (formerly middleware)
 tests/unit/<area>/         Vitest + Testing Library (jsdom); shared builders in */support.ts

@@ -73,9 +73,12 @@ httpOnly cookies. All shop configuration is read at runtime; the only build inpu
 Quick start: `corepack enable && pnpm install && pnpm dev` against a local backend on
 `http://localhost:8000`. Production: `docker build --build-arg FIREFLY_API_URL=https://api.example.ir
 -t firefly-front .`, then `docker run --env-file .env -p 127.0.0.1:3000:3000 firefly-front` behind
-nginx (which owns compression; the app is built with `compress: false`). `/healthz/` is the
-liveness probe and never calls the API. `pnpm test:e2e` runs Playwright (mobile, tablet, desktop) against the standalone production
-server and a backend with sample data; CI runs typecheck, lint, format check, unit tests and build.
+nginx (which strips `Accept-Encoding` and compresses once with brotli or gzip; the app gzips by
+itself only when no proxy strips that header). The app sends its own clickjacking, nosniff and
+referrer headers. `/healthz/` is the health probe: 200 with a valid environment, 503 without, and
+never an API call. `pnpm test:e2e` runs Playwright (mobile, tablet, desktop) against the standalone
+production server and a backend with sample data; CI runs typecheck, lint, format check, unit tests
+and build, and builds, starts and probes the Docker image.
 
 Docs: [DEPLOYMENT.md](docs/DEPLOYMENT.md) and [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) (Persian),
 [ARCHITECTURE.md](docs/ARCHITECTURE.md) (English).
