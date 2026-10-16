@@ -16,6 +16,8 @@ import type { ProductCard } from '@/lib/api/types/catalog'
 import type { Paginated } from '@/lib/api/types/common'
 import { toPersianDigits } from '@/lib/format'
 import { GRID_GAP_TOP, ProductGrid } from '../product-grid'
+import { focusListingResults } from './listing-focus'
+import { useListingPending } from './use-listing-url'
 
 export interface LoadMoreProps {
   /** The API query of the server's page: route context and default sort included. */
@@ -43,13 +45,20 @@ const pageOf = (params: URLSearchParams) =>
 /**
  * Under the server-rendered grid: «نمایش بیشتر» appends the next page, fetched through the BFF
  * with the same API query, and the real-link pager (crawlable, and the way without JavaScript).
+ * Cards already shown are skipped (a product can move between pages as stock changes), and focus
+ * moves to the first new card. The BFF request is the visitor's own (it may carry their session);
+ * the card ignores `is_in_wishlist`, so appended cards match the server-rendered ones.
  *
  * The URL: after each append, `history.replaceState` sets `page` to the last page shown (no new
- * history entry, no server render), so a reload or a shared link lands near the same products
- * and the pager's «next» goes on from there. Appended pages are not restored: a reload, or
- * coming back from a product, shows that last page alone. Cards already shown are skipped (a product can move
- * between pages as stock changes), and focus moves to the first new card. Remount it (a `key`
- * per query) when the query changes; going to another page of the same query starts over.
+ * history entry, no server render), and the pager's «next» goes on from there. Appended pages
+ * are not kept: a reload, or Back from a product, renders that URL on the server, so the last
+ * page shown appears alone with the pager on it (checked in the browser).
+ *
+ * Next turns a native `replaceState` into a router restore that discards a navigation in flight,
+ * so a filter, sort or page change always wins: a pending listing transition or a pager click
+ * aborts the request (nothing is appended, the URL is left alone), and no request starts while
+ * a transition is pending. Remount it (a `key` per query) when the query changes; going to
+ * another page of the same query starts over.
  */
 export function LoadMore({
   apiQuery,
@@ -79,6 +88,10 @@ export function LoadMore({
   const focusPage = useRef<number | null>(null)
   const request = useRef<AbortController | null>(null)
   useEffect(() => () => request.current?.abort(), [])
+  const pending = useListingPending()
+  useEffect(() => {
+    if (pending) request.current?.abort()
+  }, [pending])
 
   useEffect(() => {
     const target = focusPage.current
@@ -88,6 +101,7 @@ export function LoadMore({
   }, [appended])
 
   async function loadNext() {
+    if (pending) return
     const next = last + 1
     const controller = new AbortController()
     request.current = controller
@@ -98,6 +112,7 @@ export function LoadMore({
         query: Object.fromEntries(toSearchParams({ ...apiQuery, page: next })),
         signal: controller.signal,
       })
+      if (controller.signal.aborted) return
       const seen = new Set([...initialIds, ...appended.flatMap((p) => p.products.map((x) => x.id))])
       const products: ProductCard[] = []
       for (const product of data.results) {
@@ -111,9 +126,14 @@ export function LoadMore({
       setTotal(data.total_pages)
     } catch (error) {
       if (controller.signal.aborted) return
-      // The list shrank since the server rendered it: there is no next page any more.
-      if (isApiNotFound(error)) setTotal(last)
-      else setFailed(true)
+      if (isApiNotFound(error)) {
+        // The list shrank since the server rendered it: there is no next page, and the button
+        // that had focus goes away.
+        setTotal(last)
+        focusListingResults()
+      } else {
+        setFailed(true)
+      }
     } finally {
       if (request.current === controller) setLoading(false)
     }
@@ -142,6 +162,7 @@ export function LoadMore({
             variant="outline"
             size="lg"
             loading={loading}
+            disabled={pending}
             onClick={loadNext}
             className="min-w-60"
           >
@@ -155,12 +176,15 @@ export function LoadMore({
         </div>
       )}
 
-      <Pagination
-        page={last}
-        totalPages={total}
-        hrefFor={(target) => listingHref(basePath, { ...urlQuery, page: target })}
-        className="mt-6 border-t border-ink-200 pt-6"
-      />
+      {/* A page link wins over a request in flight (see above). */}
+      <div onClickCapture={() => request.current?.abort()}>
+        <Pagination
+          page={last}
+          totalPages={total}
+          hrefFor={(target) => listingHref(basePath, { ...urlQuery, page: target })}
+          className="mt-6 border-t border-ink-200 pt-6"
+        />
+      </div>
     </div>
   )
 }

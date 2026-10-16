@@ -1,109 +1,45 @@
-import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  ProductListing,
-  type ProductListingProps,
-} from '@/features/catalog/components/listing/product-listing'
+import { ProductListing } from '@/features/catalog/components/listing/product-listing'
 import { ApiError } from '@/lib/api/errors'
-import type { ProductCard } from '@/lib/api/types/catalog'
-import type { CategoryNode } from '@/lib/api/types/settings'
-import type { Paginated } from '@/lib/api/types/common'
 import { stubBrowserApis } from '../support/dom-stubs'
-import { clientProviders } from '../support/providers'
-import { resolveServerTree } from '../support/server-tree'
 import { cardFixture } from './card-fixtures'
-import { LIST_CATEGORIES, MOBILE_FILTERS, STORE_BRANDS } from './filter-fixtures'
+import { MOBILE_FILTERS } from './filter-fixtures'
+import { GENERIC, listOf, PROPS, SETTINGS, STORE_FILTERS } from './listing-support'
+import { navigation, resetNavigation } from './navigation-harness'
 
 const api = vi.hoisted(() => ({
   getProductList: vi.fn(),
   getFilters: vi.fn(),
   getProductSettings: vi.fn(),
+  getListPage: vi.fn(),
 }))
-const nav = vi.hoisted(() => ({
-  notFound: vi.fn(() => {
-    throw new Error('NEXT_NOT_FOUND')
-  }),
-  search: '',
-}))
-
-vi.mock('@/features/catalog/api', () => api)
 const settings = vi.hoisted(() => ({ getCategoryTree: vi.fn() }))
+vi.mock('@/features/catalog/api', () => api)
 vi.mock('@/features/settings/api', () => settings)
-vi.mock('next/navigation', () => ({
-  notFound: nav.notFound,
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(nav.search),
-}))
+vi.mock('next/navigation', async () => (await import('./navigation-harness')).navigationMock)
 
 stubBrowserApis()
 
-const SETTINGS = {
-  paginator_number: 24,
-  show_out_of_stock_label: true,
-  related_items_display_status: true,
-  related_items_number: 8,
-}
-
-function listOf(products: ProductCard[], extra: Partial<Paginated<ProductCard>> = {}) {
-  return {
-    count: products.length,
-    total_pages: 1,
-    current_page: 1,
-    page_size: 24,
-    next: null,
-    previous: null,
-    results: products,
-    ...extra,
-  }
-}
-
-const PROPS: ProductListingProps = {
-  context: { category: 'mobile-phone' },
-  searchParams: Promise.resolve({}),
-  basePath: '/product-category/digital/mobile-phone/',
-}
-
-async function renderListing(props: Partial<ProductListingProps>, search = '') {
-  nav.search = search
-  const tree = await resolveServerTree(await ProductListing({ ...PROPS, ...props }))
-  const { wrapper } = clientProviders()
-  return render(<>{tree}</>, { wrapper })
-}
-
-/** A slice of the published category tree (`getCategoryTree()`). */
-function node(slug: string, name: string, children: CategoryNode[] = []): CategoryNode {
-  return {
-    id: slug.length,
-    name,
-    slug,
-    path: slug,
-    parent_id: null,
-    short_description: null,
-    image: '',
-    icon: '',
-    show_in_homepage: false,
-    default_sorting: null,
-    product_count: 0,
-    created: '',
-    updated: '',
-    children,
-  }
-}
-
 beforeEach(() => {
   vi.clearAllMocks()
-  settings.getCategoryTree.mockResolvedValue([
-    node('digital', 'کالای دیجیتال', [node('mobile-phone', 'گوشی موبایل')]),
-  ])
+  resetNavigation()
+  settings.getCategoryTree.mockResolvedValue([])
+  api.getListPage.mockResolvedValue(null)
   api.getFilters.mockResolvedValue(MOBILE_FILTERS)
   api.getProductSettings.mockResolvedValue(SETTINGS)
   api.getProductList.mockResolvedValue(listOf([cardFixture()]))
 })
 
+/** Holds the list request open, to see what else was asked for in the meantime. */
+function holdList() {
+  let release: (value: unknown) => void = () => {}
+  api.getProductList.mockReturnValue(new Promise((resolve) => (release = resolve)))
+  return () => release(listOf([cardFixture()]))
+}
+
 describe('ProductListing data', () => {
   it('loads the list (route context and default sort applied) and the filters in parallel', async () => {
-    let resolveList: (value: unknown) => void = () => {}
-    api.getProductList.mockReturnValue(new Promise((resolve) => (resolveList = resolve)))
+    const release = holdList()
     const rendering = ProductListing({
       ...PROPS,
       searchParams: Promise.resolve({ category: 'laptop', brand: 'apple', page: '2', x: 'y' }),
@@ -120,7 +56,7 @@ describe('ProductListing data', () => {
       page: 2,
       sort: 'sale',
     })
-    resolveList(listOf([cardFixture()], { count: 30, total_pages: 2, current_page: 2 }))
+    release()
     await expect(rendering).resolves.toBeTruthy()
   })
 
@@ -134,7 +70,7 @@ describe('ProductListing data', () => {
     await expect(
       ProductListing({ ...PROPS, searchParams: Promise.resolve({ page: '999' }) }),
     ).rejects.toThrow('NEXT_NOT_FOUND')
-    expect(nav.notFound).toHaveBeenCalledOnce()
+    expect(navigation.notFound).toHaveBeenCalledOnce()
   })
 
   it('throws any other failure to the error boundary, a proxy 404 page included', async () => {
@@ -144,42 +80,23 @@ describe('ProductListing data', () => {
     }
     api.getFilters.mockRejectedValueOnce(new ApiError({ status: 503 }))
     await expect(ProductListing(PROPS)).rejects.toMatchObject({ status: 503 })
-    expect(nav.notFound).not.toHaveBeenCalled()
+    expect(navigation.notFound).not.toHaveBeenCalled()
   })
 })
 
-describe('ProductListing facets for a category chosen in the URL', () => {
-  /** The store-wide metadata: root categories, every brand, no attributes. */
-  const STORE_FILTERS = {
-    ...MOBILE_FILTERS,
-    categories: LIST_CATEGORIES,
-    brands: STORE_BRANDS,
-    attributes: [],
-  }
-  const GENERIC: Partial<ProductListingProps> = {
-    context: {},
-    basePath: '/product/list/',
-    searchParams: { category: 'mobile-phone' },
-  }
-
-  beforeEach(() => {
-    api.getFilters.mockImplementation(async (ctx: { category?: string }) =>
-      ctx.category === 'mobile-phone' ? MOBILE_FILTERS : STORE_FILTERS,
-    )
-  })
-
-  it("loads that category's filters beside the route's, both in parallel with the list", async () => {
-    let resolveList: (value: unknown) => void = () => {}
-    api.getProductList.mockReturnValue(new Promise((resolve) => (resolveList = resolve)))
-    const rendering = ProductListing({ ...PROPS, ...GENERIC })
+describe('ProductListing filter metadata for URL filters', () => {
+  it('loads a URL category’s filters beside the route’s, in parallel with the list', async () => {
+    const release = holdList()
+    const rendering = ProductListing({ ...PROPS, ...GENERIC, searchParams: { category: 'laptop' } })
     await vi.waitFor(() => expect(api.getFilters).toHaveBeenCalledTimes(2))
-    expect(api.getFilters).toHaveBeenCalledWith({ category: 'mobile-phone' })
+    expect(api.getFilters).toHaveBeenCalledWith({ category: 'laptop' })
     expect(api.getFilters).toHaveBeenCalledWith({})
-    resolveList(listOf([cardFixture()]))
+    expect(settings.getCategoryTree).toHaveBeenCalledOnce()
+    release()
     await expect(rendering).resolves.toBeTruthy()
   })
 
-  it("keeps the route's other context keys in the category's filters call", async () => {
+  it('keeps the route’s other context keys in the category’s filters call', async () => {
     await ProductListing({
       ...PROPS,
       context: { brand: 'samsung' },
@@ -190,95 +107,56 @@ describe('ProductListing facets for a category chosen in the URL', () => {
     expect(api.getFilters).toHaveBeenCalledWith({ brand: 'samsung' })
   })
 
-  it("offers the category's attributes and brands, and the route's categories with the choice checked", async () => {
-    await renderListing(GENERIC, 'category=mobile-phone')
-    const sidebar = screen.getByRole('complementary', { name: 'فیلترها' })
-    expect(within(sidebar).getByRole('group', { name: 'رنگ' })).toBeInTheDocument()
-    expect(
-      within(sidebar).getAllByRole('checkbox', { name: /^(اپل|سامسونگ|شیائومی)$/ }),
-    ).toHaveLength(3)
-    const categories = within(sidebar).getByRole('radiogroup', { name: 'دسته‌بندی' })
-    expect(within(categories).getByRole('radio', { name: /گوشی موبایل/ })).toBeChecked()
-    expect(screen.getByRole('button', { name: 'حذف فیلتر گوشی موبایل' })).toBeInTheDocument()
+  it('loads a URL list’s filters and name on the generic listing, in parallel with the list', async () => {
+    const release = holdList()
+    const rendering = ProductListing({
+      ...PROPS,
+      ...GENERIC,
+      searchParams: { list: 'best-selling-digital' },
+    })
+    await vi.waitFor(() => expect(api.getFilters).toHaveBeenCalledTimes(2))
+    expect(api.getFilters).toHaveBeenCalledWith({ list: 'best-selling-digital' })
+    expect(api.getFilters).toHaveBeenCalledWith({})
+    expect(api.getListPage).toHaveBeenCalledWith('best-selling-digital')
+    expect(api.getProductList).toHaveBeenCalledWith({ list: 'best-selling-digital' })
+    release()
+    await expect(rendering).resolves.toBeTruthy()
   })
 
-  it("names a URL category outside the route's options from the category tree", async () => {
-    api.getFilters.mockImplementation(async (ctx: { category?: string }) =>
-      ctx.category === 'mobile-phone'
-        ? MOBILE_FILTERS
-        : { ...STORE_FILTERS, categories: [{ ...LIST_CATEGORIES[1]!, slug: 'laptop' }] },
-    )
-    await renderListing(GENERIC, 'category=mobile-phone')
-    expect(screen.getByRole('button', { name: 'حذف فیلتر گوشی موبایل' })).toBeInTheDocument()
+  it('stacks a URL category on a URL list: three filters calls', async () => {
+    await ProductListing({
+      ...PROPS,
+      ...GENERIC,
+      searchParams: { list: 'deals', category: 'laptop' },
+    })
+    expect(api.getFilters.mock.calls.map(([ctx]) => ctx)).toEqual([
+      {},
+      { list: 'deals' },
+      { list: 'deals', category: 'laptop' },
+    ])
   })
 
-  it("falls back to the route's filters when the category's are not found", async () => {
-    api.getFilters.mockImplementation(async (ctx: { category?: string }) =>
-      ctx.category ? null : STORE_FILTERS,
-    )
-    await renderListing({ ...GENERIC, searchParams: { category: 'unknown' } }, 'category=unknown')
-    const sidebar = screen.getByRole('complementary', { name: 'فیلترها' })
-    expect(within(sidebar).queryByRole('group', { name: 'رنگ' })).toBeNull()
-    expect(within(sidebar).getByRole('radiogroup', { name: 'دسته‌بندی' })).toBeInTheDocument()
-    expect(within(sidebar).getByRole('searchbox', { name: 'جستجوی برند' })).toBeInTheDocument()
-  })
-})
-
-describe('ProductListing view', () => {
-  it('shows the count, the sort from sort_options with the default chosen, chips and the grid', async () => {
-    api.getProductList.mockResolvedValue(
-      listOf([cardFixture(), cardFixture({ id: 2, slug: 'b', name: 'دومی' })], {
-        count: 123,
-        total_pages: 6,
-      }),
-    )
-    await renderListing(
-      { searchParams: { brand: 'apple' }, defaultSort: 'sale', title: <h1>گوشی موبایل</h1> },
-      'brand=apple',
-    )
-    expect(screen.getByRole('heading', { level: 1, name: 'گوشی موبایل' })).toBeInTheDocument()
-    expect(screen.getByText('۱۲۳ کالا')).toBeInTheDocument()
-    const sort = screen.getByRole('combobox', { name: 'مرتب‌سازی' })
-    expect(
-      within(sort)
-        .getAllByRole('option')
-        .map((option) => option.textContent),
-    ).toEqual(MOBILE_FILTERS.sort_options.map((option) => option.label))
-    expect(sort).toHaveValue('sale')
-    expect(screen.getByRole('button', { name: /فیلترها.*۱ فیلتر فعال/ })).toBeInTheDocument()
-    const chips = screen.getByRole('list', { name: 'فیلترهای فعال' })
-    expect(within(chips).getByRole('button', { name: 'حذف فیلتر اپل' })).toBeInTheDocument()
-    expect(screen.getAllByRole('article')).toHaveLength(2)
-    expect(screen.getByRole('link', { name: 'صفحه بعدی' })).toHaveAttribute(
-      'href',
-      '/product-category/digital/mobile-phone/?brand=apple&page=2',
-    )
+  it('names a URL list on a brand page but keeps the brand’s filters', async () => {
+    api.getFilters.mockResolvedValue(STORE_FILTERS)
+    await ProductListing({
+      ...PROPS,
+      context: { brand: 'samsung' },
+      basePath: '/brand/samsung/',
+      searchParams: { list: 'deals' },
+    })
+    expect(api.getFilters.mock.calls).toEqual([[{ brand: 'samsung' }]])
+    expect(api.getListPage).toHaveBeenCalledWith('deals')
   })
 
-  it('offers no brand facet on a brand page and no category facet on a category page', async () => {
-    await renderListing({})
-    const sidebar = screen.getByRole('complementary', { name: 'فیلترها' })
-    expect(within(sidebar).queryByRole('radiogroup', { name: 'دسته‌بندی' })).toBeNull()
-    expect(within(sidebar).getByRole('group', { name: 'برند' })).toBeInTheDocument()
-    expect(within(sidebar).getByRole('group', { name: 'رنگ' })).toBeInTheDocument()
-    expect(within(sidebar).getByRole('group', { name: 'محدوده قیمت' })).toBeInTheDocument()
-    expect(within(sidebar).getByRole('group', { name: 'وضعیت کالا' })).toBeInTheDocument()
-  })
-
-  it('shows «no products with these filters» with a way out when filters are active', async () => {
-    api.getProductList.mockResolvedValue(listOf([]))
-    await renderListing({ searchParams: { brand: 'apple' } }, 'brand=apple')
-    expect(
-      screen.getByRole('heading', { name: 'محصولی با این فیلترها یافت نشد' }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'حذف فیلترها' })).toBeInTheDocument()
-    expect(screen.queryByRole('navigation', { name: 'صفحه‌بندی' })).toBeNull()
-  })
-
-  it('shows a plain empty state when nothing is filtered', async () => {
-    api.getProductList.mockResolvedValue(listOf([]))
-    await renderListing({})
-    expect(screen.getByRole('heading', { name: 'کالایی یافت نشد' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'حذف فیلترها' })).toBeNull()
+  it('asks for nothing more on a list page, whose URL list is ignored', async () => {
+    await ProductListing({
+      ...PROPS,
+      context: { list: 'flagship-phones' },
+      basePath: '/product/list/flagship-phones/',
+      searchParams: { list: 'other' },
+    })
+    expect(api.getFilters.mock.calls).toEqual([[{ list: 'flagship-phones' }]])
+    expect(api.getListPage).not.toHaveBeenCalled()
+    expect(settings.getCategoryTree).not.toHaveBeenCalled()
   })
 })

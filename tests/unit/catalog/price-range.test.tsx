@@ -54,14 +54,32 @@ describe('PriceRange inputs', () => {
     expect(onCommit).toHaveBeenLastCalledWith({ min: 10_000_000, max: undefined })
   })
 
-  it('does not commit when a field loses focus unchanged, or is emptied back to its bound', async () => {
+  it('does not commit when a field loses focus unchanged', async () => {
     const { onCommit, min, user } = renderRange()
     await user.click(min)
     await user.tab()
+    expect(onCommit).not.toHaveBeenCalled()
+  })
+
+  it('goes back to the previous value when a field is left with no digit in it', async () => {
+    const { onCommit, min, user } = renderRange({ min: 5_000_000 })
     await user.clear(min)
     await user.tab()
+    expect(min).toHaveValue('۵٬۰۰۰٬۰۰۰')
+    await user.clear(min)
+    await user.type(min, 'abc{Enter}')
+    expect(min).toHaveValue('۵٬۰۰۰٬۰۰۰')
     expect(onCommit).not.toHaveBeenCalled()
-    expect(min).toHaveValue('۱٬۲۵۰٬۰۰۰')
+  })
+
+  it('ignores what follows a decimal point, Latin or Persian (prices are whole tomans)', async () => {
+    const { onCommit, max, user } = renderRange()
+    await user.clear(max)
+    await user.type(max, '50000000.75{Enter}')
+    expect(onCommit).toHaveBeenLastCalledWith({ min: undefined, max: 50_000_000 })
+    await user.clear(max)
+    await user.type(max, '۶۰٬۰۰۰٬۰۰۰٫۵{Enter}')
+    expect(onCommit).toHaveBeenLastCalledWith({ min: undefined, max: 60_000_000 })
   })
 
   it('follows the URL when it changes (back and forward)', () => {
@@ -108,6 +126,16 @@ describe('PriceRange slider', () => {
     expect(min).toHaveValue('۴۱٬۰۰۰٬۰۰۰')
     fireEvent.pointerUp(root, { pointerId: 1, clientX: 70 })
     expect(onCommit).toHaveBeenCalledExactlyOnceWith({ min: 41_000_000, max: undefined })
+  })
+
+  it('never shows a price past the bounds at the track’s round ends', () => {
+    const { onCommit, min } = renderRange({ min: 20_000_000 })
+    const root = screen.getAllByRole('slider')[0]!.parentElement!.parentElement!
+    // The track starts at 1,000,000 (a round stop), below the bound 1,250,000.
+    fireEvent.pointerDown(root, { pointerId: 1, clientX: 100 })
+    expect(min).toHaveValue('۱٬۲۵۰٬۰۰۰')
+    fireEvent.pointerUp(root, { pointerId: 1, clientX: 100 })
+    expect(onCommit).toHaveBeenCalledExactlyOnceWith({ min: undefined, max: undefined })
   })
 
   it('commits each keyboard step (a key press is its own release)', async () => {

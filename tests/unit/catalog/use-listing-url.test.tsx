@@ -1,18 +1,23 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ListingUrlProvider,
+  useListingPending,
   useListingUrl,
 } from '@/features/catalog/components/listing/use-listing-url'
 import type { ListingContext } from '@/features/catalog/listing-params'
+import {
+  finishNavigations,
+  navigation,
+  NavigatingRouter,
+  resetNavigation,
+  useRealScheduling,
+} from './navigation-harness'
 
-const router = vi.hoisted(() => ({ replace: vi.fn(), search: '' }))
+vi.mock('next/navigation', async () => (await import('./navigation-harness')).navigationMock)
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: router.replace }),
-  useSearchParams: () => new URLSearchParams(router.search),
-}))
+const router = navigation
 
 function renderListingUrl(
   search: string,
@@ -31,7 +36,7 @@ function renderListingUrl(
 }
 
 beforeEach(() => {
-  router.replace.mockReset()
+  resetNavigation()
 })
 
 describe('useListingUrl', () => {
@@ -94,5 +99,36 @@ describe('useListingUrl', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(() => renderHook(() => useListingUrl())).toThrow(/ListingUrlProvider/)
     vi.restoreAllMocks()
+  })
+})
+
+describe('useListingUrl during a navigation', () => {
+  useRealScheduling()
+
+  it('builds quick changes on each other while the first navigation is still pending', async () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <NavigatingRouter initial="page=3&sort=sale">
+        <ListingUrlProvider context={{}} basePath="/product/list/">
+          {children}
+        </ListingUrlProvider>
+      </NavigatingRouter>
+    )
+    const { result } = renderHook(() => ({ url: useListingUrl(), pending: useListingPending() }), {
+      wrapper,
+    })
+    result.current.url.set({ brand: ['apple'] })
+    // Shown at once (useOptimistic), while the URL has not changed yet.
+    await waitFor(() =>
+      expect(result.current.url.query).toEqual({ brand: ['apple'], sort: 'sale' }),
+    )
+    expect(result.current.pending).toBe(true)
+    result.current.url.set({ in_stock: true })
+    expect(router.replace).toHaveBeenLastCalledWith(
+      '/product/list/?brand=apple&in_stock=true&sort=sale',
+      { scroll: false },
+    )
+    finishNavigations()
+    await waitFor(() => expect(result.current.pending).toBe(false))
+    expect(result.current.url.query).toEqual({ brand: ['apple'], in_stock: true, sort: 'sale' })
   })
 })

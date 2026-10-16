@@ -8,15 +8,13 @@ import {
   activeFilters,
   type FacetGroups,
 } from '@/features/catalog/listing-filters'
+import { focusListingResults } from './listing-focus'
 import { useListingUrl } from './use-listing-url'
-
-/** The id of the results heading, where focus goes when the last chip is removed. */
-export const LISTING_RESULTS_ID = 'listing-results'
 
 /**
  * The active filters as removable chips (44px targets) with «حذف همه»: one scrollable row on
  * phones (the sheet button shows how many there are), wrapped from md. Removing a chip moves
- * focus to the chip that took its place, else to the results heading.
+ * focus to the chip that took its place, else (and after «حذف همه») to the results heading.
  */
 export function ActiveFilterChips({ groups }: { groups: FacetGroups }) {
   const { query, set, clear } = useListingUrl()
@@ -30,7 +28,8 @@ export function ActiveFilterChips({ groups }: { groups: FacetGroups }) {
     focusIndex.current = null
     const remaining = listRef.current?.querySelectorAll<HTMLElement>('[data-chip]') ?? []
     const target = remaining[Math.min(index, remaining.length - 1)]
-    ;(target ?? document.getElementById(LISTING_RESULTS_ID))?.focus()
+    if (target) target.focus()
+    else focusListingResults()
   }, [chips.length])
 
   if (chips.length === 0) return null
@@ -60,7 +59,15 @@ export function ActiveFilterChips({ groups }: { groups: FacetGroups }) {
         </li>
       ))}
       <li className="shrink-0">
-        <Button variant="link" size="sm" onClick={clear} className="mx-2">
+        <Button
+          variant="link"
+          size="sm"
+          onClick={() => {
+            clear()
+            focusListingResults()
+          }}
+          className="mx-2"
+        >
           حذف همه
         </Button>
       </li>
@@ -77,7 +84,10 @@ export interface ClearFiltersButtonProps extends Pick<
   onlyWhenActive?: boolean
 }
 
-/** Removes every filter (the sort stays): the empty state's way out, the sidebar's «حذف همه». */
+/**
+ * Removes every filter (the sort stays): the empty state's way out, the sidebar's «حذف همه».
+ * Either disappears once the filters are gone, so focus moves to the results heading.
+ */
 export function ClearFiltersButton({
   label = 'حذف فیلترها',
   onlyWhenActive = false,
@@ -87,7 +97,14 @@ export function ClearFiltersButton({
   const { query, clear } = useListingUrl()
   if (onlyWhenActive && activeFilterCount(query) === 0) return null
   return (
-    <Button variant={variant} onClick={clear} {...props}>
+    <Button
+      variant={variant}
+      onClick={() => {
+        clear()
+        focusListingResults()
+      }}
+      {...props}
+    >
       {label}
     </Button>
   )

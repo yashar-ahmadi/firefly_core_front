@@ -1,7 +1,7 @@
 'use client'
 
 import { SlidersHorizontal } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
@@ -20,20 +20,30 @@ export interface FilterSheetProps {
  * Below lg: the «فیلترها» button (with the number of active filters) and the filter sheet (a
  * bottom sheet on phones, a side drawer on tablets; the kit moves focus in and back). Choices
  * apply at once, like in the sidebar, so the grid behind updates and the footer's «نمایش X کالا»
- * gives the live count and closes the sheet.
+ * gives the live count and closes the sheet. «حذف همه» is disabled once nothing is left to
+ * clear, so it hands focus to that button (the sheet is modal: focus stays inside it).
  */
 export function FilterSheet({ groups, count }: FilterSheetProps) {
   const [open, setOpen] = useState(false)
   const { query, clear } = useListingUrl()
   const pending = useListingPending()
   const active = activeFilterCount(query)
+  const showRef = useRef<HTMLButtonElement>(null)
 
   const footer = (
     <>
-      <Button variant="outline" onClick={clear} disabled={active === 0}>
+      <Button
+        variant="outline"
+        onClick={() => {
+          clear()
+          showRef.current?.focus()
+        }}
+        disabled={active === 0}
+      >
         حذف همه
       </Button>
       <Button
+        ref={showRef}
         className="flex-1"
         onClick={() => setOpen(false)}
         iconStart={pending ? <Spinner size="md" /> : undefined}

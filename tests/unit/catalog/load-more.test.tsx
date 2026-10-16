@@ -1,57 +1,19 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LoadMore, type LoadMoreProps } from '@/features/catalog/components/listing/load-more'
 import { ApiError } from '@/lib/api/errors'
-import type { ProductCard } from '@/lib/api/types/catalog'
-import type { Paginated } from '@/lib/api/types/common'
-import { clientProviders } from '../support/providers'
-import { cardFixture } from './card-fixtures'
+import { BASE_PATH, listPage, renderLoadMore } from './load-more-support'
+import { resetNavigation } from './navigation-harness'
 
 const bff = vi.hoisted(() => ({ fetch: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: bff.fetch }))
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(window.location.search),
-}))
-
-function card(id: number): ProductCard {
-  return cardFixture({ id, slug: `p-${id}`, name: `کالای ${id}` })
-}
-
-function listPage(ids: number[], page: number, totalPages = 3): Paginated<ProductCard> {
-  return {
-    count: 60,
-    total_pages: totalPages,
-    current_page: page,
-    page_size: 24,
-    next: null,
-    previous: null,
-    results: ids.map(card),
-  }
-}
-
-const PROPS: LoadMoreProps = {
-  apiQuery: { category: 'mobile-phone', brand: ['apple'], sort: 'sale' },
-  urlQuery: { brand: ['apple'] },
-  basePath: '/product-category/digital/mobile-phone/',
-  page: 1,
-  totalPages: 3,
-  initialIds: [1, 2, 3],
-  showOutOfStockLabel: true,
-}
-
-function renderLoadMore(props: Partial<LoadMoreProps> = {}) {
-  const { wrapper } = clientProviders()
-  render(<LoadMore {...PROPS} {...props} />, { wrapper })
-  return userEvent.setup()
-}
+vi.mock('next/navigation', async () => (await import('./navigation-harness')).navigationMock)
 
 let replaceState: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
   bff.fetch.mockReset()
-  window.history.replaceState(null, '', '/product-category/digital/mobile-phone/?brand=apple')
+  resetNavigation()
+  window.history.replaceState(null, '', `${BASE_PATH}?brand=apple`)
   replaceState = vi.spyOn(window.history, 'replaceState')
 })
 

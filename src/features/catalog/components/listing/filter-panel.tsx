@@ -46,7 +46,16 @@ export function FilterPanel({ groups }: { groups: FacetGroups }) {
           facet={{ kind: 'category', options: groups.categories }}
           legend="دسته‌بندی"
           selected={query.category ? [query.category] : []}
-          onChange={([category]) => set({ category })}
+          onChange={([category]) =>
+            // Attribute values and price bounds belong to the category they were chosen in; the
+            // new one's bounds are unknown until its filters load, so both start over.
+            set({
+              category,
+              attribute_values: undefined,
+              min_price: undefined,
+              max_price: undefined,
+            })
+          }
         />
       ),
     })

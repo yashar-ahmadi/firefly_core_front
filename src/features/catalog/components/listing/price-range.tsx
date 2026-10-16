@@ -20,7 +20,9 @@ export interface PriceRangeProps {
   /**
    * Called when a choice is finished: a thumb released (or moved by a key press), or a field
    * left or confirmed with Enter. Never on every drag tick or keystroke. An end at (or past) the
-   * edge of `bounds` is left out; reversed ends are swapped.
+   * edge of `bounds` is left out; reversed ends are swapped. A field left with no digit in it
+   * goes back to its previous value (drag the thumb to the end, or remove the chip, to drop a
+   * bound).
    */
   onCommit: (next: PriceBounds) => void
 }
@@ -47,10 +49,23 @@ function pairOf(value: PriceBounds, bounds: { min: number; max: number }): Pair 
   return ordered([clamp(value.min ?? bounds.min, bounds), clamp(value.max ?? bounds.max, bounds)])
 }
 
-/** Digits in any script, separators ignored; empty means "no bound". */
+/** A decimal point: Latin, or the Arabic decimal separator «٫» (U+066B). */
+const DECIMAL_POINT = /[.\u{066B}]/u
+
+/**
+ * A typed price: digits in any script, with grouping separators and spaces ignored. Prices are
+ * whole tomans, so anything after a decimal point is ignored («1.5» reads as 1). undefined when
+ * there is no digit at all (the field then goes back to its previous value).
+ */
 function parsePrice(text: string): number | undefined {
-  const digits = toLatinDigits(text).replace(/\D/g, '')
+  const whole = toLatinDigits(text).split(DECIMAL_POINT)[0] ?? ''
+  const digits = whole.replace(/\D/g, '')
   return digits === '' ? undefined : Number(digits)
+}
+
+/** The pair inside `bounds`: the track's round ends can lie just past them. */
+function within([a, b]: Pair, bounds: { min: number; max: number }): Pair {
+  return [clamp(a, bounds), clamp(b, bounds)]
 }
 
 const THUMB = cn(
@@ -87,7 +102,7 @@ export function PriceRange({ bounds, value, onCommit }: PriceRangeProps) {
   const [low, high] = shown.pair
 
   function commit(pair: Pair) {
-    const [min, max] = ordered(pair)
+    const [min, max] = ordered(within(pair, bounds))
     setShown((current) => ({ ...current, pair: [min, max] }))
     const next = {
       min: min > bounds.min ? min : undefined,
@@ -100,7 +115,9 @@ export function PriceRange({ bounds, value, onCommit }: PriceRangeProps) {
     const draft = drafts[index]
     if (draft === null) return
     setDrafts(([a, b]) => (index === 0 ? [null, b] : [a, null]))
-    const typed = clamp(parsePrice(draft) ?? (index === 0 ? bounds.min : bounds.max), bounds)
+    const parsed = parsePrice(draft)
+    if (parsed === undefined) return
+    const typed = clamp(parsed, bounds)
     commit(index === 0 ? [typed, high] : [low, typed])
   }
 
@@ -137,7 +154,7 @@ export function PriceRange({ bounds, value, onCommit }: PriceRangeProps) {
         step={step}
         value={shown.pair}
         onValueChange={([min = low, max = high]) => {
-          setShown((current) => ({ ...current, pair: [min, max] }))
+          setShown((current) => ({ ...current, pair: within([min, max], bounds) }))
           setDrafts([null, null])
         }}
         onValueCommit={([min = low, max = high]) => commit([min, max])}

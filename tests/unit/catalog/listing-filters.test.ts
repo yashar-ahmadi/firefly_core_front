@@ -4,7 +4,7 @@ import {
   activeFilters,
   clearFilters,
   facetGroups,
-  filtersContextFor,
+  filterContexts,
 } from '@/features/catalog/listing-filters'
 import { LIST_CATEGORIES, MOBILE_FILTERS, STORE_BRANDS } from './filter-fixtures'
 
@@ -144,6 +144,17 @@ describe('activeFilters', () => {
     expect(activeFilters({ max_price: 5_000 }, groups)[0]?.label).toBe('تا ۵٬۰۰۰ تومان')
   })
 
+  it('shows a URL list as a removable chip named after the list, counted and cleared', () => {
+    const named = activeFilters(
+      { list: 'best-selling-digital' },
+      { ...groups, listName: 'پرفروش‌ها' },
+    )
+    expect(named).toEqual([{ key: 'list', label: 'پرفروش‌ها', patch: { list: undefined } }])
+    expect(activeFilters({ list: 'gone' }, groups)[0]?.label).toBe('فهرست منتخب')
+    expect(activeFilterCount({ list: 'deals', brand: ['apple'] })).toBe(2)
+    expect(clearFilters({ list: 'deals', sort: 'sale' })).toEqual({ sort: 'sale' })
+  })
+
   it('gives each chip a unique key', () => {
     const chips = activeFilters(
       { brand: ['a', 'b'], attribute_values: [1, 2], in_stock: true },
@@ -153,23 +164,36 @@ describe('activeFilters', () => {
   })
 })
 
-describe('filtersContextFor', () => {
-  it('adds the URL category when the route has no category of its own', () => {
-    expect(filtersContextFor({}, { category: 'mobile-phone', brand: ['apple'] })).toEqual({
-      category: 'mobile-phone',
+describe('filterContexts', () => {
+  it('adds the URL category when the route has no category, keeping the route context', () => {
+    expect(filterContexts({}, { category: 'mobile-phone', brand: ['apple'] })).toEqual({
+      list: null,
+      category: { category: 'mobile-phone' },
     })
-    expect(filtersContextFor({ brand: 'samsung' }, { category: 'digital' })).toEqual({
+    expect(filterContexts({ brand: 'samsung' }, { category: 'digital' }).category).toEqual({
       brand: 'samsung',
       category: 'digital',
     })
-    expect(filtersContextFor({ list: 'deals' }, { category: 'laptop' })).toEqual({
-      list: 'deals',
-      category: 'laptop',
+    expect(filterContexts({ category: 'laptop' }, { category: 'laptop' }).category).toBeNull()
+  })
+
+  it('uses the URL list only on a listing with no route context', () => {
+    expect(filterContexts({}, { list: 'best-selling-digital' })).toEqual({
+      list: { list: 'best-selling-digital' },
+      category: null,
+    })
+    expect(filterContexts({ brand: 'samsung' }, { list: 'deals' }).list).toBeNull()
+    expect(filterContexts({ list: 'deals' }, { list: 'deals' }).list).toBeNull()
+  })
+
+  it('puts a URL category on top of the URL list', () => {
+    expect(filterContexts({}, { list: 'deals', category: 'laptop' })).toEqual({
+      list: { list: 'deals' },
+      category: { list: 'deals', category: 'laptop' },
     })
   })
 
-  it('is null when the route context is all there is', () => {
-    expect(filtersContextFor({}, { brand: ['apple'] })).toBeNull()
-    expect(filtersContextFor({ category: 'mobile-phone' }, { category: 'mobile-phone' })).toBeNull()
+  it('needs nothing beyond the route context otherwise', () => {
+    expect(filterContexts({}, { brand: ['apple'] })).toEqual({ list: null, category: null })
   })
 })

@@ -2,12 +2,13 @@ import { SearchX } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { EmptyState } from '@/components/ui/empty-state'
-import { getFilters, getProductList, getProductSettings } from '@/features/catalog/api'
+import { getFilters, getListPage, getProductList, getProductSettings } from '@/features/catalog/api'
 import {
   activeFilterCount,
   FALLBACK_SORT_OPTIONS,
   facetGroups,
-  filtersContextFor,
+  filterContexts,
+  type FilterContexts,
 } from '@/features/catalog/listing-filters'
 import {
   parseListingParams,
@@ -20,9 +21,11 @@ import { getCategoryTree } from '@/features/settings/api'
 import { isApiNotFound } from '@/lib/api/errors'
 import type { SortValue } from '@/lib/api/types/catalog'
 import type { CategoryNode } from '@/lib/api/types/settings'
+import { toPersianDigits } from '@/lib/format'
 import { ProductGrid } from '../product-grid'
-import { ActiveFilterChips, ClearFiltersButton, LISTING_RESULTS_ID } from './active-filter-chips'
+import { ActiveFilterChips, ClearFiltersButton } from './active-filter-chips'
 import { FilterPanel } from './filter-panel'
+import { LISTING_RESULTS_ID } from './listing-focus'
 import { ListingResults } from './listing-results'
 import { ListingToolbar } from './listing-toolbar'
 import { LoadMore } from './load-more'
@@ -61,18 +64,19 @@ async function loadList(q: ListingApiQuery) {
 }
 
 /**
- * The filter metadata: the route context's own (`base`), and, when the URL picks a category the
- * route does not fix (`extended`), that category's (`filters`), both requested at once. An
- * unknown category (null) falls back to the route's, so the page never loses its facets.
+ * The filter metadata, every request at once: the route context's own, the URL list's (a listing
+ * with no route context) and the URL category's (a route without a category). Facets follow the
+ * most specific that exists; the category options leave out the URL's category. A null (unknown
+ * slug) falls back to the next, so the page never loses its facets.
  */
-async function loadFilters(context: ListingContext, extended: ListingContext | null) {
-  const own = getFilters(context)
-  if (extended === null) {
-    const base = await own
-    return { filters: base, base }
-  }
-  const [picked, base] = await Promise.all([getFilters(extended), own])
-  return { filters: picked ?? base, base }
+async function loadFilters(context: ListingContext, extra: FilterContexts) {
+  const [route, list, category] = await Promise.all([
+    getFilters(context),
+    extra.list ? getFilters(extra.list) : null,
+    extra.category ? getFilters(extra.category) : null,
+  ])
+  const base = list ?? route
+  return { filters: category ?? base, base }
 }
 
 /** A category's name anywhere in the tree, by slug. */
@@ -91,8 +95,9 @@ const NO_TREE: CategoryNode[] = []
  * the server-rendered grid, «نمایش بیشتر» and the page links. The URL is the single source of
  * truth; the client parts are only the interactive leaves.
  *
- * Facets follow the route context, and a category picked in the URL when the route has none
- * (its attributes, brands and price range; the category options stay the route's).
+ * Facets follow the route context, a list named in the URL on a listing without one, and a
+ * category picked in the URL when the route has none (its attributes, brands and price range;
+ * the category options stay the ones it was picked from). A URL list is a filter with its chip.
  *
  * Status codes (R9): the list and the filters are awaited, in parallel, before anything renders.
  * Render this outside any `<Suspense>` and with no `loading.tsx` on its segment, so a page past
@@ -109,20 +114,23 @@ export async function ProductListing({
   const query = parseListingParams(await searchParams, { context })
   const apiQuery: ListingApiQuery =
     query.sort === undefined && defaultSort ? { ...query, sort: defaultSort } : query
-  const extended = filtersContextFor(context, query)
-  const [list, { filters, base }, settings, tree] = await Promise.all([
+  const urlQuery = withoutContext(query, context)
+  const extra = filterContexts(context, query)
+  const [list, { filters, base }, settings, tree, listPage] = await Promise.all([
     loadList(apiQuery),
-    loadFilters(context, extended),
+    loadFilters(context, extra),
     getProductSettings(),
     // Names a URL category deeper than the route's options (a homepage «see all» link). The shell
     // header loads the same tree, so this costs no request; it never throws.
-    extended?.category === undefined ? NO_TREE : getCategoryTree(),
+    urlQuery.category === undefined ? NO_TREE : getCategoryTree(),
+    // Names the URL's list for its chip (a route without a list context).
+    urlQuery.list === undefined ? null : getListPage(urlQuery.list),
   ])
 
-  const urlQuery = withoutContext(query, context)
   const groups = {
     ...facetGroups(filters, context, base),
-    chosenCategoryName: extended?.category && nameInTree(tree, extended.category),
+    chosenCategoryName: urlQuery.category && nameInTree(tree, urlQuery.category),
+    listName: listPage?.name,
   }
   const showOutOfStockLabel = settings.show_out_of_stock_label
 
@@ -157,6 +165,7 @@ export async function ProductListing({
           <ListingResults count={list.count}>
             <ProductGrid
               products={list.results}
+              label={`صفحهٔ ${toPersianDigits(list.current_page)}`}
               showOutOfStockLabel={showOutOfStockLabel}
               columns="sidebar"
               withAction
