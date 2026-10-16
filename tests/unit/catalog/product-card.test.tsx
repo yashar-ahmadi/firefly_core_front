@@ -77,11 +77,12 @@ describe('ProductCard', () => {
     expect(within(card()).queryByText('۱۲ گیگابایت')).toBeNull()
   })
 
-  it('shows the badge in its own colours', () => {
+  it("shows the badge on the operator's colour, with readable text", () => {
     renderCard(cardFixture())
+    // The dev pair (white on #FF6D00) is below AA, so the text turns near-black.
     expect(within(card()).getByText('پرفروش')).toHaveStyle({
       backgroundColor: '#FF6D00',
-      color: '#FFFFFF',
+      color: '#111827',
     })
   })
 

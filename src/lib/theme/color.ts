@@ -174,7 +174,8 @@ export function contrastRatio(a: string, b: string): number {
 const LIGHT_TEXT = '#FFFFFF'
 const DARK_TEXT = '#111827'
 const BLACK_TEXT = '#000000'
-const AA_TEXT = 4.5
+/** WCAG AA minimum contrast for normal-size text. */
+export const AA_TEXT = 4.5
 
 /**
  * A text colour that reads on the given background: white or near-black (whichever has the

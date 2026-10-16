@@ -10,6 +10,7 @@ import type { CardProduct } from '@/features/catalog/card-product'
 import { compareItemFrom } from '@/features/compare/compare-item'
 import { CompareToggle } from '@/features/compare/compare-toggle'
 import { HeartButton } from '@/features/wishlist/heart-button'
+import { badgeColors } from './badge-colors'
 import {
   CARD_BODY,
   CARD_IMAGE_OVERLAY,
@@ -87,7 +88,7 @@ export function ProductCard({
         {product.badge && (
           <span
             className="absolute start-2 bottom-2 block h-6 max-w-[calc(100%-1rem)] truncate rounded-pill px-2.5 text-sm leading-6 font-medium"
-            style={{ backgroundColor: product.badge.badge_color, color: product.badge.text_color }}
+            style={badgeColors(product.badge)}
           >
             {product.badge.name}
           </span>
