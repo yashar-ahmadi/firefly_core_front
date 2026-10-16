@@ -9,28 +9,34 @@ import { Price } from '@/components/ui/price'
 import { Sheet } from '@/components/ui/sheet'
 import { Spinner } from '@/components/ui/spinner'
 import type { Cart } from '@/lib/api/types/cart'
-import { formatNumber } from '@/lib/format'
+import { formatNumber, formatToman } from '@/lib/format'
 import { useT } from '@/lib/i18n/i18n-context'
 import { cartCount, useCart } from '../hooks'
 import { MiniCartLine } from './mini-cart-line'
 
 const VIEW_CART = 'مشاهده\u{0654} سبد خرید'
-const TAX_NOTE = 'مالیات بر ارزش افزوده در این مبلغ آمده است.'
-const SHIPPING_NOTE = 'هزینه\u{0654} ارسال هنگام ثبت سفارش افزوده می\u{200C}شود.'
+const SUMMARY_NOTE = 'هزینه\u{0654} ارسال و مالیات در مرحله\u{0654} بعد محاسبه می\u{200C}شود.'
 
-/** The payable total exactly as the API computed it, and the two ways on. */
+/**
+ * The goods total exactly as the API computed it (`goods_payable`: after product and coupon
+ * discounts), the savings when there are any, and the two ways on. `total` is not shown: before
+ * a shipping method is chosen it holds the tax but not the shipping, so it is neither the goods
+ * sum nor the final amount; the checkout summary shows the full breakdown.
+ */
 function MiniCartSummary({ cart, onNavigate }: { cart: Cart; onNavigate: () => void }) {
-  const notes = [
-    cart.tax_amount > 0 && TAX_NOTE,
-    !(cart.shipping.is_selected && cart.shipping.is_available) && SHIPPING_NOTE,
-  ].filter(Boolean)
   return (
     <div className="w-full">
       <div className="flex items-center justify-between gap-3">
-        <span className="font-medium text-ink-800">مبلغ قابل پرداخت</span>
-        <Price amount={cart.total} size="md" />
+        <span className="font-medium text-ink-800">جمع سبد خرید</span>
+        <Price amount={cart.goods_payable} size="md" />
       </div>
-      {notes.length > 0 && <p className="mt-1 text-sm text-ink-600">{notes.join(' ')}</p>}
+      {cart.total_savings > 0 && (
+        <div className="mt-1 flex items-center justify-between gap-3 text-sale">
+          <span className="text-sm font-medium">سود شما از این خرید</span>
+          <span className="text-sm font-bold">{formatToman(cart.total_savings)}</span>
+        </div>
+      )}
+      <p className="mt-1 text-sm text-ink-600">{SUMMARY_NOTE}</p>
       <div className="mt-3 grid grid-cols-2 gap-3">
         <Button asChild fullWidth>
           <Link href="/checkout/" prefetch={false} onClick={onNavigate}>

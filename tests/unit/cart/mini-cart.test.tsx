@@ -25,6 +25,7 @@ vi.mock('@/components/ui/toaster', () => ({
 
 const media = stubBrowserApis()
 const VIEW_CART = 'مشاهده\u{0654} سبد خرید'
+const SUMMARY_NOTE = 'هزینه\u{0654} ارسال و مالیات در مرحله\u{0654} بعد محاسبه می\u{200C}شود.'
 
 /** Answers every cart read with `data`. */
 function serve(data: Cart) {
@@ -54,8 +55,9 @@ const TWO_LINES = cart(
       unit_final_price: 71_500_000,
     }),
   ],
-  // Not the sum of the lines: the mini-cart shows the API's figure as it is.
-  { total: 123_456_789 },
+  // Not the sum of the lines: the mini-cart shows the API's figure as it is. `total` (with tax)
+  // is not shown before checkout.
+  { goods_payable: 123_456_789, total: 987_654_321 },
 )
 
 beforeEach(() => {
@@ -128,7 +130,7 @@ describe('HeaderActions cart', () => {
 })
 
 describe('MiniCart', () => {
-  it('lists each line and the payable total from the API, with checkout and cart links', async () => {
+  it('lists each line and the goods total from the API, with checkout and cart links', async () => {
     serve(TWO_LINES)
     renderWith(<MiniCart open onOpenChange={vi.fn()} />, TWO_LINES)
     const sheet = await screen.findByRole('dialog', { name: 'سبد خرید' })
@@ -143,12 +145,25 @@ describe('MiniCart', () => {
     expect(within(first).getByRole('button', { name: 'حذف از سبد خرید' })).toBeInTheDocument()
     expect(first).toHaveTextContent(formatToman(157_000_000, { suffix: false }))
 
-    expect(sheet).toHaveTextContent(formatToman(123_456_789, { suffix: false }))
+    const summary = within(sheet).getByText('جمع سبد خرید').parentElement
+    expect(summary).toHaveTextContent(formatToman(123_456_789, { suffix: false }))
+    expect(sheet).not.toHaveTextContent(formatToman(987_654_321, { suffix: false }))
+    expect(sheet).toHaveTextContent(SUMMARY_NOTE)
+    expect(within(sheet).queryByText('سود شما از این خرید')).toBeNull()
     expect(within(sheet).getByRole('link', { name: 'ثبت سفارش' })).toHaveAttribute(
       'href',
       '/checkout/',
     )
     expect(within(sheet).getByRole('link', { name: VIEW_CART })).toHaveAttribute('href', '/cart/')
+  })
+
+  it('shows the savings from the API when there are any', async () => {
+    const saving = { ...TWO_LINES, total_savings: 2_500_000 }
+    serve(saving)
+    renderWith(<MiniCart open onOpenChange={vi.fn()} />, saving)
+    const sheet = await screen.findByRole('dialog', { name: 'سبد خرید' })
+    const row = within(sheet).getByText('سود شما از این خرید').parentElement
+    expect(row).toHaveTextContent(formatToman(2_500_000, { suffix: false }))
   })
 
   it('removes a line with one tap and confirms it', async () => {
