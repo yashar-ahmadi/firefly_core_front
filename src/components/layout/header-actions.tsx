@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SHEET_SIDE_QUERY } from '@/components/ui/sheet'
 import { useMediaQuery } from '@/components/ui/use-media-query'
+import { WidgetBoundary } from '@/components/ui/widget-boundary'
 import { CartBadge, useCartLabel } from '@/features/cart/components/cart-badge'
 import { MiniCart } from '@/features/cart/components/mini-cart'
 import { useFeature } from '@/features/settings/feature-context'
@@ -57,11 +58,13 @@ function isModifiedClick(event: MouseEvent): boolean {
 /**
  * The cart icon with its item count. Below md it is a plain link to the cart page (phones also
  * have it in the bottom bar); from md it opens the mini-cart drawer instead, while a modified
- * click still opens the cart page in a new tab.
+ * click still opens the cart page in a new tab. A mini-cart that fails to render is taken off
+ * the page (WidgetBoundary); the icon stays and still links to the cart page.
  */
 function CartEntry() {
   const label = useCartLabel()
-  const wide = useMediaQuery(SHEET_SIDE_QUERY)
+  const [miniCartFailed, setMiniCartFailed] = useState(false)
+  const wide = useMediaQuery(SHEET_SIDE_QUERY) && !miniCartFailed
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -80,7 +83,9 @@ function CartEntry() {
         <ShoppingCart aria-hidden />
         <CartBadge className="-end-0.5 -top-0.5" />
       </Link>
-      <MiniCart open={open} onOpenChange={setOpen} />
+      <WidgetBoundary name="mini-cart" onError={() => setMiniCartFailed(true)}>
+        <MiniCart open={open} onOpenChange={setOpen} />
+      </WidgetBoundary>
     </>
   )
 }

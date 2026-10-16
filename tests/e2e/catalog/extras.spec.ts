@@ -22,6 +22,20 @@ function card(page: Page, name: string) {
     .filter({ has: page.getByRole('link', { name, exact: true }) })
 }
 
+const BFF_HEADERS = { 'X-Requested-With': 'ff' }
+
+/** Whether this browser's cart has a line for the variant (never throws). */
+async function cartHolds(page: Page, variant: number): Promise<boolean> {
+  try {
+    const response = await page.request.get('/api/bff/cart/', { headers: BFF_HEADERS })
+    if (!response.ok()) return false
+    const body = (await response.json()) as { data?: { lines?: { variant_id: number }[] } }
+    return body.data?.lines?.some((line) => line.variant_id === variant) ?? false
+  } catch {
+    return false
+  }
+}
+
 /** The variant quick view would add: the one its «مشاهدهٔ جزئیات کامل» link names. */
 async function chosenVariant(dialog: Locator): Promise<number> {
   const href = await dialog
@@ -67,11 +81,14 @@ test.describe('quick view', () => {
       await expect(cart).toHaveAccessibleName(`سبد خرید، ${digits(1)} کالا`)
       await expect(choose).toBeFocused()
     } finally {
-      // Give the stock hold back to the shared dev backend.
-      const removed = await page.request.delete(`/api/bff/cart/item/${added}/remove/`, {
-        headers: { 'X-Requested-With': 'ff' },
-      })
-      expect(removed.ok(), `variant ${added} removed from the cart`).toBe(true)
+      // Give the stock hold back to the shared dev backend, when the line is there: after a
+      // failed add, a cleanup error must not hide the failure itself.
+      if (await cartHolds(page, added)) {
+        const removed = await page.request.delete(`/api/bff/cart/item/${added}/remove/`, {
+          headers: BFF_HEADERS,
+        })
+        expect(removed.ok(), `variant ${added} removed from the cart`).toBe(true)
+      }
     }
     expect(errors).toEqual([])
   })

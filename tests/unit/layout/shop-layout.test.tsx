@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ShopLayout from '@/app/(shop)/layout'
 
-const mocks = vi.hoisted(() => ({ compare: true, quickView: true }))
+const mocks = vi.hoisted(() => ({ compare: true, quickView: true, compareFails: false }))
 
 vi.mock('server-only', () => ({}))
 vi.mock('@/components/layout/shop-shell', () => ({
@@ -14,7 +14,12 @@ vi.mock('@/components/layout/shop-shell', () => ({
     </>
   ),
 }))
-vi.mock('@/features/compare/compare-bar', () => ({ CompareBar: () => <div>compare-bar</div> }))
+vi.mock('@/features/compare/compare-bar', () => ({
+  CompareBar: () => {
+    if (mocks.compareFails) throw new Error('compare bar render bug')
+    return <div>compare-bar</div>
+  },
+}))
 vi.mock('@/features/quick-view/quick-view-host', () => ({
   QuickViewHost: () => <div>quick-view-host</div>,
 }))
@@ -25,6 +30,7 @@ vi.mock('@/config/store-config', () => ({
 beforeEach(() => {
   mocks.compare = true
   mocks.quickView = true
+  mocks.compareFails = false
 })
 
 describe('the shop layout', () => {
@@ -32,6 +38,23 @@ describe('the shop layout', () => {
     render(<ShopLayout>page</ShopLayout>)
     expect(screen.getByText('compare-bar')).toBeInTheDocument()
     expect(screen.getByText('quick-view-host')).toBeInTheDocument()
+  })
+
+  it('keeps the page and the other widgets when one widget fails to render', () => {
+    mocks.compareFails = true
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      render(<ShopLayout>page</ShopLayout>)
+      expect(screen.getByRole('main')).toHaveTextContent('page')
+      expect(screen.getByText('quick-view-host')).toBeInTheDocument()
+      expect(screen.queryByText('compare-bar')).toBeNull()
+      expect(consoleError).toHaveBeenCalledWith(
+        expect.stringContaining('compare-bar'),
+        expect.any(Error),
+      )
+    } finally {
+      consoleError.mockRestore()
+    }
   })
 
   it('leaves out what the shop has switched off', () => {

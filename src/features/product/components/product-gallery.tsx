@@ -38,7 +38,11 @@ const GalleryLightbox = dynamic(
       .catch(() => LightboxUnavailable),
   { ssr: false },
 )
-/** A failed download is ignored here: opening the lightbox tries again. */
+/**
+ * Fetches the lightbox's code ahead of the first opening. A failed preload is dropped without a
+ * word: it changes nothing, since the first opening imports the code itself (a new download),
+ * and only if that fails too does LightboxUnavailable stand in.
+ */
 const preloadLightbox = () => {
   import('./gallery-lightbox').catch(() => {})
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, type UseQueryResult } from '@tanstack/react-query'
 import { GitCompareArrows } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { productDetailQuery } from '@/features/product/product-query'
 import { isApiNotFound } from '@/lib/api/errors'
+import type { ProductDetail } from '@/lib/api/types/catalog'
 import { usePersistHydration } from '@/lib/store/persisted'
 import { CompareTable, type CompareColumn } from './compare-table'
 import { useCompare } from './store'
@@ -54,12 +55,23 @@ function CompareEmpty() {
   )
 }
 
+type ProductQuery = UseQueryResult<ProductDetail>
+
+/**
+ * Whether the product's read failed: an error now, or one kept while «تلاش دوباره» runs (a
+ * refetch of a query without data puts it back to `pending`, but `errorUpdatedAt` stays).
+ */
+function hasFailed(query: ProductQuery | undefined): query is ProductQuery {
+  return query !== undefined && (query.isError || (query.isPending && query.errorUpdatedAt > 0))
+}
+
 /**
  * The compare page's body: the list saved on this device (`ff-compare`), each product's payload
  * read through the BFF in parallel (the queries quick view shares), then the table. The server
- * and hydration render a loading shell (the list is only known in the browser). A product that
+ * and hydration render a loading shell (the list is only known in the browser), and so does the
+ * wait until a first product answers; the others join the table as they arrive. A product that
  * answers 404 is taken off the list with a note; one that fails otherwise keeps its column with
- * a retry, beside the products that loaded. Removing a
+ * a retry, beside the products that loaded, and keeps it while the retry runs. Removing a
  * column moves the focus to the next one's «حذف از مقایسه», or to the page heading when none is
  * left. `headingId` names the page's `<h1>` (focusable from code).
  */
@@ -102,14 +114,15 @@ export function CompareView({ headingId }: { headingId: string }) {
     body = <CompareSkeleton />
   } else if (items.length === 0) {
     body = <CompareEmpty />
-  } else if (queries.some((query) => query.isPending)) {
+  } else if (!queries.some((query) => query.data !== undefined || hasFailed(query))) {
     body = <CompareSkeleton />
   } else {
-    // A product that failed to load keeps its column, with a retry; one gone (404) is dropped.
+    // A product that failed to load keeps its column, with a retry; one gone (404) is dropped,
+    // and one still on its way joins when it arrives.
     const columns = items.flatMap((item, index): CompareColumn[] => {
       const query = queries[index]
       if (query?.data) return [{ kind: 'product', product: query.data }]
-      if (!query?.isError || isApiNotFound(query.error)) return []
+      if (!hasFailed(query) || isApiNotFound(query.error)) return []
       return [
         { kind: 'failed', item, onRetry: () => void query.refetch(), retrying: query.isFetching },
       ]

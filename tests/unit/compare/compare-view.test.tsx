@@ -173,6 +173,51 @@ describe('CompareView', () => {
     expect(within(table).getAllByRole('button', { name: 'حذف از مقایسه' })).toHaveLength(2)
   })
 
+  it('keeps the table while a failed column retries, with the retry busy in place', async () => {
+    save([S25, IPHONE])
+    mocks.bffFetch.mockImplementation((path: string) =>
+      path.includes(IPHONE)
+        ? Promise.reject(new ApiError({ status: 429, code: 'throttled' }))
+        : Promise.resolve({ data: detail(S25), msg: '', status: 200 }),
+    )
+    renderView()
+    const table = await screen.findByRole('table', { name: 'مقایسه کالاها' })
+    const retry = within(table).getByRole('button', { name: 'تلاش دوباره' })
+    const again = deferred<unknown>()
+    mocks.bffFetch.mockReturnValueOnce(again.promise)
+    await userEvent.click(retry)
+
+    // The same table, the same column: no loading shell in between.
+    await waitFor(() => expect(retry).toHaveAttribute('aria-busy', 'true'))
+    expect(table).toBeInTheDocument()
+    expect(retry).toBeInTheDocument()
+    expect(within(table).getByText('اطلاعات این کالا دریافت نشد.')).toBeInTheDocument()
+    expect(screen.queryByText('در حال بارگذاری مقایسه')).toBeNull()
+
+    await act(async () => again.resolve({ data: detail(IPHONE), msg: '', status: 200 }))
+    await waitFor(() =>
+      expect(within(table).queryByText('اطلاعات این کالا دریافت نشد.')).toBeNull(),
+    )
+    expect(within(table).getAllByRole('button', { name: 'حذف از مقایسه' })).toHaveLength(2)
+    expect(table).toBeInTheDocument()
+  })
+
+  it('lays out the products that answered while another is still on its way', async () => {
+    save([S25, IPHONE])
+    const slow = deferred<unknown>()
+    mocks.bffFetch.mockImplementation((path: string) =>
+      path.includes(IPHONE)
+        ? slow.promise
+        : Promise.resolve({ data: detail(S25), msg: '', status: 200 }),
+    )
+    renderView()
+    const table = await screen.findByRole('table', { name: 'مقایسه کالاها' })
+    expect(within(table).getByRole('link', { name: NAMES[S25] })).toBeInTheDocument()
+    expect(within(table).queryByRole('link', { name: NAMES[IPHONE] })).toBeNull()
+    await act(async () => slow.resolve({ data: detail(IPHONE), msg: '', status: 200 }))
+    expect(await within(table).findByRole('link', { name: NAMES[IPHONE] })).toBeInTheDocument()
+  })
+
   it('turns «فقط تفاوت‌ها» off in effect when a removal leaves one product', async () => {
     const user = userEvent.setup()
     save([S25, IPHONE])
