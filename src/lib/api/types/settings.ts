@@ -2,6 +2,7 @@
  * Wire types of the global endpoints (`/global/*`), menus and the category list.
  * Pure types: safe in any bundle. Shapes follow the auth-settings, content and product digests.
  */
+import type { SortValue } from '@/lib/api/types/catalog/enums'
 import type { FeatureKey } from '@/lib/api/types/common'
 
 export type OtpMethod = 'email' | 'sms' | 'telegram'
@@ -144,7 +145,8 @@ export interface Snippet {
   snippet: string
 }
 
-export type CategorySorting = 'date-desc' | 'date-asc' | 'price-desc' | 'price-asc' | 'sale'
+/** The listing sorts; `SORT_VALUES` in the catalog types is the single source. */
+export type CategorySorting = SortValue
 
 /** One row of `GET product/category/list/` (same card as the homepage category grid). */
 export interface CategoryCard {
