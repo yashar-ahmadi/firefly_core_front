@@ -24,6 +24,11 @@ export function brandPath(slug: string): string {
   return `/brand/${encodeURIComponent(slug)}/`
 }
 
+/** `/product/<slug>/`, the product page. */
+export function productPath(slug: string): string {
+  return `/product/${encodeURIComponent(slug)}/`
+}
+
 export function listPagePath(slug: string): string {
   return `/product/list/${encodeURIComponent(slug)}/`
 }

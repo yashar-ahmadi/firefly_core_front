@@ -83,8 +83,8 @@ test.describe('home', () => {
     const href = await link.getAttribute('href')
     expect(href).toMatch(/^\/product\/[^/]+\/$/)
     await link.click()
-    // The product page itself comes with Plan 2 Task 7: only the URL is checked here.
     await expect(page).toHaveURL((url) => url.pathname === href)
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   })
 
   test("a variable product's «choose options» row opens its product page", async ({ page }) => {
@@ -99,8 +99,8 @@ test.describe('home', () => {
     await expect(options).toHaveText('انتخاب ویژگی\u{200C}ها')
     await expect(options).toHaveAttribute('href', href!)
     await options.click()
-    // The product page itself comes with Plan 2 Task 7: only the URL is checked here.
     await expect(page).toHaveURL((url) => url.pathname === href)
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     expect(errors).toEqual([])
   })
 

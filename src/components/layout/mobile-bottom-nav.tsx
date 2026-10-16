@@ -7,9 +7,16 @@ import { cn } from '@/components/ui/cn'
 import { CartBadge, useCartLabel } from '@/features/cart/components/cart-badge'
 import { useT } from '@/lib/i18n/i18n-context'
 import { useSession } from '@/lib/session/session-context'
+import { BOTTOM_BAR_FRAME, BOTTOM_BAR_ROW, BOTTOM_BAR_SPACER } from './bottom-bar'
 
-/** Pages that bring their own bottom bar (checkout's "pay" bar). */
+/** Pages that bring their own bottom bar and its room (checkout's "pay" bar). */
 const HIDDEN_ON = /^\/checkout(?:\/|$)/
+/**
+ * The product page brings its buy bar, which is as tall as this navigation: the navigation steps
+ * aside and keeps the room at the end of the page (the bar sits inside the page, before the
+ * footer). `/product/list/…` are listings.
+ */
+const BUY_BAR_ON = /^\/product\/(?!list\/)[^/]+\/$/
 
 interface Tab {
   href: string
@@ -26,7 +33,8 @@ const under = (pathname: string, ...prefixes: string[]) =>
 /**
  * The phone's bottom navigation (below md): home, categories, cart and account. The current tab
  * is brand-coloured with a filled icon. It slides away while scrolling down and is not shown
- * during checkout. It also reserves its height at the end of the page, so nothing hides under it.
+ * during checkout, nor on a product page (whose buy bar takes its place). It also reserves its
+ * height at the end of the page, so nothing hides under it.
  */
 export function MobileBottomNav() {
   const t = useT()
@@ -34,6 +42,7 @@ export function MobileBottomNav() {
   const { hasSession } = useSession()
   const cartLabel = useCartLabel()
   if (HIDDEN_ON.test(pathname)) return null
+  if (BUY_BAR_ON.test(pathname)) return <div aria-hidden className={BOTTOM_BAR_SPACER} />
 
   const tabs: Tab[] = [
     { href: '/', label: t('home'), icon: House, active: pathname === '/' },
@@ -60,16 +69,16 @@ export function MobileBottomNav() {
 
   return (
     <>
-      <div aria-hidden className="h-[calc(4rem+env(safe-area-inset-bottom))] md:hidden" />
+      <div aria-hidden className={BOTTOM_BAR_SPACER} />
       <nav
         aria-label={t('bottom_navigation')}
         className={cn(
-          'fixed inset-x-0 bottom-0 z-40 border-t border-ink-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_-8px_rgb(15_23_42/0.12)] md:hidden',
+          BOTTOM_BAR_FRAME,
           // Hidden: moved down by its height plus its shadow; keyboard focus brings it back.
           'transition-transform duration-200 ease-out has-focus-visible:translate-y-0 compact:translate-y-[calc(100%+1rem)]',
         )}
       >
-        <ul className="grid h-16 grid-cols-4">
+        <ul className={cn('grid grid-cols-4', BOTTOM_BAR_ROW)}>
           {tabs.map(({ href, label, icon: Icon, active, cart }) => (
             <li key={href}>
               <Link

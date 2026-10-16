@@ -83,4 +83,27 @@ describe('MobileBottomNav', () => {
     const { container } = render(withSession(<MobileBottomNav />))
     expect(container).toBeEmptyDOMElement()
   })
+
+  it.each([
+    '/product/samsung-galaxy-s25-ultra/',
+    '/product/%DA%A9%D8%AA%D8%A7%D8%A8/',
+    '/product/listerine-mouthwash/',
+  ])('makes way for the buy bar on the product page %s, keeping its room', (pathname) => {
+    nav.pathname = pathname
+    const { container } = render(withSession(<MobileBottomNav />))
+    expect(screen.queryByRole('navigation', { name: 'منوی پایین' })).toBeNull()
+    // The bar is as tall as the navigation: the same space stays at the end of the page.
+    const spacer = container.firstElementChild
+    expect(spacer).toHaveAttribute('aria-hidden', 'true')
+    expect(spacer).toHaveClass('h-[calc(4rem+env(safe-area-inset-bottom))]', 'md:hidden')
+  })
+
+  it.each(['/product/list/', '/product/list/flagship-phones/'])(
+    'stays on the product listing %s',
+    (pathname) => {
+      nav.pathname = pathname
+      render(withSession(<MobileBottomNav />))
+      expect(bottomNav()).toBeInTheDocument()
+    },
+  )
 })

@@ -73,9 +73,22 @@ export function useCartCount(): number {
   return hydrated ? cartCount(data) : 0
 }
 
+export interface AddOptions {
+  /** Show the «added» toast (default). Buy now goes on to checkout instead. */
+  toast?: boolean
+}
+
 export interface AddToCart {
-  /** Adds `quantity` of a variant. Never rejects: a refusal is shown as a toast. */
-  add: (variant: number, quantity: number, meta: { name: string; image: string }) => Promise<void>
+  /**
+   * Adds `quantity` of a variant; resolves true once the cart has it. Never rejects: a refusal
+   * is shown as a toast and resolves false, as does a call while another add is in flight.
+   */
+  add: (
+    variant: number,
+    quantity: number,
+    meta: { name: string; image: string },
+    options?: AddOptions,
+  ) => Promise<boolean>
   isPending: boolean
 }
 
@@ -83,6 +96,7 @@ interface AddVariables {
   variant: number
   quantity: number
   meta: { name: string; image: string }
+  toast: boolean
 }
 
 /**
@@ -95,20 +109,22 @@ export function useAddToCart(): AddToCart {
   const inFlight = useRef(false)
   const mutation = useMutation({
     mutationFn: ({ variant, quantity }: AddVariables) => cartApi.add(variant, quantity),
-    onSuccess: async ({ data, msg }, { meta }) => {
+    onSuccess: async ({ data, msg }, { meta, toast }) => {
       await storeCart(client, data)
-      showAddedToCartToast({ ...meta, message: msg })
+      if (toast) showAddedToCartToast({ ...meta, message: msg })
     },
     onError: (error) => notify.error(errorDetail(error)),
   })
 
-  const add: AddToCart['add'] = async (variant, quantity, meta) => {
-    if (inFlight.current) return
+  const add: AddToCart['add'] = async (variant, quantity, meta, options = {}) => {
+    if (inFlight.current) return false
     inFlight.current = true
     try {
-      await mutation.mutateAsync({ variant, quantity, meta })
+      await mutation.mutateAsync({ variant, quantity, meta, toast: options.toast ?? true })
+      return true
     } catch {
       // Already shown by onError.
+      return false
     } finally {
       inFlight.current = false
     }

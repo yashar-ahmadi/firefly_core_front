@@ -143,7 +143,7 @@ describe('useAddToCart', () => {
     mocks.bffFetch.mockRejectedValue(limitExceeded())
     const { result: hook, client } = setup(() => useAddToCart(), before)
 
-    await act(() => expect(hook.current.add(10005, 3, PRODUCT)).resolves.toBeUndefined())
+    await act(() => expect(hook.current.add(10005, 3, PRODUCT)).resolves.toBe(false))
 
     expect(mocks.error).toHaveBeenCalledWith(LIMIT_DETAIL)
     expect(mocks.success).not.toHaveBeenCalled()
@@ -156,8 +156,8 @@ describe('useAddToCart', () => {
     mocks.bffFetch.mockReturnValue(answer.promise)
     const { result: hook } = setup(() => useAddToCart())
 
-    let first: Promise<void> | undefined
-    let second: Promise<void> | undefined
+    let first: Promise<boolean> | undefined
+    let second: Promise<boolean> | undefined
     act(() => {
       first = hook.current.add(10001, 1, PRODUCT)
       second = hook.current.add(10001, 1, PRODUCT)
@@ -169,6 +169,21 @@ describe('useAddToCart', () => {
     })
     expect(callsWith('POST')).toHaveLength(1)
     expect(mocks.success).toHaveBeenCalledTimes(1)
+    // Only the add that ran reports success.
+    await expect(first).resolves.toBe(true)
+    await expect(second).resolves.toBe(false)
+  })
+
+  it('tells the caller it worked, and can stay silent (buy now goes straight to checkout)', async () => {
+    const added = cart([cartLine()])
+    mocks.bffFetch.mockResolvedValue(result(added, MSG_ADDED))
+    const { result: hook, client } = setup(() => useAddToCart(), cart())
+
+    await act(() =>
+      expect(hook.current.add(10001, 1, PRODUCT, { toast: false })).resolves.toBe(true),
+    )
+    expect(client.getQueryData(CART_KEY)).toEqual(added)
+    expect(mocks.success).not.toHaveBeenCalled()
   })
 })
 

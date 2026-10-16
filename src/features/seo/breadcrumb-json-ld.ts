@@ -42,15 +42,21 @@ function httpUrl(value: string): URL | null {
   }
 }
 
+/** An http(s) URL moved onto `origin` (path, query and hash kept); anything else as it is. */
+export function onSiteOrigin(value: string, origin: string): string {
+  const url = httpUrl(value)
+  return url ? `${origin}${url.pathname}${url.search}${url.hash}` : value
+}
+
 /** The list with every item on `siteUrl`'s origin (path, query and hash kept). A new object. */
 export function siteBreadcrumb(data: BreadcrumbListJsonLd, siteUrl: string): BreadcrumbListJsonLd {
   const origin = new URL(siteUrl).origin
   return {
     ...data,
-    itemListElement: data.itemListElement.map((entry) => {
-      const url = httpUrl(entry.item)
-      return url ? { ...entry, item: `${origin}${url.pathname}${url.search}${url.hash}` } : entry
-    }),
+    itemListElement: data.itemListElement.map((entry) => ({
+      ...entry,
+      item: onSiteOrigin(entry.item, origin),
+    })),
   }
 }
 

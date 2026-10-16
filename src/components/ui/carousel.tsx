@@ -19,7 +19,7 @@ import { cn } from './cn'
 import { IconButton } from './icon-button'
 import { usePrefersReducedMotion } from './use-media-query'
 
-type EmblaApi = NonNullable<UseEmblaCarouselType[1]>
+export type EmblaApi = NonNullable<UseEmblaCarouselType[1]>
 
 export type { SlidesPerView }
 
@@ -43,8 +43,15 @@ export interface CarouselProps {
   className?: string
 }
 
-/** One value read from the Embla API; re-read whenever the selection or the layout changes. */
-function useEmblaValue<T>(api: EmblaApi | undefined, read: (api: EmblaApi) => T, fallback: T): T {
+/**
+ * One value read from the Embla API; re-read whenever the selection or the layout changes.
+ * `fallback` on the server and during hydration.
+ */
+export function useEmblaValue<T>(
+  api: EmblaApi | undefined,
+  read: (api: EmblaApi) => T,
+  fallback: T,
+): T {
   const subscribe = useCallback(
     (onChange: () => void) => {
       if (!api) return () => {}

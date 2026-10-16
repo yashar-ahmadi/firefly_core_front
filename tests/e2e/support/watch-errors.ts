@@ -6,12 +6,11 @@ const MEDIA_FILE = /\/(?:media|static)\//
 /**
  * Routes later plans build, which the shell already links to (header search, cart and login;
  * homepage posts): a visit or a router prefetch there answers 404 until the route exists.
- * Remove each one as its route lands (product pages: Plan 2 Task 7; search: Task 10; compare:
- * Task 9; auth and account: Plan 3; cart and checkout: Plan 4; blog and content pages: the
- * content plan).
+ * Remove each one as its route lands (search: Task 10; compare: Task 9; auth and account:
+ * Plan 3; cart and checkout: Plan 4; blog and content pages: the content plan).
  */
 const NOT_YET_BUILT =
-  /^\/(?:product\/(?!list\/)[^/]+\/$|(?:search|compare|login|register|forgot-password|account|cart|checkout|blog|page)\/)/
+  /^\/(?:search|compare|login|register|forgot-password|account|cart|checkout|blog|page)\//
 
 const NOT_FOUND = /^Failed to load resource: the server responded with a status of 404\b/
 
