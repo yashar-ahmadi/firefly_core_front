@@ -7,12 +7,14 @@ import { ApiError } from '@/lib/api/errors'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { clientProviders } from '../support/providers'
 import { resolveServerTree } from '../support/server-tree'
+import { comment, commentPage } from './comment-fixtures'
 import { s25Product } from './fixtures'
 import { resetRouter, router } from './router'
 
 const mocks = vi.hoisted(() => ({
   getProductDetail: vi.fn(),
   getProductSettings: vi.fn(),
+  getFirstComments: vi.fn(),
   providerProps: [] as unknown[],
 }))
 
@@ -27,6 +29,7 @@ vi.mock('@/lib/api/client', () => ({ bffFetch: vi.fn() }))
 vi.mock('@/features/catalog/api', () => ({
   getProductDetail: mocks.getProductDetail,
   getProductSettings: mocks.getProductSettings,
+  getFirstComments: mocks.getFirstComments,
 }))
 vi.mock('@/features/settings/api', () => ({
   getTranslations: async () => ({}),
@@ -90,6 +93,13 @@ beforeEach(() => {
   mocks.providerProps.length = 0
   mocks.getProductDetail.mockResolvedValue(s25Product())
   mocks.getProductSettings.mockResolvedValue(SETTINGS)
+  mocks.getFirstComments.mockImplementation(async (_slug: string, type: string) =>
+    commentPage([
+      type === 'comment'
+        ? comment()
+        : comment({ id: 20001, comment_type: 'question', title: null, review: 'باتری چند روز؟' }),
+    ]),
+  )
 })
 
 describe('the product route: status codes (R9)', () => {
@@ -97,6 +107,8 @@ describe('the product route: status codes (R9)', () => {
     mocks.getProductDetail.mockResolvedValue(null)
     await expect(ProductPage(props('does-not-exist'))).rejects.toThrow('NEXT_NOT_FOUND')
     expect(mocks.getProductDetail).toHaveBeenCalledWith('does-not-exist')
+    // Nothing streams before the status is settled: no review read for a missing product.
+    expect(mocks.getFirstComments).not.toHaveBeenCalled()
     expect((await generateMetadata(props('does-not-exist'))).title).toEqual(NOT_FOUND_TITLE)
   })
 
@@ -290,9 +302,31 @@ describe('the product page below the fold', () => {
     expect(items[1]).toHaveTextContent('۲ عدد')
   })
 
-  it('loads no reviews or questions on the server (they load in the browser when seen)', async () => {
+  it('renders page 1 of the reviews and of the questions on the server (spec §8.13)', async () => {
     await renderPage()
     expect(mocks.getProductDetail).toHaveBeenCalledTimes(1)
+    // Started early by the page, then read by each list (one request: React cache()).
+    expect(new Set(mocks.getFirstComments.mock.calls.map((call) => call.join(' ')))).toEqual(
+      new Set([`${SLUG} comment`, `${SLUG} question`]),
+    )
+    const reviews = screen.getByRole('list', { name: 'دیدگاه\u{200C}ها' })
+    expect(within(reviews).getByText(comment().review!)).toBeInTheDocument()
+    const questions = screen.getByRole('list', { name: 'پرسش\u{200C}ها' })
+    expect(within(questions).getByText('باتری چند روز؟')).toBeInTheDocument()
+    expect(screen.queryByLabelText('در حال بارگذاری دیدگاه\u{200C}ها')).toBeNull()
+  })
+
+  it('reads nothing for a section with a count of zero', async () => {
+    mocks.getProductDetail.mockResolvedValue(s25Product({ question_count: 0 }))
+    await renderPage()
+    expect(mocks.getFirstComments).not.toHaveBeenCalledWith(SLUG, 'question')
+    expect(mocks.getFirstComments).toHaveBeenCalledWith(SLUG, 'comment')
+    expect(screen.getByText('هنوز پرسشی ثبت نشده است.')).toBeInTheDocument()
+  })
+
+  it('leaves the list to the browser when the server read fails', async () => {
+    mocks.getFirstComments.mockResolvedValue(null)
+    await renderPage()
     expect(screen.getByLabelText('در حال بارگذاری دیدگاه\u{200C}ها')).toBeInTheDocument()
   })
 })

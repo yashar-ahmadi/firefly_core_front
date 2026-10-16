@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { watchErrors } from '../support/watch-errors'
 
 // The product page below the buying core (product-core.spec.ts): the section bar, the
-// specifications, the reviews and questions (loaded in the browser when their section comes
-// near) and the review form, against the dev backend's sample data (product digest §8, §12:
+// specifications, the reviews and questions (page 1 server-rendered, later pages through the
+// BFF) and the review form, against the dev backend's sample data (product digest §8, §12:
 // the S25 Ultra has three reviews and one question). No review is ever sent from here.
 
 const S25 = '/product/samsung-galaxy-s25-ultra/'
@@ -102,5 +102,20 @@ test.describe('product page sections in the server HTML', () => {
       await expect(page.locator(`section#${id}`)).toHaveCount(1)
     }
     await expect(page.locator('section#intro')).toContainText('گارانتی ۱۸ ماهه شرکتی')
+  })
+
+  test('has page 1 of the reviews and of the questions (spec §8.13)', async ({ page }) => {
+    await page.goto(S25)
+    // The newest sample review and the sample question, as list markup: not the JSON-LD, which
+    // carries review bodies too. Without JavaScript a streamed segment stays hidden, so this
+    // reads the markup, not what is on screen.
+    const reviewList = page.locator(`ol[aria-label="${REVIEWS}"]`)
+    await expect(reviewList.locator('article').first()).toContainText(
+      'گرم شدن دستگاه موقع بازی کردن آزاردهنده است.',
+    )
+    await expect(reviewList.locator('article')).toHaveCount(3)
+    await expect(page.locator('ol[aria-label="پرسش\u{200C}ها"] article').first()).toContainText(
+      'گارانتی این گوشی شرکتی است یا شرکتی پلاس؟',
+    )
   })
 })

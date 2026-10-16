@@ -215,6 +215,7 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 | `global/extra-snippets/` | `getSnippets()` | 300 s | `snippets` |
 | `global/get-translation/fa/` (fallback `global/languages/`) | `getTranslations()` | 300 s | `translations` |
 | `product/category/list/` (all pages) | `getCategoryTree()` | 300 s | `categories` |
+| `product/detail/<slug>/comment/list/?comment_type=…&page=1` | `getFirstComments()`: page 1 of the reviews and of the questions, server-rendered in their own in-page `<Suspense>` after the product (spec §8.13); later pages, and page 1 again for a signed-in visitor (`is_current_user`), come through the BFF | 60 s | `product:<slug>`, `catalog` |
 | `robots/?format=txt` | `/robots.txt` route | 300 s (fetch level) | — |
 | `redirects/list/` (rule sources only) | `knownSources()`, in process memory | 5 min (a failed load is retried after 30 s) | — |
 | `/_next/static/*` | browser / CDN | 1 year, immutable | — |

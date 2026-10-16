@@ -10,6 +10,7 @@ export {
   getListPage,
   getProductDetail,
 } from '@/features/catalog/loaders/detail'
+export { getFirstComments } from '@/features/catalog/loaders/comments'
 export {
   getBrands,
   getFilters,

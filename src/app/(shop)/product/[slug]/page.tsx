@@ -1,12 +1,13 @@
 import { EyeOff } from 'lucide-react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { Suspense } from 'react'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { CONTAINER } from '@/components/layout/container'
 import { isPlaceholderImage } from '@/components/layout/menu-tree'
 import { cn } from '@/components/ui/cn'
 import { getStoreConfig } from '@/config/store-config'
-import { getProductDetail, getProductSettings } from '@/features/catalog/api'
+import { getFirstComments, getProductDetail, getProductSettings } from '@/features/catalog/api'
 import { AdminFaq } from '@/features/catalog/components/admin-faq'
 import { ConsiderBeforeBuying } from '@/features/catalog/components/consider-before-buying'
 import { categoryPath, productPath } from '@/features/catalog/listing-routes'
@@ -34,6 +35,8 @@ import {
   REVIEWS,
   ReviewsSection,
 } from '@/features/product/components/reviews/comments-section'
+import { CommentPlaceholders } from '@/features/product/components/reviews/comment-list'
+import { SeededCommentList } from '@/features/product/components/reviews/seeded-comment-list'
 import { SectionCard } from '@/features/product/components/section-card'
 import { SpecificationsTable, specRows } from '@/features/product/components/specifications-table'
 import { StickyBuyBar } from '@/features/product/components/sticky-buy-bar'
@@ -93,9 +96,9 @@ function UnpublishedBanner() {
  *
  * Status codes (R9, ruling P2-R1): no loading.tsx for this segment. The product (anonymous, 60 s
  * Data Cache, no token) is awaited and `notFound()` called before anything streams, so an
- * unknown product answers a real 404 and any other failure reaches the error boundary. Nothing
- * streams: the related products come with the product, and the reviews and questions load in
- * the browser when their section comes near (CommentList).
+ * unknown product answers a real 404 and any other failure reaches the error boundary. Only the
+ * first page of the reviews and of the questions streams, each in its own in-page `<Suspense>`
+ * (an anonymous cached read, spec §8.13); the related products come with the product.
  *
  * `?variant=<id>` (a shared link) is read by ProductProvider from the URL: the server renders
  * that variant, the browser hydrates the same, and Back/Forward restores match their URL.
@@ -103,6 +106,10 @@ function UnpublishedBanner() {
 export default async function ProductPage({ params }: ProductPageProps) {
   const product = await getProductDetail((await params).slug)
   if (product === null) notFound()
+  // Start page 1 of the reviews and questions now, beside the settings (React cache() shares
+  // the promise with SeededCommentList): their streamed segments then follow the shell sooner.
+  if (product.comment_count > 0) void getFirstComments(product.slug, 'comment')
+  if (product.question_count > 0) void getFirstComments(product.slug, 'question')
   const [settings, productSettings] = await Promise.all([getSiteSettings(), getProductSettings()])
   const config = getStoreConfig()
   const intro = introParts(product.description, product.content)
@@ -156,8 +163,24 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
             </SectionCard>
           )}
-          <ReviewsSection product={product} />
-          <QuestionsSection product={product} />
+          <ReviewsSection product={product}>
+            <Suspense
+              fallback={<CommentPlaceholders type="comment" count={product.comment_count} />}
+            >
+              <SeededCommentList slug={product.slug} type="comment" count={product.comment_count} />
+            </Suspense>
+          </ReviewsSection>
+          <QuestionsSection product={product}>
+            <Suspense
+              fallback={<CommentPlaceholders type="question" count={product.question_count} />}
+            >
+              <SeededCommentList
+                slug={product.slug}
+                type="question"
+                count={product.question_count}
+              />
+            </Suspense>
+          </QuestionsSection>
         </div>
         {product.consider_before_buying && (
           <ConsiderBeforeBuying data={product.consider_before_buying} />
