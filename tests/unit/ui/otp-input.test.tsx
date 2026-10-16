@@ -21,6 +21,16 @@ describe('OtpInput', () => {
     expect(screen.getByRole('group')).toHaveAttribute('dir', 'ltr')
   })
 
+  it('keeps the LTR digit group inside an RTL-flowing wrapper, at the start like its label', () => {
+    render(<OtpInput value="" onChange={() => {}} className="justify-center" />)
+    const group = screen.getByRole('group')
+    expect(group).toHaveAttribute('dir', 'ltr')
+    expect(group).toHaveClass('inline-flex')
+    const wrapper = group.parentElement!
+    expect(wrapper).not.toHaveAttribute('dir')
+    expect(wrapper).toHaveClass('flex', 'justify-center')
+  })
+
   it('fills every box from a pasted Persian code and completes with Latin digits', async () => {
     const onComplete = vi.fn()
     const user = userEvent.setup()

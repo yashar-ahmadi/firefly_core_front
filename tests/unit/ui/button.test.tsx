@@ -55,6 +55,15 @@ describe('Button', () => {
     expect(link).not.toHaveAttribute('aria-busy')
   })
 
+  it('dims a disabled asChild element, which cannot use the :disabled state', () => {
+    render(
+      <Button asChild disabled>
+        <a href="/checkout/">پرداخت</a>
+      </Button>,
+    )
+    expect(screen.getByRole('link', { name: 'پرداخت' })).toHaveClass('aria-disabled:opacity-50')
+  })
+
   it('gives the link variant a 44px hit area without changing its layout', () => {
     expect(buttonClasses({ variant: 'link' })).toContain('after:h-11')
     expect(buttonClasses({ variant: 'link', size: 'sm' })).toContain('after:h-11')

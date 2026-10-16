@@ -8,7 +8,20 @@ const twMerge = extendTailwindMerge({
     theme: {
       radius: ['control', 'card', 'pill'],
       shadow: ['card', 'raised'],
-      animate: ['shimmer', 'pop'],
+      animate: [
+        'shimmer',
+        'pop',
+        'fade-in',
+        'fade-out',
+        'dialog-in',
+        'dialog-out',
+        'drawer-in',
+        'drawer-out',
+        'menu-in',
+        'menu-out',
+        'accordion-down',
+        'accordion-up',
+      ],
     },
   },
 })

@@ -42,8 +42,11 @@ export function Demo({
   return (
     <div className="grid min-w-0 content-start gap-3">
       <h3 className="text-sm font-medium text-ink-500">{label}</h3>
-      {/* `className` replaces the default wrapping row (e.g. with a grid or a column). */}
-      <div className={className ?? 'flex flex-wrap items-center gap-3'}>{children}</div>
+      {/* `className` replaces the default wrapping row (e.g. with a grid or a column). min-w-0
+          stops wide scrollers (tabs, carousels) from stretching this grid item. */}
+      <div className={`min-w-0 ${className ?? 'flex flex-wrap items-center gap-3'}`}>
+        {children}
+      </div>
     </div>
   )
 }
@@ -62,6 +65,17 @@ export const SECTIONS = [
   { id: 'empty', title: 'حالت خالی' },
   { id: 'skeletons', title: 'اسکلت بارگذاری' },
   { id: 'images', title: 'تصاویر' },
+  { id: 'dialog', title: 'پنجره گفتگو' },
+  { id: 'sheet', title: 'برگه پایینی' },
+  { id: 'drawer', title: 'کشوی کناری' },
+  { id: 'popover', title: 'پنجره شناور' },
+  { id: 'menu', title: 'منوی کشویی' },
+  { id: 'tooltip', title: 'راهنمای کوتاه' },
+  { id: 'toast', title: 'اعلان‌ها' },
+  { id: 'tabs', title: 'زبانه‌ها' },
+  { id: 'accordion', title: 'بخش‌های تاشو' },
+  { id: 'carousel', title: 'اسلایدر' },
+  { id: 'scroll', title: 'ناحیه پیمایش' },
 ] as const
 
 export function sectionTitle(id: (typeof SECTIONS)[number]['id']): string {

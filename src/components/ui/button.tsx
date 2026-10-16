@@ -36,7 +36,8 @@ export function Button({
 }: ButtonProps) {
   const classes = cn(
     buttonClasses({ variant, size, fullWidth }),
-    loading ? 'cursor-wait' : 'disabled:opacity-50',
+    // An asChild element (a link) has no :disabled state; aria-disabled dims it instead.
+    loading ? 'cursor-wait' : 'disabled:opacity-50 aria-disabled:opacity-50',
     className,
   )
 

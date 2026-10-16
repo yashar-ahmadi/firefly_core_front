@@ -120,48 +120,52 @@ export function OtpInput({
     if (pasted) fill(index, pasted)
   }
 
+  // The outer row flows with the page (RTL), so by default the group sits at the start (right),
+  // under its label; `className` can centre it. The digits inside always run left to right.
   return (
-    <div
-      role="group"
-      dir="ltr"
-      aria-label={ariaLabel}
-      aria-describedby={describedBy}
-      className={cn('flex justify-start gap-2 sm:gap-3', className)}
-    >
-      {Array.from({ length }, (_, index) => (
-        <input
-          key={index}
-          ref={(node) => {
-            boxes.current[index] = node
-          }}
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          aria-label={`رقم ${toPersianDigits(index + 1)}`}
-          aria-invalid={invalid || undefined}
-          disabled={disabled}
-          tabIndex={index === active ? 0 : -1}
-          value={toPersianDigits(code[index] ?? '')}
-          onPointerDown={() => {
-            pointerDown.current = true
-          }}
-          // Boxes are filled in order: clicking a later empty box moves to the first empty one.
-          onFocus={(event) => {
-            const fromPointer = pointerDown.current
-            pointerDown.current = false
-            if (fromPointer && index > code.length) focusBox(code.length)
-            else event.currentTarget.select()
-          }}
-          onChange={(event) => handleChange(index, event.currentTarget.value)}
-          onKeyDown={(event) => handleKeyDown(index, event)}
-          onPaste={(event) => handlePaste(index, event)}
-          className={cn(
-            controlClasses({ invalid, disabled }),
-            'h-12 w-full max-w-12 min-w-0 flex-1 border-2 p-0 text-center text-xl font-bold caret-brand-600 sm:h-14 sm:max-w-14 sm:text-2xl',
-            code[index] !== undefined && !invalid && 'border-ink-700',
-          )}
-        />
-      ))}
+    <div className={cn('flex', className)}>
+      <div
+        role="group"
+        dir="ltr"
+        aria-label={ariaLabel}
+        aria-describedby={describedBy}
+        className="inline-flex min-w-0 gap-2 sm:gap-3"
+      >
+        {Array.from({ length }, (_, index) => (
+          <input
+            key={index}
+            ref={(node) => {
+              boxes.current[index] = node
+            }}
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            aria-label={`رقم ${toPersianDigits(index + 1)}`}
+            aria-invalid={invalid || undefined}
+            disabled={disabled}
+            tabIndex={index === active ? 0 : -1}
+            value={toPersianDigits(code[index] ?? '')}
+            onPointerDown={() => {
+              pointerDown.current = true
+            }}
+            // Boxes are filled in order: clicking a later empty box moves to the first empty one.
+            onFocus={(event) => {
+              const fromPointer = pointerDown.current
+              pointerDown.current = false
+              if (fromPointer && index > code.length) focusBox(code.length)
+              else event.currentTarget.select()
+            }}
+            onChange={(event) => handleChange(index, event.currentTarget.value)}
+            onKeyDown={(event) => handleKeyDown(index, event)}
+            onPaste={(event) => handlePaste(index, event)}
+            className={cn(
+              controlClasses({ invalid, disabled }),
+              'h-12 w-full max-w-12 min-w-0 flex-1 border-2 p-0 text-center text-xl font-bold caret-brand-600 sm:h-14 sm:max-w-14 sm:text-2xl',
+              code[index] !== undefined && !invalid && 'border-ink-700',
+            )}
+          />
+        ))}
+      </div>
     </div>
   )
 }

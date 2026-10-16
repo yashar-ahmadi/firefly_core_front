@@ -96,6 +96,87 @@
   /* A small spring-like pop for check marks and selection indicators. */
   --animate-pop: pop 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  /*
+   * Overlay motion (Radix data-state driven; used under `motion-safe:` only). Entrances use a
+   * strong ease-out, exits a plain ease-out and are shorter. Radix keeps a closing element
+   * mounted until its exit animation ends.
+   */
+  --animate-fade-in: fade-in 200ms ease-out;
+  --animate-fade-out: fade-out 150ms ease-out;
+  --animate-dialog-in: dialog-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-dialog-out: dialog-out 150ms ease-out;
+  /* Side drawers slide from `--drawer-from` (100% = from the right, the RTL start side). */
+  --animate-drawer-in: drawer-in 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-drawer-out: drawer-out 200ms ease-out;
+  /* Popovers, menus and tooltips grow from their trigger (set transform-origin). */
+  --animate-menu-in: menu-in 150ms ease-out;
+  --animate-menu-out: fade-out 150ms ease-out;
+  --animate-accordion-down: accordion-down 200ms ease-out;
+  --animate-accordion-up: accordion-up 200ms ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem) scale(0.96);
+    }
+  }
+
+  @keyframes dialog-out {
+    to {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+
+  @keyframes drawer-in {
+    from {
+      transform: translateX(var(--drawer-from, 100%));
+    }
+  }
+
+  @keyframes drawer-out {
+    to {
+      transform: translateX(var(--drawer-from, 100%));
+    }
+  }
+
+  @keyframes menu-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+
   @keyframes pop {
     from {
       transform: scale(0.4);

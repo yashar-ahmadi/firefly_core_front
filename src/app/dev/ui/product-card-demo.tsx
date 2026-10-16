@@ -53,12 +53,7 @@ export function ProductCardDemo({
             {name}
           </h3>
           <Rating value={rating} count={count} size="sm" compact />
-          <Price
-            amount={amount}
-            original={original}
-            size="sm"
-            className="mt-auto items-end self-end"
-          />
+          <Price amount={amount} original={original} size="sm" className="mt-auto self-start" />
           {amount === null ? (
             <Button size="sm" variant="outline" fullWidth iconStart={<Bell />}>
               خبرم کن

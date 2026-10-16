@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { Toaster } from '@/components/ui/toaster'
 import { ControlSections } from './control-sections'
 import { DisplaySections } from './display-sections'
+import { NavigationSections } from './navigation-sections'
+import { OverlaySections } from './overlay-sections'
 import { SECTIONS } from './showcase'
 import { WidgetSections } from './widget-sections'
 
@@ -21,8 +24,8 @@ export default function UiShowcasePage() {
         <p className="text-sm font-medium text-brand-700">سامانه طراحی</p>
         <h1 className="mt-1 text-2xl font-bold text-ink-900 sm:text-3xl">اجزای رابط کاربری</h1>
         <p className="mt-2 max-w-2xl text-base text-ink-600">
-          کنترل‌ها و اجزای نمایشی فروشگاه، با رنگ‌ها و گردی گوشه‌های همین فروشگاه. این صفحه فقط در
-          محیط توسعه در دسترس است.
+          کنترل‌ها، اجزای نمایشی و پنجره‌های شناور فروشگاه، با رنگ‌ها و گردی گوشه‌های همین فروشگاه.
+          این صفحه فقط در محیط توسعه در دسترس است.
         </p>
       </header>
 
@@ -48,7 +51,11 @@ export default function UiShowcasePage() {
         <ControlSections />
         <DisplaySections />
         <WidgetSections />
+        <OverlaySections />
+        <NavigationSections />
       </main>
+      {/* Only this page mounts the toaster for now; the app shell gets it in Task 11. */}
+      <Toaster />
     </div>
   )
 }
