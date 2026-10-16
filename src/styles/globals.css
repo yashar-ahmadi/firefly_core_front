@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* Persian-tuned stand-ins for Vazirmatn while it loads (see the file). */
+@import './font-fallbacks.css';
 /* Component layer: utilities on the same element (`rich-content text-sm`) still win. */
 @import './rich-content.css' layer(components);
 

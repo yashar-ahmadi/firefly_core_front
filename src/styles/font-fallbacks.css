@@ -1,0 +1,83 @@
+/*
+ * Stand-ins for Vazirmatn while it downloads, tuned to Persian text (next/font's own
+ * «vazirmatn Fallback» is sized on Latin letters against Arial, which on Android and Linux has no
+ * Persian glyphs). Each face scales a system font with Persian glyphs so a Persian UI sample
+ * («ارسال رایگان…», product names, prices, labels) takes the same width as in Vazirmatn, and gives
+ * it Vazirmatn's ascent and descent: when the font swaps in, lines keep their breaks and the page
+ * does not shift (the phone announcement bar re-wrapped from two lines to one).
+ *
+ * size-adjust = Vazirmatn's width / the system font's width for that sample, averaged over
+ * weights 400 and 500 (bold faces: 700). ascent/descent-override = Vazirmatn's 102.54% / 53.71%
+ * of the em, divided by size-adjust. Faces whose local font is missing are skipped, so each
+ * device uses the first it has: Noto Sans Arabic (newer Android, ChromeOS), Noto Naskh Arabic
+ * (Android), DejaVu Sans (Linux). Windows and Apple fonts carry Persian glyphs in Arial and use
+ * next/font's face. Listed after the font in src/lib/fonts.ts (`fallback`).
+ */
+
+@font-face {
+  font-family: 'vazirmatn Fallback Noto Sans';
+  src:
+    local('Noto Sans Arabic'), local('Noto Sans Arabic UI'), local('NotoSansArabic-Regular'),
+    local('NotoSansArabicUI-Regular');
+  font-weight: 100 600;
+  size-adjust: 96.97%;
+  ascent-override: 105.75%;
+  descent-override: 55.39%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'vazirmatn Fallback Noto Sans';
+  src:
+    local('Noto Sans Arabic Bold'), local('Noto Sans Arabic UI Bold'), local('NotoSansArabic-Bold'),
+    local('NotoSansArabicUI-Bold');
+  font-weight: 700 900;
+  size-adjust: 91.04%;
+  ascent-override: 112.63%;
+  descent-override: 59%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'vazirmatn Fallback Noto Naskh';
+  src:
+    local('Noto Naskh Arabic'), local('Noto Naskh Arabic UI'), local('NotoNaskhArabic-Regular'),
+    local('NotoNaskhArabicUI-Regular');
+  font-weight: 100 600;
+  size-adjust: 107.73%;
+  ascent-override: 95.18%;
+  descent-override: 49.86%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'vazirmatn Fallback Noto Naskh';
+  src:
+    local('Noto Naskh Arabic Bold'), local('Noto Naskh Arabic UI Bold'),
+    local('NotoNaskhArabic-Bold'), local('NotoNaskhArabicUI-Bold');
+  font-weight: 700 900;
+  size-adjust: 106.03%;
+  ascent-override: 96.71%;
+  descent-override: 50.66%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'vazirmatn Fallback DejaVu';
+  src: local('DejaVu Sans'), local('DejaVuSans');
+  font-weight: 100 600;
+  size-adjust: 92.33%;
+  ascent-override: 111.06%;
+  descent-override: 58.17%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: 'vazirmatn Fallback DejaVu';
+  src: local('DejaVu Sans Bold'), local('DejaVuSans-Bold');
+  font-weight: 700 900;
+  size-adjust: 78.82%;
+  ascent-override: 130.09%;
+  descent-override: 68.14%;
+  line-gap-override: 0%;
+}

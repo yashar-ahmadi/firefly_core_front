@@ -11,4 +11,11 @@ export const vazirmatn = localFont({
   display: 'swap',
   weight: '100 900',
   preload: true,
+  // Persian-tuned stand-ins (src/styles/font-fallbacks.css), after next/font's own Arial-based
+  // «vazirmatn Fallback»: text keeps Vazirmatn's width until it arrives, so nothing re-wraps.
+  fallback: [
+    'vazirmatn Fallback Noto Sans',
+    'vazirmatn Fallback Noto Naskh',
+    'vazirmatn Fallback DejaVu',
+  ],
 })
