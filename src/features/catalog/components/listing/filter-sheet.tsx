@@ -95,10 +95,11 @@ export function FilterSheet({ groups, count }: FilterSheetProps) {
           onUnavailable={() => setInline(true)}
         />
       )}
+      {/* Controlled by the button above; no landmark of its own (the button names it). */}
       {inline && (
-        <section id={inlineId} aria-label="فیلترها" className="mt-3 w-full">
+        <div id={inlineId} className="mt-3 w-full">
           <FilterPanel groups={groups} />
-        </section>
+        </div>
       )}
     </>
   )

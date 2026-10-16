@@ -77,10 +77,11 @@ export function ReadingButton({
           onUnavailable={() => setInline(true)}
         />
       )}
+      {/* No landmark of its own: the card around it is already the section named `title`. */}
       {inline && (
-        <section id={inlineId} aria-label={title} className="w-full">
+        <div id={inlineId} className="w-full">
           <RichContentBody html={html} className="rich-content" />
-        </section>
+        </div>
       )}
     </>
   )

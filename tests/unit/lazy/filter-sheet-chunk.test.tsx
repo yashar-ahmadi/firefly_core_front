@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { FilterSheet } from '@/features/catalog/components/listing/filter-sheet'
 import { ListingUrlProvider } from '@/features/catalog/components/listing/use-listing-url'
@@ -42,10 +42,13 @@ describe('FilterSheet whose sheet cannot load', () => {
     const button = screen.getByRole('button', { name: 'فیلترها، ۱ فیلتر فعال' })
     expect(button).toHaveAttribute('aria-haspopup', 'dialog')
     fireEvent.click(button)
-    const region = await screen.findByRole('region', { name: 'فیلترها' })
+    await waitFor(() => expect(button).toHaveAttribute('aria-controls'))
+    // In place under the button, which controls it; no landmark of its own.
+    const shown = document.getElementById(button.getAttribute('aria-controls')!)!
     expect(button).toHaveAttribute('aria-expanded', 'true')
     expect(button).not.toHaveAttribute('aria-haspopup')
-    expect(within(region).getAllByRole('checkbox').length).toBeGreaterThan(0)
+    expect(within(shown).getAllByRole('checkbox').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('region', { name: 'فیلترها' })).toBeNull()
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
