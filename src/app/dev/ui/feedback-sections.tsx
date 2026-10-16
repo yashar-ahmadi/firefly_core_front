@@ -6,24 +6,10 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Pagination } from '@/components/ui/pagination'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SmartImage } from '@/components/ui/smart-image'
+import { ProductCardSkeleton } from '@/features/catalog/components/product-card-skeleton'
 import { Demo, Section, sectionTitle } from './showcase'
 
 const hrefFor = (page: number) => `/dev/ui/?page=${page}#pagination`
-
-function ProductCardSkeleton() {
-  return (
-    <Card className="p-2 sm:p-3">
-      <Skeleton className="aspect-square w-full" />
-      <div className="grid gap-2.5 p-1 pt-4 sm:p-1 sm:pt-4">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-2/3" />
-        <Skeleton className="h-4 w-1/3" />
-        <Skeleton className="h-6 w-1/2" />
-        <Skeleton className="h-10 w-full" />
-      </div>
-    </Card>
-  )
-}
 
 export function FeedbackSections() {
   return (

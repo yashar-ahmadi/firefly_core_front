@@ -18,11 +18,20 @@ export interface PriceProps {
   /** Discount to show; computed from `original` when omitted. */
   discountPercent?: number
   size?: PriceSize
+  /** De-emphasised, for something that cannot be bought now (an out-of-stock card). */
+  muted?: boolean
   className?: string
 }
 
 /** «۹۰۰٬۰۰۰ تومان», with the struck original and a sale pill when discounted. */
-export function Price({ amount, original, discountPercent, size = 'md', className }: PriceProps) {
+export function Price({
+  amount,
+  original,
+  discountPercent,
+  size = 'md',
+  muted = false,
+  className,
+}: PriceProps) {
   const s = SIZES[size]
   if (amount === null) {
     return (
@@ -44,7 +53,8 @@ export function Price({ amount, original, discountPercent, size = 'md', classNam
           {percent > 0 && (
             <span
               className={cn(
-                'inline-flex items-center rounded-pill bg-sale font-bold text-sale-fg',
+                'inline-flex items-center rounded-pill font-bold',
+                muted ? 'bg-ink-100 text-ink-600' : 'bg-sale text-sale-fg',
                 s.pill,
               )}
             >
@@ -60,7 +70,13 @@ export function Price({ amount, original, discountPercent, size = 'md', classNam
         </span>
       )}
       <span className="flex items-baseline gap-1">
-        <span className={cn('leading-tight font-bold text-ink-900', s.amount)}>
+        <span
+          className={cn(
+            'leading-tight font-bold',
+            muted ? 'text-ink-500' : 'text-ink-900',
+            s.amount,
+          )}
+        >
           {formatToman(amount, { suffix: false })}
         </span>{' '}
         <span className={cn('text-ink-500', s.unit)}>تومان</span>

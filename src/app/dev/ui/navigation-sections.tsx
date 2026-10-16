@@ -11,7 +11,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Chip } from '@/components/ui/chip'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ProductCardDemo } from './product-card-demo'
+import { ProductCard } from '@/features/catalog/components/product-card'
+import { SHOWCASE_PRODUCTS } from './product-fixtures'
 import { Demo, Section, sectionTitle } from './showcase'
 
 const BANNERS = [
@@ -34,16 +35,6 @@ const BANNERS = [
     action: 'primary',
   },
 ] as const
-
-const PRODUCTS = [
-  { name: 'گوشی موبایل سامسونگ مدل Galaxy A55', amount: 18_490_000, original: 21_900_000 },
-  { name: 'هدفون بی‌سیم انکر مدل Soundcore Q20i', amount: 3_250_000 },
-  { name: 'کتری برقی فیلیپس مدل HD9350', amount: 4_780_000, original: 5_100_000 },
-  { name: 'ساعت هوشمند شیائومی مدل Redmi Watch 5', amount: 6_900_000 },
-  { name: 'پاوربانک شیائومی ظرفیت ۲۰۰۰۰ میلی‌آمپر', amount: 1_350_000, original: 1_600_000 },
-  { name: 'اسپیکر بلوتوثی جی‌بی‌ال مدل Flip 6', amount: 7_400_000 },
-  { name: 'ماوس بی‌سیم لاجیتک مدل M185', amount: 690_000 },
-]
 
 const FAQ = [
   [
@@ -160,13 +151,8 @@ export function NavigationSections() {
         </Demo>
         <Demo label="کالاها: ۲٫۲ در موبایل، ۳ در تبلت، ۴ در دسکتاپ" className="block">
           <Carousel ariaLabel="پیشنهادهای ویژه" slidesPerView={{ base: 2.2, md: 3, lg: 4 }}>
-            {PRODUCTS.map((product, index) => (
-              <ProductCardDemo
-                key={product.name}
-                {...product}
-                rating={4.5 - index * 0.2}
-                count={40 + index * 13}
-              />
+            {SHOWCASE_PRODUCTS.map((product) => (
+              <ProductCard key={product.id} product={product} showOutOfStockLabel />
             ))}
           </Carousel>
         </Demo>

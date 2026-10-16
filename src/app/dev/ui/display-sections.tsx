@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/card'
 import { Price } from '@/components/ui/price'
 import { Rating } from '@/components/ui/rating'
+import { ProductCardSection } from './catalog-sections'
 import { ChipsDemo } from './demos'
-import { ProductCardDemo } from './product-card-demo'
 import { Demo, Section, sectionTitle } from './showcase'
 
 const TONES: Array<[BadgeTone, string]> = [
@@ -93,38 +93,6 @@ function Cards() {
           </Card>
         ))}
       </Demo>
-      <Demo
-        label="کارت محصول (ترکیب اجزا)"
-        className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
-      >
-        <ProductCardDemo
-          name="گوشی موبایل سامسونگ مدل Galaxy A55 ظرفیت ۲۵۶ گیگابایت"
-          amount={18_490_000}
-          original={21_900_000}
-          rating={4.6}
-          count={1284}
-          badge="فروش ویژه"
-        />
-        <ProductCardDemo
-          name="هدفون بی‌سیم انکر مدل Soundcore Q20i"
-          amount={3_250_000}
-          rating={4.2}
-          count={312}
-        />
-        <ProductCardDemo
-          name="کتری برقی فیلیپس مدل HD9350"
-          amount={4_780_000}
-          original={5_100_000}
-          rating={3.8}
-          count={57}
-        />
-        <ProductCardDemo
-          name="ساعت هوشمند شیائومی مدل Redmi Watch 5"
-          amount={null}
-          rating={4.9}
-          count={9}
-        />
-      </Demo>
     </Section>
   )
 }
@@ -158,6 +126,7 @@ export function DisplaySections() {
     <>
       <Badges />
       <Cards />
+      <ProductCardSection />
       <PriceAndRating />
     </>
   )

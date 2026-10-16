@@ -14,14 +14,9 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useFeature } from '@/features/settings/feature-context'
 import { useT } from '@/lib/i18n/i18n-context'
+import { loginHref } from '@/lib/links/login'
 import { useSession } from '@/lib/session/session-context'
 import { CountBadge } from './count-badge'
-
-/** `/login/?next=<this page>`, readable (slashes kept); auth pages send no `next`. */
-export function loginHref(pathname: string): string {
-  if (pathname === '/' || /^\/(?:login|register)\//.test(pathname)) return '/login/'
-  return `/login/?next=${encodeURIComponent(pathname).replace(/%2F/gi, '/')}`
-}
 
 /** Signed in: the account entry (Plan 3 adds the summary and sign-out). */
 function AccountMenu() {

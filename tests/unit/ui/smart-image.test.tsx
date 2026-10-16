@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { PLACEHOLDER_SRC, SmartImage, isOptimizable } from '@/components/ui/smart-image'
 import type { PublicStoreConfig } from '@/config/resolve-store-config'
@@ -80,5 +80,33 @@ describe('SmartImage', () => {
     // An explicit prop still wins.
     const overridden = screen.getByRole('img', { name: 'مبدأ دیگر' }).getAttribute('src')
     expect(overridden).toBe(`${MEDIA}/media/b.jpg`)
+  })
+
+  it('shows a skeleton in the frame until the image loads', async () => {
+    const { container } = render(
+      <SmartImage src="https://cdn.example.com/a.jpg" alt="گوشی" ratio="1/1" skeleton />,
+    )
+    const skeleton = () => container.querySelector('[data-image-skeleton]')
+    expect(skeleton()).not.toBeNull()
+    // next/image reports the load after `decode()`, a microtask later.
+    fireEvent.load(screen.getByRole('img', { name: 'گوشی' }))
+    await waitFor(() => expect(skeleton()).toBeNull())
+  })
+
+  it('shows the skeleton again for the placeholder after a failure, until it loads', async () => {
+    const { container } = render(
+      <SmartImage src="https://cdn.example.com/a.jpg" alt="گوشی" ratio="1/1" skeleton />,
+    )
+    const skeleton = () => container.querySelector('[data-image-skeleton]')
+    fireEvent.error(screen.getByRole('img', { name: 'گوشی' }))
+    expect(skeleton()).not.toBeNull()
+    // next/image reports the load after `decode()`, a microtask later.
+    fireEvent.load(screen.getByRole('img', { name: 'گوشی' }))
+    await waitFor(() => expect(skeleton()).toBeNull())
+  })
+
+  it('has no skeleton unless asked', () => {
+    const { container } = render(<SmartImage src={null} alt="" ratio="1/1" />)
+    expect(container.querySelector('[data-image-skeleton]')).toBeNull()
   })
 })

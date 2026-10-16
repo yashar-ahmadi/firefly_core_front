@@ -25,6 +25,15 @@ describe('Price', () => {
     expect(container).toHaveTextContent('۱٬۰۰۰٬۰۰۰ تومان')
   })
 
+  it('mutes the amount and the discount pill', () => {
+    const { container } = render(<Price amount={750000} original={1000000} muted />)
+    expect(screen.getByText('۷۵۰٬۰۰۰')).toHaveClass('text-ink-500')
+    expect(screen.getByText('۷۵۰٬۰۰۰')).not.toHaveClass('text-ink-900')
+    const pill = screen.getByText('۲۵\u{066A}')
+    expect(pill).not.toHaveClass('bg-sale')
+    expect(container).toHaveTextContent('۷۵۰٬۰۰۰ تومان')
+  })
+
   it('renders «ناموجود» when the amount is null', () => {
     const { container } = render(<Price amount={null} original={1000000} />)
     expect(screen.getByText('ناموجود')).toBeInTheDocument()

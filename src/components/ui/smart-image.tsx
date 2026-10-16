@@ -4,6 +4,7 @@ import Image, { type ImageProps } from 'next/image'
 import { useState } from 'react'
 import { useOptionalStoreConfig } from '@/lib/config-context'
 import { cn } from './cn'
+import { Skeleton } from './skeleton'
 
 /** Shown when there is no image or it fails to load (public/images/placeholder.svg). */
 export const PLACEHOLDER_SRC = '/images/placeholder.svg'
@@ -53,6 +54,8 @@ export interface SmartImageProps extends Omit<ImageProps, 'src' | 'alt'> {
   fit?: 'cover' | 'contain'
   /** Classes for the `<img>` when `ratio` is set. */
   imgClassName?: string
+  /** With `ratio`: a shimmering skeleton fills the frame until the image (or placeholder) loads. */
+  skeleton?: boolean
 }
 
 /** next/image with a placeholder fallback, an optional ratio frame and safe optimization. */
@@ -64,8 +67,10 @@ export function SmartImage({
   fit = 'cover',
   className,
   imgClassName,
+  skeleton = false,
   unoptimized,
   onError,
+  onLoad,
   ...props
 }: SmartImageProps) {
   const config = useOptionalStoreConfig()
@@ -73,6 +78,8 @@ export function SmartImage({
   // Remember which source failed, so a new `src` is tried again without an effect.
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const shown = src && src !== failedSrc ? src : PLACEHOLDER_SRC
+  // next/image reports images that finished before hydration too, so the skeleton never sticks.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null)
   const image = (extra: Partial<ImageProps>, imageClass?: string) => (
     <Image
       {...props}
@@ -83,6 +90,10 @@ export function SmartImage({
       onError={(event) => {
         if (src) setFailedSrc(src)
         onError?.(event)
+      }}
+      onLoad={(event) => {
+        setLoadedSrc(shown)
+        onLoad?.(event)
       }}
       className={imageClass}
     />
@@ -99,6 +110,9 @@ export function SmartImage({
           .join(' / '),
       }}
     >
+      {skeleton && loadedSrc !== shown && (
+        <Skeleton data-image-skeleton className="absolute inset-0 rounded-none" />
+      )}
       {image(
         { fill: true, sizes: props.sizes ?? '100vw' },
         cn(fit === 'contain' ? 'object-contain' : 'object-cover', imgClassName),

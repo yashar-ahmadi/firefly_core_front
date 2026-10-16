@@ -57,6 +57,7 @@ export const SECTIONS = [
   { id: 'selection', title: 'گزینه‌ها' },
   { id: 'badges', title: 'برچسب‌ها و تراشه‌ها' },
   { id: 'cards', title: 'کارت‌ها' },
+  { id: 'products', title: 'کارت محصول' },
   { id: 'price', title: 'قیمت و امتیاز' },
   { id: 'stepper', title: 'تعداد' },
   { id: 'countdown', title: 'شمارش معکوس' },

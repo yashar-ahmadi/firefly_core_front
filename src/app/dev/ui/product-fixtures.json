@@ -1,0 +1,510 @@
+[
+  {
+    "id": 10001,
+    "name": "گوشی موبایل سامسونگ گلکسی S25 اولترا",
+    "slug": "samsung-galaxy-s25-ultra",
+    "extra_detail": "دو سیم کارت، ۵G",
+    "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/samsung-galaxy-s25-ultra/f6daa39fa5ced22ccc1b8265ccc98ebb.jpg",
+    "type": "variable",
+    "badge": {
+      "id": 10001,
+      "name": "پرفروش",
+      "badge_color": "#FF6D00",
+      "text_color": "#FFFFFF"
+    },
+    "brand": {
+      "id": 10001,
+      "name": "سامسونگ",
+      "slug": "samsung",
+      "image": "http://localhost:8000/static/defaults/default.png"
+    },
+    "categories": [
+      {
+        "id": 10002,
+        "name": "گوشی موبایل",
+        "slug": "mobile-phone",
+        "parent_id": 10001
+      }
+    ],
+    "in_stock": true,
+    "is_special_product": true,
+    "is_collection": false,
+    "enable_major": false,
+    "rating": 4.0,
+    "rating_count": 3,
+    "default_variant_id": 10001,
+    "default_variant_attributes": [
+      {
+        "attribute_name": "رنگ",
+        "name": "مشکی"
+      },
+      {
+        "attribute_name": "حافظه داخلی",
+        "name": "۲۵۶ گیگابایت"
+      },
+      {
+        "attribute_name": "حافظه رم",
+        "name": "۱۲ گیگابایت"
+      }
+    ],
+    "price": 78500000,
+    "final_price": 78500000,
+    "has_discount": false,
+    "discount_percent": 0,
+    "discount_end_time": null,
+    "discount_time_remaining": null,
+    "order_limit_min": 1,
+    "order_limit_max": 0,
+    "is_in_wishlist": false,
+    "created": "2025-11-17T15:00:00+03:30",
+    "updated": "2026-10-15T22:41:20.354527+03:30"
+  },
+  {
+    "id": 10002,
+    "name": "گوشی موبایل اپل آیفون ۱۶ پرو مکس",
+    "slug": "apple-iphone-16-pro-max",
+    "extra_detail": "نات اکتیو، LLA",
+    "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/apple-iphone-16-pro-max/a8609dc5e3f35a1194df71fb67d8068c.jpg",
+    "type": "variable",
+    "badge": {
+      "id": 10004,
+      "name": "اورجینال",
+      "badge_color": "#1565C0",
+      "text_color": "#FFFFFF"
+    },
+    "brand": {
+      "id": 10002,
+      "name": "اپل",
+      "slug": "apple",
+      "image": "http://localhost:8000/static/defaults/default.png"
+    },
+    "categories": [
+      {
+        "id": 10002,
+        "name": "گوشی موبایل",
+        "slug": "mobile-phone",
+        "parent_id": 10001
+      }
+    ],
+    "in_stock": true,
+    "is_special_product": true,
+    "is_collection": false,
+    "enable_major": false,
+    "rating": 3.5,
+    "rating_count": 2,
+    "default_variant_id": 10005,
+    "default_variant_attributes": [
+      {
+        "attribute_name": "رنگ",
+        "name": "مشکی"
+      },
+      {
+        "attribute_name": "حافظه داخلی",
+        "name": "۲۵۶ گیگابایت"
+      }
+    ],
+    "price": 118000000,
+    "final_price": 118000000,
+    "has_discount": false,
+    "discount_percent": 0,
+    "discount_end_time": null,
+    "discount_time_remaining": null,
+    "order_limit_min": 1,
+    "order_limit_max": 2,
+    "is_in_wishlist": false,
+    "created": "2025-11-20T15:00:00+03:30",
+    "updated": "2026-10-15T22:41:20.373401+03:30"
+  },
+  {
+    "id": 10003,
+    "name": "گوشی موبایل شیائومی ردمی نوت ۱۴ پرو",
+    "slug": "xiaomi-redmi-note-14-pro",
+    "extra_detail": null,
+    "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/xiaomi-redmi-note-14-pro/be947b127c362f699feab343acaacd76.jpg",
+    "type": "variable",
+    "badge": {
+      "id": 10005,
+      "name": "پیشنهاد شگفت انگیز",
+      "badge_color": "#6A1B9A",
+      "text_color": "#FFFFFF"
+    },
+    "brand": {
+      "id": 10003,
+      "name": "شیائومی",
+      "slug": "xiaomi",
+      "image": "http://localhost:8000/static/defaults/default.png"
+    },
+    "categories": [
+      {
+        "id": 10002,
+        "name": "گوشی موبایل",
+        "slug": "mobile-phone",
+        "parent_id": 10001
+      }
+    ],
+    "in_stock": true,
+    "is_special_product": false,
+    "is_collection": false,
+    "enable_major": false,
+    "rating": 4.5,
+    "rating_count": 2,
+    "default_variant_id": 10008,
+    "default_variant_attributes": [
+      {
+        "attribute_name": "رنگ",
+        "name": "مشکی"
+      },
+      {
+        "attribute_name": "حافظه داخلی",
+        "name": "۱۲۸ گیگابایت"
+      },
+      {
+        "attribute_name": "حافظه رم",
+        "name": "۸ گیگابایت"
+      }
+    ],
+    "price": 17900000,
+    "final_price": 17900000,
+    "has_discount": false,
+    "discount_percent": 0,
+    "discount_end_time": null,
+    "discount_time_remaining": null,
+    "order_limit_min": 1,
+    "order_limit_max": 0,
+    "is_in_wishlist": false,
+    "created": "2025-11-23T15:00:00+03:30",
+    "updated": "2026-10-15T22:41:20.392017+03:30"
+  },
+  {
+    "id": 10067,
+    "name": "چیپس خانواده طعم پنیری",
+    "slug": "chips-pack-family",
+    "extra_detail": null,
+    "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/chips-pack-family/7013ee06d2f30da329cd6cb38ed00b18.jpg",
+    "type": "simple",
+    "badge": null,
+    "brand": null,
+    "categories": [
+      {
+        "id": 10029,
+        "name": "تنقلات",
+        "slug": "snacks",
+        "parent_id": 10027
+      }
+    ],
+    "in_stock": false,
+    "is_special_product": false,
+    "is_collection": false,
+    "enable_major": false,
+    "rating": 0.0,
+    "rating_count": 0,
+    "default_variant_id": 10128,
+    "default_variant_attributes": [],
+    "price": 125000,
+    "final_price": 125000,
+    "has_discount": false,
+    "discount_percent": 0,
+    "discount_end_time": null,
+    "discount_time_remaining": null,
+    "order_limit_min": 1,
+    "order_limit_max": 0,
+    "is_in_wishlist": false,
+    "created": "2026-06-03T15:00:00+03:30",
+    "updated": "2026-06-03T15:00:00+03:30"
+  },
+  {
+    "id": 10035,
+    "name": "تلویزیون هوشمند هایسنس ۵۵ اینچ مدل U7",
+    "slug": "hisense-tv-55-u7",
+    "extra_detail": null,
+    "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/hisense-tv-55-u7/b2b453f528c6c372a6e465a75fe0946a.jpg",
+    "type": "simple",
+    "badge": null,
+    "brand": {
+      "id": 10029,
+      "name": "هایسنس",
+      "slug": "hisense",
+      "image": "http://localhost:8000/static/defaults/default.png"
+    },
+    "categories": [
+      {
+        "id": 10008,
+        "name": "لوازم خانگی",
+        "slug": "home-appliance",
+        "parent_id": null
+      }
+    ],
+    "in_stock": true,
+    "is_special_product": true,
+    "is_collection": false,
+    "enable_major": false,
+    "rating": 0.0,
+    "rating_count": 0,
+    "default_variant_id": 10062,
+    "default_variant_attributes": [],
+    "price": 64500000,
+    "final_price": 64500000,
+    "has_discount": false,
+    "discount_percent": 0,
+    "discount_end_time": null,
+    "discount_time_remaining": null,
+    "order_limit_min": 1,
+    "order_limit_max": 0,
+    "is_in_wishlist": false,
+    "created": "2026-02-27T15:00:00+03:30",
+    "updated": "2026-10-15T22:41:18.936072+03:30"
+  },
+  {
+    "id": 10037,
+    "name": "کفش ورزشی مردانه نایکی Air Zoom Pegasus",
+    "slug": "nike-air-zoom-pegasus",
+    "extra_detail": null,
+    "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/nike-air-zoom-pegasus/4c67747a1520860a758695af5903ca41.jpg",
+    "type": "variable",
+    "badge": {
+      "id": 10001,
+      "name": "پرفروش",
+      "badge_color": "#FF6D00",
+      "text_color": "#FFFFFF"
+    },
+    "brand": {
+      "id": 10013,
+      "name": "نایکی",
+      "slug": "nike",
+      "image": "http://localhost:8000/static/defaults/default.png"
+    },
+    "categories": [
+      {
+        "id": 10016,
+        "name": "کیف و کفش",
+        "slug": "bag-and-shoes",
+        "parent_id": 10013
+      },
+      {
+        "id": 10025,
+        "name": "لوازم ورزشی",
+        "slug": "sport-equipment",
+        "parent_id": 10024
+      }
+    ],
+    "in_stock": true,
+    "is_special_product": false,
+    "is_collection": false,
+    "enable_major": false,
+    "rating": 4.0,
+    "rating_count": 2,
+    "default_variant_id": 10064,
+    "default_variant_attributes": [
+      {
+        "attribute_name": "رنگ",
+        "name": "مشکی"
+      },
+      {
+        "attribute_name": "سایز",
+        "name": "۴۰"
+      }
+    ],
+    "price": 8900000,
+    "final_price": 8900000,
+    "has_discount": false,
+    "discount_percent": 0,
+    "discount_end_time": null,
+    "discount_time_remaining": null,
+    "order_limit_min": 1,
+    "order_limit_max": 0,
+    "is_in_wishlist": false,
+    "created": "2026-03-05T15:00:00+03:30",
+    "updated": "2026-10-15T22:41:20.461633+03:30"
+  },
+  {
+    "id": 10009,
+    "name": "لپ تاپ اپل مک بوک ایر M4",
+    "slug": "apple-macbook-air-m4",
+    "extra_detail": null,
+    "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/apple-macbook-air-m4/35a32063f8ad0a89c17642d5aeff48bc.jpg",
+    "type": "variable",
+    "badge": {
+      "id": 10004,
+      "name": "اورجینال",
+      "badge_color": "#1565C0",
+      "text_color": "#FFFFFF"
+    },
+    "brand": {
+      "id": 10002,
+      "name": "اپل",
+      "slug": "apple",
+      "image": "http://localhost:8000/static/defaults/default.png"
+    },
+    "categories": [
+      {
+        "id": 10003,
+        "name": "لپ تاپ و الترابوک",
+        "slug": "laptop",
+        "parent_id": 10001
+      }
+    ],
+    "in_stock": true,
+    "is_special_product": true,
+    "is_collection": false,
+    "enable_major": false,
+    "rating": 5.0,
+    "rating_count": 1,
+    "default_variant_id": 10022,
+    "default_variant_attributes": [
+      {
+        "attribute_name": "رنگ",
+        "name": "نقره ای"
+      },
+      {
+        "attribute_name": "حافظه داخلی",
+        "name": "۲۵۶ گیگابایت"
+      },
+      {
+        "attribute_name": "حافظه رم",
+        "name": "۱۶ گیگابایت"
+      }
+    ],
+    "price": 96500000,
+    "final_price": 96500000,
+    "has_discount": false,
+    "discount_percent": 0,
+    "discount_end_time": null,
+    "discount_time_remaining": null,
+    "order_limit_min": 1,
+    "order_limit_max": 0,
+    "is_in_wishlist": false,
+    "created": "2025-12-11T15:00:00+03:30",
+    "updated": "2026-10-15T22:41:18.573149+03:30"
+  },
+  {
+    "id": 10015,
+    "name": "هندزفری بی سیم اپل ایرپاد پرو ۲",
+    "slug": "apple-airpods-pro-2",
+    "extra_detail": null,
+    "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/apple-airpods-pro-2/9adebade1d8284cceff28ac5b45a55f1.jpg",
+    "type": "simple",
+    "badge": {
+      "id": 10004,
+      "name": "اورجینال",
+      "badge_color": "#1565C0",
+      "text_color": "#FFFFFF"
+    },
+    "brand": {
+      "id": 10002,
+      "name": "اپل",
+      "slug": "apple",
+      "image": "http://localhost:8000/static/defaults/default.png"
+    },
+    "categories": [
+      {
+        "id": 10005,
+        "name": "هدفون و هندزفری",
+        "slug": "headphone",
+        "parent_id": 10001
+      }
+    ],
+    "in_stock": true,
+    "is_special_product": false,
+    "is_collection": false,
+    "enable_major": false,
+    "rating": 4.0,
+    "rating_count": 1,
+    "default_variant_id": 10032,
+    "default_variant_attributes": [],
+    "price": 13900000,
+    "final_price": 13900000,
+    "has_discount": false,
+    "discount_percent": 0,
+    "discount_end_time": null,
+    "discount_time_remaining": null,
+    "order_limit_min": 1,
+    "order_limit_max": 0,
+    "is_in_wishlist": false,
+    "created": "2025-12-29T15:00:00+03:30",
+    "updated": "2026-10-15T22:41:18.671002+03:30"
+  },
+  {
+    "id": 10065,
+    "name": "پسته اکبری درجه یک یک کیلوگرم",
+    "slug": "pistachio-akbari-1kg",
+    "extra_detail": null,
+    "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/pistachio-akbari-1kg/7a423b95b5e923ee139f28590be8ff0a.jpg",
+    "type": "variable",
+    "badge": null,
+    "brand": null,
+    "categories": [
+      {
+        "id": 10029,
+        "name": "تنقلات",
+        "slug": "snacks",
+        "parent_id": 10027
+      }
+    ],
+    "in_stock": true,
+    "is_special_product": true,
+    "is_collection": false,
+    "enable_major": false,
+    "rating": 5.0,
+    "rating_count": 1,
+    "default_variant_id": 10125,
+    "default_variant_attributes": [
+      {
+        "attribute_name": "وزن بسته",
+        "name": "۵۰۰ گرم"
+      }
+    ],
+    "price": 1450000,
+    "final_price": 1450000,
+    "has_discount": false,
+    "discount_percent": 0,
+    "discount_end_time": null,
+    "discount_time_remaining": null,
+    "order_limit_min": 1,
+    "order_limit_max": 0,
+    "is_in_wishlist": false,
+    "created": "2026-05-28T15:00:00+03:30",
+    "updated": "2026-10-15T22:41:19.443703+03:30"
+  },
+  {
+    "id": 10034,
+    "name": "مایکروویو پاناسونیک ۲۵ لیتری",
+    "slug": "panasonic-microwave-25",
+    "extra_detail": null,
+    "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/panasonic-microwave-25/fe3e6040560291d6e5fc76a938a7b5de.jpg",
+    "type": "simple",
+    "badge": null,
+    "brand": {
+      "id": 10010,
+      "name": "پاناسونیک",
+      "slug": "panasonic",
+      "image": "http://localhost:8000/static/defaults/default.png"
+    },
+    "categories": [
+      {
+        "id": 10012,
+        "name": "لوازم برقی آشپزخانه",
+        "slug": "kitchen-appliance",
+        "parent_id": 10008
+      }
+    ],
+    "in_stock": false,
+    "is_special_product": false,
+    "is_collection": false,
+    "enable_major": false,
+    "rating": 0.0,
+    "rating_count": 0,
+    "default_variant_id": 10061,
+    "default_variant_attributes": [],
+    "price": 18500000,
+    "final_price": 18500000,
+    "has_discount": false,
+    "discount_percent": 0,
+    "discount_end_time": null,
+    "discount_time_remaining": null,
+    "order_limit_min": 1,
+    "order_limit_max": 0,
+    "is_in_wishlist": false,
+    "created": "2026-02-24T15:00:00+03:30",
+    "updated": "2026-02-24T15:00:00+03:30"
+  }
+]
