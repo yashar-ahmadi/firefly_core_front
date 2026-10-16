@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/components/ui/cn'
 import { QuantityStepper } from '@/components/ui/quantity-stepper'
 import { useAddToCart } from '@/features/cart/hooks'
+import { productPath } from '@/features/catalog/listing-routes'
 import { compareItemFrom } from '@/features/compare/compare-item'
 import { CompareToggle } from '@/features/compare/compare-toggle'
 import { HeartButton } from '@/features/wishlist/heart-button'
@@ -39,7 +40,7 @@ export interface BuyBoxProps {
 export function BuyBox({ contactPhone, className }: BuyBoxProps) {
   const t = useT()
   const router = useRouter()
-  const { product, variant, quantity, setQuantity, bounds } = useProduct()
+  const { product, variant, quantity, setQuantity, bounds, announcement } = useProduct()
   const { add } = useAddToCart()
   const [running, setRunning] = useState<'add' | 'buy' | null>(null)
   const unavailable = unavailableLabel(product, variant)
@@ -49,17 +50,22 @@ export function BuyBox({ contactPhone, className }: BuyBoxProps) {
     setRunning(kind)
     const meta = { name: product.name, image: variant.image ?? product.image }
     const added = await add(variant.id, quantity, meta, { toast: kind === 'add' })
-    setRunning(null)
+    // After buy now succeeds the page is leaving: stay busy, so nothing is added twice.
     if (added && kind === 'buy') router.push(CHECKOUT)
+    else setRunning(null)
   }
 
-  const path = `/product/${encodeURIComponent(product.slug)}/${variant ? `?variant=${variant.id}` : ''}`
+  const path = `${productPath(product.slug)}${variant ? `?variant=${variant.id}` : ''}`
 
   return (
     <section
       aria-label="خرید"
       className={cn('flex flex-col gap-4 rounded-card bg-white p-4 shadow-card sm:p-5', className)}
     >
+      {/* Says a new choice once made (never on load): price and stock change with no reload. */}
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
       <PriceBlock variant={variant} />
       <StockStatus variant={variant} productInStock={product.in_stock} />
 

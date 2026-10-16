@@ -92,17 +92,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
         {product.is_unpublished && <UnpublishedBanner />}
         <Breadcrumbs items={trail} className="mb-2" />
-        {/* Gallery at the start; from xl at its natural 500px, with the summary and the buy box
-            side by side after it. */}
-        <div className="grid gap-6 md:grid-cols-2 md:gap-8 xl:grid-cols-[31.25rem_minmax(0,1fr)]">
+        {/* Gallery at the start (from xl at its natural 500px); from lg the summary and the
+            sticky buy box sit side by side after it. */}
+        <div className="grid gap-6 md:grid-cols-2 md:gap-8 lg:grid-cols-[22rem_minmax(0,1fr)] xl:grid-cols-[31.25rem_minmax(0,1fr)]">
           <div className={cn('min-w-0 md:sticky md:self-start', STICKY_TOP)}>
             <ProductGallery />
           </div>
-          <div className="flex min-w-0 flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
+          <div className="flex min-w-0 flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_20rem]">
             <ProductSummary product={product} />
             <BuyBox
               contactPhone={settings?.phone ?? null}
-              className={cn('xl:sticky', STICKY_TOP)}
+              className={cn('lg:sticky', STICKY_TOP)}
             />
           </div>
         </div>

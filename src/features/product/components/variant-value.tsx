@@ -31,9 +31,10 @@ export interface VariantValueProps {
 /**
  * One value of a picker axis: a `radio` in its group. Colours and patterns show a swatch beside
  * the name (never the colour alone); other types are text chips. Chosen: brand outline, ring and
- * a check mark. Out of stock: the name struck through, still selectable. No such combination
- * beside the other choices: dashed and dimmed, still selectable (the picker moves to a variant
- * that exists). 44px tall.
+ * a check mark. Out of stock: the name struck through (ink-600: AA on the chosen chip's tint),
+ * still selectable. No such combination beside the other choices: a dashed outline and a
+ * crossed-out swatch in its true colour, still selectable (the picker moves to a variant that
+ * exists). 44px tall.
  */
 export function VariantValue({
   value,
@@ -77,7 +78,6 @@ export function VariantValue({
           className={cn(
             'relative grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-ink-100',
             'after:absolute after:inset-0 after:rounded-full after:ring-1 after:ring-ink-900/20 after:ring-inset',
-            state === 'no_such_combo' && !checked && 'opacity-40',
           )}
         >
           {pattern && (
@@ -88,13 +88,20 @@ export function VariantValue({
               <Check strokeWidth={3} className="size-3.5" />
             </span>
           )}
+          {state === 'no_such_combo' && !checked && (
+            // Crossed out, the colour kept true: a white bar with a dark edge shows on any swatch.
+            <span
+              data-slash=""
+              className="absolute inset-x-[-15%] top-1/2 h-0.5 -translate-y-1/2 -rotate-45 bg-white shadow-[0_0_0_1px_rgb(15_23_42/0.6)]"
+            />
+          )}
         </span>
       ) : (
         checked && <Check aria-hidden strokeWidth={2.5} className="size-4 shrink-0" />
       )}
       <span
         dir="auto"
-        className={cn('truncate', state === 'out_of_stock' && 'text-ink-500 line-through')}
+        className={cn('truncate', state === 'out_of_stock' && 'text-ink-600 line-through')}
       >
         {value.name}
       </span>

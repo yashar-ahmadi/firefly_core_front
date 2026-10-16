@@ -118,6 +118,8 @@ describe('ProductGallery', () => {
     renderWithProduct(<ProductGallery />, { product })
     const dots = within(screen.getByRole('group', { name: 'انتخاب تصویر' })).getAllByRole('button')
     expect(dots).toHaveLength(4)
+    // 44×44 targets; the visible dot is small inside.
+    for (const dot of dots) expect(dot).toHaveClass('size-11')
     fireEvent.click(dots[1]!)
     expect(embla.api.scrollTo).toHaveBeenLastCalledWith(1, false)
   })

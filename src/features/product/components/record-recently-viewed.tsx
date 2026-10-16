@@ -13,6 +13,8 @@ export function RecordRecentlyViewed() {
   const { product } = useProduct()
   const record = useRecentlyViewed((state) => state.record)
   const recordVisit = useEffectEvent(() => record(cardFromDetail(product)))
-  useEffect(() => recordVisit(), [product.slug])
+  useEffect(() => {
+    recordVisit()
+  }, [product.slug])
   return null
 }

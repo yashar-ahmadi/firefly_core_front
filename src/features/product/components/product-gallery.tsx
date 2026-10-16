@@ -120,7 +120,7 @@ export function ProductGallery() {
               aria-label={`تصویر ${toPersianDigits(index + 1)}`}
               aria-current={index === selected ? 'true' : undefined}
               onClick={() => go(index)}
-              className="group grid h-11 w-8 place-items-center rounded-full"
+              className="group grid size-11 place-items-center rounded-full"
             >
               <span className="h-2.5 w-2.5 rounded-full bg-ink-300 transition-[width,background-color] duration-200 group-aria-[current=true]:w-7 group-aria-[current=true]:bg-brand" />
             </button>

@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotifyMe } from '@/features/product/components/notify-me'
-import { ApiError } from '@/lib/api/errors'
+import { ApiError, NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
 import { chipsProduct, s25Product } from './fixtures'
 import { resetRouter, router } from './router'
 import { renderWithProduct } from './support'
@@ -120,6 +120,17 @@ describe('NotifyMe for a guest', () => {
     await fill('09121234567')
     expect(await screen.findByRole('alert')).toHaveTextContent(detail)
     expect(router.refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['no connection', ApiError.network()],
+    ['a page that is not the API', ApiError.nonJson(502)],
+    ['a redirect from the API', ApiError.upstreamRedirect()],
+  ])('says why when the request fails with %s (no field to show it under)', async (_, error) => {
+    mocks.bffFetch.mockRejectedValue(error)
+    await fill('09121234567')
+    expect(await screen.findByRole('alert')).toHaveTextContent(NETWORK_ERROR_DETAIL)
+    expect(screen.getByRole('button', { name: SUBMIT })).toBeEnabled()
   })
 
   it('goes away with the reason when the feature was switched off meanwhile', async () => {

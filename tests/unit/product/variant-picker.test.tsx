@@ -72,6 +72,15 @@ describe('VariantPicker', () => {
     expect(probe()).toBe('10001:78500000:true:1')
   })
 
+  it('crosses out the swatch of a missing combination, keeping its true colour', () => {
+    renderPicker()
+    const silverSwatch = colour(/^نقره ای/).querySelector('[style]')
+    expect(silverSwatch).not.toHaveClass('opacity-40')
+    expect(silverSwatch?.querySelector('[data-slash]')).not.toBeNull()
+    expect(colour(/^مشکی/).querySelector('[data-slash]')).toBeNull()
+    expect(colour(/^طلایی/).querySelector('[data-slash]')).toBeNull()
+  })
+
   it('dims values with no variant beside the current choice, and keeps them clickable', () => {
     renderPicker()
     const silver = colour(/^نقره ای/)
@@ -101,10 +110,13 @@ describe('VariantPicker', () => {
       'aria-checked',
       'true',
     )
-    // Out of stock: struck through, still selectable, and said.
+    // Out of stock: struck through, still selectable, and said; ink-600 keeps it at AA on the
+    // chosen chip's brand-50 (ink-500 is about 4.4:1 there).
     expect(colour(/^نقره ای/)).toHaveAttribute('data-state', 'out_of_stock')
     expect(colour(/^نقره ای/)).toHaveAccessibleName('نقره ای، ناموجود')
-    expect(colour(/^نقره ای/).querySelector('.line-through')).not.toBeNull()
+    const struck = colour(/^نقره ای/).querySelector('.line-through')
+    expect(struck).toHaveClass('text-ink-600')
+    expect(struck).not.toHaveClass('text-ink-500')
   })
 
   it('moves and selects with the arrow keys, in reading order (left is next in RTL)', () => {
@@ -147,6 +159,44 @@ describe('the chosen variant in the URL (?variant=)', () => {
     renderPicker()
     expect(colour(/^طلایی/)).toHaveAttribute('aria-checked', 'true')
     expect(probe()).toMatch(/^10003:/)
+  })
+
+  it('follows a navigation to the same page with another ?variant=', () => {
+    router.search = 'variant=10002'
+    const { rerender } = renderPicker()
+    expect(probe()).toMatch(/^10002:/)
+    router.search = 'variant=10003'
+    rerender(
+      <>
+        <VariantPicker />
+        <Probe />
+      </>,
+    )
+    expect(colour(/^طلایی/)).toHaveAttribute('aria-checked', 'true')
+    expect(probe()).toMatch(/^10003:/)
+    // A ?variant= that names nothing of this product changes nothing.
+    router.search = 'variant=99999'
+    rerender(
+      <>
+        <VariantPicker />
+        <Probe />
+      </>,
+    )
+    expect(probe()).toMatch(/^10003:/)
+  })
+
+  it('keeps a choice when the URL only echoes it back (its own replaceState)', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderPicker()
+    await user.click(colour(/^نقره ای/))
+    router.search = 'variant=10004'
+    rerender(
+      <>
+        <VariantPicker />
+        <Probe />
+      </>,
+    )
+    expect(probe()).toMatch(/^10004:/)
   })
 
   it('ignores a ?variant= that is not a variant of this product', () => {

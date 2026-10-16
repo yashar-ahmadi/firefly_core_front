@@ -23,6 +23,7 @@ interface LiveVariant {
 }
 
 interface LiveProduct {
+  default_variant_id: number
   variants: LiveVariant[]
   gallery: unknown[]
 }
@@ -122,7 +123,9 @@ test.describe('product page', () => {
     await expect(page.getByRole('form', { name: NOTIFY })).toHaveCount(0)
   })
 
-  test('adding to the cart updates the cart badge', async ({ page }) => {
+  test('adding to the cart updates the cart badge', async ({ page, request }) => {
+    // The page opens on the default variant: that is the line to remove afterwards.
+    const added = (await liveS25(request)).default_variant_id
     await page.goto(S25)
     const cart = page.getByRole('banner').getByRole('link', { name: /^سبد خرید/ })
     await expect(cart).toHaveAccessibleName('سبد خرید')
@@ -134,7 +137,7 @@ test.describe('product page', () => {
       await expect(cart).toHaveAccessibleName(`سبد خرید، ${digits(1)} کالا`)
     } finally {
       // Give the stock hold back to the shared dev backend.
-      await page.request.delete(`/api/bff/cart/item/${VALUE.black}/remove/`, {
+      await page.request.delete(`/api/bff/cart/item/${added}/remove/`, {
         headers: { 'X-Requested-With': 'ff' },
       })
     }
@@ -216,19 +219,6 @@ test.describe('product page status and stock', () => {
     await expect(bottomNav(page)).toBeVisible()
     await expect(buyBar(page)).toHaveCount(0)
   })
-})
-
-test.describe('product page server HTML on a phone', () => {
-  // Before any script runs: the navigation is already hidden by CSS, so it never flashes.
-  test.use({ javaScriptEnabled: false, viewport: { width: 375, height: 812 } })
-
-  test('hides the bottom navigation behind the buy bar from the first paint', async ({ page }) => {
-    await page.goto(S25)
-    await expect(buyBar(page)).toBeVisible()
-    // In the page, hidden by CSS (not left out by the URL).
-    await expect(bottomNav(page)).toHaveCount(1)
-    await expect(bottomNav(page)).toBeHidden()
-  })
 
   test('an out-of-stock product offers the back-in-stock form', async ({ page }) => {
     const errors = watchErrors(page)
@@ -243,5 +233,18 @@ test.describe('product page server HTML on a phone', () => {
     }
     await page.waitForLoadState('load')
     expect(errors).toEqual([])
+  })
+})
+
+test.describe('product page server HTML on a phone', () => {
+  // Before any script runs: the navigation is already hidden by CSS, so it never flashes.
+  test.use({ javaScriptEnabled: false, viewport: { width: 375, height: 812 } })
+
+  test('hides the bottom navigation behind the buy bar from the first paint', async ({ page }) => {
+    await page.goto(S25)
+    await expect(buyBar(page)).toBeVisible()
+    // In the page, hidden by CSS (not left out by the URL).
+    await expect(bottomNav(page)).toHaveCount(1)
+    await expect(bottomNav(page)).toBeHidden()
   })
 })

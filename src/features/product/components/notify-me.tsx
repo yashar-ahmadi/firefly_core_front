@@ -89,11 +89,13 @@ function NotifyForm({ slug }: { slug: string }) {
         names: current.names || !!fields.first_name || !!fields.last_name,
         mobile: current.mobile || !!fields.mobile_number,
       }))
+      const placed = fields.first_name || fields.last_name || fields.mobile_number
       setErrors({
         first_name: fields.first_name,
         last_name: fields.last_name,
         mobile_number: fields.mobile_number,
-        form: fields.non_field_errors,
+        // No connection, a page that is not the API, a redirect: no field to show it under.
+        form: fields.non_field_errors ?? (placed ? undefined : error.detail),
       })
     },
   })

@@ -190,6 +190,21 @@ describe('BuyBox: buy now', () => {
     expect(mocks.success).not.toHaveBeenCalled()
   })
 
+  it('stays busy after a successful buy now until the page goes, so it never adds twice', async () => {
+    const user = userEvent.setup()
+    mocks.bffFetch.mockResolvedValue(result(cart([cartLine()]), MSG_ADDED))
+    renderBox({ product: s25Product() })
+    const buyNow = screen.getByRole('button', { name: BUY_NOW })
+    await user.click(buyNow)
+    await waitFor(() => expect(router.push).toHaveBeenCalledTimes(1))
+    expect(buyNow).toHaveAttribute('aria-busy', 'true')
+    expect(buyNow).toBeDisabled()
+    expect(screen.getByRole('button', { name: ADD })).toBeDisabled()
+    await user.click(buyNow)
+    await user.click(screen.getByRole('button', { name: ADD }))
+    expect(mocks.bffFetch).toHaveBeenCalledTimes(1)
+  })
+
   it('stays on the page with the reason when the cart refuses', async () => {
     const user = userEvent.setup()
     const detail = 'موجودی کافی نیست.'

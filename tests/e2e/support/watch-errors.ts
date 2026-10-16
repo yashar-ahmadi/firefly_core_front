@@ -1,7 +1,7 @@
-import type { ConsoleMessage, Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
-/** The dev backend has no media files: its pictures and placeholders may fail to load. */
-const MEDIA_FILE = /\/(?:media|static)\//
+/** The dev backend's picture paths: its pictures and placeholders may fail to load in dev. */
+const MEDIA_PATH = /^\/(?:media|static)\//
 
 /**
  * Routes later plans build, which the shell already links to (header search, cart and login;
@@ -12,36 +12,41 @@ const MEDIA_FILE = /\/(?:media|static)\//
 const NOT_YET_BUILT =
   /^\/(?:search|compare|login|register|forgot-password|account|cart|checkout|blog|page)\//
 
+const FAILED_LOAD = /^Failed to load resource/
 const NOT_FOUND = /^Failed to load resource: the server responded with a status of 404\b/
 
-/** A failed load of a backend picture. */
-function isMissingMedia(message: ConsoleMessage): boolean {
-  return /^Failed to load resource/.test(message.text()) && MEDIA_FILE.test(message.location().url)
-}
-
-/** A 404 from a route that does not exist yet (a visit, or the router's prefetch of a link). */
-function isPendingRoute(message: ConsoleMessage): boolean {
-  if (!NOT_FOUND.test(message.text())) return false
+function pathOf(url: string): string | null {
   try {
-    return NOT_YET_BUILT.test(new URL(message.location().url).pathname)
+    return new URL(url).pathname
   } catch {
-    return false
+    return null
   }
 }
 
 /**
+ * Whether a console error is one the dev environment is expected to log: a failed load of a
+ * backend picture (a path under `/media/` or `/static/`, so `/_next/static/` chunks are still
+ * reported), or a 404 from a route not built yet. Pure, for the unit test.
+ */
+export function isExpectedFailure(text: string, url: string): boolean {
+  const path = pathOf(url)
+  if (path === null || !FAILED_LOAD.test(text)) return false
+  return MEDIA_PATH.test(path) || (NOT_FOUND.test(text) && NOT_YET_BUILT.test(path))
+}
+
+/**
  * Page errors and console errors seen while the page runs: hydration mismatches included, also
- * the production build's minified ones («Minified React error #418»). Let through only failed
- * loads of `/media/` and `/static/` files, and 404s from routes not built yet; any other failed
- * request (a 5xx page or chunk, a 404 script) is an error.
+ * the production build's minified ones («Minified React error #418»). Only `isExpectedFailure`
+ * messages are let through; any other failed request (a 5xx page, a Next chunk, a 404 script)
+ * is an error.
  */
 export function watchErrors(page: Page): string[] {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
     if (message.type() !== 'error') return
-    if (isMissingMedia(message) || isPendingRoute(message)) return
     const url = message.location().url
+    if (isExpectedFailure(message.text(), url)) return
     errors.push(url ? `${message.text()} (${url})` : message.text())
   })
   return errors

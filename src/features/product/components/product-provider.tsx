@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import type { Variant } from '@/lib/api/types/catalog'
 import { useLeavingPage } from '@/lib/navigation/router-navigation'
+import { choiceSummary } from '../announce'
 import type { ClientProduct } from '../client-product'
 import { clampQuantity, quantityBounds, type QuantityBounds } from '../quantity'
 import {
@@ -25,6 +26,8 @@ export interface ProductState {
   quantity: number
   setQuantity: (quantity: number) => void
   bounds: QuantityBounds
+  /** The last choice in words, for a live region; '' until the shopper chooses (not on load). */
+  announcement: string
 }
 
 const ProductContext = createContext<ProductState | null>(null)
@@ -70,12 +73,26 @@ export function ProductProvider({ product, initialVariantId, children }: Product
         : (initialVariantId ?? product.default_variant_id),
     ),
   )
+  const [announcement, setAnnouncement] = useState('')
   // The quantity the shopper asked for; shown within the current variant's bounds.
   const [wanted, setWanted] = useState<number | null>(null)
   const leaving = useLeavingPage(ignore)
 
   const variant = currentVariant(product, selection)
   const bounds = quantityBounds(variant)
+
+  // A navigation to this page with another `?variant=` (a link, Back within the page's own
+  // entries) keeps this component: follow it when it names another variant of this product.
+  // The URL that `select` writes names the variant already shown, so it changes nothing.
+  const [seenRequest, setSeenRequest] = useState(requested)
+  if (requested !== seenRequest) {
+    setSeenRequest(requested)
+    const id = requestedVariantId(product, requested)
+    const named = id !== null && String(id) === requested
+    if (initialVariantId === undefined && named && id !== variant?.id) {
+      setSelection(initialSelection(product.variant_options, product.variants, id))
+    }
+  }
 
   const value: ProductState = {
     product,
@@ -90,12 +107,14 @@ export function ProductProvider({ product, initialVariantId, children }: Product
         valueId,
       )
       setSelection(next)
+      setAnnouncement(choiceSummary(product, next, currentVariant(product, next)))
       if (leaving) return
       window.history.replaceState(null, '', addressWith(currentVariant(product, next)))
     },
     quantity: clampQuantity(wanted ?? bounds.min, bounds),
     setQuantity: (quantity) => setWanted(clampQuantity(quantity, bounds)),
     bounds,
+    announcement,
   }
   return <ProductContext value={value}>{children}</ProductContext>
 }

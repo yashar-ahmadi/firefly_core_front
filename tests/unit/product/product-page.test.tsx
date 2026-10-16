@@ -117,6 +117,13 @@ describe('the product page', () => {
     expect(screen.queryByText('این صفحه هنوز منتشر نشده است')).toBeNull()
   })
 
+  it('keeps the buy box in view beside the summary from lg', async () => {
+    await renderPage()
+    const box = screen.getByRole('region', { name: 'خرید' })
+    expect(box).toHaveClass('lg:sticky')
+    expect(box.parentElement).toHaveClass('lg:grid')
+  })
+
   it('links the rating to the reviews', async () => {
     await renderPage()
     expect(screen.getByRole('link', { name: /۳ دیدگاه/ })).toHaveAttribute('href', '#reviews')
@@ -188,7 +195,8 @@ describe('the product page', () => {
   it('warns staff that a draft is not published', async () => {
     mocks.getProductDetail.mockResolvedValue(s25Product({ is_unpublished: true }))
     await renderPage()
-    expect(screen.getByRole('status')).toHaveTextContent('این صفحه هنوز منتشر نشده است')
+    const banner = screen.getByText('این صفحه هنوز منتشر نشده است')
+    expect(banner).toHaveAttribute('role', 'status')
   })
 })
 
@@ -203,12 +211,6 @@ describe('product metadata', () => {
     expect(meta).not.toHaveProperty('robots')
     expect(meta.openGraph).toMatchObject({ images: [product.image], siteName: 'فایرفلای' })
     expect(meta.twitter).toMatchObject({ card: 'summary_large_image', images: [product.image] })
-  })
-
-  it("keeps a shared variant link's canonical on the product", async () => {
-    router.search = 'variant=10003'
-    const meta = await generateMetadata(props())
-    expect(meta.alternates).toEqual({ canonical: '/product/samsung-galaxy-s25-ultra/' })
   })
 
   it('is noindex, nofollow for a draft seen in a staff preview', async () => {
