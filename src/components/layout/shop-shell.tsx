@@ -1,4 +1,5 @@
 import { Suspense, type ReactNode } from 'react'
+import { LiveAnnouncer } from '@/components/ui/live-announcer'
 import { MobileBottomNav } from './mobile-bottom-nav'
 import { NavigationProgress } from './navigation-progress'
 import { ScrollWatcher } from './scroll-state'
@@ -10,8 +11,9 @@ import { SiteHeader } from './site-header'
  * target of the root layout's skip link), the footer and the phone's bottom navigation, which
  * reserves its own height at the very end of the page. Used by `(shop)/layout.tsx` and by the root
  * not-found page (unknown URLs), which Next.js renders outside the shop layout. `overlays` (the
- * shop layout's compare bar and quick view host) come last, after the navigation. The navigation
- * progress bar reads the URL (`useSearchParams`), hence its own empty Suspense boundary.
+ * shop layout's compare bar and quick view host) come last, after the navigation and the shop's
+ * polite live region (`announce`). The navigation progress bar reads the URL
+ * (`useSearchParams`), hence its own empty Suspense boundary.
  */
 export function ShopShell({ children, overlays }: { children: ReactNode; overlays?: ReactNode }) {
   return (
@@ -26,6 +28,7 @@ export function ShopShell({ children, overlays }: { children: ReactNode; overlay
       </main>
       <SiteFooter />
       <MobileBottomNav />
+      <LiveAnnouncer />
       {overlays}
     </div>
   )

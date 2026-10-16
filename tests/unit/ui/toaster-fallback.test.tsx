@@ -74,4 +74,32 @@ describe('Toaster without Sonner', () => {
     act(() => vi.advanceTimersByTime(6_000))
     expect(polite).not.toHaveTextContent('کد کپی شد')
   })
+
+  it('reads each new message alone: the regions are not atomic', async () => {
+    render(<Toaster />)
+    act(() => notify.info('یک'))
+    const { polite, assertive } = await regions()
+    expect(polite).toHaveAttribute('aria-atomic', 'false')
+    expect(assertive).toHaveAttribute('aria-atomic', 'false')
+  })
+
+  it('lets a new message go by itself after the last one was closed under the pointer', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    render(<Toaster />)
+    act(() => notify.info('اولی'))
+    const { section, polite } = await regions()
+    await within(polite).findByText('اولی')
+    // Pointer over the message and focus on its close button, then it is closed: the box
+    // disappears from under the pointer, so no mouseleave and no blur follow.
+    fireEvent.mouseEnter(section)
+    const close = within(polite).getByRole('button', { name: 'بستن اعلان' })
+    act(() => close.focus())
+    fireEvent.click(close)
+    expect(polite).not.toHaveTextContent('اولی')
+
+    act(() => notify.info('دومی'))
+    await within(polite).findByText('دومی')
+    act(() => vi.advanceTimersByTime(6_000))
+    expect(polite).not.toHaveTextContent('دومی')
+  })
 })

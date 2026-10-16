@@ -2,7 +2,6 @@
 
 import { useMutation } from '@tanstack/react-query'
 import { BellRing, CircleAlert, CircleCheck } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import { useId, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
@@ -21,6 +20,8 @@ export const NOTIFY_ME_TITLE = 'موجود شد خبرم کن'
 const TITLE = NOTIFY_ME_TITLE
 const LEAD = 'هر وقت این کالا موجود شد، با پیامک خبرتان می\u{200C}کنیم.'
 const DONE = 'درخواست شما ثبت شد. پس از موجود شدن کالا به شما خبر می\u{200C}دهیم.'
+/** After «already in stock»: the cached page may not show it for up to a minute. */
+export const RELOAD_SOON = 'چند لحظهٔ دیگر صفحه را دوباره بارگذاری کنید تا بتوانید آن را بخرید.'
 
 type FieldName = 'first_name' | 'last_name' | 'mobile_number'
 type Errors = Partial<Record<FieldName | 'form', string>>
@@ -46,12 +47,12 @@ function localErrors(values: Record<FieldName, string>, names: boolean, mobile: 
 /**
  * The back-in-stock request (product digest §3.14): a guest gives a name and mobile (Persian
  * digits welcome); a signed-in shopper just presses, unless the account lacks a name or a
- * mobile. The API's field errors go under their fields; «already in stock» reads the page again
- * (the buy box comes back); a switched-off feature hides the form with the operator's reason.
+ * mobile. The API's field errors go under their fields; «already in stock» asks the shopper to
+ * reload in a moment (the page is cached up to a minute, so a refresh at once could still show
+ * the product out of stock); a switched-off feature hides the form with the operator's reason.
  */
 function NotifyForm({ slug }: { slug: string }) {
   const { hasSession } = useSession()
-  const router = useRouter()
   const markFeatureDisabled = useMarkFeatureDisabled()
   const titleId = useId()
   const [values, setValues] = useState<Record<FieldName, string>>({
@@ -79,8 +80,9 @@ function NotifyForm({ slug }: { slug: string }) {
         return
       }
       if (error.code === 'stock_notification_already_in_stock') {
-        setErrors({ form: error.detail })
-        router.refresh()
+        // The page is cached for up to a minute, so reading it again at once could still show
+        // «ناموجود»: say so, and let the shopper reload in a moment.
+        setErrors({ form: `${error.detail} ${RELOAD_SOON}` })
         return
       }
       const fields = error.fieldErrors()

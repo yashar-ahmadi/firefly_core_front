@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { NotifyMe } from '@/features/product/components/notify-me'
+import { NotifyMe, RELOAD_SOON } from '@/features/product/components/notify-me'
 import { ApiError, NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
 import { chipsProduct, s25Product } from './fixtures'
 import { resetRouter, router } from './router'
@@ -114,12 +114,15 @@ describe('NotifyMe for a guest', () => {
     expect(mobile).toHaveAttribute('aria-invalid', 'true')
   })
 
-  it('refreshes the page when the product is back in stock already', async () => {
+  it('asks to reload in a moment when the product is back in stock already', async () => {
     const detail = 'این کالا هم\u{200C}اکنون موجود است و می\u{200C}توانید آن را سفارش دهید.'
     mocks.bffFetch.mockRejectedValue(refused('stock_notification_already_in_stock', null, detail))
     await fill('09121234567')
-    expect(await screen.findByRole('alert')).toHaveTextContent(detail)
-    expect(router.refresh).toHaveBeenCalledTimes(1)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(detail)
+    expect(alert).toHaveTextContent(RELOAD_SOON)
+    // A refresh now would read the same cached page (up to a minute old).
+    expect(router.refresh).not.toHaveBeenCalled()
   })
 
   it.each([

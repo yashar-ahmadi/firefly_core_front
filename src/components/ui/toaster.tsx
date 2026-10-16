@@ -121,6 +121,12 @@ function FallbackToasts() {
       setShown((list) => [...list.filter((n) => id === undefined || n.id !== id), item].slice(-3))
     })
   }, [])
+  // The last message closed under the pointer or with the focus in it: the section is empty,
+  // so neither mouseleave nor blur may ever come. Nothing left to hold.
+  if (shown.length === 0 && (hovered || focused)) {
+    setHovered(false)
+    setFocused(false)
+  }
   const held = hovered || focused
   useEffect(() => {
     if (shown.length === 0 || held) return
@@ -150,10 +156,11 @@ function FallbackToasts() {
       }}
       className="pointer-events-none fixed inset-x-4 top-4 z-[100] flex flex-col items-center gap-2"
     >
-      <div role="status" aria-live="polite" className={REGION}>
+      {/* Not atomic: a new message is read alone, not with the ones still shown. */}
+      <div role="status" aria-live="polite" aria-atomic="false" className={REGION}>
         {boxes(false)}
       </div>
-      <div role="alert" aria-live="assertive" className={REGION}>
+      <div role="alert" aria-live="assertive" aria-atomic="false" className={REGION}>
         {boxes(true)}
       </div>
     </section>

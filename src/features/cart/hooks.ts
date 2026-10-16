@@ -8,6 +8,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query'
 import { useRef } from 'react'
+import { announce } from '@/components/ui/live-announcer'
 import { notify } from '@/components/ui/toaster'
 import { useHydrated } from '@/components/ui/use-media-query'
 import { ApiError } from '@/lib/api/errors'
@@ -29,6 +30,8 @@ export {
 } from './use-update-cart-line'
 
 const REMOVED = 'کالا از سبد خرید حذف شد.'
+/** Read out after an add, followed by the product's name. */
+export const ADDED_ANNOUNCEMENT = 'به سبد خرید اضافه شد'
 
 /** Items in the cart: the API's `item_count` (the sum of the line quantities); 0 without one. */
 export function cartCount(cart: Cart | undefined): number {
@@ -97,9 +100,10 @@ export interface AddVariables {
 }
 
 /**
- * `POST cart/item/add/` as mutation options. Success stores the returned cart and shows the
- * «added» toast; a refusal (limit, stock, a switched-off feature, throttling) shows the API's
- * Persian detail and leaves the cache alone.
+ * `POST cart/item/add/` as mutation options. Success stores the returned cart, shows the
+ * «added» toast and reads «به سبد خرید اضافه شد: <name>» out through the shell's live region; a
+ * refusal (limit, stock, a switched-off feature, throttling) shows the API's Persian detail and
+ * leaves the cache alone.
  */
 function addToCartOptions(
   client: QueryClient,
@@ -109,7 +113,10 @@ function addToCartOptions(
     mutationFn: ({ variant, quantity }) => cartApi.add(variant, quantity),
     onSuccess: async ({ data, msg }, { meta, toast }) => {
       await storeCart(client, data)
-      if (toast) showAddedToCartToast({ ...meta, message: msg })
+      if (!toast) return
+      showAddedToCartToast({ ...meta, message: msg })
+      // Also through the shell's own region: Sonner's is only created with its first toast.
+      announce(`${ADDED_ANNOUNCEMENT}: ${meta.name}`)
     },
     onError: (error) => notify.error(errorDetail(error)),
   }
