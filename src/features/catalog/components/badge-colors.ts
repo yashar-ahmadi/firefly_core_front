@@ -23,6 +23,13 @@ function opaqueHex(value: unknown): string | null {
   return `#${rgb}`
 }
 
+/** Whether a valid hex colour is see-through: an alpha digit pair (or digit) below F(F). */
+function isTranslucent(value: string): boolean {
+  const digits = value.trim().slice(1)
+  const alpha = digits.length === 4 ? digits[3]! : digits.length === 8 ? digits.slice(6) : null
+  return alpha !== null && !/^f+$/i.test(alpha)
+}
+
 export interface BadgeStyle {
   backgroundColor: string
   color: string
@@ -30,9 +37,10 @@ export interface BadgeStyle {
 
 /**
  * Inline colours for a badge pill. The operator's fill is kept as given (alpha included); their
- * text colour is kept only when it reaches 4.5:1 on it, judged on the opaque colours. Otherwise,
- * or when the text colour is missing or unreadable, `readableTextOn` picks one. An unreadable
- * fill falls back to a neutral dark one.
+ * text colour is kept only when it is opaque and reaches 4.5:1 on the fill's opaque colour.
+ * Otherwise, or when the text colour is missing or unreadable, `readableTextOn` picks one. A
+ * see-through text colour counts as unreadable: what shows through it decides its contrast. An
+ * unreadable fill falls back to a neutral dark one.
  */
 export function badgeColors(badge: {
   badge_color?: Badge['badge_color'] | null
@@ -44,7 +52,11 @@ export function badgeColors(badge: {
   }
   const background = (badge.badge_color as string).trim()
   const text = opaqueHex(badge.text_color)
-  if (text !== null && contrastRatio(fill, text) >= AA_TEXT) {
+  if (
+    text !== null &&
+    !isTranslucent(badge.text_color as string) &&
+    contrastRatio(fill, text) >= AA_TEXT
+  ) {
     return { backgroundColor: background, color: (badge.text_color as string).trim() }
   }
   return { backgroundColor: background, color: readableTextOn(fill) }

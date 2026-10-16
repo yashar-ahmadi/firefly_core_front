@@ -5,7 +5,8 @@ import { DiscountTimer } from './discount-timer'
 
 /**
  * What a card shows on its image: «ناموجود» over a veil, the operator's badge (bottom-start) and
- * the timed-deal pill (bottom-end). Placed after the name in the DOM and positioned over the
+ * the timed-deal pill (bottom-end; never on an out-of-stock product, which cannot be bought
+ * before the deal ends). Placed after the name in the DOM and positioned over the
  * image, so screen readers meet the name first. Being on the image, the pill adds no row: every
  * card keeps the skeleton's height. When both don't fit the badge yields: it truncates down to
  * 4.5rem, then moves to its own line above the pill; the pill never shrinks.
@@ -17,7 +18,8 @@ export function CardImageLabels({
   product: CardProduct
   unavailable: boolean
 }) {
-  const dealEndsAt = product.has_discount ? product.discount_time_remaining : null
+  const dealEndsAt =
+    product.has_discount && product.in_stock ? product.discount_time_remaining : null
   if (!unavailable && !product.badge && dealEndsAt === null) return null
 
   return (

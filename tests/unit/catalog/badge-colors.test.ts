@@ -38,14 +38,25 @@ describe('badgeColors', () => {
       backgroundColor: '#FF6D00CC',
       color: readableTextOn('#FF6D00'),
     })
-    expect(badgeColors({ badge_color: '#1565C0FF', text_color: '#FFFFFF80' })).toEqual({
+    expect(badgeColors({ badge_color: '#1565C0FF', text_color: '#FFFFFFFF' })).toEqual({
       backgroundColor: '#1565C0FF',
-      color: '#FFFFFF80',
+      color: '#FFFFFFFF',
     })
     expect(badgeColors({ badge_color: '#15cf', text_color: '#fff' })).toEqual({
       backgroundColor: '#15cf',
       color: '#fff',
     })
+  })
+
+  it('treats a see-through text colour as unreadable: its contrast depends on what is behind', () => {
+    // Half-white on blue would pass on the opaque colours (5.8:1) but reads far fainter.
+    for (const text_color of ['#FFFFFF80', '#fff8', '#FFFFFFFE', '#ffff0']) {
+      expect(badgeColors({ badge_color: '#1565C0', text_color })).toEqual({
+        backgroundColor: '#1565C0',
+        color: readableTextOn('#1565C0'),
+      })
+    }
+    expect(badgeColors({ badge_color: '#1565C0', text_color: '#fffF' }).color).toBe('#fffF')
   })
 
   it('uses a neutral background when the badge colour cannot be read', () => {
