@@ -1,13 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { SAMPLE, seedCompare } from '../support/compare-seed'
 import { watchErrors } from '../support/watch-errors'
 
 // Quick view, comparison and recently viewed (spec §8.12, §8.3) against the dev backend's sample
 // data: the phones category holds variable products (S25 Ultra, iPhone 15, Galaxy A56).
 
 const PHONES = '/product-category/digital/mobile-phone/'
-const S25 = { slug: 'samsung-galaxy-s25-ultra', name: 'گوشی موبایل سامسونگ گلکسی S25 اولترا' }
-const IPHONE_15 = { slug: 'apple-iphone-15', name: 'گوشی موبایل اپل آیفون ۱۵' }
-const A56 = { slug: 'samsung-galaxy-a56', name: 'گوشی موبایل سامسونگ گلکسی A56' }
+const { S25, IPHONE_15, A56 } = SAMPLE
 const CHOOSE = 'انتخاب ویژگی\u{200C}ها'
 const MD = 768
 
@@ -152,15 +151,7 @@ test.describe('compare table on a phone', () => {
   }) => {
     test.skip(!isPhone(page), 'the narrow table is for phones (below md)')
     await page.setViewportSize({ width: 375, height: 812 })
-    const items = [S25, A56, IPHONE_15].map(({ slug, name }) => ({
-      slug,
-      name,
-      image: 'http://localhost:8000/static/defaults/default.png',
-      categoryId: 10002,
-    }))
-    await page.addInitScript((list) => {
-      localStorage.setItem('ff-compare', JSON.stringify({ state: { items: list }, version: 0 }))
-    }, items)
+    await seedCompare(page, [S25, A56, IPHONE_15])
     await page.goto('/compare/')
     const table = page.getByRole('table', { name: 'مقایسه کالاها' })
     await expect(table.getByRole('link', { name: S25.name })).toBeVisible()
@@ -191,15 +182,7 @@ test.describe('compare bar on a product page', () => {
     test.skip(!isPhone(page), 'the buy bar is for phones (below md)')
     // The narrowest common phone.
     await page.setViewportSize({ width: 375, height: 812 })
-    const items = [IPHONE_15, A56].map(({ slug, name }) => ({
-      slug,
-      name,
-      image: 'http://localhost:8000/static/defaults/default.png',
-      categoryId: 10002,
-    }))
-    await page.addInitScript((list) => {
-      localStorage.setItem('ff-compare', JSON.stringify({ state: { items: list }, version: 0 }))
-    }, items)
+    await seedCompare(page, [IPHONE_15, A56])
     await page.goto(`/product/${S25.slug}/`)
     const bar = page.getByRole('region', { name: 'فهرست مقایسه' })
     const buyBar = page.getByRole('region', { name: 'نوار خرید' })

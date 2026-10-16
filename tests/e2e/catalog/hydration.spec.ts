@@ -1,4 +1,5 @@
 import { devices, expect, test, type Browser, type Page } from '@playwright/test'
+import { SAMPLE, seedCompare } from '../support/compare-seed'
 import { watchErrors } from '../support/watch-errors'
 
 // The production build hydrates every catalog page cleanly, on a phone (375) and on a desktop
@@ -33,16 +34,6 @@ const VIEWPORTS = [
 /** Hydration errors React or Next may log in any console channel. */
 const HYDRATION = /Hydration failed|Minified React error #(?:418|423|425)\b|hydration/i
 
-/** Two products for the compare page (it renders nothing to compare without them). */
-const COMPARE = [
-  { slug: 'samsung-galaxy-s25-ultra', name: 'گوشی موبایل سامسونگ گلکسی S25 اولترا' },
-  { slug: 'samsung-galaxy-a56', name: 'گوشی موبایل سامسونگ گلکسی A56' },
-].map((item) => ({
-  ...item,
-  image: 'http://localhost:8000/static/defaults/default.png',
-  categoryId: 10002,
-}))
-
 /**
  * Resolves once the shell has hydrated: below md the header's search field becomes a read-only
  * trigger, from md the cart icon becomes a button that opens the mini-cart.
@@ -64,11 +55,8 @@ async function visit(browser: Browser, path: string, viewport: (typeof VIEWPORTS
     ...viewport.options,
     baseURL: test.info().project.use.baseURL,
   })
-  if (path === '/compare/') {
-    await context.addInitScript((list) => {
-      localStorage.setItem('ff-compare', JSON.stringify({ state: { items: list }, version: 0 }))
-    }, COMPARE)
-  }
+  // The compare page renders nothing to compare without products in the list.
+  if (path === '/compare/') await seedCompare(context, [SAMPLE.S25, SAMPLE.A56])
   const page = await context.newPage()
   const errors = watchErrors(page)
   const hydration: string[] = []
