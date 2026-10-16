@@ -244,7 +244,7 @@ deployment, validated by zod at boot.
 | `STORE_PRESET` | `default` · `digital` · `agro` · `boardgame` · `carpet` · `paint` |
 | `THEME_PRIMARY`, `THEME_ACCENT` | brand colours (hex). The full 50–950 scale is generated in OKLCH. |
 | `THEME_RADIUS` | `sm` · `md` · `lg` · `xl` |
-| `THEME_FONT` | `vazirmatn` (default) · `custom` (licensed files placed in `src/assets/fonts/custom/`) |
+| `THEME_FONT` | `vazirmatn` (default) · `custom` (a licensed `font.woff2` placed at `public/fonts/custom/font.woff2`) |
 | `NESHAN_MAP_KEY` | enables Neshan tiles and search; otherwise OpenStreetMap |
 | `FIREBASE_*` | optional web push (see 8.12) |
 | `FEATURE_COMPARE`, `FEATURE_QUICK_VIEW`, `FEATURE_RECENTLY_VIEWED`, `FEATURE_PWA` | frontend extras on or off |
