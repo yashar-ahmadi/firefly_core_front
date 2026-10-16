@@ -144,6 +144,16 @@ describe.each<[Exclude<DetailLoader, 'getProductDetail'>]>([
   })
 })
 
+describe('getProductDetail("list")', () => {
+  it('asks the API: product/detail/list/ is an ordinary product path', async () => {
+    mocks.fetch.mockImplementation(async () => failure(404, 'not_found'))
+    const api = await loadCatalog()
+    expect(await api.getProductDetail('list')).toBeNull()
+    const [call] = calls(mocks.fetch)
+    expect(call?.url).toBe(`${API}product/detail/list/`)
+  })
+})
+
 describe('public catalog reads', () => {
   it('never send a token, a cart token or the visitor IP, and always the API key', async () => {
     mocks.fetch.mockImplementation(async () => page([]))
