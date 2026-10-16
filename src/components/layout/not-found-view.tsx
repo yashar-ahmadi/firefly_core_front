@@ -7,7 +7,7 @@ import { getCategoryTree, getTranslations } from '@/features/settings/api'
 import { createTranslator } from '@/lib/i18n/translator'
 import { CONTAINER } from './container'
 import { HeaderSearchForm } from './header-search-form'
-import { categoryHref } from './menu-tree'
+import { categoryPath } from '@/features/catalog/listing-routes'
 
 /** How many top-level categories are offered as a way on. */
 const CATEGORY_LIMIT = 8
@@ -80,7 +80,7 @@ export async function NotFoundView() {
             {categories.map((category) => (
               <li key={category.id}>
                 <Link
-                  href={categoryHref(category.path)}
+                  href={categoryPath(category.path)}
                   prefetch={false}
                   className="inline-flex min-h-11 items-center rounded-pill border border-ink-200 bg-white px-4 text-sm font-medium text-ink-800 transition-colors hover:border-brand-300 hover:text-brand-800"
                 >

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { isModifiedClick } from '@/lib/navigation/modified-click'
 import { usePersistHydration } from '@/lib/store/persisted'
 import { searchHref } from './query'
 import { useRecentSearches } from './recent-searches'
@@ -160,9 +161,7 @@ export function useSearchBox({
     onKeyDown,
     choose,
     follow: (event) => {
-      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return
-      }
+      if (isModifiedClick(event)) return
       if (typedTerm(value) !== '') add(value)
       finish()
     },

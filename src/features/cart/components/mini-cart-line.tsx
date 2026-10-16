@@ -8,6 +8,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { Price } from '@/components/ui/price'
 import { QuantityStepper } from '@/components/ui/quantity-stepper'
 import { SmartImage } from '@/components/ui/smart-image'
+import { productPath } from '@/features/catalog/listing-routes'
 import type { CartLine } from '@/lib/api/types/cart'
 import { formatNumber } from '@/lib/format'
 import { lineLimits, useRemoveCartLine, useUpdateCartLine } from '../hooks'
@@ -49,7 +50,7 @@ export interface MiniCartLineProps {
  */
 export function MiniCartLine({ line, onNavigate, onRemoving, onRemoveFailed }: MiniCartLineProps) {
   const nameId = useId()
-  const href = `/product/${encodeURIComponent(line.product_slug)}/`
+  const href = productPath(line.product_slug)
   const quantity = useUpdateCartLine(line)
   const { remove, isPending: removing } = useRemoveCartLine()
   const { min, max } = lineLimits(line)

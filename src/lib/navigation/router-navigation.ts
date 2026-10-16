@@ -1,5 +1,6 @@
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useEffectEvent, useState } from 'react'
+import { isModifiedClick } from './modified-click'
 
 /**
  * When the page is about to navigate: a click that follows a same-origin link, or the start of
@@ -31,9 +32,7 @@ export function isSameOriginLinkClick(event: MouseEvent): boolean {
 
 /** The URL a click is about to follow when `isSameOriginLinkClick` holds, else null. */
 export function sameOriginLinkTarget(event: MouseEvent): URL | null {
-  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-    return null
-  }
+  if (isModifiedClick(event)) return null
   const link = event.target instanceof Element ? event.target.closest('a[href]') : null
   if (!(link instanceof HTMLAnchorElement) || link.hasAttribute('download')) return null
   if (link.hasAttribute('data-opens-dialog')) return null

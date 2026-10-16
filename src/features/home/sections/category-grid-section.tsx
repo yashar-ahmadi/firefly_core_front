@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import { CategoryThumb } from '@/components/layout/category-thumb'
-import { categoryHref } from '@/components/layout/menu-tree'
+import { categoryPath } from '@/features/catalog/listing-routes'
 import { cn } from '@/components/ui/cn'
 import type { HomeSection } from '@/lib/api/types/catalog'
 import { SectionShell } from './section-header'
@@ -61,7 +61,7 @@ export function CategoryGridSection({ section, seeAllLabel }: CategoryGridSectio
         {section.categories.map((category) => (
           <li key={category.id} className={ITEM}>
             <Link
-              href={categoryHref(category.path)}
+              href={categoryPath(category.path)}
               prefetch={false}
               className="group flex flex-col items-center gap-2 rounded-card p-1 text-center"
             >

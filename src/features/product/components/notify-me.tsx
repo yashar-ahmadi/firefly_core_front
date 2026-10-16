@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { notify } from '@/components/ui/toaster'
 import { useFeature, useMarkFeatureDisabled } from '@/features/settings/feature-context'
 import { bffFetch } from '@/lib/api/client'
-import { ApiError } from '@/lib/api/errors'
+import { ApiError, GENERIC_ERROR_DETAIL } from '@/lib/api/errors'
 import { normalizeIranMobile } from '@/lib/format'
 import { useSession } from '@/lib/session/session-context'
 import { useProduct } from './product-provider'
@@ -21,7 +21,6 @@ export const NOTIFY_ME_TITLE = 'موجود شد خبرم کن'
 const TITLE = NOTIFY_ME_TITLE
 const LEAD = 'هر وقت این کالا موجود شد، با پیامک خبرتان می\u{200C}کنیم.'
 const DONE = 'درخواست شما ثبت شد. پس از موجود شدن کالا به شما خبر می\u{200C}دهیم.'
-const FAILED = 'خطایی رخ داد. لطفاً دوباره تلاش کنید.'
 
 type FieldName = 'first_name' | 'last_name' | 'mobile_number'
 type Errors = Partial<Record<FieldName | 'form', string>>
@@ -73,7 +72,7 @@ function NotifyForm({ slug }: { slug: string }) {
       bffFetch<Record<string, never>>(`product/detail/${slug}/notify/`, { method: 'POST', body }),
     onSuccess: ({ msg }) => setDone(msg || DONE),
     onError: (error) => {
-      if (!(error instanceof ApiError)) return setErrors({ form: FAILED })
+      if (!(error instanceof ApiError)) return setErrors({ form: GENERIC_ERROR_DETAIL })
       if (error.isFeatureDisabled()) {
         markFeatureDisabled('stock_notifications', error.detail)
         notify.error(error.detail)

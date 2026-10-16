@@ -1,3 +1,4 @@
+import { categoryPath } from '@/features/catalog/listing-routes'
 import type { CategoryNode, MenuNode } from '@/lib/api/types/settings'
 
 // Pure helpers for the shell's menus: category links, the main-menu fallback and the active
@@ -13,11 +14,6 @@ export interface CategoryLinkNode {
   image: string
   icon: string
   children: CategoryLinkNode[]
-}
-
-/** `/product-category/{path}/` (content.md: category links use the full path). */
-export function categoryHref(path: string): string {
-  return `/product-category/${path}/`
 }
 
 /** The API sends `/static/defaults/default.png` (a grey frame) for a missing image or icon. */
@@ -43,7 +39,7 @@ export function categoriesToMenu(nodes: readonly CategoryLinkNode[]): MenuNode[]
     id: node.id,
     title: node.name,
     link_type: 'product_category',
-    url: categoryHref(node.path),
+    url: categoryPath(node.path),
     open_in_new_tab: false,
     icon: isPlaceholderImage(node.icon) ? null : node.icon,
     target: { type: 'product_category', id: node.id, slug: node.path.split('/').at(-1) ?? '' },

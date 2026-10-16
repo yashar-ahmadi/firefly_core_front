@@ -7,11 +7,5 @@ import type { ProductCard as ProductCardData } from '@/lib/api/types/catalog'
 // its own quick view host.
 
 export function ProductCardDemo({ product }: { product: ProductCardData }) {
-  return (
-    <ProductCard
-      product={product}
-      showOutOfStockLabel
-      withAction
-    />
-  )
+  return <ProductCard product={product} showOutOfStockLabel withAction />
 }

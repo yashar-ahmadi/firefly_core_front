@@ -4,7 +4,7 @@ import { ChevronDown, CircleUserRound, LogIn, ShoppingCart } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState, type MouseEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClasses, iconButtonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
@@ -19,6 +19,7 @@ import { useFeature } from '@/features/settings/feature-context'
 import { useT } from '@/lib/i18n/i18n-context'
 import { loginHref } from '@/lib/links/login'
 import { loadPage } from '@/lib/navigation/hard-navigation'
+import { isModifiedClick } from '@/lib/navigation/modified-click'
 import { useSession } from '@/lib/session/session-context'
 
 const loadAccountMenu = () => import('./account-menu').then((module) => module.AccountMenu)
@@ -42,11 +43,6 @@ function AccountEntry() {
       }
     />
   )
-}
-
-/** A click that should open the link elsewhere (new tab or window) or is not the main button. */
-function isModifiedClick(event: MouseEvent): boolean {
-  return event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
 }
 
 type LazyMiniCartProps = MiniCartProps & { onUnavailable: () => void }

@@ -4,7 +4,8 @@ import { isFeatureKey } from '@/lib/api/types/common'
 /** Shown when the server cannot be reached or answers with something that is not the API. */
 export const NETWORK_ERROR_DETAIL = 'ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید.'
 
-const GENERIC_ERROR_DETAIL = 'خطایی رخ داد. لطفاً دوباره تلاش کنید.'
+/** The default `detail` of an `ApiError`, and the one sentence for any failure without one. */
+export const GENERIC_ERROR_DETAIL = 'خطایی رخ داد. لطفاً دوباره تلاش کنید.'
 
 export interface ApiErrorInit {
   status: number

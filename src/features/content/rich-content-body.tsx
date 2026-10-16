@@ -5,6 +5,7 @@ import type { MouseEvent } from 'react'
 import { useOptionalStoreConfig } from '@/lib/config-context'
 import { isShortLinkPath } from '@/lib/links/short-link'
 import { isStorePath, storeHref } from '@/lib/links/store-href'
+import { isModifiedClick } from '@/lib/navigation/modified-click'
 
 /**
  * The storefront path a click should route to on the client, or null to leave it to the
@@ -13,8 +14,7 @@ import { isStorePath, storeHref } from '@/lib/links/store-href'
  * page load counts it exactly once).
  */
 function clientRoute(event: MouseEvent<HTMLElement>, siteUrl: string | undefined): string | null {
-  if (event.defaultPrevented || event.button !== 0) return null
-  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null
+  if (event.defaultPrevented || isModifiedClick(event)) return null
   const anchor = event.target instanceof Element ? event.target.closest('a') : null
   if (!anchor || !event.currentTarget.contains(anchor)) return null
   const raw = anchor.getAttribute('href')

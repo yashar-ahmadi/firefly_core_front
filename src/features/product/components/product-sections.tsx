@@ -5,6 +5,7 @@ import { TOP_ZONE } from '@/components/layout/scroll-state'
 import { cn } from '@/components/ui/cn'
 import { usePrefersReducedMotion } from '@/components/ui/use-media-query'
 import { formatNumber } from '@/lib/format'
+import { isModifiedClick } from '@/lib/navigation/modified-click'
 
 export interface SectionLink {
   /** The section element's id, the link's `#hash`. */
@@ -139,9 +140,7 @@ export function ProductSectionsNav({ items }: { items: readonly SectionLink[] })
   }, [active, reducedMotion])
 
   const go = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return
-    }
+    if (isModifiedClick(event)) return
     const section = document.getElementById(id)
     if (!section) return
     event.preventDefault()

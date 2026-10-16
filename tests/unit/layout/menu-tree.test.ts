@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   categoriesToMenu,
-  categoryHref,
   isActivePath,
   isPlaceholderImage,
   navItems,
@@ -9,9 +8,16 @@ import {
 } from '@/components/layout/menu-tree'
 import { categoryNode, menuNode, sampleTree } from './support'
 
-describe('categoryHref', () => {
-  it('builds the link from the full path, never the slug', () => {
-    expect(categoryHref('digital/mobile-phone')).toBe('/product-category/digital/mobile-phone/')
+describe('category links', () => {
+  it('are built from the full path, one spelling: each segment percent-encoded', () => {
+    const [menu] = categoriesToMenu([
+      categoryNode({ id: 1, name: 'گوشی', path: 'digital/\u{06AF}\u{0648}\u{0634}\u{06CC}' }),
+    ])
+    expect(menu?.url).toBe('/product-category/digital/%DA%AF%D9%88%D8%B4%DB%8C/')
+    // The active state still matches the decoded pathname the router reports.
+    expect(
+      isActivePath(menu!.url, '/product-category/digital/\u{06AF}\u{0648}\u{0634}\u{06CC}/'),
+    ).toBe(true)
   })
 })
 

@@ -7,12 +7,10 @@ import { cn } from '@/components/ui/cn'
 import { useHydrated } from '@/components/ui/use-media-query'
 import { productPath } from '@/features/catalog/listing-routes'
 import { useOptionalStoreConfig } from '@/lib/config-context'
+import { isModifiedClick } from '@/lib/navigation/modified-click'
 import { openQuickView, preloadQuickView } from './use-quick-view'
 
 const CHOOSE = 'انتخاب ویژگی\u{200C}ها'
-
-const isModified = (event: MouseEvent) =>
-  event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
 
 export interface QuickViewLinkProps {
   slug: string
@@ -56,7 +54,7 @@ export function QuickViewLinkView({
   upgraded,
 }: QuickViewLinkProps & { upgraded: boolean }) {
   const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!upgraded || isModified(event)) return
+    if (!upgraded || isModifiedClick(event)) return
     if (openQuickView(slug)) event.preventDefault()
   }
   const onKeyDown = (event: KeyboardEvent<HTMLAnchorElement>) => {

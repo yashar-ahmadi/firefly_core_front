@@ -32,3 +32,20 @@ describe('CategoryGridSection', () => {
     expect(rowsOf(13)).toEqual(['5', '7', '7'])
   })
 })
+
+describe('CategoryGridSection links', () => {
+  it('link each tile by its encoded full path, the one spelling of a category URL', () => {
+    const category = categoryFixture({
+      id: 1,
+      name: 'گوشی',
+      path: 'digital/\u{06AF}\u{0648}\u{0634}\u{06CC}',
+    })
+    const { getByRole } = render(
+      <CategoryGridSection section={categoryGrid([category]) as Grid} seeAllLabel="همه" />,
+    )
+    expect(getByRole('link', { name: /گوشی/ })).toHaveAttribute(
+      'href',
+      '/product-category/digital/%DA%AF%D9%88%D8%B4%DB%8C/',
+    )
+  })
+})

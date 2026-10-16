@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useMarkFeatureDisabled } from '@/features/settings/feature-context'
 import { bffFetch } from '@/lib/api/client'
-import { ApiError } from '@/lib/api/errors'
+import { ApiError, GENERIC_ERROR_DETAIL } from '@/lib/api/errors'
 import type { CommentSubmitBody } from '@/lib/api/types/catalog'
 import { useSession } from '@/lib/session/session-context'
 import {
@@ -27,7 +27,6 @@ import { commentsKey } from './use-comments'
 
 const NAME_MISSING = 'نام خود را بنویسید.'
 const DONE = 'نظر شما ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
-const FAILED = 'خطایی رخ داد. لطفاً دوباره تلاش کنید.'
 const MAX_TEXT = 4096
 const MAX_LINE = 255
 
@@ -100,7 +99,7 @@ export function CommentForm({
       onDone(msg || DONE)
     },
     onError: (error) => {
-      if (!(error instanceof ApiError)) return refuse({ form: FAILED })
+      if (!(error instanceof ApiError)) return refuse({ form: GENERIC_ERROR_DETAIL })
       if (error.isFeatureDisabled()) return markFeatureDisabled('product_comments', error.detail)
       const { errors: placed, parentGone } = placeApiErrors(error.fieldErrors(), mode, error.detail)
       // The API took a signed-in shopper for a guest (the session ended): show the name.

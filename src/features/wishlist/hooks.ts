@@ -9,7 +9,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { notify } from '@/components/ui/toaster'
 import { bffFetch } from '@/lib/api/client'
-import { ApiError } from '@/lib/api/errors'
+import { ApiError, GENERIC_ERROR_DETAIL } from '@/lib/api/errors'
 import type { WishlistProductCard } from '@/lib/api/types/catalog'
 import type { Paginated } from '@/lib/api/types/common'
 import { loginHref } from '@/lib/links/login'
@@ -27,8 +27,6 @@ const PAGE_SIZE = 100
 const MAX_PAGES = 100
 /** Our own toggles keep the cache right, so it only needs a refresh now and then. */
 const STALE_TIME = 5 * 60_000
-
-const GENERIC_ERROR = 'خطایی رخ داد. لطفاً دوباره تلاش کنید.'
 
 type WishlistPage = Paginated<Pick<WishlistProductCard, 'id'>>
 
@@ -127,7 +125,7 @@ function toggleOptions(
     onError: (error, { id, save }) => {
       setSaved(client, id, !save)
       if (error instanceof ApiError && error.isAuth()) router.push(loginHref(currentPath()))
-      else notify.error(error instanceof ApiError ? error.detail : GENERIC_ERROR)
+      else notify.error(error instanceof ApiError ? error.detail : GENERIC_ERROR_DETAIL)
     },
     onSettled: () => {
       // Only after the last of several quick toggles, so a read never lands between them.

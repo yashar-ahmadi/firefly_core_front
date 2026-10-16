@@ -9,7 +9,8 @@ import { cn } from '@/components/ui/cn'
 import { IconButton } from '@/components/ui/icon-button'
 import { useT } from '@/lib/i18n/i18n-context'
 import { CategoryThumb } from './category-thumb'
-import { categoryHref, type CategoryLinkNode } from './menu-tree'
+import { categoryPath } from '@/features/catalog/listing-routes'
+import type { CategoryLinkNode } from './menu-tree'
 
 const TILE = cn(
   'flex w-full cursor-pointer flex-col items-center gap-2 rounded-card p-1 text-center',
@@ -49,7 +50,7 @@ function CategoryPanel({ root }: { root: CategoryLinkNode }) {
           {current.name}
         </h2>
         <Link
-          href={categoryHref(current.path)}
+          href={categoryPath(current.path)}
           className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-control text-sm font-medium text-brand-700 hover:text-brand-800"
         >
           {t('see_all')}
@@ -74,7 +75,7 @@ function CategoryPanel({ root }: { root: CategoryLinkNode }) {
                     {content}
                   </button>
                 ) : (
-                  <Link href={categoryHref(child.path)} className={TILE}>
+                  <Link href={categoryPath(child.path)} className={TILE}>
                     {content}
                   </Link>
                 )}
