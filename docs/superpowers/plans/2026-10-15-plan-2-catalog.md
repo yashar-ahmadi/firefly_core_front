@@ -90,11 +90,11 @@ tests/unit/** , tests/e2e/catalog/**
   - `getFilters(ctx: { category?: string; brand?: string; list?: string }): Promise<FiltersMetadata | null>` (`null` on 404)
   - `getProductDetail(slug): Promise<ProductDetail | null>`
   - `type ListingApiQuery = { search?: string; category?: string; brand?: string[]; attribute_values?: number[]; min_price?: number; max_price?: number; in_stock?: boolean; is_special?: boolean; has_discount?: boolean; special_first?: boolean; sort?: SortValue; page?: number; limit?: number; list?: string }`
-  - `parseListingParams(sp: Record<string, string | string[] | undefined>, opts?: { allowContext?: boolean }): ListingApiQuery`
+  - `parseListingParams(sp: Record<string, string | string[] | undefined>, opts?: { context?: ListingContext }): ListingApiQuery`, where `type ListingContext = { category?: string; brand?: string; list?: string }`
     - drops unknown keys and invalid values (bad sort, non-numeric prices, booleans other than `true`/`false`/`1`/`0`);
     - `brand` and `attribute_values` come comma-separated;
     - `page < 1` drops the page;
-    - when `allowContext` is false, `category`, `brand` and `list` are ignored, because the route supplies the context.
+    - the route context wins: each key present in `opts.context` replaces the URL value (`brand` becomes `[context.brand]`), while keys not in the context stay URL filters, so `brand=apple` still filters a category page and `category=…` still filters a brand page.
   - `toSearchParams(q: ListingApiQuery): URLSearchParams` (stable key order, omits defaults)
 
 - [ ] **Step 1: Write failing tests.**

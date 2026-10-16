@@ -1,6 +1,10 @@
 import 'server-only'
 import { cache } from 'react'
-import { toSearchParams, type ListingApiQuery } from '@/features/catalog/listing-params'
+import {
+  toSearchParams,
+  type ListingApiQuery,
+  type ListingContext,
+} from '@/features/catalog/listing-params'
 import { ApiError } from '@/lib/api/errors'
 import { apiFetch, type QueryInit } from '@/lib/api/server'
 import type {
@@ -232,11 +236,7 @@ const filtersIn = cache(
  * the priority category > brand > list is sent, as the API would use. null on a 404 (an unknown
  * or draft slug, unlike `product/list/`) or for a malformed slug; throws otherwise.
  */
-export function getFilters(ctx: {
-  category?: string
-  brand?: string
-  list?: string
-}): Promise<FiltersMetadata | null> {
+export function getFilters(ctx: ListingContext): Promise<FiltersMetadata | null> {
   const kind = FILTER_KINDS.find((candidate) => ctx[candidate] !== undefined) ?? null
   return filtersIn(kind, kind === null ? '' : (ctx[kind] ?? ''))
 }

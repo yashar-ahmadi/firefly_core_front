@@ -23,6 +23,12 @@ export type ListingApiQuery = {
   list?: string
 }
 
+/**
+ * The entity a listing route is about. Pass each slug as text, as the API returns it (for example
+ * `category.slug` from `getCategory`): the values are sent as given.
+ */
+export type ListingContext = { category?: string; brand?: string; list?: string }
+
 type RawParams = Record<string, string | string[] | undefined>
 
 const BOOLEAN_KEYS = ['in_stock', 'is_special', 'has_discount', 'special_first'] as const
@@ -78,26 +84,31 @@ function flag(value: unknown): boolean | undefined {
  * - `brand` and `attribute_values` are comma-separated; repeated keys are merged, duplicates dropped.
  * - Prices and `page` must be non-negative integers (Persian digits allowed); `page < 1` is dropped.
  * - Booleans are `true`/`false`/`1`/`0`; `sort` must be one of `SORT_VALUES`.
- * - With `allowContext: false`, `category`, `brand` and `list` are ignored: the route supplies the
- *   context. Defaults to true.
+ * - The route context wins: each key present in `opts.context` replaces the URL value (`brand`
+ *   becomes `[context.brand]`); the other keys stay URL filters, so `?brand=apple` still filters a
+ *   category page and `?category=…` a brand page. Without a context (the generic listing) all three
+ *   come from the URL.
  */
 export function parseListingParams(
   sp: RawParams,
-  opts: { allowContext?: boolean } = {},
+  opts: { context?: ListingContext } = {},
 ): ListingApiQuery {
   const query: ListingApiQuery = {}
 
   const search = text(sp.search)
   if (search) query.search = Array.from(search).slice(0, MAX_SEARCH_LENGTH).join('')
 
-  if (opts.allowContext ?? true) {
-    const category = text(sp.category)
-    if (category) query.category = category
-    const brand = unique(entries(sp.brand))
-    if (brand.length > 0) query.brand = brand
-    const list = text(sp.list)
-    if (list) query.list = list
-  }
+  const category = text(sp.category)
+  if (category) query.category = category
+  const brand = unique(entries(sp.brand))
+  if (brand.length > 0) query.brand = brand
+  const list = text(sp.list)
+  if (list) query.list = list
+
+  const context = opts.context ?? {}
+  if (context.category !== undefined) query.category = context.category
+  if (context.brand !== undefined) query.brand = [context.brand]
+  if (context.list !== undefined) query.list = context.list
 
   const ids = unique(
     entries(sp.attribute_values)

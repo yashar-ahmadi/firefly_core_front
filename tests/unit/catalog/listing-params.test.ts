@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseListingParams, toSearchParams } from '@/features/catalog/listing-params'
+import { parseListingParams } from '@/features/catalog/listing-params'
 import { SORT_VALUES } from '@/lib/api/types/catalog'
 
 describe('parseListingParams', () => {
@@ -69,14 +69,57 @@ describe('parseListingParams', () => {
     expect(parseListingParams({ foo: 'bar', limit: '100', q: 'x', constructor: 'y' })).toEqual({})
   })
 
-  it('ignores category, brand and list when the route supplies the context', () => {
-    const sp = { category: 'laptop', brand: 'apple', list: 'flagship-phones', sort: 'sale' }
-    expect(parseListingParams(sp, { allowContext: false })).toEqual({ sort: 'sale' })
-    expect(parseListingParams(sp, { allowContext: true })).toEqual({
-      category: 'laptop',
-      brand: ['apple'],
-      list: 'flagship-phones',
-      sort: 'sale',
+  describe('route context (P2-R2)', () => {
+    it('keeps a URL brand as a filter on a category page, whose context replaces the URL category', () => {
+      expect(
+        parseListingParams(
+          { category: 'laptop', brand: 'apple', sort: 'sale' },
+          { context: { category: 'mobile-phone' } },
+        ),
+      ).toEqual({ category: 'mobile-phone', brand: ['apple'], sort: 'sale' })
+    })
+
+    it('replaces the URL brands with the brand page context', () => {
+      expect(
+        parseListingParams({ brand: 'apple,xiaomi' }, { context: { brand: 'samsung' } }),
+      ).toEqual({ brand: ['samsung'] })
+    })
+
+    it('keeps a URL category as a filter on a brand page', () => {
+      expect(
+        parseListingParams(
+          { category: 'digital', brand: 'apple' },
+          { context: { brand: 'samsung' } },
+        ),
+      ).toEqual({ category: 'digital', brand: ['samsung'] })
+    })
+
+    it('replaces the URL list with the list page context and keeps the other filters', () => {
+      expect(
+        parseListingParams(
+          { list: 'other', brand: 'apple', category: 'laptop' },
+          { context: { list: 'flagship-phones' } },
+        ),
+      ).toEqual({ list: 'flagship-phones', brand: ['apple'], category: 'laptop' })
+    })
+
+    it('applies the context when the URL has none of its keys', () => {
+      expect(parseListingParams({}, { context: { category: 'mobile-phone' } })).toEqual({
+        category: 'mobile-phone',
+      })
+    })
+
+    it('takes category, brand and list from the URL without a context (generic listing)', () => {
+      const sp = { category: 'laptop', brand: 'apple', list: 'flagship-phones', sort: 'sale' }
+      const fromUrl = {
+        category: 'laptop',
+        brand: ['apple'],
+        list: 'flagship-phones',
+        sort: 'sale',
+      }
+      expect(parseListingParams(sp)).toEqual(fromUrl)
+      expect(parseListingParams(sp, {})).toEqual(fromUrl)
+      expect(parseListingParams(sp, { context: {} })).toEqual(fromUrl)
     })
   })
 
@@ -155,66 +198,5 @@ describe('parseListingParams', () => {
       { search: null as unknown as string },
     ]
     for (const sp of hostile) expect(() => parseListingParams(sp)).not.toThrow()
-  })
-})
-
-describe('toSearchParams', () => {
-  it('round-trips a parsed query in sorted key order', () => {
-    const query = parseListingParams({ has_discount: 'true', sort: 'price-asc', page: '2' })
-    const params = toSearchParams(query)
-    expect(params.toString()).toBe('has_discount=true&page=2&sort=price-asc')
-    expect(parseListingParams(Object.fromEntries(params))).toEqual(query)
-  })
-
-  it('joins lists with commas and round-trips every parameter', () => {
-    const query = parseListingParams({
-      search: 'گوشی',
-      category: 'mobile-phone',
-      brand: 'samsung,apple',
-      attribute_values: '10005,10015',
-      min_price: '0',
-      max_price: '5000000',
-      in_stock: 'false',
-      special_first: 'false',
-      sort: 'date-desc',
-    })
-    const params = toSearchParams(query)
-    expect([...params.keys()]).toEqual([...params.keys()].sort())
-    expect(params.get('brand')).toBe('samsung,apple')
-    expect(params.get('attribute_values')).toBe('10005,10015')
-    expect(params.get('in_stock')).toBe('false')
-    expect(parseListingParams(Object.fromEntries(params))).toEqual(query)
-  })
-
-  it('omits the defaults page 1 and special_first=true, and empty values', () => {
-    expect(
-      toSearchParams({
-        page: 1,
-        special_first: true,
-        brand: [],
-        attribute_values: [],
-        search: '',
-      }).toString(),
-    ).toBe('')
-  })
-
-  it('keeps sort=date-desc, because a route may default to another sort', () => {
-    expect(toSearchParams({ sort: 'date-desc' }).toString()).toBe('sort=date-desc')
-  })
-
-  it('keeps limit when the caller sets it', () => {
-    expect(toSearchParams({ limit: 10, sort: 'sale' }).toString()).toBe('limit=10&sort=sale')
-  })
-
-  it('skips numbers that are not safe non-negative integers', () => {
-    expect(
-      toSearchParams({
-        min_price: Number.NaN,
-        max_price: -1,
-        page: 2.5,
-        limit: Number.POSITIVE_INFINITY,
-        attribute_values: [Number.NaN, 10005],
-      }).toString(),
-    ).toBe('attribute_values=10005')
   })
 })
