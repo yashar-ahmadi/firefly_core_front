@@ -57,6 +57,12 @@ describe('MobileBottomNav', () => {
     nav.pathname = '/account/orders/'
     rerender(withSession(<MobileBottomNav />, true))
     expect(screen.getByRole('link', { name: 'حساب من' })).toHaveAttribute('aria-current', 'page')
+
+    for (const pathname of ['/login/', '/register/', '/forgot-password/']) {
+      nav.pathname = pathname
+      rerender(withSession(<MobileBottomNav />))
+      expect(screen.getByRole('link', { name: 'حساب من' })).toHaveAttribute('aria-current', 'page')
+    }
   })
 
   it('shows the cart count in Persian digits', () => {

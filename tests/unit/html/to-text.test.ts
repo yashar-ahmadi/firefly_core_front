@@ -14,6 +14,10 @@ describe('htmlToText', () => {
     )
   })
 
+  it('keeps a ">" inside a quoted attribute value inside the tag', () => {
+    expect(htmlToText('<a title="a>b" href=\'/x?y>z\'>جزئیات</a> بیشتر')).toBe('جزئیات بیشتر')
+  })
+
   it('drops scripts, styles and comments with their content', () => {
     expect(
       htmlToText('<style>p{color:red}</style>سلام<script>alert(1)</script><!-- note -->!'),

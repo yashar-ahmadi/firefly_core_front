@@ -52,7 +52,7 @@ export function MobileBottomNav({ cartCount }: { cartCount?: number }) {
       href: hasSession ? '/account/' : '/login/?next=/account/',
       label: t('account'),
       icon: CircleUserRound,
-      active: under(pathname, '/account/', '/login/', '/register/'),
+      active: under(pathname, '/account/', '/login/', '/register/', '/forgot-password/'),
     },
   ]
 

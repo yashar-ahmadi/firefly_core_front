@@ -3,6 +3,7 @@
 import { Search } from 'lucide-react'
 import Form from 'next/form'
 import { useId } from 'react'
+import { HIT_AREA_SQUARE } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import { useT } from '@/lib/i18n/i18n-context'
 
@@ -54,7 +55,10 @@ export function HeaderSearchForm({
       <button
         type="submit"
         aria-label={t('search')}
-        className="absolute start-1 grid size-10 cursor-pointer place-items-center rounded-control text-ink-500 transition-colors hover:text-brand-700"
+        className={cn(
+          'absolute start-1 grid size-10 cursor-pointer place-items-center rounded-control text-ink-500 transition-colors hover:text-brand-700',
+          HIT_AREA_SQUARE,
+        )}
       >
         <Search aria-hidden className="size-5" />
       </button>

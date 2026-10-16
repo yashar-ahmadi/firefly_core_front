@@ -165,11 +165,23 @@ describe('MegaMenu', () => {
     await user.click(screen.getByRole('button', { name: TRIGGER }))
     const item = screen.getByRole('link', { name: 'لوازم خانگی' })
 
-    fireEvent.pointerDown(item, { pointerType: 'touch' })
-    const click = fireEvent.click(item)
-    expect(click).toBe(false) // the visit was cancelled
+    // Record whether React cancelled each visit, then stop jsdom from navigating.
+    const visits: boolean[] = []
+    const record = (event: Event) => {
+      visits.push(!event.defaultPrevented)
+      event.preventDefault()
+    }
+    document.addEventListener('click', record)
+    // A real tap: pointerdown, pointerup, then mousedown (which focuses the link) and click.
+    await user.pointer({ keys: '[TouchA]', target: item })
+    expect(visits).toEqual([false])
     expect(screen.getByRole('button', { name: TRIGGER })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('link', { name: 'یخچال و فریزر' })).toBeInTheDocument()
+
+    // The second tap on the item that is now shown follows its link.
+    await user.pointer({ keys: '[TouchA]', target: item })
+    document.removeEventListener('click', record)
+    expect(visits).toEqual([false, true])
   })
 
   it('closes on an outside click and on a route change', async () => {

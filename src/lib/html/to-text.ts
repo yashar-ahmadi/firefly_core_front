@@ -16,7 +16,8 @@ const NAMED_ENTITIES: Record<string, string> = {
 
 /** Removed with their content: nothing in them is text a visitor reads. */
 const HIDDEN = /<!--[\s\S]*?-->|<(script|style|template|noscript)\b[\s\S]*?<\/\1\s*>/gi
-const TAG = /<\/?[a-z][^>]*>/gi
+/** A tag; a `>` inside a quoted attribute value (`title="a>b"`) does not end it. */
+const TAG = /<\/?[a-z](?:[^>"']|"[^"]*"|'[^']*')*>/gi
 /** Tags inside a line of text; any other tag (p, br, li, div…) separates words. */
 const INLINE_TAG = /^<\/?(?:a|abbr|b|bdi|bdo|em|i|mark|small|span|strong|sub|sup|u)\b/i
 const ENTITY = /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi

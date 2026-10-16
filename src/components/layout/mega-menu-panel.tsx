@@ -18,6 +18,10 @@ export const firstLink = (scope: Element | null | undefined) =>
  * Where an arrow key moves from a link in an item's columns: Up/Down through the links in
  * order, forward/back to the first link of the next/previous column, and out to the start
  * column (`startItem`) from the first column or the first link. `undefined`: not handled.
+ *
+ * A "column" here is a second-level group (`[data-mega-column]`), not a visual CSS column: the
+ * groups flow through `columns-3`/`columns-4`, so the next group may sit below the current one
+ * in the same visual column, and forward/back then moves focus down or up rather than sideways.
  */
 export function nextContentFocus(
   scope: HTMLElement,

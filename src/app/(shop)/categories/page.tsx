@@ -41,7 +41,7 @@ export default async function CategoriesPage() {
                 <MenuLink
                   node={item}
                   withIcon
-                  className="flex min-h-10 items-center gap-2 rounded-pill border border-ink-200 bg-ink-50 px-4 text-sm font-medium text-ink-800"
+                  className="flex min-h-11 items-center gap-2 rounded-pill border border-ink-200 bg-ink-50 px-4 text-sm font-medium text-ink-800"
                 />
               </li>
             ))}

@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { htmlToText } from '@/lib/html/to-text'
 
 // The shop shell against the dev backend (sample data): logo, mega-menu (lg+), categories drawer
 // (md to lg), bottom navigation and category browser (phones) and the announcement bar.
@@ -15,14 +16,6 @@ async function settings(request: APIRequestContext): Promise<Settings> {
   const res = await request.get(`${API_URL}/api/v1/global/settings/`)
   expect(res.ok(), 'settings from the backend').toBe(true)
   return ((await res.json()) as { data: Settings }).data
-}
-
-/** The announcement as the bar shows it: tags dropped, whitespace collapsed. */
-function plainText(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
 }
 
 function width(page: Page): number {
@@ -121,7 +114,8 @@ test.describe('shell', () => {
   }) => {
     const { announcement } = await settings(request)
     test.skip(!announcement?.trim(), 'the backend has no announcement')
-    const text = plainText(announcement ?? '')
+    // The bar shows the operator HTML as text, exactly as htmlToText makes it.
+    const text = htmlToText(announcement)
 
     await page.goto('/')
     await expect(page.getByText(text)).toBeVisible()

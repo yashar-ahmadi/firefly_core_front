@@ -44,7 +44,9 @@ export function MegaMenu({ menu, categories, className }: MegaMenuProps) {
   const [active, setActive] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const pointerType = useRef('mouse')
+  // The last press: its pointer type and the item that was active then. A tap focuses the link
+  // (making it active) before its click, so the click must compare with the press-time item.
+  const press = useRef({ type: 'mouse', active: 0 })
   const timers = useRef<Partial<Record<TimerName, number>>>({})
   const panelId = `${useId()}-panel`
 
@@ -152,7 +154,7 @@ export function MegaMenu({ menu, categories, className }: MegaMenuProps) {
       ref={rootRef}
       className={cn('flex', className)}
       onPointerDownCapture={(event) => {
-        pointerType.current = event.pointerType
+        press.current = { type: event.pointerType, active }
       }}
       onPointerEnter={() => clearTimer('close')}
       onPointerLeave={(event) => {
@@ -175,7 +177,7 @@ export function MegaMenu({ menu, categories, className }: MegaMenuProps) {
         }}
         onClick={(event) => {
           // A mouse click only opens (hovering may have opened it already); keys and touch toggle.
-          if (event.detail > 0 && pointerType.current === 'mouse') show()
+          if (event.detail > 0 && press.current.type === 'mouse') show()
           else if (open) hide()
           else show()
         }}
@@ -204,8 +206,11 @@ export function MegaMenu({ menu, categories, className }: MegaMenuProps) {
         }
         itemProps={itemProps}
         onItemClick={(event, index) => {
-          // On touch, the first tap on an item with children only shows them.
-          if (pointerType.current !== 'mouse' && index !== active && items[index].children.length) {
+          // On touch, the first tap on an item with children only shows them (keyboard clicks,
+          // detail 0, always follow the link).
+          const { type, active: activeAtPress } = press.current
+          const firstTap = event.detail > 0 && type !== 'mouse' && index !== activeAtPress
+          if (firstTap && items[index].children.length) {
             event.preventDefault()
             setActive(index)
           }

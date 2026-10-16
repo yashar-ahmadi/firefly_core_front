@@ -16,7 +16,7 @@ export function isListing(node: MenuNode): boolean {
 }
 
 const SUB_LINK = cn(
-  'flex min-h-10 items-center gap-2 rounded-control py-1.5 text-sm text-ink-600',
+  'flex min-h-11 items-center gap-2 rounded-control py-1.5 text-sm text-ink-600',
   'transition-colors hover:text-brand-700 focus-visible:-outline-offset-2',
 )
 
@@ -66,7 +66,7 @@ export function MegaMenuContent({ node, allLabel, onNavigate }: MegaMenuContentP
             node={node}
             prefetch={false}
             onNavigate={onNavigate}
-            className="inline-flex min-h-10 items-center gap-1 rounded-control text-sm font-medium text-brand-700 hover:text-brand-800 hover:underline hover:underline-offset-4"
+            className="inline-flex min-h-11 items-center gap-1 rounded-control text-sm font-medium text-brand-700 hover:text-brand-800 hover:underline hover:underline-offset-4"
           >
             {allLabel}
             <ChevronLeft aria-hidden className="size-4 ltr:rotate-180" />
@@ -74,6 +74,8 @@ export function MegaMenuContent({ node, allLabel, onNavigate }: MegaMenuContentP
         )}
       </div>
       {node.children.length > 0 && (
+        // Each child is a group the arrow keys step between (`data-mega-column`); the groups flow
+        // through the CSS columns, so the next group may be below rather than beside this one.
         <div className="columns-3 gap-x-8 xl:columns-4">
           {node.children.map((child) => (
             <div key={child.id} data-mega-column="" className="mb-6 break-inside-avoid">
@@ -83,7 +85,7 @@ export function MegaMenuContent({ node, allLabel, onNavigate }: MegaMenuContentP
                 prefetch={false}
                 onNavigate={onNavigate}
                 className={cn(
-                  'flex min-h-10 items-center gap-2 border-s-2 border-brand ps-2.5 text-base font-bold text-ink-900',
+                  'flex min-h-11 items-center gap-2 border-s-2 border-brand ps-2.5 text-base font-bold text-ink-900',
                   child.url !== null && 'transition-colors hover:text-brand-700',
                   'focus-visible:-outline-offset-2',
                 )}
