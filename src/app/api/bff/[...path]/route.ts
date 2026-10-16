@@ -10,6 +10,8 @@ import { handleBff } from '@/lib/bff/handler'
  * - Keeps JWTs and the guest cart token in httpOnly cookies and strips them from every body.
  * - Refreshes the access token at most once per request.
  * - Answers with the API's status, JSON envelope and `Retry-After`; never with its cookies.
+ * - Answers a guest's `GET cart/` (no cart or session cookie) from a shared copy of the empty
+ *   cart, refreshed every 60 s (`@/lib/bff/guest-cart`).
  */
 export const dynamic = 'force-dynamic'
 

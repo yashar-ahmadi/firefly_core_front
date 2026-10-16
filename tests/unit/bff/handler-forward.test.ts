@@ -106,7 +106,7 @@ describe('upstream request', () => {
 
   it('sends no body on a GET and forwards a JSON body on DELETE', async () => {
     const handleBff = await loadHandler()
-    await handleBff(...bff('cart/'))
+    await handleBff(...bff('cart/', { cookies: { ff_cart: 'guest' } }))
     expect(upstreamCalls(fetchSpy)[0]?.init.body).toBeUndefined()
 
     await handleBff(

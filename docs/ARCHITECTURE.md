@@ -123,7 +123,19 @@ re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
   `user_not_found`, and drops the cart cookie after a merge or `cart_not_found`;
 - caps JSON bodies at 2.5 MB and streams multipart uploads up to 6 MB (413 beyond);
 - answers with the API's status, envelope and `Retry-After`, never with its cookies, and always
-  `Cache-Control: no-store`.
+  `Cache-Control: no-store`;
+- answers a guest's `GET cart/` from a shared in-memory copy of the API's empty cart
+  (`lib/bff/guest-cart.ts`). The header badge asks for the cart on every page view, and without the
+  copy these reads were 44% of all API calls (each charged to the guest's per-IP budget). The
+  shortcut applies only to a `GET` of exactly `cart/` with no query string and none of `ff_cart`,
+  `ff_at`, `ff_rt` or `ff_auth` (present at all, even malformed), decided before any refresh step.
+  The copy is filled by one single-flight call with no `X-Cart-Token`, no bearer and no visitor
+  IP, and kept for 60 s (per server process). Only a `200` whose `data` has `is_empty: true`,
+  `item_count: 0`, no lines and an empty or missing `token` is stored, as a string stripped by the
+  same `captureSession` as every cart answer; any other answer or failure is never stored and the
+  request is proxied as usual. The response keeps `Cache-Control: no-store`, sets no cookie and is
+  byte-for-byte the body the proxied read would give. Cost: the empty-cart shape may be up to 60 s
+  stale.
 
 **Visitor IP.** The API throttles guests per IP and all storefront traffic comes from one host,
 so uncached calls (BFF, redirect resolution, short links, token refresh, bank callback) send

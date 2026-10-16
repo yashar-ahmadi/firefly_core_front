@@ -6,6 +6,7 @@ import { NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
 import { isExpiring } from '@/lib/auth/jwt'
 import { refreshAccess } from '@/lib/auth/refresh'
 import { isAllowed } from '@/lib/bff/allowlist'
+import { anonymousCartBody, isAnonymousCartRead } from '@/lib/bff/guest-cart'
 import {
   RequestTooLargeError,
   passesCsrf,
@@ -21,6 +22,7 @@ import {
   emptyResponse,
   errorResponse,
   jsonResponse,
+  serialisedJsonResponse,
 } from '@/lib/bff/responses'
 import {
   CookieJar,
@@ -103,6 +105,11 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
   }
   if (!passesCsrf(req, method, env.SITE_URL)) {
     return errorResponse(403, 'csrf_failed', CSRF_DETAIL)
+  }
+  // A guest with no cart and no session: the shared empty cart, unless the API gives none.
+  if (isAnonymousCartRead(req, method, path)) {
+    const text = await anonymousCartBody(env.FIREFLY_API_URL, env.FIREFLY_API_KEY)
+    if (text !== null) return serialisedJsonResponse(text)
   }
 
   const url = `${env.FIREFLY_API_URL}/api/v1/${apiPath(path, queryOf(req))}`

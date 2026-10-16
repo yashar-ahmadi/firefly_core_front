@@ -29,6 +29,13 @@ export function jsonResponse(
   return NextResponse.json(body, { status, headers: baseHeaders(retryAfter) })
 }
 
+/** A 200 JSON response from an envelope that is already serialised (the shared guest cart). */
+export function serialisedJsonResponse(text: string): NextResponse {
+  const headers = baseHeaders()
+  headers.set('Content-Type', 'application/json')
+  return new NextResponse(text, { status: 200, headers })
+}
+
 /** A response without a body (204/205). */
 export function emptyResponse(status: number, retryAfter?: string | null): NextResponse {
   return new NextResponse(null, { status, headers: baseHeaders(retryAfter) })
