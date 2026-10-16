@@ -1,5 +1,6 @@
 'use client'
 
+import { Spinner } from './spinner'
 import {
   cloneElement,
   useRef,
@@ -9,6 +10,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
   type ReactElement,
+  type ReactNode,
 } from 'react'
 
 /** How the menu was asked for: from the keyboard, its first item takes the focus. */
@@ -24,6 +26,7 @@ export interface DeferredMenuProps {
 }
 
 type TriggerProps = {
+  children?: ReactNode
   'aria-haspopup'?: 'menu'
   'aria-expanded'?: boolean
   'aria-busy'?: boolean
@@ -41,7 +44,8 @@ const OPENING_KEYS = new Set(['Enter', ' ', 'ArrowDown'])
  * A menu button whose menu code (a Radix dropdown and its positioning library, about 20 KB
  * gzip) is not part of the page. Until it is used, `trigger` is shown as a stand-in with the
  * menu-button semantics. Hovering or focusing it starts the download (`load`); a press, Enter,
- * Space or Down opens the menu as soon as the code is in. Then `load`'s component takes over,
+ * Space or Down opens the menu as soon as the code is in (until then the button shows a small
+ * spinner and is `aria-busy`). Then `load`'s component takes over,
  * opened, with `trigger` as its own button. A failed download calls `onUnavailable`: the caller
  * degrades where it is (e.g. follows the menu's own page).
  */
@@ -75,25 +79,32 @@ export function DeferredMenu<P extends object>({
       })
   }
 
-  return cloneElement(trigger, {
-    'aria-haspopup': 'menu',
-    'aria-expanded': false,
-    'aria-busy': opening ? true : undefined,
-    onPointerEnter: preload,
-    onFocus: preload,
-    onPointerDown: (event) => {
-      // Like Radix: a primary mouse press opens; touch and pen open on the click that follows.
-      if (event.pointerType !== 'mouse' || event.button !== 0 || event.ctrlKey) return
-      event.preventDefault()
-      open(false)
+  return cloneElement(
+    trigger,
+    {
+      'aria-haspopup': 'menu',
+      'aria-expanded': false,
+      'aria-busy': opening ? true : undefined,
+      onPointerEnter: preload,
+      onFocus: preload,
+      onPointerDown: (event) => {
+        // Radix opens its menu on any primary press (pointerdown, whatever the pointer). The
+        // stand-in does so for a mouse only; a touch or pen press opens on the click that
+        // follows, so a scroll that starts on the button does not open the menu.
+        if (event.pointerType !== 'mouse' || event.button !== 0 || event.ctrlKey) return
+        event.preventDefault()
+        open(false)
+      },
+      onClick: () => open(false),
+      onKeyDown: (event) => {
+        if (!OPENING_KEYS.has(event.key)) return
+        event.preventDefault()
+        open(true)
+      },
     },
-    onClick: () => open(false),
-    onKeyDown: (event) => {
-      if (!OPENING_KEYS.has(event.key)) return
-      event.preventDefault()
-      open(true)
-    },
-  })
+    // Pressed before the code is in: a spinner says it is on its way (`aria-busy` tells AT).
+    ...(opening ? [trigger.props.children, <Spinner key="pending" size="sm" />] : []),
+  )
 }
 
 /**
