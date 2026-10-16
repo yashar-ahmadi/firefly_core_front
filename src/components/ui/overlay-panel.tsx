@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { useRef, type ComponentProps, type ReactNode } from 'react'
+import { useEffect, useRef, type ComponentProps, type ReactNode } from 'react'
 import { cn } from './cn'
 import { IconButton } from './icon-button'
 
@@ -52,10 +52,39 @@ export function PanelCloseButton({
   return <IconButton label="بستن" icon={<X />} className={cn('-me-2', className)} {...props} />
 }
 
+// Safari does not focus a button when it is clicked, so `document.activeElement` is <body> (or
+// a focusable container such as an open panel) when a panel opens from a click there. So the
+// element last pressed (captured on pointerdown and click) is recorded too, and a key press
+// forgets it, because focus is accurate again. One set of listeners serves every panel.
+const FOCUSABLE =
+  'button, a[href], input, select, textarea, summary, [tabindex], [contenteditable="true"]'
+let lastPressed: Element | null = null
+let tracking = false
+
+function trackPresses() {
+  if (tracking) return
+  tracking = true
+  const remember = (event: Event) => {
+    lastPressed = event.target instanceof Element ? event.target : null
+  }
+  document.addEventListener('pointerdown', remember, true)
+  document.addEventListener('click', remember, true)
+  document.addEventListener('keydown', () => (lastPressed = null), true)
+}
+
+/** Who opened a panel, best first: the element just pressed, then the focused one. */
+function openers(): HTMLElement[] {
+  const candidates = [lastPressed?.closest(FOCUSABLE), document.activeElement]
+  return candidates.filter(
+    (element): element is HTMLElement =>
+      element instanceof HTMLElement && element !== document.body,
+  )
+}
+
 /**
  * Focus handlers for a modal panel's Content. Radix moves focus back only to its own Trigger,
  * so a panel opened from code (a controlled Sheet, or a Dialog opened after a request) would
- * drop focus to <body> on close. This returns it to whatever had focus before opening.
+ * drop focus to <body> on close. This returns it to the element that opened the panel.
  */
 export function useReturnFocus(
   handlers: {
@@ -63,19 +92,20 @@ export function useReturnFocus(
     onCloseAutoFocus?: (event: Event) => void
   } = {},
 ) {
-  const previous = useRef<HTMLElement | null>(null)
+  const previous = useRef<HTMLElement[]>([])
+  useEffect(trackPresses, [])
   return {
     onOpenAutoFocus(event: Event) {
       // Runs before focus moves into the panel, so this is still the opener.
-      const active = document.activeElement
-      previous.current = active instanceof HTMLElement && active !== document.body ? active : null
+      previous.current = openers()
       handlers.onOpenAutoFocus?.(event)
     },
     onCloseAutoFocus(event: Event) {
       handlers.onCloseAutoFocus?.(event)
-      const element = previous.current
-      previous.current = null
-      if (event.defaultPrevented || !element?.isConnected) return
+      // The first that is still on the page (a pressed menu item may be gone by now).
+      const element = previous.current.find((candidate) => candidate.isConnected)
+      previous.current = []
+      if (event.defaultPrevented || !element) return
       event.preventDefault()
       element.focus()
     },

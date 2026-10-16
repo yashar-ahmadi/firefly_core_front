@@ -135,7 +135,7 @@ export function NavigationSections() {
             {BANNERS.map((banner) => (
               <div
                 key={banner.title}
-                className={`flex aspect-[2/1] flex-col items-start justify-center gap-2 rounded-card px-6 sm:aspect-[3/1] sm:px-12 ${banner.tone}`}
+                className={`flex aspect-[2/1] flex-col items-start justify-center gap-2 rounded-card px-6 sm:aspect-[3/1] sm:px-16 ${banner.tone}`}
               >
                 <p className="text-xl font-bold sm:text-3xl">{banner.title}</p>
                 <p className="text-base opacity-90 sm:text-lg">{banner.text}</p>

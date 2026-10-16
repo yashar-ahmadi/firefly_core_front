@@ -56,8 +56,13 @@ export function stubBrowserApis(initial: Matcher = () => false) {
   }
 }
 
-/** A matcher for "the viewport is at least `px` wide". */
+/** A matcher for "the viewport is at least `rem` wide" (Tailwind breakpoints are in rem). */
 export const minWidth =
-  (px: number): Matcher =>
+  (rem: number): Matcher =>
   (query) =>
-    query === `(min-width: ${px}px)`
+    query === `(min-width: ${rem}rem)`
+
+/** The focused element (for `toContainElement` and friends). */
+export function focusedElement(): HTMLElement {
+  return document.activeElement as HTMLElement
+}

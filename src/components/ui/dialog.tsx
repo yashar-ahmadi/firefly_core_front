@@ -1,7 +1,7 @@
 'use client'
 
 import { Dialog as DialogPrimitive } from 'radix-ui'
-import type { ComponentProps, ReactNode } from 'react'
+import { useRef, type ComponentProps, type ReactNode } from 'react'
 import { cn } from './cn'
 import {
   OVERLAY,
@@ -39,9 +39,14 @@ export interface DialogContentProps extends Omit<
   size?: keyof typeof SIZES
 }
 
+// Text-like fields a form dialog should start in.
+const FIELD =
+  'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not(:disabled), select:not(:disabled), textarea:not(:disabled)'
+
 /**
  * The centred panel with its backdrop, header (title, description, ×), scrolling body and
- * optional footer. It never grows taller than the viewport.
+ * optional footer. It never grows taller than the viewport. On open, focus goes to the first
+ * field in the body (a form dialog), otherwise to the first button (the ×).
  */
 export function DialogContent({
   title,
@@ -55,7 +60,18 @@ export function DialogContent({
   onCloseAutoFocus,
   ...props
 }: DialogContentProps) {
-  const returnFocus = useReturnFocus({ onOpenAutoFocus, onCloseAutoFocus })
+  const body = useRef<HTMLDivElement>(null)
+  const returnFocus = useReturnFocus({
+    onOpenAutoFocus(event) {
+      onOpenAutoFocus?.(event)
+      if (event.defaultPrevented) return
+      const field = body.current?.querySelector<HTMLElement>(FIELD)
+      if (!field) return
+      event.preventDefault()
+      field.focus()
+    },
+    onCloseAutoFocus,
+  })
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className={cn(OVERLAY, OVERLAY_MOTION)} />
@@ -88,7 +104,11 @@ export function DialogContent({
             </DialogPrimitive.Description>
           )}
         </PanelHeader>
-        {children && <div className={cn(PANEL_BODY, 'sm:pb-6')}>{children}</div>}
+        {children && (
+          <div ref={body} className={cn(PANEL_BODY, 'sm:pb-6')}>
+            {children}
+          </div>
+        )}
         {footer && <div className={cn(PANEL_FOOTER, 'rounded-b-card')}>{footer}</div>}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>

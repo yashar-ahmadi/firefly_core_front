@@ -82,4 +82,6 @@ export const notify = {
   success: (message: ReactNode, options?: NotifyOptions) => toast.success(message, options),
   error: (message: ReactNode, options?: NotifyOptions) => toast.error(message, options),
   info: (message: ReactNode, options?: NotifyOptions) => toast.info(message, options),
+  /** Closes one toast (the id a call above returned), or all of them. */
+  dismiss: (id?: string | number) => toast.dismiss(id),
 }

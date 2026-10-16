@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Carousel } from '@/components/ui/carousel'
 import { stubBrowserApis } from '../support/dom-stubs'
@@ -68,11 +69,27 @@ describe('Carousel controls', () => {
     expect(next.className).toMatch(/(^| )end-/)
     expect(next.querySelector('svg')).toHaveClass('lucide-chevron-left')
     expect(prev.className).toMatch(/(^| )start-/)
-    expect(prev).toBeDisabled()
+    expect(prev).toHaveAttribute('aria-disabled', 'true')
 
     fireEvent.click(next)
     expect(embla.api.scrollNext).toHaveBeenCalledOnce()
-    expect(prev).toBeEnabled()
+    expect(prev).not.toHaveAttribute('aria-disabled')
+  })
+
+  it('keeps keyboard focus on «next» at the end: aria-disabled, still focused, and inert', async () => {
+    const user = userEvent.setup()
+    render(<Banners />)
+    const next = screen.getByRole('button', { name: 'اسلاید بعدی' })
+    act(() => next.focus())
+    await user.keyboard('{Enter}')
+    await user.keyboard('{Enter}')
+    expect(embla.api.scrollNext).toHaveBeenCalledTimes(2)
+
+    expect(next).toHaveAttribute('aria-disabled', 'true')
+    expect(next).toBeEnabled()
+    expect(next).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(embla.api.scrollNext).toHaveBeenCalledTimes(2)
   })
 
   it('renders one dot per snap with Persian labels and aria-current on the selected one', () => {

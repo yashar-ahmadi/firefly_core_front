@@ -64,13 +64,20 @@ function useEmblaValue<T>(api: EmblaApi | undefined, read: (api: EmblaApi) => T,
 }
 
 // Arrows overlay the edges from `sm` up. On phones they would cover slide content, so swiping,
-// the peeking next slide and the dots do the job there.
-const ARROW =
-  'absolute top-1/2 z-10 -translate-y-1/2 border-ink-200 bg-white/95 shadow-raised disabled:pointer-events-none disabled:opacity-0 max-sm:hidden'
+// the peeking next slide and the dots do the job there. An arrow at the end of the track is
+// `aria-disabled`, not `disabled`, so keyboard focus is never stranded on a dead button: it
+// fades out, ignores pointers and presses, stays focusable, and shows dimmed while focused.
+const ARROW = cn(
+  'absolute top-1/2 z-10 -translate-y-1/2 border-ink-200 bg-white/95 shadow-raised max-sm:hidden',
+  'aria-disabled:pointer-events-none aria-disabled:opacity-0 aria-disabled:focus-visible:opacity-50',
+)
 
 /**
  * A swipeable RTL carousel (Embla): slide 1 is on the right and «next» on the left. Pages by
  * what fits in view; arrows and dots appear only when there is something to scroll to.
+ *
+ * From `sm` up the 44px arrows overlay the slides 8–52px from each edge, so keep slide text and
+ * buttons at least 56px (`px-14`) in from both inline edges when arrows show.
  */
 export function Carousel({
   children,
@@ -121,6 +128,9 @@ export function Carousel({
   }
   const count = toPersianDigits(slides.length)
   const dots = showDots && snapCount > 1
+  // Reserved from the first (server) render, before Embla measures, so the page never jumps
+  // when the dots or the pause button appear.
+  const controlsRow = slides.length > 1 && (showDots || (!!autoplayMs && autoplayMs > 0))
 
   return (
     <section
@@ -164,24 +174,23 @@ export function Carousel({
               label="اسلاید قبلی"
               icon={<ChevronRight />}
               variant="outline"
-              disabled={!canPrev}
-              onClick={() => api?.scrollPrev(reducedMotion)}
+              aria-disabled={!canPrev || undefined}
+              onClick={() => canPrev && api?.scrollPrev(reducedMotion)}
               className={cn(ARROW, 'start-2')}
             />
             <IconButton
               label="اسلاید بعدی"
               icon={<ChevronLeft />}
               variant="outline"
-              disabled={!canNext}
-              onClick={() => api?.scrollNext(reducedMotion)}
+              aria-disabled={!canNext || undefined}
+              onClick={() => canNext && api?.scrollNext(reducedMotion)}
               className={cn(ARROW, 'end-2')}
             />
           </>
         )}
       </div>
 
-      {/* The row is reserved before Embla measures, so the page does not jump when dots appear. */}
-      {((showDots && slides.length > 1) || autoplay) && (
+      {controlsRow && (
         <div className="mt-2 flex min-h-11 items-center justify-center gap-2">
           {autoplay && (
             <IconButton

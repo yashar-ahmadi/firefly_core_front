@@ -30,8 +30,8 @@ export interface SheetProps {
   className?: string
 }
 
-/** The viewport width from which a sheet becomes a side drawer (Tailwind `md`). */
-export const SHEET_SIDE_QUERY = '(min-width: 768px)'
+/** The viewport width from which a sheet becomes a side drawer (Tailwind `md`, 48rem). */
+export const SHEET_SIDE_QUERY = '(min-width: 48rem)'
 
 // Vaul's own transition is 500ms; keep its curve but match the other overlays (250ms).
 const VAUL_TIMING = { animationDuration: '250ms' }
@@ -44,6 +44,10 @@ const VAUL_TIMING = { animationDuration: '250ms' }
  * renders nothing until hydration is over and then the matching variant. A sheet opens on a
  * tap, after hydration, so nothing ever flashes; one rendered open by the server appears
  * right after hydration.
+ *
+ * State: crossing `md` while the sheet is open (rotating a tablet) swaps the variant and
+ * remounts everything inside. Keep filter and form state controlled (in the parent or the URL),
+ * never only in uncontrolled inputs inside the sheet, or it resets.
  */
 export function Sheet(props: SheetProps) {
   const hydrated = useHydrated()
