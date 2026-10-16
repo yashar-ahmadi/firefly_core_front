@@ -204,6 +204,35 @@
   }
 }
 
+/*
+ * Shell scroll state, written to <html> by ScrollWatcher (src/components/layout/scroll-state.tsx):
+ * `compact:` applies while the visitor scrolls down (the header keeps its essential row, the
+ * mobile bottom bar hides); `scrolled:` while the page is not at the top.
+ */
+@custom-variant compact (&:where([data-compact] *));
+@custom-variant scrolled (&:where([data-scrolled] *));
+
+/*
+ * The height of the sticky header's visible part, for sticky elements below it (`top-(--header-offset)`).
+ * Mirrors the row heights in site-header.tsx: phones 56 + 56 px (compact: the search row only),
+ * from md 72 + 48 px (compact: the first row only).
+ */
+:root {
+  --header-offset: 7rem;
+
+  &[data-compact] {
+    --header-offset: 3.5rem;
+  }
+
+  @media (width >= 48rem) {
+    --header-offset: 7.5rem;
+
+    &[data-compact] {
+      --header-offset: 4.5rem;
+    }
+  }
+}
+
 @layer base {
   html {
     font-size: 16px;
