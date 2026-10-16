@@ -10,6 +10,8 @@ const launchOptions = existsSync(chromiumPath) ? { executablePath: chromiumPath 
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Stops the run with one clear message when the backend's anonymous budget is used up (429).
+  globalSetup: './tests/e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

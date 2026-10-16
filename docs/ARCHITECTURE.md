@@ -405,7 +405,10 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   one address, and the sample backend allows 2000 an hour per address (`THROTTLE_ANON`, a sliding
   hour): about four runs an hour, fewer with local browsing. Past that the backend answers 429
   `throttled` (`retryAfter` in the server log) and many specs fail at once. For back-to-back runs,
-  start the backend with a larger budget, e.g. `THROTTLE_ANON=20000/hour`.
+  start the backend with a larger budget, e.g. `THROTTLE_ANON=20000/hour`. A global setup
+  (`tests/e2e/global-setup.ts`) probes the backend once before the run and stops it with that
+  advice when the answer is already 429. Since the BFF serves a guest's empty cart from a shared
+  copy, a run makes far fewer calls than the about 400 measured before.
 - **CI** (`.github/workflows/ci.yml`, push and PR to `main`): install, `typecheck`, `lint`,
   `format:check`, `test`, `build`. End-to-end tests are not run in CI (they need the backend, a
   separate repository); run them locally before pushing.
