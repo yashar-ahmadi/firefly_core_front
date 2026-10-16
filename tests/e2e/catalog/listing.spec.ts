@@ -109,6 +109,15 @@ test.describe('category page', () => {
     await expect(page).toHaveTitle(/^صفحه پیدا نشد \|/)
   })
 
+  for (const path of ['/product-category/abc%ZZ/', '/product-category/digital/%E0%A4%A/']) {
+    test(`an undecodable path answers 404, not 500: ${path}`, async ({ request }) => {
+      const response = await request.get(path, { maxRedirects: 0 })
+      expect(response.status()).toBe(404)
+      expect(response.headers()['cache-control']).toBe('no-store')
+      expect(await response.text()).toContain('صفحه پیدا نشد')
+    })
+  }
+
   test('the filter sheet opens and closes on phones', async ({ page }) => {
     test.skip((page.viewportSize()?.width ?? 0) >= LG, 'the sidebar shows the filters from lg')
     await page.goto(PHONES)

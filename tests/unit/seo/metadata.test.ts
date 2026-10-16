@@ -62,11 +62,21 @@ describe('seoMetadata', () => {
   it('without a backend title sets no title, so the layout template and Next fill the cards', () => {
     const meta = seoMetadata({ path: '/product/list/', pageTitle: ' ', image: null })
     expect(meta).not.toHaveProperty('title')
+    // No picture: the small card.
+    expect(meta.twitter).toMatchObject({ card: 'summary' })
     expect(meta.openGraph).not.toHaveProperty('title')
     expect(meta.openGraph).not.toHaveProperty('images')
     expect(meta.twitter).not.toHaveProperty('title')
     expect(meta.twitter).not.toHaveProperty('images')
     expect(undefinedKeys(meta)).toEqual([])
+  })
+
+  it('uses the large Twitter card only with an image', () => {
+    expect(
+      seoMetadata({ path: '/a/', image: 'https://api.shop.ir/media/x.jpg' }).twitter,
+    ).toMatchObject({ card: 'summary_large_image' })
+    expect(seoMetadata({ path: '/a/' }).twitter).toMatchObject({ card: 'summary' })
+    expect(seoMetadata({ path: '/a/', image: '  ' }).twitter).toMatchObject({ card: 'summary' })
   })
 
   it('noindex keeps links followed', () => {

@@ -10,6 +10,7 @@ import { getClientIp } from '@/lib/http/client-ip'
 
 /**
  * Runs before every page (Node.js runtime), in this order:
+ * 0. A path that cannot be percent-decoded answers 404 (Next would fail on it with a 500).
  * 1. `/media/*`, `/static/*` and `/sitemap.xml` are proxied to the Django backend.
  * 2. Next internals, route handlers (`/api/*`, `/s/*`, `/healthz/`) and asset files are left alone.
  * 3. GET/HEAD: operator redirect rules answer 301/302, or 410 with a status page.
@@ -18,6 +19,8 @@ import { getClientIp } from '@/lib/http/client-ip'
 
 const GONE_TITLE = 'این صفحه حذف شده است'
 const GONE_MESSAGE = 'این صفحه دیگر وجود ندارد و جایگزینی هم ندارد.'
+const NOT_FOUND_TITLE = 'صفحه پیدا نشد'
+const NOT_FOUND_MESSAGE = 'نشانی این صفحه درست نیست. آن را بررسی کنید یا از صفحهٔ اصلی ادامه دهید.'
 
 const SESSION_COOKIES = [COOKIE.access, COOKIE.refresh, COOKIE.flag]
 const SKIPPED_PREFIX = /^\/(?:_next|api|s|icons)\//
@@ -28,6 +31,16 @@ const HEALTH_CHECK = /^\/healthz\/?$/
  * operators may redirect from older platforms (`.html`, `.htm`, `.php`, `.asp`, `.aspx`).
  */
 const ASSET_FILE = /\/[^/]*\.(?!xml$|html?$|php$|aspx?$)[^/.]+$/
+
+/** Whether every `%` in the path starts a valid UTF-8 escape (`%ZZ` or a cut `%E0%A4%A` do not). */
+function isDecodable(pathname: string): boolean {
+  try {
+    decodeURIComponent(pathname)
+    return true
+  } catch {
+    return false
+  }
+}
 
 function isForwarded(pathname: string): boolean {
   return pathname === '/sitemap.xml' || /^\/(?:media|static)\//.test(pathname)
@@ -125,6 +138,8 @@ async function withSession(
 
 export async function proxy(request: NextRequest): Promise<Response> {
   const { pathname } = request.nextUrl
+  // Before anything else: no API call, no session refresh for a path no route can read.
+  if (!isDecodable(pathname)) return statusPage(404, NOT_FOUND_TITLE, NOT_FOUND_MESSAGE)
   // Forwarded paths come first: `/media/a.png` also looks like an asset file.
   if (isForwarded(pathname)) return forward(request, getServerEnv().FIREFLY_API_URL)
   // Skipped paths never read the environment, so the health probe reports a broken one itself.

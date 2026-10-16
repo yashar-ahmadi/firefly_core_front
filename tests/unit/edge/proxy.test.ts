@@ -58,6 +58,35 @@ afterEach(() => {
   vi.doUnmock('@/lib/edge/redirects')
 })
 
+describe('undecodable paths', () => {
+  it.each([
+    '/product-category/abc%ZZ/',
+    '/product-category/digital/%E0%A4%A/',
+    '/media/%E0%A4%A.png',
+  ])(
+    'answers %s with a 404 page before anything else (Next would fail with a 500)',
+    async (path) => {
+      const { proxy } = await load()
+      const res = await proxy(request(path, { cookies: { ff_rt: jwtExpiringIn(-60) } }))
+      expect(res.status).toBe(404)
+      expect(res.headers.get('content-type')).toContain('text/html')
+      expect(res.headers.get('cache-control')).toBe('no-store')
+      expect(await res.text()).toContain('<title>صفحه پیدا نشد</title>')
+      expect(getRewrittenUrl(res as never)).toBeNull()
+      expect(knownSources).not.toHaveBeenCalled()
+      expect(resolveRedirect).not.toHaveBeenCalled()
+      expect(refreshAccess).not.toHaveBeenCalled()
+    },
+  )
+
+  it('lets a well-formed encoded path through', async () => {
+    const { proxy } = await load()
+    const res = await proxy(request('/product-category/%DA%A9%D8%A7%D9%84%D8%A7/'))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('x-middleware-next')).toBe('1')
+  })
+})
+
 describe('forwarding', () => {
   it.each([
     ['/media/a/logo.png?v=2', 'https://api.test/media/a/logo.png?v=2'],

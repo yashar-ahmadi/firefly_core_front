@@ -27,16 +27,18 @@ export interface SeoInput {
  *   social cards).
  * - description and keywords: only when set, never as `undefined` (that wipes the layout's).
  * - canonical (and `og:url`): `canonical`, else `path`.
- * - Open Graph `website` in `fa_IR` with the image; Twitter `summary_large_image`.
+ * - Open Graph `website` in `fa_IR` with the image; Twitter `summary_large_image` when there is
+ *   an image, else `summary`.
  */
 export function seoMetadata(input: SeoInput): Metadata {
+  const image = input.image?.trim() || null
   return pageMetadata({
     title: input.pageTitle ?? null,
     description: input.description,
     keywords: input.keywords,
     canonical: input.canonical?.trim() || input.path,
-    image: input.image,
-    card: 'summary_large_image',
+    image,
+    card: image ? 'summary_large_image' : 'summary',
     robots: input.noindex ? { index: false, follow: true } : null,
   })
 }

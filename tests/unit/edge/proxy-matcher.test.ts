@@ -34,6 +34,9 @@ describe('matcher', () => {
     '/default.asp',
     '/shop/list.aspx',
     '/healthz-tips/',
+    // Undecodable: the proxy answers 404 itself.
+    '/product-category/abc%ZZ/',
+    '/product-category/digital/%E0%A4%A/',
   ])('runs on %s', async (url) => {
     expect(await matches(url)).toBe(true)
   })
