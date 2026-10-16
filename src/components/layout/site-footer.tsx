@@ -39,7 +39,8 @@ function TrustBadges({ zone, title }: { zone: ReactNode; title: string }) {
  * The shop footer (a Server Component; the accordion, social logos and back-to-top button are
  * client leaves).
  *
- * - Top: logo (`logo2`, else `logo`, else the name) and «بازگشت به بالا»; the slogan and the
+ * - Top: the logo (`logo`, as in the header, else the name; never `logo2`, which may be a light
+ *   variant for dark surfaces) and «بازگشت به بالا»; the slogan and the
  *   operator's `footer` HTML (sanitised, `/media` made absolute).
  * - The contact card: phones, email, address, response time (side by side on wide screens).
  * - `menu/footer` columns (an accordion on phones), then socials, app badges and the trust
@@ -78,12 +79,7 @@ export async function SiteFooter() {
     <footer className="border-t border-ink-200 bg-white">
       <div className={cn(CONTAINER, 'pt-8 pb-10 lg:pt-12 lg:pb-14')}>
         <div className="flex items-center justify-between gap-4">
-          <StoreLogo
-            src={settings?.logo2 ?? null}
-            fallbackSrc={settings?.logo ?? null}
-            name={name}
-            priority={false}
-          />
+          <StoreLogo src={settings?.logo ?? null} name={name} priority={false} />
           <BackToTop />
         </div>
 

@@ -173,11 +173,12 @@ describe('SiteFooter: menu columns', () => {
 })
 
 describe('SiteFooter: identity and contact', () => {
-  it('shows the logo (logo2 first) linking home, the slogan and the sanitised footer text', async () => {
+  it('shows the primary logo linking home, the slogan and the sanitised footer text', async () => {
     await renderFooter()
     const footer = screen.getByRole('contentinfo')
     const logo = within(footer).getByRole('img', { name: 'فایرفلای' })
-    expect(logo).toHaveAttribute('src', expect.stringContaining('site-logo-alt.png'))
+    // `logo`, like the header: `logo2` may be a light variant meant for dark surfaces (R10).
+    expect(logo).toHaveAttribute('src', expect.stringContaining('site-logo.png'))
     expect(within(footer).getByRole('link', { name: 'فایرفلای' })).toHaveAttribute('href', '/')
     expect(within(footer).getByText('خرید مطمئن، ارسال سریع')).toBeInTheDocument()
 
@@ -187,14 +188,13 @@ describe('SiteFooter: identity and contact', () => {
     expect(badge).not.toHaveAttribute('onerror')
   })
 
-  it('falls back from logo2 to the logo, then to the wordmark', async () => {
+  it('never uses logo2, and falls back to the wordmark when the logo fails', async () => {
     await renderFooter()
     const footer = screen.getByRole('contentinfo')
+    expect(footer.querySelector('img[src*="site-logo-alt"]')).toBeNull()
     fireEvent.error(within(footer).getByRole('img', { name: 'فایرفلای' }))
-    const logo = within(footer).getByRole('img', { name: 'فایرفلای' })
-    expect(logo).toHaveAttribute('src', expect.stringContaining('site-logo.png'))
-    fireEvent.error(logo)
     expect(within(footer).getByRole('img', { name: 'فایرفلای' }).tagName).toBe('SPAN')
+    expect(footer.querySelector('img[src*="site-logo-alt"]')).toBeNull()
   })
 
   it('links phone and phone2 with tel:, shown left to right in Persian digits', async () => {
