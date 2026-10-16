@@ -13,6 +13,7 @@ import { NotFoundView } from '@/components/layout/not-found-view'
 import { ShopShell } from '@/components/layout/shop-shell'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { SiteHeader } from '@/components/layout/site-header'
+import { LiveAnnouncer } from '@/components/ui/live-announcer'
 import { I18nProvider } from '@/lib/i18n/i18n-context'
 import { sampleTree } from './support'
 
@@ -105,11 +106,13 @@ describe('not-found.tsx and the shop shell', () => {
   it('puts the footer between the page and the bottom navigation', () => {
     const shell = ShopShell({ children: <p>صفحه</p> }) as ReactElement<{ children: ReactNode }>
     const parts = Children.toArray(shell.props.children).filter(isValidElement)
-    expect(parts.map((part) => part.type).slice(-4)).toEqual([
+    // Then the shop's polite live region, which takes no space (LiveAnnouncer).
+    expect(parts.map((part) => part.type).slice(-5)).toEqual([
       SiteHeader,
       'main',
       SiteFooter,
       MobileBottomNav,
+      LiveAnnouncer,
     ])
     // The skip link lives in the root layout (first in <body>); its target is this <main>.
     expect(parts.some((part) => part.type === 'a')).toBe(false)
