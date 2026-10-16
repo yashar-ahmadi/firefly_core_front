@@ -1,8 +1,20 @@
 'use client'
 
 import { Tooltip as TooltipPrimitive } from 'radix-ui'
-import type { ComponentProps, ReactElement, ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  type ComponentProps,
+  type ReactElement,
+  type ReactNode,
+} from 'react'
 import { cn } from './cn'
+
+/** Hover time before a tooltip opens, unless a `Tooltip` sets its own. */
+const DELAY = 300
+
+/** Inside a `TooltipProvider`: its tooltips share one timing. */
+const GroupContext = createContext(false)
 
 export interface TooltipProps extends Omit<
   ComponentProps<typeof TooltipPrimitive.Content>,
@@ -12,21 +24,26 @@ export interface TooltipProps extends Omit<
   content: ReactNode
   /** One focusable element (an IconButton, a link). Disabled buttons never show a tooltip. */
   children: ReactElement
-  /** Milliseconds of hover before it opens; `TooltipProvider` sets the default (300). */
+  /** Milliseconds of hover before it opens (default 300). */
   delayDuration?: number
 }
 
 /**
- * The shared timing of every tooltip: once one is open, moving to the next shows it at once.
- * Mounted once by the root providers (src/app/providers.tsx); a `Tooltip` needs it above.
+ * A shared timing for a group of tooltips (a toolbar): once one is open, moving to the next
+ * shows it at once. Optional: a `Tooltip` outside one brings its own. Not mounted by the root
+ * providers, so pages without tooltips do not load their code.
  */
 export function TooltipProvider({ children }: { children: ReactNode }) {
-  return <TooltipPrimitive.Provider delayDuration={300}>{children}</TooltipPrimitive.Provider>
+  return (
+    <GroupContext.Provider value>
+      <TooltipPrimitive.Provider delayDuration={DELAY}>{children}</TooltipPrimitive.Provider>
+    </GroupContext.Provider>
+  )
 }
 
 /**
  * A short hint on hover and keyboard focus (Radix). Touch screens never show tooltips, so
- * never put information only here. Needs `TooltipProvider` above it.
+ * never put information only here. Works on its own or inside a `TooltipProvider`.
  */
 export function Tooltip({
   content,
@@ -38,7 +55,8 @@ export function Tooltip({
   className,
   ...props
 }: TooltipProps) {
-  return (
+  const grouped = useContext(GroupContext)
+  const tooltip = (
     <TooltipPrimitive.Root delayDuration={delayDuration}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
@@ -59,4 +77,6 @@ export function Tooltip({
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>
   )
+  if (grouped) return tooltip
+  return <TooltipPrimitive.Provider delayDuration={DELAY}>{tooltip}</TooltipPrimitive.Provider>
 }

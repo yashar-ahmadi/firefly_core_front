@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { AdminFaq } from '@/features/catalog/components/admin-faq'
@@ -70,9 +70,15 @@ describe('ConsiderBeforeBuying', () => {
       />,
     )
     expect(screen.getByRole('heading', { level: 2, name: 'پیش از خرید' })).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'نکات' }))
-    const dialog = screen.getByRole('dialog', { name: 'پیش از خرید' })
+    const button = screen.getByRole('button', { name: 'نکات' })
+    expect(button).toHaveAttribute('aria-haspopup', 'dialog')
+    await user.click(button)
+    // The dialog's code loads on the first opening.
+    const dialog = await screen.findByRole('dialog', { name: 'پیش از خرید' })
     expect(within(dialog).getByText('به باتری توجه کنید.')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(button).toHaveFocus()
   })
 
   it('falls back to default labels, and is left out when the text is empty', () => {

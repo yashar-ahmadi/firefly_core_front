@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Providers } from '@/app/providers'
 import { IconButton } from '@/components/ui/icon-button'
-import { Tooltip } from '@/components/ui/tooltip'
+import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 import { parseServerEnv } from '@/config/env-schema'
 import { resolveStoreConfig, toPublicConfig } from '@/config/resolve-store-config'
 import { useFeature, type FeatureMap } from '@/features/settings/feature-context'
@@ -128,7 +128,7 @@ describe('Providers', () => {
     await waitFor(() => expect(result.current.coupons.enabled).toBe(false))
   })
 
-  it('shares one tooltip provider', async () => {
+  it('needs no tooltip provider: a Tooltip brings its own, so pages without one skip its code', async () => {
     const user = userEvent.setup()
     render(
       <Tooltip content="افزودن به علاقه‌مندی‌ها" delayDuration={0}>
@@ -138,6 +138,27 @@ describe('Providers', () => {
     )
     await user.hover(screen.getByRole('button', { name: 'علاقه‌مندی' }))
     expect(await screen.findByRole('tooltip')).toHaveTextContent('افزودن به علاقه‌مندی‌ها')
+  })
+
+  it('a Tooltip works with no provider above it, alone or in a TooltipProvider group', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <Tooltip content="تنها" delayDuration={0}>
+          <IconButton label="یک" icon="۱" />
+        </Tooltip>
+        <TooltipProvider>
+          <Tooltip content="در گروه" delayDuration={0}>
+            <IconButton label="دو" icon="۲" />
+          </Tooltip>
+        </TooltipProvider>
+      </>,
+    )
+    await user.hover(screen.getByRole('button', { name: 'یک' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('تنها')
+    await user.unhover(screen.getByRole('button', { name: 'یک' }))
+    await user.hover(screen.getByRole('button', { name: 'دو' }))
+    expect(await screen.findByRole('tooltip', { name: 'در گروه' })).toBeInTheDocument()
   })
 })
 

@@ -1,52 +1,46 @@
 'use client'
 
 import { ChevronDown, CircleUserRound, LogIn, ShoppingCart } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, type MouseEvent } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClasses, iconButtonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { SHEET_SIDE_QUERY } from '@/components/ui/sheet'
-import { useMediaQuery } from '@/components/ui/use-media-query'
+import { DeferredMenu } from '@/components/ui/deferred-menu'
+import { PanelPending } from '@/components/ui/panel-pending'
+import { trackPresses } from '@/components/ui/press-tracking'
+import { SHEET_SIDE_QUERY, useMediaQuery } from '@/components/ui/use-media-query'
 import { WidgetBoundary } from '@/components/ui/widget-boundary'
 import { CartBadge, useCartLabel } from '@/features/cart/components/cart-badge'
-import { MiniCart } from '@/features/cart/components/mini-cart'
+import type { MiniCartProps } from '@/features/cart/components/mini-cart'
 import { useFeature } from '@/features/settings/feature-context'
 import { useT } from '@/lib/i18n/i18n-context'
 import { loginHref } from '@/lib/links/login'
+import { loadPage } from '@/lib/navigation/hard-navigation'
 import { useSession } from '@/lib/session/session-context'
 
-/** Signed in: the account entry (Plan 3 adds the summary and sign-out). */
-function AccountMenu() {
+const loadAccountMenu = () => import('./account-menu').then((module) => module.AccountMenu)
+
+/**
+ * Signed in: the account entry, a menu whose code loads on first use (DeferredMenu). If that
+ * code cannot be downloaded, the account page is the way on.
+ */
+function AccountEntry() {
   const t = useT()
-  const links = [
-    { href: '/account/', label: t('account') },
-    { href: '/account/orders/', label: t('account_orders') },
-    { href: '/account/wishlist/', label: t('account_wishlist') },
-  ]
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <DeferredMenu
+      load={loadAccountMenu}
+      props={{}}
+      onUnavailable={() => loadPage('/account/')}
+      trigger={
         <Button variant="ghost" iconStart={<CircleUserRound />} className="gap-1.5 px-3">
           {t('account')}
           <ChevronDown aria-hidden className="size-4! text-ink-500" />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {links.map((link) => (
-          <DropdownMenuItem key={link.href} asChild>
-            <Link href={link.href}>{link.label}</Link>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      }
+    />
   )
 }
 
@@ -55,17 +49,48 @@ function isModifiedClick(event: MouseEvent): boolean {
   return event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
 }
 
+type LazyMiniCartProps = MiniCartProps & { onUnavailable: () => void }
+
+/** Stands in for the mini-cart when its code could not be downloaded. */
+function MiniCartUnavailable({ onUnavailable }: LazyMiniCartProps) {
+  useEffect(() => onUnavailable(), [onUnavailable])
+  return null
+}
+
+// The mini-cart (a sheet, with Vaul and Radix Dialog) loads on the first opening, or earlier
+// when the cart icon is hovered, focused or pressed.
+const MiniCart = dynamic<LazyMiniCartProps>(
+  () =>
+    import('@/features/cart/components/mini-cart')
+      .then((module) => module.MiniCart)
+      .catch(() => MiniCartUnavailable),
+  { ssr: false, loading: () => <PanelPending label="در حال بارگذاری سبد خرید" /> },
+)
+/** A failed preload is dropped: the first opening imports the code itself. */
+const preloadMiniCart = () => {
+  import('@/features/cart/components/mini-cart').catch(() => {})
+}
+
 /**
  * The cart icon with its item count. Below md it is a plain link to the cart page (phones also
  * have it in the bottom bar); from md it opens the mini-cart drawer instead, while a modified
- * click still opens the cart page in a new tab. A mini-cart that fails to render is taken off
- * the page (WidgetBoundary); the icon stays and still links to the cart page.
+ * click still opens the cart page in a new tab. The drawer's code loads on the first opening.
+ * If it cannot be downloaded or fails to render (WidgetBoundary), the icon becomes a plain link
+ * again and the cart page opens, since that is where the visitor was going.
  */
 function CartEntry() {
   const label = useCartLabel()
   const [miniCartFailed, setMiniCartFailed] = useState(false)
   const wide = useMediaQuery(SHEET_SIDE_QUERY) && !miniCartFailed
   const [open, setOpen] = useState(false)
+  const [requested, setRequested] = useState(false)
+  // The drawer returns the focus to its opener: record presses before its code is loaded.
+  useEffect(trackPresses, [])
+  const fail = () => {
+    setMiniCartFailed(true)
+    setOpen(false)
+    loadPage('/cart/')
+  }
   return (
     <>
       <Link
@@ -73,9 +98,12 @@ function CartEntry() {
         aria-label={label}
         aria-haspopup={wide ? 'dialog' : undefined}
         aria-expanded={wide ? open : undefined}
+        onPointerEnter={wide ? preloadMiniCart : undefined}
+        onFocus={wide ? preloadMiniCart : undefined}
         onClick={(event) => {
           if (!wide || isModifiedClick(event)) return
           event.preventDefault()
+          setRequested(true)
           setOpen(true)
         }}
         className={cn(iconButtonClasses(), 'text-ink-800')}
@@ -83,9 +111,11 @@ function CartEntry() {
         <ShoppingCart aria-hidden />
         <CartBadge className="-end-0.5 -top-0.5" />
       </Link>
-      <WidgetBoundary name="mini-cart" onError={() => setMiniCartFailed(true)}>
-        <MiniCart open={open} onOpenChange={setOpen} />
-      </WidgetBoundary>
+      {requested && !miniCartFailed && (
+        <WidgetBoundary name="mini-cart" onError={fail}>
+          <MiniCart open={open} onOpenChange={setOpen} onUnavailable={fail} />
+        </WidgetBoundary>
+      )}
     </>
   )
 }
@@ -101,7 +131,7 @@ export function HeaderActions() {
     <div className="flex shrink-0 items-center gap-1 md:gap-2">
       <div className="hidden md:block">
         {hasSession ? (
-          <AccountMenu />
+          <AccountEntry />
         ) : (
           <Link
             href={loginHref(pathname)}

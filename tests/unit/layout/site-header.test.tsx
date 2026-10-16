@@ -1,4 +1,5 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Providers } from '@/app/providers'
@@ -182,6 +183,29 @@ describe('SiteHeader', () => {
     await renderHeader({ hasSession: true })
     expect(screen.queryByRole('link', { name: /ورود/ })).toBeNull()
     expect(screen.getByRole('button', { name: 'حساب من' })).toHaveAttribute('aria-haspopup', 'menu')
+  })
+
+  it('opens the account menu (its code loads on first use), from the keyboard on its first item', async () => {
+    const user = userEvent.setup()
+    await renderHeader({ hasSession: true })
+    const button = screen.getByRole('button', { name: 'حساب من' })
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+    await user.click(button)
+    const menu = await screen.findByRole('menu')
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.getAttribute('href')),
+    ).toEqual(['/account/', '/account/orders/', '/account/wishlist/'])
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+    const loaded = screen.getByRole('button', { name: 'حساب من' })
+    expect(loaded).toHaveFocus()
+    await user.keyboard('{Enter}')
+    const again = await screen.findByRole('menu')
+    await waitFor(() =>
+      expect(within(again).getByRole('menuitem', { name: 'حساب من' })).toHaveFocus(),
+    )
   })
 
   it('sends the navigation menus only the items they show, never the unused category tree', async () => {

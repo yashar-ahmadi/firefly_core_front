@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { HeaderActions } from '@/components/layout/header-actions'
 import { WidgetBoundary } from '@/components/ui/widget-boundary'
@@ -13,6 +13,8 @@ vi.mock('@/features/cart/components/mini-cart', () => ({
     throw new Error('mini-cart render bug')
   },
 }))
+const navigation = vi.hoisted(() => ({ loadPage: vi.fn(), reloadPage: vi.fn() }))
+vi.mock('@/lib/navigation/hard-navigation', () => navigation)
 
 const media = stubBrowserApis()
 
@@ -87,7 +89,7 @@ describe('WidgetBoundary', () => {
 
 describe('the header actions', () => {
   it('keep the cart link, as a plain link to the cart page, when the mini-cart fails to render', async () => {
-    // From md the link would open the mini-cart.
+    // From md the link opens the mini-cart, which is mounted on that first opening.
     media.set(minWidth(48))
     const { wrapper: Wrapper } = clientProviders()
     render(
@@ -98,6 +100,14 @@ describe('the header actions', () => {
       </FeatureProvider>,
     )
     const link = await screen.findByRole('link', { name: /^سبد خرید/ })
+    await waitFor(() => expect(link).toHaveAttribute('aria-haspopup', 'dialog'))
+    expect(reports('mini-cart render bug')).toHaveLength(0)
+
+    // A bare click: Vitest can hand the real module to a dynamic import that overlaps another
+    // one of a mocked module, and a hover or focus would start the preload import first.
+    fireEvent.click(link)
+    // The visitor asked for the cart: the cart page opens, and the icon is a plain link again.
+    await waitFor(() => expect(navigation.loadPage).toHaveBeenCalledWith('/cart/'))
     expect(link).toHaveAttribute('href', '/cart/')
     expect(link).not.toHaveAttribute('aria-haspopup')
     expect(reports('mini-cart render bug')).toHaveLength(1)

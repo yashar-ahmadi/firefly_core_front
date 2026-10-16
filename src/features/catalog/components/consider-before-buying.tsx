@@ -1,16 +1,14 @@
 import { Lightbulb } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { richContentHtml } from '@/features/content/rich-content'
-import { RichContentBody } from '@/features/content/rich-content-body'
 import type { ConsiderBeforeBuying as ConsiderBeforeBuyingData } from '@/lib/api/types/catalog'
+import { ReadingButton } from './reading-button'
 
 const HEADING_ID = 'consider-before-buying'
 
 /**
  * The operator's «before you buy» card (product digest §5.10): its title and a button, labelled
  * by the operator, that opens the text (operator HTML) in a dialog. Nothing when the text is
- * empty. Defaults: «پیش از خرید بدانید» and «مطالعه».
+ * empty. Defaults: «پیش از خرید بدانید» and «مطالعه». The dialog's code loads on the first opening.
  */
 export function ConsiderBeforeBuying({ data }: { data: ConsiderBeforeBuyingData }) {
   const html = richContentHtml(data.text)
@@ -30,16 +28,7 @@ export function ConsiderBeforeBuying({ data }: { data: ConsiderBeforeBuyingData 
       <h2 id={HEADING_ID} className="min-w-0 flex-1 text-lg leading-8 font-bold text-ink-900">
         {title}
       </h2>
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button variant="outline" className="max-sm:w-full">
-            {data.button?.trim() || 'مطالعه'}
-          </Button>
-        </DialogTrigger>
-        <DialogContent title={title} size="lg">
-          <RichContentBody html={html} className="rich-content" />
-        </DialogContent>
-      </Dialog>
+      <ReadingButton label={data.button?.trim() || 'مطالعه'} title={title} html={html} />
     </section>
   )
 }

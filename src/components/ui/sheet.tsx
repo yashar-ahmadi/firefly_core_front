@@ -15,7 +15,7 @@ import {
   PanelHeader,
   useReturnFocus,
 } from './overlay-panel'
-import { useHydrated, useMediaQuery } from './use-media-query'
+import { SHEET_SIDE_QUERY, useHydrated, useMediaQuery } from './use-media-query'
 
 export interface SheetProps {
   open: boolean
@@ -30,8 +30,7 @@ export interface SheetProps {
   className?: string
 }
 
-/** The viewport width from which a sheet becomes a side drawer (Tailwind `md`, 48rem). */
-export const SHEET_SIDE_QUERY = '(min-width: 48rem)'
+export { SHEET_SIDE_QUERY } from './use-media-query'
 
 // Vaul's own transition is 500ms; keep its curve but match the other overlays (250ms).
 const VAUL_TIMING = { animationDuration: '250ms' }

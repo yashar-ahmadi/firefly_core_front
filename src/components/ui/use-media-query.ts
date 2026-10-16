@@ -3,6 +3,12 @@ import { useCallback, useSyncExternalStore } from 'react'
 // Media-query hooks built on useSyncExternalStore: the server render and hydration use the
 // fallback, then React re-renders with the real value, so hydration never mismatches.
 
+/**
+ * The viewport width from which a sheet becomes a side drawer (Tailwind `md`, 48rem). Here, not
+ * in sheet.tsx, so a trigger can test it without loading the sheet's code.
+ */
+export const SHEET_SIDE_QUERY = '(min-width: 48rem)'
+
 function canMatch(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
 }

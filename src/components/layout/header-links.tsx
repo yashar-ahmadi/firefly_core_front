@@ -2,64 +2,35 @@
 
 import { ChevronDown } from 'lucide-react'
 import { usePathname } from 'next/navigation'
-import { Fragment } from 'react'
 import { cn } from '@/components/ui/cn'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DeferredMenu } from '@/components/ui/deferred-menu'
 import type { MenuNode } from '@/lib/api/types/settings'
-import { useT } from '@/lib/i18n/i18n-context'
+import { loadPage, reloadPage } from '@/lib/navigation/hard-navigation'
 import { MenuIcon, MenuLink } from './menu-link'
 import { isActivePath } from './menu-tree'
 import { HEADER_LINK } from './nav-styles'
 
-/** Every descendant with its depth, in menu order: the dropdown lists them flat, indented. */
-function flatten(nodes: MenuNode[], depth = 0): { node: MenuNode; depth: number }[] {
-  return nodes.flatMap((node) => [{ node, depth }, ...flatten(node.children, depth + 1)])
-}
+const loadHeaderDropdown = () => import('./header-dropdown').then((module) => module.HeaderDropdown)
 
-/** A header item with children: a menu of them (headings as labels, links as items). */
-function HeaderDropdown({ item, pathname }: { item: MenuNode; pathname: string }) {
-  const t = useT()
+/**
+ * A header item with children: a menu of them, whose code loads on first use (DeferredMenu). If
+ * that code cannot be downloaded, the item's own page opens, or the page reloads with fresh
+ * code when the item has none.
+ */
+function HeaderMenuButton({ item, pathname }: { item: MenuNode; pathname: string }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className={HEADER_LINK}>
-        {item.icon && <MenuIcon src={item.icon} />}
-        {item.title}
-        <ChevronDown aria-hidden className="size-4 text-ink-500" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {item.url !== null && (
-          <DropdownMenuItem asChild>
-            <MenuLink node={item} className="font-medium text-brand-700">
-              {t('menu_view', { name: item.title })}
-            </MenuLink>
-          </DropdownMenuItem>
-        )}
-        {flatten(item.children).map(({ node, depth }) => (
-          <Fragment key={node.id}>
-            {node.url === null ? (
-              <DropdownMenuLabel style={{ paddingInlineStart: `${0.75 + depth}rem` }}>
-                {node.title}
-              </DropdownMenuLabel>
-            ) : (
-              <DropdownMenuItem asChild>
-                <MenuLink
-                  node={node}
-                  withIcon
-                  aria-current={isActivePath(node.url, pathname) ? 'page' : undefined}
-                  style={{ paddingInlineStart: `${0.75 + depth}rem` }}
-                />
-              </DropdownMenuItem>
-            )}
-          </Fragment>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <DeferredMenu
+      load={loadHeaderDropdown}
+      props={{ item, pathname }}
+      onUnavailable={() => (item.url !== null ? loadPage(item.url) : reloadPage())}
+      trigger={
+        <button type="button" className={HEADER_LINK}>
+          {item.icon && <MenuIcon src={item.icon} />}
+          {item.title}
+          <ChevronDown aria-hidden className="size-4 text-ink-500" />
+        </button>
+      }
+    />
   )
 }
 
@@ -77,7 +48,7 @@ export function HeaderLinks({ items, className }: { items: MenuNode[]; className
       {items.map((item) => (
         <li key={item.id} className="shrink-0">
           {item.children.length > 0 ? (
-            <HeaderDropdown item={item} pathname={pathname} />
+            <HeaderMenuButton item={item} pathname={pathname} />
           ) : (
             <MenuLink
               node={item}

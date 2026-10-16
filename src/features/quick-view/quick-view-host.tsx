@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
-import { Spinner } from '@/components/ui/spinner'
+import { PanelPending } from '@/components/ui/panel-pending'
 import { productPath } from '@/features/catalog/listing-routes'
 import { loadPage } from '@/lib/navigation/hard-navigation'
 import type { QuickViewProps } from './quick-view'
@@ -11,13 +11,7 @@ import { closeQuickView, registerQuickViewHost, useQuickViewStore } from './use-
 
 /** While the panel's code downloads (a first press with no hover before, say): a busy pill. */
 function QuickViewPending() {
-  return (
-    <div className="pointer-events-none fixed inset-x-0 top-1/2 z-50 flex justify-center">
-      <span className="rounded-pill bg-white p-3 text-brand-600 shadow-raised">
-        <Spinner size="lg" label="در حال بارگذاری مشاهده سریع" />
-      </span>
-    </div>
-  )
+  return <PanelPending label="در حال بارگذاری مشاهده سریع" />
 }
 
 /**

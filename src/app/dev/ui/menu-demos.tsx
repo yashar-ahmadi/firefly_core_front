@@ -28,7 +28,7 @@ import {
 import { IconButton } from '@/components/ui/icon-button'
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { notify } from '@/components/ui/toaster'
-import { Tooltip } from '@/components/ui/tooltip'
+import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 
 // Floating overlays (popover, menu, tooltip) and toasts for the /dev/ui showcase.
 
@@ -132,7 +132,7 @@ export function DropdownDemo() {
 
 export function TooltipDemo() {
   return (
-    <>
+    <TooltipProvider>
       <Tooltip content="افزودن به علاقه‌مندی‌ها">
         <IconButton label="علاقه‌مندی" icon={<Heart />} variant="outline" />
       </Tooltip>
@@ -142,7 +142,7 @@ export function TooltipDemo() {
       <Tooltip content="ارسال پیوند این کالا برای دوستان" side="bottom">
         <IconButton label="اشتراک‌گذاری" icon={<Share2 />} variant="outline" />
       </Tooltip>
-    </>
+    </TooltipProvider>
   )
 }
 

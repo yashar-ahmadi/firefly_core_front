@@ -4,7 +4,6 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { Direction } from 'radix-ui'
 import { useState, type ReactNode } from 'react'
 import { Toaster } from '@/components/ui/toaster'
-import { TooltipProvider } from '@/components/ui/tooltip'
 import type { PublicStoreConfig } from '@/config/resolve-store-config'
 import {
   FeatureProvider,
@@ -48,10 +47,8 @@ export function Providers({
           <SessionProvider initialHasSession={hasSession}>
             <FeatureProvider initial={features}>
               <QueryProvider>
-                <TooltipProvider>
-                  {children}
-                  <Toaster />
-                </TooltipProvider>
+                {children}
+                <Toaster />
               </QueryProvider>
             </FeatureProvider>
           </SessionProvider>
