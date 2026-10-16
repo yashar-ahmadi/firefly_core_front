@@ -40,13 +40,13 @@ afterEach(() => {
   replaceState.mockRestore()
 })
 
-function renderPicker(initialVariantId?: number) {
+function renderPicker(initialVariantId?: number, syncUrl?: boolean) {
   return renderWithProduct(
     <>
       <VariantPicker />
       <Probe />
     </>,
-    { product: s25Product(), initialVariantId },
+    { product: s25Product(), initialVariantId, syncUrl },
   )
 }
 
@@ -217,10 +217,10 @@ describe('the chosen variant in the URL (?variant=)', () => {
     expect(lastUrl()).toBe(`${PAGE}?utm_source=sms&variant=10004`)
   })
 
-  it('with a variant given by its host (quick view) neither reads nor writes ?variant=', async () => {
+  it('detached from the URL (quick view: syncUrl off) neither reads nor writes ?variant=', async () => {
     const user = userEvent.setup()
     router.search = 'variant=10003'
-    const { rerender } = renderPicker(10001)
+    const { rerender } = renderPicker(10001, false)
     expect(probe()).toMatch(/^10001:/)
     await user.click(within(storage()).getByRole('radio', { name: /^۵۱۲ گیگابایت/ }))
     expect(probe()).toMatch(/^10002:/)
@@ -234,6 +234,19 @@ describe('the chosen variant in the URL (?variant=)', () => {
       </>,
     )
     expect(probe()).toMatch(/^10002:/)
+  })
+
+  it('detached from the URL, starts on the default variant without an initial one', () => {
+    router.search = 'variant=10003'
+    renderPicker(undefined, false)
+    expect(probe()).toMatch(/^10001:/)
+  })
+
+  it('still writes ?variant= when only the starting variant is given (syncUrl is on)', async () => {
+    const user = userEvent.setup()
+    renderPicker(10001)
+    await user.click(within(storage()).getByRole('radio', { name: /^۵۱۲ گیگابایت/ }))
+    expect(lastUrl()).toBe(`${PAGE}?variant=10002`)
   })
 
   it('leaves the URL alone while a navigation to another page is on its way', async () => {

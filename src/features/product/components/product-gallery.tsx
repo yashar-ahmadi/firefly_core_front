@@ -6,15 +6,36 @@ import { useEffect, useState } from 'react'
 import { useEmblaValue } from '@/components/ui/carousel'
 import { cn } from '@/components/ui/cn'
 import { SmartImage } from '@/components/ui/smart-image'
+import { notify } from '@/components/ui/toaster'
 import { usePrefersReducedMotion } from '@/components/ui/use-media-query'
 import type { Variant } from '@/lib/api/types/catalog'
 import { toPersianDigits } from '@/lib/format'
 import type { ClientProduct } from '../client-product'
+import type { GalleryLightboxProps } from './gallery-lightbox'
 import { useProduct } from './product-provider'
 
-// The lightbox's code loads the first time it opens (or when the pointer comes near).
+const LIGHTBOX_FAILED = 'نمایش بزرگ تصویر ممکن نشد. لطفاً صفحه را دوباره بارگذاری کنید.'
+
+/**
+ * Stands in for the lightbox when its code could not be downloaded: each opening says so and
+ * closes again, and the gallery stays as it is (never the page's error boundary).
+ */
+function LightboxUnavailable({ open, onOpenChange }: GalleryLightboxProps) {
+  useEffect(() => {
+    if (!open) return
+    notify.error(LIGHTBOX_FAILED)
+    onOpenChange(false)
+  }, [open, onOpenChange])
+  return null
+}
+
+// The lightbox's code loads the first time it opens (or when the pointer comes near). A failed
+// download resolves to LightboxUnavailable: React.lazy would throw it to the error boundary.
 const GalleryLightbox = dynamic(
-  () => import('./gallery-lightbox').then((module) => module.GalleryLightbox),
+  () =>
+    import('./gallery-lightbox')
+      .then((module) => module.GalleryLightbox)
+      .catch(() => LightboxUnavailable),
   { ssr: false },
 )
 /** A failed download is ignored here: opening the lightbox tries again. */

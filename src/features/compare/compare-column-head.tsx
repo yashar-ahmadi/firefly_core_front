@@ -1,14 +1,16 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { RotateCw, X } from 'lucide-react'
 import Link from 'next/link'
 import { useId } from 'react'
+import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Price } from '@/components/ui/price'
 import { SmartImage } from '@/components/ui/smart-image'
 import { cardAction, type ActionProduct } from '@/features/catalog/components/card-action'
 import { productPath } from '@/features/catalog/listing-routes'
 import type { ProductDetail, Variant } from '@/lib/api/types/catalog'
+import { compareItemFrom, type CompareItem } from './compare-item'
 
 const REMOVE = 'حذف از مقایسه'
 
@@ -28,6 +30,81 @@ function actionProduct(product: ProductDetail, variant: Variant | null): ActionP
   }
 }
 
+/** «حذف از مقایسه» in a column head's corner, described by the product name. */
+function RemoveButton({ nameId, onRemove }: { nameId: string; onRemove: () => void }) {
+  return (
+    <IconButton
+      label={REMOVE}
+      aria-describedby={nameId}
+      icon={<X />}
+      size="sm"
+      onClick={onRemove}
+      data-compare-remove=""
+      className="absolute -end-2 -top-2 z-[1] bg-white/90 text-ink-600 hover:bg-danger/10 hover:text-danger"
+    />
+  )
+}
+
+/** The picture and the name link of a column head (from the payload, or the saved item). */
+function Identity({ nameId, slug, name, image }: CompareItem & { nameId: string }) {
+  return (
+    <>
+      <SmartImage
+        src={image}
+        alt=""
+        ratio="1/1"
+        sizes="(min-width: 768px) 96px, 64px"
+        className="w-16 rounded-control bg-ink-50 md:w-24"
+      />
+      <Link
+        id={nameId}
+        href={productPath(slug)}
+        prefetch={false}
+        dir="auto"
+        className="line-clamp-2 min-h-14 text-start text-base leading-7 font-medium text-ink-900 hover:text-brand-700"
+      >
+        {name}
+      </Link>
+    </>
+  )
+}
+
+/**
+ * The head of a column whose product could not be read (not a 404: those leave the list): the
+ * saved picture and name, why nothing more shows, «تلاش دوباره» and «حذف از مقایسه».
+ */
+export function CompareColumnFailed({
+  item,
+  onRetry,
+  retrying,
+  onRemove,
+}: {
+  item: CompareItem
+  onRetry: () => void
+  retrying: boolean
+  onRemove: () => void
+}) {
+  const nameId = useId()
+  return (
+    <div className="relative flex h-full max-w-64 flex-col gap-2">
+      <RemoveButton nameId={nameId} onRemove={onRemove} />
+      <Identity nameId={nameId} {...item} />
+      <p className="mt-auto text-sm text-danger">اطلاعات این کالا دریافت نشد.</p>
+      <Button
+        variant="outline"
+        size="sm"
+        fullWidth
+        loading={retrying}
+        iconStart={<RotateCw />}
+        aria-describedby={nameId}
+        onClick={onRetry}
+      >
+        تلاش دوباره
+      </Button>
+    </div>
+  )
+}
+
 /**
  * One product's column head in the compare table: the picture, the name (a link to the
  * product), the representative variant's price from the API, the shared add slot (one tap for
@@ -45,31 +122,8 @@ export function CompareColumnHead({
   return (
     // At most 16rem wide: on a wide column the × stays by its picture.
     <div className="relative flex h-full max-w-64 flex-col gap-2">
-      <IconButton
-        label={REMOVE}
-        aria-describedby={nameId}
-        icon={<X />}
-        size="sm"
-        onClick={onRemove}
-        data-compare-remove=""
-        className="absolute -end-2 -top-2 z-[1] bg-white/90 text-ink-600 hover:bg-danger/10 hover:text-danger"
-      />
-      <SmartImage
-        src={product.image}
-        alt=""
-        ratio="1/1"
-        sizes="(min-width: 768px) 96px, 64px"
-        className="w-16 rounded-control bg-ink-50 md:w-24"
-      />
-      <Link
-        id={nameId}
-        href={productPath(product.slug)}
-        prefetch={false}
-        dir="auto"
-        className="line-clamp-2 min-h-14 text-start text-base leading-7 font-medium text-ink-900 hover:text-brand-700"
-      >
-        {product.name}
-      </Link>
+      <RemoveButton nameId={nameId} onRemove={onRemove} />
+      <Identity nameId={nameId} {...compareItemFrom(product)} />
       <div className="mt-auto flex min-h-[3.125rem] flex-col justify-end">
         {variant ? (
           <Price

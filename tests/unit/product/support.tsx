@@ -11,6 +11,8 @@ import { clientProviders } from '../support/providers'
 export interface RenderProductOptions {
   product: ProductDetail
   initialVariantId?: number | null
+  /** ProductProvider's `syncUrl` (on by default, as on the product page). */
+  syncUrl?: boolean
   hasSession?: boolean
   /** The `stock_notifications` switch (on by default). */
   stockNotifications?: boolean
@@ -30,7 +32,11 @@ export function renderWithProduct(ui: ReactNode, options: RenderProductOptions) 
   const wrapper = ({ children }: { children: ReactNode }) => (
     <Base>
       <FeatureProvider initial={features}>
-        <ProductProvider product={options.product} initialVariantId={options.initialVariantId}>
+        <ProductProvider
+          product={options.product}
+          initialVariantId={options.initialVariantId}
+          syncUrl={options.syncUrl}
+        >
           {children}
         </ProductProvider>
       </FeatureProvider>

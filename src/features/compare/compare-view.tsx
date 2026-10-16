@@ -9,14 +9,12 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { productDetailQuery } from '@/features/product/product-query'
 import { isApiNotFound } from '@/lib/api/errors'
-import type { ProductDetail } from '@/lib/api/types/catalog'
 import { usePersistHydration } from '@/lib/store/persisted'
-import { CompareTable } from './compare-table'
+import { CompareTable, type CompareColumn } from './compare-table'
 import { useCompare } from './store'
 
 const EMPTY = 'هنوز کالایی برای مقایسه انتخاب نکرده\u{200C}اید'
 const ONE_MORE = 'برای مقایسه، دست\u{200C}کم یک کالای دیگر به فهرست بیفزایید.'
-const FAILED = 'دریافت اطلاعات کالاها ممکن نشد.'
 const gone = (name: string) => `«${name}» دیگر موجود نیست و از فهرست مقایسه برداشته شد.`
 
 /** The server's and hydration's render, and the wait for the products. */
@@ -60,7 +58,8 @@ function CompareEmpty() {
  * The compare page's body: the list saved on this device (`ff-compare`), each product's payload
  * read through the BFF in parallel (the queries quick view shares), then the table. The server
  * and hydration render a loading shell (the list is only known in the browser). A product that
- * answers 404 is taken off the list with a note; any other failure offers a retry. Removing a
+ * answers 404 is taken off the list with a note; one that fails otherwise keeps its column with
+ * a retry, beside the products that loaded. Removing a
  * column moves the focus to the next one's «حذف از مقایسه», or to the page heading when none is
  * left. `headingId` names the page's `<h1>` (focusable from code).
  */
@@ -103,33 +102,25 @@ export function CompareView({ headingId }: { headingId: string }) {
     body = <CompareSkeleton />
   } else if (items.length === 0) {
     body = <CompareEmpty />
-  } else if (queries.some((query) => query.isError && !isApiNotFound(query.error))) {
-    body = (
-      <div className="flex flex-col items-center gap-4 rounded-card bg-white py-12 text-center shadow-card">
-        <p className="text-ink-700">{FAILED}</p>
-        <Button
-          variant="outline"
-          onClick={() => {
-            for (const query of queries) if (query.isError) void query.refetch()
-          }}
-        >
-          تلاش دوباره
-        </Button>
-      </div>
-    )
   } else if (queries.some((query) => query.isPending)) {
     body = <CompareSkeleton />
   } else {
-    const products = queries.flatMap((query) => (query.data ? [query.data] : []))
+    // A product that failed to load keeps its column, with a retry; one gone (404) is dropped.
+    const columns = items.flatMap((item, index): CompareColumn[] => {
+      const query = queries[index]
+      if (query?.data) return [{ kind: 'product', product: query.data }]
+      if (!query?.isError || isApiNotFound(query.error)) return []
+      return [
+        { kind: 'failed', item, onRetry: () => void query.refetch(), retrying: query.isFetching },
+      ]
+    })
     body = (
       <>
-        {products.length === 1 && <p className="text-base text-ink-700">{ONE_MORE}</p>}
+        {items.length === 1 && <p className="text-base text-ink-700">{ONE_MORE}</p>}
         <CompareTable
-          products={products}
+          columns={columns}
           onRemove={(slug) => {
-            focusAfterRemove.current = products.findIndex(
-              (product: ProductDetail) => product.slug === slug,
-            )
+            focusAfterRemove.current = items.findIndex((item) => item.slug === slug)
             remove(slug)
           }}
         />

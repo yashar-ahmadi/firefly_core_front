@@ -49,38 +49,48 @@ export interface ProductProviderProps {
   /** A `ProductDetail`, or the slice of it the page hands to the browser (`toClientProduct`). */
   product: ClientProduct
   /**
-   * The variant to start on, given by a host that owns the choice (quick view, over any page):
-   * the provider is then detached from the URL, which it neither reads nor writes.
-   *
-   * Left out (the product page), the URL is the record: it starts on the URL's `?variant=` when
-   * that names a variant of this product (a shared link opens the same variant), else the
-   * default variant, follows a later `?variant=` and writes each choice back. Read through
-   * `useSearchParams`, which the server render and hydration see alike on this dynamic route,
-   * and which is right on a page restored by Back/Forward too (its payload was built for the
-   * URL it was first opened at, so the page cannot pass it).
+   * The variant to start on (null: the default variant). Left out: the URL's `?variant=` with
+   * `syncUrl`, else the default variant.
    */
   initialVariantId?: number | null
+  /**
+   * Whether the URL records the choice (default true, the product page): the provider starts on
+   * the URL's `?variant=` when it names a variant of this product (a shared link opens the same
+   * variant) unless `initialVariantId` is given, follows a later `?variant=` and writes each
+   * choice back. The URL is read through `useSearchParams`, which the server render and
+   * hydration see alike on this dynamic route, and which is right on a page restored by
+   * Back/Forward too (its payload was built for the URL it was first opened at).
+   *
+   * false (quick view, over any page): detached from the URL, which is neither read nor written.
+   */
+  syncUrl?: boolean
   children: ReactNode
 }
 
 /**
  * The product's client state (the product page, quick view): the selected values, the variant
  * they resolve to and the quantity. Choosing a value changes the image, price, stock text and
- * limits with no request. On the product page (URL mode: no `initialVariantId`) it records the
- * variant in the URL with `history.replaceState` (no history entry, no navigation; the null
- * state is Next's documented way to sync `useSearchParams`); never while a navigation to another
- * page is on its way, which it would cancel.
+ * limits with no request. With `syncUrl` (the product page) it records the variant in the URL
+ * with `history.replaceState` (no history entry, no navigation; the null state is Next's
+ * documented way to sync `useSearchParams`); never while a navigation to another page is on its
+ * way, which it would cancel.
  */
-export function ProductProvider({ product, initialVariantId, children }: ProductProviderProps) {
-  const urlMode = initialVariantId === undefined
+export function ProductProvider({
+  product,
+  initialVariantId,
+  syncUrl = true,
+  children,
+}: ProductProviderProps) {
   const requested = useSearchParams().get('variant') ?? undefined
   const [selection, setSelection] = useState(() =>
     initialSelection(
       product.variant_options,
       product.variants,
-      urlMode
-        ? requestedVariantId(product, requested)
-        : (initialVariantId ?? product.default_variant_id),
+      initialVariantId !== undefined
+        ? (initialVariantId ?? product.default_variant_id)
+        : syncUrl
+          ? requestedVariantId(product, requested)
+          : product.default_variant_id,
     ),
   )
   const [announcement, setAnnouncement] = useState('')
@@ -99,7 +109,7 @@ export function ProductProvider({ product, initialVariantId, children }: Product
     setSeenRequest(requested)
     const id = requestedVariantId(product, requested)
     const named = id !== null && String(id) === requested
-    if (urlMode && named && id !== variant?.id) {
+    if (syncUrl && named && id !== variant?.id) {
       setSelection(initialSelection(product.variant_options, product.variants, id))
     }
   }
@@ -118,7 +128,7 @@ export function ProductProvider({ product, initialVariantId, children }: Product
       )
       setSelection(next)
       setAnnouncement(choiceSummary(product, next, currentVariant(product, next)))
-      if (!urlMode || leaving) return
+      if (!syncUrl || leaving) return
       window.history.replaceState(null, '', addressWith(currentVariant(product, next)))
     },
     quantity: clampQuantity(wanted ?? bounds.min, bounds),

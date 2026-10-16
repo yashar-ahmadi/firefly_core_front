@@ -5,18 +5,12 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 import { Spinner } from '@/components/ui/spinner'
 import { productPath } from '@/features/catalog/listing-routes'
+import { loadPage } from '@/lib/navigation/hard-navigation'
+import type { QuickViewProps } from './quick-view'
 import { closeQuickView, registerQuickViewHost, useQuickViewStore } from './use-quick-view'
 
-/**
- * While the panel's code downloads (a first press with no hover before, say): a small busy
- * pill. If the download fails, the product page is the way on.
- */
-function QuickViewPending({ error }: { error?: Error | null }) {
-  useEffect(() => {
-    const slug = useQuickViewStore.getState().request?.slug
-    if (error && slug) window.location.assign(productPath(slug))
-  }, [error])
-  if (error) return null
+/** While the panel's code downloads (a first press with no hover before, say): a busy pill. */
+function QuickViewPending() {
   return (
     <div className="pointer-events-none fixed inset-x-0 top-1/2 z-50 flex justify-center">
       <span className="rounded-pill bg-white p-3 text-brand-600 shadow-raised">
@@ -26,13 +20,26 @@ function QuickViewPending({ error }: { error?: Error | null }) {
   )
 }
 
+/**
+ * Stands in for the panel when its code could not be downloaded (a stale chunk after a deploy, a
+ * dropped connection): the product page, as a full load with fresh code, is the way on.
+ */
+function QuickViewUnavailable({ request }: QuickViewProps) {
+  useEffect(() => {
+    loadPage(productPath(request.slug))
+  }, [request.slug])
+  return null
+}
+
 // The panel and everything it shows (gallery, picker, buy controls) load on the first opening,
 // or earlier when a trigger is hovered or focused (preloadQuickView): listing pages do not
-// carry that code.
-const QuickView = dynamic(() => import('./quick-view').then((module) => module.QuickView), {
-  ssr: false,
-  loading: QuickViewPending,
-})
+// carry that code. A failed download resolves to QuickViewUnavailable: next/dynamic's `loading`
+// never sees the error, and React.lazy would throw it (and keep throwing it) to the page's
+// error boundary, replacing the whole shop.
+const QuickView = dynamic(
+  () => import('./quick-view').then((module) => module.QuickView).catch(() => QuickViewUnavailable),
+  { ssr: false, loading: QuickViewPending },
+)
 
 /**
  * The one quick view of the shop pages, mounted by the shop layout. Renders nothing until a

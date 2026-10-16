@@ -8,6 +8,7 @@ import { focusInView } from '@/components/ui/focus-in-view'
 import { Spinner } from '@/components/ui/spinner'
 import { useFeature } from '@/features/settings/feature-context'
 import type { CommentType } from '@/lib/api/types/catalog'
+import { reloadPage } from '@/lib/navigation/hard-navigation'
 
 /** While a form's code arrives (the first open only). */
 function FormLoading() {
@@ -18,13 +19,34 @@ function FormLoading() {
   )
 }
 
-// The forms' code loads the first time one is opened (or when the pointer comes near).
-const ReviewForm = dynamic(() => import('./review-form').then((module) => module.ReviewForm), {
-  ssr: false,
-  loading: FormLoading,
-})
+/**
+ * Stands in for a form whose code could not be downloaded (a stale chunk after a deploy, a
+ * dropped connection): says so in place, with a reload for fresh code. The rest of the page
+ * (and its error boundary) is untouched.
+ */
+function FormUnavailable() {
+  return (
+    <div
+      role="alert"
+      className="flex flex-wrap items-center gap-3 rounded-control bg-danger/10 px-4 py-3 text-base text-danger"
+    >
+      <p>فرم بارگذاری نشد.</p>
+      <Button variant="outline" size="sm" onClick={reloadPage}>
+        بارگذاری دوباره صفحه
+      </Button>
+    </div>
+  )
+}
+
+// The forms' code loads the first time one is opened (or when the pointer comes near). A failed
+// download resolves to FormUnavailable: React.lazy would throw it to the error boundary.
+const ReviewForm = dynamic(
+  () => import('./review-form').then((module) => module.ReviewForm).catch(() => FormUnavailable),
+  { ssr: false, loading: FormLoading },
+)
 const QuestionForm = dynamic(
-  () => import('./question-form').then((module) => module.QuestionForm),
+  () =>
+    import('./question-form').then((module) => module.QuestionForm).catch(() => FormUnavailable),
   { ssr: false, loading: FormLoading },
 )
 /** A failed download is ignored here: opening the form tries again. */

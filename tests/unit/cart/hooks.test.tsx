@@ -101,7 +101,7 @@ describe('cart writes', () => {
     await act(async () => {
       await removed
     })
-    expect(callsWith('DELETE')).toHaveLength(1)
+    expect(callsWith('DELETE')).toEqual([['cart/item/10001/remove/', { method: 'DELETE' }]])
   })
 
   it('a quantity change waits for an add still on its way', async () => {
@@ -128,6 +128,11 @@ describe('cart writes', () => {
         adding.resolve(result(cart([line, cartLine({ variant_id: 10062 })]), MSG_ADDED))
       })
       await waitFor(() => expect(callsWith('PUT')).toHaveLength(1))
+      // The queued change itself, sent once the add has landed.
+      expect(callsWith('PUT')[0]).toEqual([
+        'cart/item/10001/',
+        { method: 'PUT', body: { quantity: 3 } },
+      ])
     } finally {
       vi.useRealTimers()
     }

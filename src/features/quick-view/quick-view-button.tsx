@@ -5,6 +5,7 @@ import { cn } from '@/components/ui/cn'
 import { overlayButtonClasses, overlayChipClasses } from '@/components/ui/overlay-button-styles'
 import { productPath } from '@/features/catalog/listing-routes'
 import { useOptionalStoreConfig } from '@/lib/config-context'
+import { loadPage } from '@/lib/navigation/hard-navigation'
 import { openQuickView, preloadQuickView } from './use-quick-view'
 
 /**
@@ -33,7 +34,7 @@ export function QuickViewButton({
       onPointerEnter={preloadQuickView}
       onFocus={preloadQuickView}
       onClick={() => {
-        if (!openQuickView(slug)) window.location.assign(productPath(slug))
+        if (!openQuickView(slug)) loadPage(productPath(slug))
       }}
       className={cn(overlayButtonClasses('sm'), className)}
     >

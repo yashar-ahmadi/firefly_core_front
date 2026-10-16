@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { cn } from '@/components/ui/cn'
 import { Switch } from '@/components/ui/switch'
 import type { ProductDetail } from '@/lib/api/types/catalog'
-import { CompareColumnHead } from './compare-column-head'
+import { CompareColumnFailed, CompareColumnHead } from './compare-column-head'
+import type { CompareItem } from './compare-item'
 import { buildCompareRows, differingRows } from './compare-rows'
 
 const CAPTION = 'مقایسه کالاها'
@@ -20,28 +21,54 @@ const LABEL_CELL = 'sticky start-0 z-[1] w-28 min-w-28 border-e border-ink-100 b
  */
 const PRODUCT_CELL = 'min-w-40 md:min-w-56'
 
+/** A column of the table: a product's payload, or one that could not be read (with a retry). */
+export type CompareColumn =
+  | { kind: 'product'; product: ProductDetail }
+  | { kind: 'failed'; item: CompareItem; onRetry: () => void; retrying: boolean }
+
+const slugOf = (column: CompareColumn) =>
+  column.kind === 'product' ? column.product.slug : column.item.slug
+
+/** Each column's place among the loaded products (the rows' values), or null for a failed one. */
+function valueIndexes(columns: readonly CompareColumn[]): (number | null)[] {
+  let next = 0
+  return columns.map((column) => (column.kind === 'product' ? next++ : null))
+}
+
 export interface CompareTableProps {
   /** In the compare list's order (the order they were added). */
-  products: ProductDetail[]
+  columns: CompareColumn[]
   onRemove: (slug: string) => void
 }
 
 /**
- * The comparison: a table with one column per product and one row per attribute any of them
- * has (`buildCompareRows`), «—» where a product lacks it. The row of column heads (picture,
+ * The comparison: a table with one column per product and one row per attribute any of the
+ * loaded ones has (`buildCompareRows`), «—» where a product lacks it. A product that could not be
+ * read keeps its column, with a retry, and «نامشخص» cells. The row of column heads (picture,
  * name, price, add or choose, remove) and the column of names stay put while the table scrolls
  * in its own box: both ways on phones, where it is wider than the screen; down when there are
- * more rows than fit. «فقط تفاوت‌ها» hides the rows where every product says the same.
+ * more rows than fit. «فقط تفاوت‌ها» hides the rows where every loaded product says the same; it
+ * needs two of them, and with fewer every row shows whatever the switch said.
  */
-export function CompareTable({ products, onRemove }: CompareTableProps) {
+export function CompareTable({ columns, onRemove }: CompareTableProps) {
   const [onlyDifferences, setOnlyDifferences] = useState(false)
+  const products = columns.flatMap((column) => (column.kind === 'product' ? [column.product] : []))
+  const comparable = products.length > 1
   const all = buildCompareRows(products)
-  const rows = onlyDifferences ? differingRows(all) : all
-  const empty = all.length === 0 ? NO_SPECS : rows.length === 0 ? NO_DIFFERENCES : null
+  const rows = onlyDifferences && comparable ? differingRows(all) : all
+  const empty =
+    products.length === 0
+      ? null
+      : all.length === 0
+        ? NO_SPECS
+        : rows.length === 0
+          ? NO_DIFFERENCES
+          : null
+  const valueIndex = valueIndexes(columns)
 
   return (
     <div className="flex flex-col gap-3">
-      {products.length > 1 && all.length > 0 && (
+      {comparable && all.length > 0 && (
         <Switch
           label={ONLY_DIFFERENCES}
           checked={onlyDifferences}
@@ -63,16 +90,28 @@ export function CompareTable({ products, onRemove }: CompareTableProps) {
               <th scope="col" className={cn(LABEL_CELL, 'top-0 z-[3] border-b p-3 align-bottom')}>
                 <span className="sr-only">ویژگی</span>
               </th>
-              {products.map((product) => (
+              {columns.map((column) => (
                 <th
-                  key={product.slug}
+                  key={slugOf(column)}
                   scope="col"
                   className={cn(
                     PRODUCT_CELL,
                     'sticky top-0 z-[2] border-b border-ink-200 bg-white p-3 align-top font-normal',
                   )}
                 >
-                  <CompareColumnHead product={product} onRemove={() => onRemove(product.slug)} />
+                  {column.kind === 'product' ? (
+                    <CompareColumnHead
+                      product={column.product}
+                      onRemove={() => onRemove(column.product.slug)}
+                    />
+                  ) : (
+                    <CompareColumnFailed
+                      item={column.item}
+                      onRetry={column.onRetry}
+                      retrying={column.retrying}
+                      onRemove={() => onRemove(column.item.slug)}
+                    />
+                  )}
                 </th>
               ))}
             </tr>
@@ -89,14 +128,21 @@ export function CompareTable({ products, onRemove }: CompareTableProps) {
                 >
                   {row.label}
                 </th>
-                {row.values.map((value, index) => (
-                  <td
-                    key={products[index]?.slug ?? index}
-                    className="p-3 text-start align-top break-words text-ink-900"
-                  >
-                    {value}
-                  </td>
-                ))}
+                {columns.map((column, index) => {
+                  const at = valueIndex[index]
+                  return (
+                    <td
+                      key={slugOf(column)}
+                      className="p-3 text-start align-top break-words text-ink-900"
+                    >
+                      {at === null || at === undefined ? (
+                        <span className="text-ink-500">نامشخص</span>
+                      ) : (
+                        row.values[at]
+                      )}
+                    </td>
+                  )
+                })}
               </tr>
             ))}
           </tbody>

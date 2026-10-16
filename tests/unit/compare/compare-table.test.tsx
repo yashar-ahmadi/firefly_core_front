@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildCompareRows, differingRows, MISSING } from '@/features/compare/compare-rows'
-import { CompareTable } from '@/features/compare/compare-table'
+import { CompareTable, type CompareColumn } from '@/features/compare/compare-table'
+import type { CompareItem } from '@/features/compare/store'
 import { useQuickViewStore } from '@/features/quick-view/use-quick-view'
 import type { ProductDetail, ProductSpecification } from '@/lib/api/types/catalog'
 import { chipsProduct, s25Product } from '../product/fixtures'
@@ -83,14 +84,22 @@ describe('differingRows («فقط تفاوت‌ها»)', () => {
   })
 })
 
-function renderTable(products: ProductDetail[], onRemove = vi.fn()) {
+/** Every product loaded: one column each. */
+const loaded = (products: ProductDetail[]): CompareColumn[] =>
+  products.map((product) => ({ kind: 'product', product }))
+
+function tableUi(columns: CompareColumn[], onRemove: (slug: string) => void) {
+  return <CompareTable columns={columns} onRemove={onRemove} />
+}
+
+function renderColumns(columns: CompareColumn[], onRemove = vi.fn()) {
   const { wrapper: Base } = clientProviders()
   const wrapper = ({ children }: { children: ReactNode }) => <Base>{children}</Base>
-  return {
-    ...render(<CompareTable products={products} onRemove={onRemove} />, { wrapper }),
-    onRemove,
-  }
+  return { ...render(tableUi(columns, onRemove), { wrapper }), onRemove }
 }
+
+const renderTable = (products: ProductDetail[], onRemove = vi.fn()) =>
+  renderColumns(loaded(products), onRemove)
 
 beforeEach(() => {
   useQuickViewStore.setState({ request: null, open: false, hosts: 0 })
@@ -168,5 +177,49 @@ describe('CompareTable', () => {
     const [, first] = screen.getAllByRole('columnheader')
     await user.click(within(first!).getByRole('button', { name: 'حذف از مقایسه' }))
     expect(onRemove).toHaveBeenCalledWith('samsung-galaxy-s25-ultra')
+  })
+
+  it('compares everything again once fewer than two products are left', async () => {
+    const user = userEvent.setup()
+    const { rerender } = renderTable([phone(), other()])
+    await user.click(screen.getByRole('switch', { name: 'فقط تفاوت\u{200C}ها' }))
+    expect(screen.queryByRole('row', { name: /^حافظه داخلی/ })).toBeNull()
+    // One product removed: nothing to differ from, every row is back and the switch goes.
+    rerender(tableUi(loaded([phone()]), vi.fn()))
+    expect(screen.getByRole('row', { name: /^حافظه داخلی/ })).toBeInTheDocument()
+    expect(screen.queryByRole('switch')).toBeNull()
+  })
+
+  it('keeps a column for a product that failed to load, with a retry, beside the loaded ones', async () => {
+    const user = userEvent.setup()
+    const onRetry = vi.fn()
+    const failed: CompareItem = {
+      slug: 'apple-iphone-15',
+      name: 'گوشی موبایل اپل آیفون ۱۵',
+      image: 'https://api.shop.ir/media/15.jpg',
+      categoryId: 10002,
+    }
+    const { onRemove } = renderColumns([
+      { kind: 'product', product: phone() },
+      { kind: 'failed', item: failed, onRetry, retrying: false },
+    ])
+    const [, ok, broken] = screen.getAllByRole('columnheader')
+    expect(within(ok!).getByText('۷۸٬۵۰۰٬۰۰۰')).toBeInTheDocument()
+    expect(within(broken!).getByRole('link', { name: failed.name })).toHaveAttribute(
+      'href',
+      '/product/apple-iphone-15/',
+    )
+    expect(within(broken!).getByText('اطلاعات این کالا دریافت نشد.')).toBeInTheDocument()
+    await user.click(within(broken!).getByRole('button', { name: 'تلاش دوباره' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
+    await user.click(within(broken!).getByRole('button', { name: 'حذف از مقایسه' }))
+    expect(onRemove).toHaveBeenCalledWith('apple-iphone-15')
+    // Its cells are unknown, not «—» (which would say the product lacks the attribute).
+    const colour = screen.getByRole('row', { name: /^رنگ/ })
+    expect(
+      within(colour)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent),
+    ).toEqual(['مشکی، نقره ای', 'نامشخص'])
   })
 })

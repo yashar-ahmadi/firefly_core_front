@@ -1,10 +1,9 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { watchErrors } from '../support/watch-errors'
 
 // Quick view, comparison and recently viewed (spec §8.12, §8.3) against the dev backend's sample
 // data: the phones category holds variable products (S25 Ultra, iPhone 15, Galaxy A56).
 
-const API_URL = process.env.FIREFLY_API_URL ?? 'http://localhost:8000'
 const PHONES = '/product-category/digital/mobile-phone/'
 const S25 = { slug: 'samsung-galaxy-s25-ultra', name: 'گوشی موبایل سامسونگ گلکسی S25 اولترا' }
 const IPHONE_15 = { slug: 'apple-iphone-15', name: 'گوشی موبایل اپل آیفون ۱۵' }
@@ -23,20 +22,21 @@ function card(page: Page, name: string) {
     .filter({ has: page.getByRole('link', { name, exact: true }) })
 }
 
-async function defaultVariant(request: APIRequestContext, slug: string): Promise<number> {
-  const res = await request.get(`${API_URL}/api/v1/product/detail/${slug}/`)
-  expect(res.ok(), `${slug} from the backend`).toBe(true)
-  return ((await res.json()) as { data: { default_variant_id: number } }).data.default_variant_id
+/** The variant quick view would add: the one its «مشاهدهٔ جزئیات کامل» link names. */
+async function chosenVariant(dialog: Locator): Promise<number> {
+  const href = await dialog
+    .getByRole('link', { name: 'مشاهده\u{0654} جزئیات کامل' })
+    .getAttribute('href')
+  const id = Number(new URL(href ?? '', 'http://localhost').searchParams.get('variant'))
+  expect(id, 'the details link names a variant').toBeGreaterThan(0)
+  return id
 }
 
 test.describe('quick view', () => {
   test('from a category grid, «انتخاب ویژگی‌ها» opens the picker and adds the variant to the cart', async ({
     page,
-    request,
   }) => {
     const errors = watchErrors(page)
-    // Quick view opens on the representative variant: that is the line to remove afterwards.
-    const added = await defaultVariant(request, S25.slug)
     await page.goto(PHONES)
     const cart = page.getByRole('banner').getByRole('link', { name: /^سبد خرید/ })
     await expect(cart).toHaveAccessibleName('سبد خرید')
@@ -45,24 +45,21 @@ test.describe('quick view', () => {
     await expect(choose).toHaveAttribute('aria-haspopup', 'dialog')
     await choose.click()
     const dialog = page.getByRole('dialog', { name: S25.name })
+    // On the representative variant first.
     const colours = dialog.getByRole('radiogroup', { name: 'رنگ' })
     await expect(colours.getByRole('radio', { name: /^مشکی/ })).toHaveAttribute(
       'aria-checked',
       'true',
     )
-    // The page under it keeps its URL: quick view never writes ?variant=.
+    // Another storage: the page under it keeps its URL (quick view never writes ?variant=).
     await dialog
       .getByRole('radiogroup', { name: 'حافظه داخلی' })
       .getByRole('radio', { name: /^۵۱۲/ })
       .click()
     await expect(page).toHaveURL((url) => url.pathname === PHONES && url.search === '')
 
-    // Back on the representative variant before adding it.
-    await colours.getByRole('radio', { name: /^مشکی/ }).click()
-    await dialog
-      .getByRole('radiogroup', { name: 'حافظه داخلی' })
-      .getByRole('radio', { name: /^۲۵۶/ })
-      .click()
+    // The line to remove afterwards: the variant on screen when adding.
+    const added = await chosenVariant(dialog)
     try {
       await dialog.getByRole('button', { name: 'افزودن به سبد خرید' }).click()
       // It closes once the cart has the product, and the badge counts it.
@@ -71,9 +68,10 @@ test.describe('quick view', () => {
       await expect(choose).toBeFocused()
     } finally {
       // Give the stock hold back to the shared dev backend.
-      await page.request.delete(`/api/bff/cart/item/${added}/remove/`, {
+      const removed = await page.request.delete(`/api/bff/cart/item/${added}/remove/`, {
         headers: { 'X-Requested-With': 'ff' },
       })
+      expect(removed.ok(), `variant ${added} removed from the cart`).toBe(true)
     }
     expect(errors).toEqual([])
   })
@@ -128,6 +126,32 @@ test.describe('compare', () => {
     await expect(table.getByRole('row', { name: /^رنگ/ })).toBeVisible()
     await page.waitForLoadState('load')
     expect(errors).toEqual([])
+  })
+})
+
+test.describe('compare bar on a product page', () => {
+  test("stands clear of the phone's buy bar", async ({ page }) => {
+    test.skip(!isPhone(page), 'the buy bar is for phones (below md)')
+    // The narrowest common phone.
+    await page.setViewportSize({ width: 375, height: 812 })
+    const items = [IPHONE_15, A56].map(({ slug, name }) => ({
+      slug,
+      name,
+      image: 'http://localhost:8000/static/defaults/default.png',
+      categoryId: 10002,
+    }))
+    await page.addInitScript((list) => {
+      localStorage.setItem('ff-compare', JSON.stringify({ state: { items: list }, version: 0 }))
+    }, items)
+    await page.goto(`/product/${S25.slug}/`)
+    const bar = page.getByRole('region', { name: 'فهرست مقایسه' })
+    const buyBar = page.getByRole('region', { name: 'نوار خرید' })
+    await expect(bar).toBeVisible()
+    await expect(buyBar).toBeVisible()
+    const barBox = (await bar.boundingBox())!
+    const buyBox = (await buyBar.boundingBox())!
+    // Stacked above it, never overlapping.
+    expect(barBox.y + barBox.height).toBeLessThanOrEqual(buyBox.y)
   })
 })
 

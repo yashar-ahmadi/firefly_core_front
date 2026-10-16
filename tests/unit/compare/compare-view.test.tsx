@@ -154,13 +154,35 @@ describe('CompareView', () => {
     expect(screen.getByText(/دست\u{200C}کم یک کالای دیگر/u)).toBeInTheDocument()
   })
 
-  it('offers a retry when the products cannot be read', async () => {
+  it('keeps the products that loaded when one fails, with a retry in its column', async () => {
     save([S25, IPHONE])
-    mocks.bffFetch.mockRejectedValue(new ApiError({ status: 429, code: 'throttled' }))
+    mocks.bffFetch.mockImplementation((path: string) =>
+      path.includes(IPHONE)
+        ? Promise.reject(new ApiError({ status: 429, code: 'throttled' }))
+        : Promise.resolve({ data: detail(S25), msg: '', status: 200 }),
+    )
     renderView()
-    const retry = await screen.findByRole('button', { name: 'تلاش دوباره' })
+    const table = await screen.findByRole('table', { name: 'مقایسه کالاها' })
+    expect(within(table).getByRole('link', { name: NAMES[S25] })).toBeInTheDocument()
+    expect(within(table).getByText('اطلاعات این کالا دریافت نشد.')).toBeInTheDocument()
     serve()
-    await userEvent.click(retry)
-    expect(await screen.findByRole('table', { name: 'مقایسه کالاها' })).toBeInTheDocument()
+    await userEvent.click(within(table).getByRole('button', { name: 'تلاش دوباره' }))
+    await waitFor(() =>
+      expect(within(table).queryByText('اطلاعات این کالا دریافت نشد.')).toBeNull(),
+    )
+    expect(within(table).getAllByRole('button', { name: 'حذف از مقایسه' })).toHaveLength(2)
+  })
+
+  it('turns «فقط تفاوت‌ها» off in effect when a removal leaves one product', async () => {
+    const user = userEvent.setup()
+    save([S25, IPHONE])
+    serve()
+    renderView()
+    const table = await screen.findByRole('table', { name: 'مقایسه کالاها' })
+    // Both payloads are the S25's: every row is the same.
+    await user.click(screen.getByRole('switch', { name: 'فقط تفاوت\u{200C}ها' }))
+    expect(within(table).queryByRole('row', { name: /^رنگ/ })).toBeNull()
+    await user.click(within(table).getAllByRole('button', { name: 'حذف از مقایسه' })[1]!)
+    expect(within(table).getByRole('row', { name: /^رنگ/ })).toBeInTheDocument()
   })
 })

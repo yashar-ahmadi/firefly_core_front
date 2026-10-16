@@ -80,8 +80,9 @@ export interface QuickViewProps {
  * Quick view (spec §8.12, §8.3 one-tap ruling): the product's payload through the BFF (the
  * `['product', slug]` query the compare page shares), with a skeleton meanwhile, a retry when
  * it cannot be read and «این کالا دیگر موجود نیست» for a 404. The product page's own pieces
- * show it, on a ProductProvider detached from the URL, starting on the representative variant
- * (or the one asked for), so the shopper always sees which variant they add.
+ * show it, on a ProductProvider detached from the URL (`syncUrl` off), starting on the
+ * representative variant (or the one asked for), so the shopper always sees which variant they
+ * add.
  */
 export function QuickView({ request, open, onOpenChange }: QuickViewProps) {
   const query = useProductDetail(request.slug)
@@ -94,6 +95,7 @@ export function QuickView({ request, open, onOpenChange }: QuickViewProps) {
         <ProductProvider
           product={toClientProduct(product)}
           initialVariantId={startingVariant(product, request.variantId)}
+          syncUrl={false}
         >
           <QuickViewDetails
             onAdded={() => onOpenChange(false)}
