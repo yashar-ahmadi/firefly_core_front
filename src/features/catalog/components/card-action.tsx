@@ -3,6 +3,14 @@ import { AddToCartButton } from '@/features/cart/components/add-to-cart-button'
 import type { CardProduct } from '@/features/catalog/card-product'
 import { QuickViewLink } from '@/features/quick-view/quick-view-link'
 
+/**
+ * In a card narrower than the label with its icon (8.875rem, 142px: «انتخاب ویژگی‌ها» needs 141px, «افزودن به
+ * سبد» 132px), as in phone rails at 2.2 cards per view: the icon goes (a busy spinner stays) and
+ * the padding narrows, so the label fits without widening the card. Queries the card's add slot
+ * (`@container` in ProductCard); elsewhere it never applies.
+ */
+const NARROW = '@max-[8.875rem]:px-3 @max-[8.875rem]:[&_svg:not(.animate-spin)]:hidden'
+
 /** What the decision reads: a list card has it all; the compare table builds it from a detail. */
 export type ActionProduct = Pick<
   CardProduct,
@@ -22,7 +30,7 @@ export type ActionProduct = Pick<
  */
 export function cardAction(product: ActionProduct, describedBy?: string): ReactNode {
   if (product.type === 'variable') {
-    return <QuickViewLink slug={product.slug} describedBy={describedBy} />
+    return <QuickViewLink slug={product.slug} describedBy={describedBy} className={NARROW} />
   }
   if (product.default_variant_id === null) return undefined
   return (
@@ -35,6 +43,7 @@ export function cardAction(product: ActionProduct, describedBy?: string): ReactN
       fullWidth
       label="افزودن به سبد"
       describedBy={describedBy}
+      className={NARROW}
     />
   )
 }

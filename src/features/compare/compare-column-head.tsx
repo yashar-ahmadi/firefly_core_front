@@ -56,12 +56,13 @@ function Identity({ nameId, slug, name, image }: CompareItem & { nameId: string 
         sizes="(min-width: 768px) 96px, 64px"
         className="w-16 rounded-control bg-ink-50 md:w-24"
       />
+      {/* Three lines in a phone's narrow column, so a long name keeps its model; two from md. */}
       <Link
         id={nameId}
         href={productPath(slug)}
         prefetch={false}
         dir="auto"
-        className="line-clamp-2 min-h-14 text-start text-base leading-7 font-medium text-ink-900 hover:text-brand-700"
+        className="line-clamp-3 min-h-14 text-start text-base leading-7 font-medium text-ink-900 hover:text-brand-700 md:line-clamp-2"
       >
         {name}
       </Link>

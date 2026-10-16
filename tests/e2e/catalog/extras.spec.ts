@@ -146,6 +146,46 @@ test.describe('compare', () => {
   })
 })
 
+test.describe('compare table on a phone', () => {
+  test('one product column and a part of the next fit beside the names, all as wide', async ({
+    page,
+  }) => {
+    test.skip(!isPhone(page), 'the narrow table is for phones (below md)')
+    await page.setViewportSize({ width: 375, height: 812 })
+    const items = [S25, A56, IPHONE_15].map(({ slug, name }) => ({
+      slug,
+      name,
+      image: 'http://localhost:8000/static/defaults/default.png',
+      categoryId: 10002,
+    }))
+    await page.addInitScript((list) => {
+      localStorage.setItem('ff-compare', JSON.stringify({ state: { items: list }, version: 0 }))
+    }, items)
+    await page.goto('/compare/')
+    const table = page.getByRole('table', { name: 'مقایسه کالاها' })
+    await expect(table.getByRole('link', { name: S25.name })).toBeVisible()
+    const { box, columns } = await table.evaluate((element) => {
+      const scroller = element.parentElement!.getBoundingClientRect()
+      const heads = [...element.querySelectorAll('thead th')]
+      return {
+        box: { left: scroller.left, right: scroller.right },
+        columns: heads.map((head) => head.getBoundingClientRect()),
+      }
+    })
+    const [names, first, ...rest] = columns
+    // The first product column is whole on screen beside the names; the next one shows a part.
+    expect(first!.left).toBeGreaterThanOrEqual(box.left)
+    expect(first!.right).toBeLessThanOrEqual(names!.left + 0.5)
+    expect(rest[0]!.right).toBeGreaterThan(box.left)
+    const widths = [first, ...rest].map((column) => Math.round(column!.width))
+    expect(new Set(widths).size, `product column widths ${widths.join(', ')}`).toBe(1)
+    // The narrow column still shows the whole name: «S25 اولترا» tells the products apart.
+    const name = table.getByRole('link', { name: S25.name })
+    const clipped = await name.evaluate((link) => link.scrollHeight > link.clientHeight + 1)
+    expect(clipped, 'the S25 name is cut short').toBe(false)
+  })
+})
+
 test.describe('compare bar on a product page', () => {
   test("stands clear of the phone's buy bar", async ({ page }) => {
     test.skip(!isPhone(page), 'the buy bar is for phones (below md)')

@@ -134,6 +134,39 @@ test.describe('home', () => {
     )
   })
 
+  test('phone rails: every card fits its slide, so a rail keeps one card width and even gaps', async ({
+    page,
+  }) => {
+    test.skip((page.viewportSize()?.width ?? 0) >= 768, 'the narrow rails are on phones')
+    // The narrowest common phone: the action buttons must not widen their cards.
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/')
+    await page.waitForLoadState('load')
+    const rails = await page.$$eval('[aria-roledescription="carousel"]', (carousels) =>
+      carousels
+        .map((carousel) =>
+          [...carousel.querySelectorAll('[aria-roledescription="slide"]')]
+            .map((slide) => {
+              const card = slide.querySelector('article')
+              if (!card) return null
+              const box = slide.getBoundingClientRect()
+              const style = getComputedStyle(slide)
+              const inner =
+                box.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+              return { card: card.getBoundingClientRect().width, inner }
+            })
+            .filter((slide) => slide !== null),
+        )
+        .filter((slides) => slides.length > 0),
+    )
+    expect(rails.length, 'the sample homepage has product rails').toBeGreaterThan(0)
+    for (const slides of rails) {
+      for (const { card, inner } of slides) expect(card).toBeLessThanOrEqual(inner + 0.5)
+      const widths = slides.map(({ card }) => Math.round(card))
+      expect(new Set(widths).size, `card widths ${widths.join(', ')}`).toBe(1)
+    }
+  })
+
   test('nothing scrolls sideways', async ({ page }) => {
     await page.goto('/')
     await page.waitForLoadState('load')

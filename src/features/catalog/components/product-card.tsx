@@ -152,7 +152,7 @@ export function ProductCard({
           </div>
         </div>
 
-        {action && <div className="relative z-[1] mt-1">{action}</div>}
+        {action && <div className="@container relative z-[1] mt-1">{action}</div>}
       </div>
     </article>
   )

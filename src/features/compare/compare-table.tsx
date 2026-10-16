@@ -16,10 +16,12 @@ const NO_SPECS = 'مشخصاتی برای این کالاها ثبت نشده ا
 /** The first column: the attribute names, held at the start edge while the table scrolls. */
 const LABEL_CELL = 'sticky start-0 z-[1] w-28 min-w-28 border-e border-ink-100 bg-white md:w-44'
 /**
- * A product's column: about one and a half fit beside the names on a phone. No set width: the
- * product columns, not the names, share the room a wide screen leaves.
+ * A product's column: on a phone a set 10rem, so one and a part of the next fit beside the names
+ * and every column is as wide (the table is `w-max`: without a width, a long value or name on
+ * one line would size its column). From md no set width: the product columns, not the names,
+ * share the room a wide screen leaves.
  */
-const PRODUCT_CELL = 'min-w-40 md:min-w-56'
+const PRODUCT_CELL = 'w-40 min-w-40 md:w-auto md:min-w-56'
 
 /**
  * A column of the table: a product's payload, or one that could not be read (with a retry).

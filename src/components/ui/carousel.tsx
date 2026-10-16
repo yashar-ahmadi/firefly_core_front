@@ -169,14 +169,16 @@ export function Carousel({
           )}
         >
           <div className="-ms-3 flex touch-pan-y touch-pinch-zoom sm:-ms-4">
-            {/* Each slide is a one-cell grid, so its content stretches to the tallest slide. */}
+            {/* Each slide is a one-cell grid, so its content stretches to the tallest slide. The
+                cell never grows past the slide (minmax(0, 1fr)): wide content inside a card (a
+                button's label) cannot widen one card over its neighbours and the gap. */}
             {slides.map((slide, index) => (
               <div
                 key={isValidElement(slide) && slide.key !== null ? slide.key : index}
                 role="group"
                 aria-roledescription="slide"
                 aria-label={`${toPersianDigits(index + 1)} از ${count}`}
-                className="grid min-w-0 shrink-0 grow-0 basis-(--slide-basis) ps-3 sm:ps-4 md:basis-(--slide-basis-md) lg:basis-(--slide-basis-lg)"
+                className="grid min-w-0 shrink-0 grow-0 basis-(--slide-basis) grid-cols-[minmax(0,1fr)] ps-3 sm:ps-4 md:basis-(--slide-basis-md) lg:basis-(--slide-basis-lg)"
               >
                 {slide}
               </div>
