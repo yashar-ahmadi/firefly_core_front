@@ -1,4 +1,5 @@
 import { ChevronLeft } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { cn } from '@/components/ui/cn'
 import { StoreLink } from '@/lib/links/store-link'
 
@@ -9,18 +10,27 @@ export interface SectionHeaderProps {
   subtitle?: string
   /** The see-all link (the operator's label, else the dictionary's) at the inline end. */
   link?: { href: string; label: string } | null
+  /** A control at the inline end instead of a link (recently viewed's «پاک کردن»). */
+  action?: ReactNode
 }
 
 /**
  * The one header style of every page section and product rail (homepage sections, recently
- * viewed, later related products): a 44px row with an accent bar and the title (h2) at the
- * start and the see-all link at the inline end, the subtitle under it. Empty parts are left out.
+ * viewed, related products): a 44px row with an accent bar and the title (h2) at the start and
+ * the see-all link (or an action) at the inline end, the subtitle under it. Empty parts are left
+ * out.
  */
-export function SectionHeader({ id, title, subtitle = '', link = null }: SectionHeaderProps) {
-  if (!title && !subtitle && !link) return null
+export function SectionHeader({
+  id,
+  title,
+  subtitle = '',
+  link = null,
+  action = null,
+}: SectionHeaderProps) {
+  if (!title && !subtitle && !link && !action) return null
   return (
     <div className="mb-3 md:mb-4">
-      {(title || link) && (
+      {(title || link || action) && (
         <div className="flex min-h-11 items-center justify-between gap-x-4">
           {title ? (
             <h2
@@ -42,6 +52,7 @@ export function SectionHeader({ id, title, subtitle = '', link = null }: Section
               <ChevronLeft aria-hidden className="size-4 ltr:rotate-180" />
             </StoreLink>
           )}
+          {!link && action}
         </div>
       )}
       {subtitle && (

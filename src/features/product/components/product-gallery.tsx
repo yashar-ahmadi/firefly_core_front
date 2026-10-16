@@ -17,7 +17,10 @@ const GalleryLightbox = dynamic(
   () => import('./gallery-lightbox').then((module) => module.GalleryLightbox),
   { ssr: false },
 )
-const preloadLightbox = () => void import('./gallery-lightbox')
+/** A failed download is ignored here: opening the lightbox tries again. */
+const preloadLightbox = () => {
+  import('./gallery-lightbox').catch(() => {})
+}
 
 export interface GallerySlide {
   src: string
@@ -40,6 +43,8 @@ export function gallerySlides(
 
 /** Square images: the full width on phones, half the page on tablets, 500px (natural) above. */
 const MAIN_SIZES = '(min-width: 1024px) 500px, (min-width: 768px) 50vw, 100vw'
+/** Quick view: 14rem wide on phones, half of the 56rem dialog from md. */
+const COMPACT_SIZES = '(min-width: 768px) 420px, 224px'
 
 const counter = (index: number, count: number) =>
   `${toPersianDigits(index + 1)} از ${toPersianDigits(count)}`
@@ -49,8 +54,11 @@ const counter = (index: number, count: number) =>
  * under it on phones, a thumbnail rail from md. The first image is the page's LCP image (eager,
  * high priority); choosing a variant shows its image there and goes back to it. Pressing an
  * image opens the lightbox at that image.
+ *
+ * `compact` (quick view, inside a dialog): the same track with dots at every width, no
+ * thumbnails, no lightbox (no dialog over a dialog) and no LCP priority.
  */
-export function ProductGallery() {
+export function ProductGallery({ compact = false }: { compact?: boolean }) {
   const { product, variant } = useProduct()
   const slides = gallerySlides(product, variant)
   const [viewportRef, api] = useEmblaCarousel({ direction: 'rtl', align: 'start' })
@@ -68,12 +76,12 @@ export function ProductGallery() {
   const several = slides.length > 1
 
   return (
-    <div className="flex flex-col gap-3" onPointerEnter={preloadLightbox}>
+    <div className="flex flex-col gap-3" onPointerEnter={compact ? undefined : preloadLightbox}>
       <section
         aria-roledescription="carousel"
         aria-label="تصاویر محصول"
         dir="rtl"
-        className="-mx-4 md:mx-0"
+        className={compact ? undefined : '-mx-4 md:mx-0'}
       >
         <div
           ref={viewportRef}
@@ -88,23 +96,34 @@ export function ProductGallery() {
                 aria-label={counter(index, slides.length)}
                 className="min-w-0 shrink-0 grow-0 basis-full"
               >
-                <button
-                  type="button"
-                  aria-label={`نمایش بزرگ تصویر ${toPersianDigits(index + 1)}`}
-                  onFocus={preloadLightbox}
-                  onClick={() => setLightbox({ mounted: true, open: true, index })}
-                  className="block w-full cursor-zoom-in focus-visible:-outline-offset-2"
-                >
+                {compact ? (
                   <SmartImage
                     src={slide.src}
                     alt={slide.alt}
                     ratio="1/1"
-                    sizes={MAIN_SIZES}
+                    sizes={COMPACT_SIZES}
                     loading={index === 0 ? 'eager' : 'lazy'}
-                    fetchPriority={index === 0 ? 'high' : undefined}
-                    className="mx-auto w-full max-w-[500px]"
+                    className="w-full"
                   />
-                </button>
+                ) : (
+                  <button
+                    type="button"
+                    aria-label={`نمایش بزرگ تصویر ${toPersianDigits(index + 1)}`}
+                    onFocus={preloadLightbox}
+                    onClick={() => setLightbox({ mounted: true, open: true, index })}
+                    className="block w-full cursor-zoom-in focus-visible:-outline-offset-2"
+                  >
+                    <SmartImage
+                      src={slide.src}
+                      alt={slide.alt}
+                      ratio="1/1"
+                      sizes={MAIN_SIZES}
+                      loading={index === 0 ? 'eager' : 'lazy'}
+                      fetchPriority={index === 0 ? 'high' : undefined}
+                      className="mx-auto w-full max-w-[500px]"
+                    />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -116,7 +135,7 @@ export function ProductGallery() {
         <div
           role="group"
           aria-label="انتخاب تصویر"
-          className="flex flex-wrap justify-center md:hidden"
+          className={cn('flex flex-wrap justify-center', !compact && 'md:hidden')}
         >
           {slides.map((slide, index) => (
             <button
@@ -133,7 +152,7 @@ export function ProductGallery() {
         </div>
       )}
 
-      {several && (
+      {several && !compact && (
         <div
           role="group"
           aria-label="تصاویر کوچک"

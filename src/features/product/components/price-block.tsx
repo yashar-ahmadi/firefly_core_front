@@ -12,10 +12,10 @@ import type { Variant } from '@/lib/api/types/catalog'
 /**
  * The time left on a timed discount. Rendered on the server and during hydration (the clock is
  * not running there, so both agree); once the clock runs it disappears if the end has passed (a
- * page cached a little longer than the deal). When it reaches zero the page is read again: the
- * price changes then.
+ * page cached a little longer than the deal). When it reaches zero the product is read again
+ * (`onEnd`, by default the page): the price changes then.
  */
-function DealCountdown({ endsAt }: { endsAt: number }) {
+function DealCountdown({ endsAt, onEnd }: { endsAt: number; onEnd?: () => void }) {
   const router = useRouter()
   const now = useSyncExternalStore(subscribeClock, clockNow, () => null)
   if (now !== null && endsAt <= now) return null
@@ -23,7 +23,7 @@ function DealCountdown({ endsAt }: { endsAt: number }) {
     <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-sale">
       <Timer aria-hidden className="size-5" />
       <span>زمان باقی مانده تا پایان تخفیف</span>
-      <Countdown endsAt={endsAt} variant="boxed" onEnd={() => router.refresh()} />
+      <Countdown endsAt={endsAt} variant="boxed" onEnd={onEnd ?? (() => router.refresh())} />
     </p>
   )
 }
@@ -34,6 +34,8 @@ export interface PriceBlockProps {
   size?: PriceSize
   /** Leave the countdown out (the buy bar has no room for it). */
   countdown?: boolean
+  /** Reads the product again when the deal ends; the page by default (quick view: its query). */
+  onDealEnd?: () => void
   className?: string
 }
 
@@ -42,7 +44,13 @@ export interface PriceBlockProps {
  * the percent only when `has_discount`, and the countdown of a timed discount. Never a price
  * from the JSON-LD (Rial).
  */
-export function PriceBlock({ variant, size = 'lg', countdown = true, className }: PriceBlockProps) {
+export function PriceBlock({
+  variant,
+  size = 'lg',
+  countdown = true,
+  onDealEnd,
+  className,
+}: PriceBlockProps) {
   if (!variant) return null
   const endsAt = variant.has_discount ? variant.discount_time_remaining : null
   return (
@@ -54,7 +62,7 @@ export function PriceBlock({ variant, size = 'lg', countdown = true, className }
         size={size}
         muted={!variant.in_stock}
       />
-      {countdown && endsAt !== null && <DealCountdown endsAt={endsAt} />}
+      {countdown && endsAt !== null && <DealCountdown endsAt={endsAt} onEnd={onDealEnd} />}
     </div>
   )
 }

@@ -22,7 +22,8 @@ export function announceRouterNavigation(url: string): void {
 /**
  * Whether a click follows a link to another page of this shop in this tab: an unmodified primary
  * click on an `<a href>` on the page's own origin, not opening a new tab and not a download. A
- * jump within this page (the skip link, an in-page `#anchor`) does not leave it.
+ * jump within this page (the skip link, an in-page `#anchor`) does not leave it, nor does a link
+ * upgraded to open a dialog (`data-opens-dialog`: quick view's «انتخاب ویژگی‌ها»).
  */
 export function isSameOriginLinkClick(event: MouseEvent): boolean {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
@@ -30,6 +31,7 @@ export function isSameOriginLinkClick(event: MouseEvent): boolean {
   }
   const link = event.target instanceof Element ? event.target.closest('a[href]') : null
   if (!(link instanceof HTMLAnchorElement) || link.hasAttribute('download')) return false
+  if (link.hasAttribute('data-opens-dialog')) return false
   const target = link.target.toLowerCase()
   if (target !== '' && target !== '_self') return false
   let url: URL

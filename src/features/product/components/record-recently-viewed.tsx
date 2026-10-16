@@ -2,7 +2,6 @@
 
 import { useEffect, useEffectEvent } from 'react'
 import { useRecentlyViewed } from '@/features/recently-viewed/store'
-import { cardFromDetail } from '../card-from-detail'
 import { useProduct } from './product-provider'
 
 /**
@@ -12,7 +11,7 @@ import { useProduct } from './product-provider'
 export function RecordRecentlyViewed() {
   const { product } = useProduct()
   const record = useRecentlyViewed((state) => state.record)
-  const recordVisit = useEffectEvent(() => record(cardFromDetail(product)))
+  const recordVisit = useEffectEvent(() => record(product))
   useEffect(() => {
     recordVisit()
   }, [product.slug])

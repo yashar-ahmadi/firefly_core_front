@@ -1,0 +1,154 @@
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { watchErrors } from '../support/watch-errors'
+
+// Quick view, comparison and recently viewed (spec §8.12, §8.3) against the dev backend's sample
+// data: the phones category holds variable products (S25 Ultra, iPhone 15, Galaxy A56).
+
+const API_URL = process.env.FIREFLY_API_URL ?? 'http://localhost:8000'
+const PHONES = '/product-category/digital/mobile-phone/'
+const S25 = { slug: 'samsung-galaxy-s25-ultra', name: 'گوشی موبایل سامسونگ گلکسی S25 اولترا' }
+const IPHONE_15 = { slug: 'apple-iphone-15', name: 'گوشی موبایل اپل آیفون ۱۵' }
+const A56 = { slug: 'samsung-galaxy-a56', name: 'گوشی موبایل سامسونگ گلکسی A56' }
+const CHOOSE = 'انتخاب ویژگی\u{200C}ها'
+const MD = 768
+
+const digits = (n: number) => new Intl.NumberFormat('fa-IR', { useGrouping: false }).format(n)
+const isPhone = (page: Page) => (page.viewportSize()?.width ?? 0) < MD
+
+/** The product's card in the server-rendered grid of the category's first page. */
+function card(page: Page, name: string) {
+  return page
+    .getByRole('list', { name: 'صفحهٔ ۱' })
+    .getByRole('article')
+    .filter({ has: page.getByRole('link', { name, exact: true }) })
+}
+
+async function defaultVariant(request: APIRequestContext, slug: string): Promise<number> {
+  const res = await request.get(`${API_URL}/api/v1/product/detail/${slug}/`)
+  expect(res.ok(), `${slug} from the backend`).toBe(true)
+  return ((await res.json()) as { data: { default_variant_id: number } }).data.default_variant_id
+}
+
+test.describe('quick view', () => {
+  test('from a category grid, «انتخاب ویژگی‌ها» opens the picker and adds the variant to the cart', async ({
+    page,
+    request,
+  }) => {
+    const errors = watchErrors(page)
+    // Quick view opens on the representative variant: that is the line to remove afterwards.
+    const added = await defaultVariant(request, S25.slug)
+    await page.goto(PHONES)
+    const cart = page.getByRole('banner').getByRole('link', { name: /^سبد خرید/ })
+    await expect(cart).toHaveAccessibleName('سبد خرید')
+
+    const choose = card(page, S25.name).getByRole('button', { name: CHOOSE })
+    await expect(choose).toHaveAttribute('aria-haspopup', 'dialog')
+    await choose.click()
+    const dialog = page.getByRole('dialog', { name: S25.name })
+    const colours = dialog.getByRole('radiogroup', { name: 'رنگ' })
+    await expect(colours.getByRole('radio', { name: /^مشکی/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    // The page under it keeps its URL: quick view never writes ?variant=.
+    await dialog
+      .getByRole('radiogroup', { name: 'حافظه داخلی' })
+      .getByRole('radio', { name: /^۵۱۲/ })
+      .click()
+    await expect(page).toHaveURL((url) => url.pathname === PHONES && url.search === '')
+
+    // Back on the representative variant before adding it.
+    await colours.getByRole('radio', { name: /^مشکی/ }).click()
+    await dialog
+      .getByRole('radiogroup', { name: 'حافظه داخلی' })
+      .getByRole('radio', { name: /^۲۵۶/ })
+      .click()
+    try {
+      await dialog.getByRole('button', { name: 'افزودن به سبد خرید' }).click()
+      // It closes once the cart has the product, and the badge counts it.
+      await expect(dialog).toBeHidden()
+      await expect(cart).toHaveAccessibleName(`سبد خرید، ${digits(1)} کالا`)
+      await expect(choose).toBeFocused()
+    } finally {
+      // Give the stock hold back to the shared dev backend.
+      await page.request.delete(`/api/bff/cart/item/${added}/remove/`, {
+        headers: { 'X-Requested-With': 'ff' },
+      })
+    }
+    expect(errors).toEqual([])
+  })
+
+  test('without JavaScript «انتخاب ویژگی‌ها» is a link to the product page', async ({
+    browser,
+  }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false })
+    const page = await context.newPage()
+    await page.goto(PHONES)
+    const link = card(page, S25.name).getByRole('link', { name: CHOOSE })
+    await expect(link).toHaveAttribute('href', `/product/${S25.slug}/`)
+    await context.close()
+  })
+})
+
+test.describe('compare', () => {
+  test('two products in the list show the bar; «مقایسه» lays them side by side', async ({
+    page,
+  }) => {
+    const errors = watchErrors(page)
+    await page.goto(PHONES)
+    const bar = page.getByRole('region', { name: 'فهرست مقایسه' })
+    await expect(bar).toHaveCount(0)
+
+    await card(page, IPHONE_15.name).getByRole('button', { name: 'افزودن به مقایسه' }).click()
+    await expect(bar).toBeVisible()
+    await expect(bar.getByRole('button', { name: /^مقایسه/ })).toBeDisabled()
+    await card(page, A56.name).getByRole('button', { name: 'افزودن به مقایسه' }).click()
+
+    if (isPhone(page)) {
+      // Above the bottom navigation, never over it.
+      const nav = await page.locator('nav[data-bottom-nav]').boundingBox()
+      const box = await bar.boundingBox()
+      expect(box!.y + box!.height).toBeLessThanOrEqual(nav!.y)
+    }
+
+    await bar.getByRole('link', { name: `مقایسه ${digits(2)} کالا` }).click()
+    await expect(page).toHaveURL(/\/compare\/$/)
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow')
+    const table = page.getByRole('table', { name: 'مقایسه کالاها' })
+    await expect(table.getByRole('link', { name: IPHONE_15.name })).toBeVisible()
+    await expect(table.getByRole('link', { name: A56.name })).toBeVisible()
+    // The bar is not shown on the compare page itself.
+    await expect(bar).toHaveCount(0)
+
+    // Both list the same storages: «فقط تفاوت‌ها» hides that row and keeps the colours.
+    const storage = table.getByRole('row', { name: /^حافظه داخلی/ })
+    await expect(storage).toBeVisible()
+    await page.getByRole('switch', { name: 'فقط تفاوت\u{200C}ها' }).click()
+    await expect(storage).toHaveCount(0)
+    await expect(table.getByRole('row', { name: /^رنگ/ })).toBeVisible()
+    await page.waitForLoadState('load')
+    expect(errors).toEqual([])
+  })
+})
+
+test.describe('recently viewed', () => {
+  test('after visiting two products, the home page shows «بازدیدهای اخیر» with them', async ({
+    page,
+  }) => {
+    const errors = watchErrors(page)
+    for (const product of [S25, IPHONE_15]) {
+      await page.goto(`/product/${product.slug}/`)
+      await expect(page.getByRole('heading', { level: 1, name: product.name })).toBeVisible()
+    }
+    await page.goto('/')
+    const strip = page.getByRole('region', { name: 'بازدیدهای اخیر' })
+    await strip.scrollIntoViewIfNeeded()
+    const names = strip.getByRole('article').getByRole('link')
+    // Newest first.
+    await expect(names).toHaveText([IPHONE_15.name, S25.name])
+    // Compact cards: no price kept on the device.
+    await expect(strip).not.toContainText('تومان')
+    await page.waitForLoadState('load')
+    expect(errors).toEqual([])
+  })
+})

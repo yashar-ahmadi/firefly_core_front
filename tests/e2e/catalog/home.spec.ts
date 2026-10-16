@@ -62,7 +62,11 @@ test.describe('home', () => {
     const cards = carousel.getByRole('article')
     expect(await cards.count()).toBeGreaterThan(0)
     await expect(cards.first()).toBeVisible()
-    await expect(cards.first().getByRole('link')).toHaveAttribute('href', /^\/product\/[^/]+\/$/)
+    // The name link (before hydration a variable card's «انتخاب ویژگی‌ها» is a link too).
+    await expect(cards.first().getByRole('link').first()).toHaveAttribute(
+      'href',
+      /^\/product\/[^/]+\/$/,
+    )
 
     // The manual carousel has no see-all; the phones carousel links to the operator's URL.
     await expect(heading.locator('xpath=following-sibling::a')).toHaveCount(0)
@@ -75,11 +79,13 @@ test.describe('home', () => {
 
   test('clicking a card opens its product page', async ({ page }) => {
     await page.goto('/')
+    // The name link: the card's first (before hydration «انتخاب ویژگی‌ها» is a link too).
     const link = page
       .getByRole('region', { name: FEATURED })
       .getByRole('article')
       .first()
       .getByRole('link')
+      .first()
     const href = await link.getAttribute('href')
     expect(href).toMatch(/^\/product\/[^/]+\/$/)
     await link.click()
@@ -87,20 +93,23 @@ test.describe('home', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   })
 
-  test("a variable product's «choose options» row opens its product page", async ({ page }) => {
+  test("a variable product's «انتخاب ویژگی‌ها» opens quick view on it", async ({ page }) => {
     const errors = watchErrors(page)
     await page.goto('/')
     // The featured carousel holds variable products only.
     const card = page.getByRole('region', { name: FEATURED }).getByRole('article').first()
-    const href = await card.getByRole('link').getAttribute('href')
+    const name = await card.getByRole('link').first().textContent()
+    const href = await card.getByRole('link').first().getAttribute('href')
     expect(href).toMatch(/^\/product\/[^/]+\/$/)
-    // Hidden from assistive tech and the tab order: the card's own link already names it.
-    const options = card.locator('a[aria-hidden="true"][tabindex="-1"]')
-    await expect(options).toHaveText('انتخاب ویژگی\u{200C}ها')
+    // A link to the product underneath (no-JS fallback), a button once hydrated.
+    const options = card.getByRole('button', { name: 'انتخاب ویژگی\u{200C}ها' })
     await expect(options).toHaveAttribute('href', href!)
     await options.click()
-    await expect(page).toHaveURL((url) => url.pathname === href)
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: name! })).toBeVisible()
+    await expect(page).toHaveURL((url) => url.pathname === '/')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toBeHidden()
+    await expect(options).toBeFocused()
     expect(errors).toEqual([])
   })
 

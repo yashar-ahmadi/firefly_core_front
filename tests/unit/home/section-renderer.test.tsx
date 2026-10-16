@@ -255,13 +255,11 @@ describe('product carousel', () => {
       'href',
       '/product/variable/',
     )
-    // A variable product's «choose options» row is a real link to its page, out of the
-    // accessibility tree and the tab order (the card's own link already names it).
-    expect(within(variable!).getAllByRole('link')).toHaveLength(1)
-    const options = within(variable!).getByText('انتخاب ویژگی\u{200C}ها').closest('a')
+    // A variable product's «choose options» opens quick view: a button once hydrated, a link
+    // to its page underneath (and before hydration).
+    const options = within(variable!).getByRole('button', { name: 'انتخاب ویژگی\u{200C}ها' })
     expect(options).toHaveAttribute('href', '/product/variable/')
-    expect(options).toHaveAttribute('aria-hidden', 'true')
-    expect(options).toHaveAttribute('tabindex', '-1')
+    expect(options).toHaveAccessibleDescription('کالای چندگونه')
     expect(within(simple!).queryByText('انتخاب ویژگی\u{200C}ها')).toBeNull()
     expect(within(noVariant!).queryByText('انتخاب ویژگی\u{200C}ها')).toBeNull()
   })

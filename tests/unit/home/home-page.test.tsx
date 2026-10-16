@@ -2,7 +2,6 @@ import { act, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ShopHomePage, { generateMetadata } from '@/app/(shop)/page'
-import { toCardProduct } from '@/features/catalog/card-product'
 import { useRecentlyViewed } from '@/features/recently-viewed/store'
 import type { HomePage } from '@/lib/api/types/catalog'
 import type { SiteSettings } from '@/lib/api/types/settings'
@@ -80,7 +79,8 @@ beforeEach(() => {
 })
 
 function viewed() {
-  const items = [toCardProduct(cardFixture({ name: 'کالای دیده\u{200C}شده' }))]
+  const { id, slug, image } = cardFixture()
+  const items = [{ id, slug, image, name: 'کالای دیده\u{200C}شده' }]
   localStorage.setItem('ff-recent', JSON.stringify({ state: { items }, version: 0 }))
   useRecentlyViewed.setState({ items })
 }

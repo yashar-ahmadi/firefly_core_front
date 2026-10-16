@@ -190,3 +190,18 @@ describe('the lightbox', () => {
     expect(within(dialog).getByText('۱ از ۴')).toBeInTheDocument()
   })
 })
+
+describe('ProductGallery, compact (quick view)', () => {
+  it('swipes with dots at every width: no thumbnails, no lightbox, no LCP priority', () => {
+    renderWithProduct(<ProductGallery compact />, { product })
+    expect(within(slidesRegion()).getAllByRole('group')).toHaveLength(4)
+    // The images are not buttons: there is no lightbox over the quick view dialog.
+    expect(within(slidesRegion()).queryAllByRole('button')).toHaveLength(0)
+    expect(slideImage(1)).not.toHaveAttribute('fetchpriority')
+    expect(screen.queryByRole('group', { name: 'تصاویر کوچک' })).toBeNull()
+    const dots = screen.getByRole('group', { name: 'انتخاب تصویر' })
+    expect(dots).not.toHaveClass('md:hidden')
+    fireEvent.click(within(dots).getAllByRole('button')[2]!)
+    expect(embla.api.scrollTo).toHaveBeenLastCalledWith(2, false)
+  })
+})

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { QuickViewHost } from '@/features/quick-view/quick-view-host'
 import { assertDevOnly } from '../dev-only'
 import { ControlSections } from './control-sections'
 import { DisplaySections } from './display-sections'
@@ -53,6 +54,8 @@ export default function UiShowcasePage() {
         <OverlaySections />
         <NavigationSections />
       </main>
+      {/* The shop layout mounts it on shop pages; the showcase is outside that layout. */}
+      <QuickViewHost />
     </div>
   )
 }

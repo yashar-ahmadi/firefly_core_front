@@ -2,6 +2,8 @@ import type { ProductSpecification } from '@/lib/api/types/catalog'
 
 export interface SpecRow {
   id: number
+  /** The attribute the row describes (the compare table lines rows up by it). */
+  attributeId: number
   name: string
   text: string
 }
@@ -18,7 +20,12 @@ export function specText(row: Pick<ProductSpecification, 'values' | 'custom_attr
 /** The rows worth showing, in the payload's order (already by display priority). */
 export function specRows(specifications: readonly ProductSpecification[]): SpecRow[] {
   return specifications
-    .map((row) => ({ id: row.id, name: row.attribute_name.trim(), text: specText(row) }))
+    .map((row) => ({
+      id: row.id,
+      attributeId: row.attribute_id,
+      name: row.attribute_name.trim(),
+      text: specText(row),
+    }))
     .filter((row) => row.text !== '')
 }
 

@@ -32,6 +32,20 @@ export function compareItemFrom(
   }
 }
 
+/**
+ * Whether `item` sits in another category than `first` (the list's first product), so their
+ * specifications may share few rows. Unknown categories never count as different.
+ */
+export function isOtherCategory(first: CompareItem | undefined, item: CompareItem): boolean {
+  return (
+    first !== undefined &&
+    first.slug !== item.slug &&
+    first.categoryId !== null &&
+    item.categoryId !== null &&
+    first.categoryId !== item.categoryId
+  )
+}
+
 export function isCompareItem(value: unknown): value is CompareItem {
   if (typeof value !== 'object' || value === null) return false
   const item = value as Record<string, unknown>

@@ -9,6 +9,7 @@ import { VisuallyHidden } from '@/components/ui/visually-hidden'
 import type { CardProduct } from '@/features/catalog/card-product'
 import { compareItemFrom } from '@/features/compare/compare-item'
 import { CompareToggle } from '@/features/compare/compare-toggle'
+import { QuickViewButton } from '@/features/quick-view/quick-view-button'
 import { HeartButton } from '@/features/wishlist/heart-button'
 import { CardImageLabels } from './card-image-labels'
 import {
@@ -19,7 +20,6 @@ import {
   CARD_SURFACE,
   REVEAL_ON_HOVER,
 } from './card-styles'
-import { QuickViewButton } from './quick-view-button'
 
 /** The representative variant's labels shown as chips. */
 const MAX_CHIPS = 2
@@ -35,10 +35,11 @@ export interface ProductCardProps {
   priority?: boolean
   /** The shop's setting: mark out-of-stock products with «ناموجود» and mute their price. */
   showOutOfStockLabel: boolean
-  /** Opens quick view; the button shows only when given (a Client Component parent). */
-  onQuickView?: (slug: string) => void
-  /** The add-to-cart control, placed under the price above the card link. */
-  addSlot?: ReactNode
+  /**
+   * The add-to-cart control, placed under the price above the card link. A function gets the
+   * id of the name link, for its `aria-describedby` (see `cardAction`).
+   */
+  addSlot?: ReactNode | ((nameId: string) => ReactNode)
 }
 
 /**
@@ -52,13 +53,13 @@ export function ProductCard({
   product,
   priority = false,
   showOutOfStockLabel,
-  onQuickView,
   addSlot,
 }: ProductCardProps) {
   const unavailable = !product.in_stock && showOutOfStockLabel
   const chips = product.default_variant_attributes.slice(0, MAX_CHIPS)
   // Names the card's buttons (aria-describedby): twenty «افزودن به مقایسه» need telling apart.
   const nameId = useId()
+  const action = typeof addSlot === 'function' ? addSlot(nameId) : addSlot
 
   return (
     <article
@@ -147,18 +148,11 @@ export function ProductCard({
               describedBy={nameId}
               className={REVEAL_ON_HOVER}
             />
-            {onQuickView && (
-              <QuickViewButton
-                slug={product.slug}
-                onQuickView={onQuickView}
-                describedBy={nameId}
-                className={REVEAL_ON_HOVER}
-              />
-            )}
+            <QuickViewButton slug={product.slug} describedBy={nameId} className={REVEAL_ON_HOVER} />
           </div>
         </div>
 
-        {addSlot && <div className="relative z-[1] mt-1">{addSlot}</div>}
+        {action && <div className="relative z-[1] mt-1">{action}</div>}
       </div>
     </article>
   )

@@ -23,3 +23,29 @@ describe('the bottom navigation steps aside for a buy bar', () => {
     expect(rule('body[data-buy-bar-shown] [data-bottom-nav]')).toBe('display: none;')
   })
 })
+
+describe('--bottom-bar-room: what floats above the bottom bar (the compare bar) clears it', () => {
+  it('is the bar and the safe area on phones, in a rule every browser reads', () => {
+    expect(css).toContain(':root { --bottom-bar-room: calc(4rem + env(safe-area-inset-bottom)); }')
+  })
+
+  it('is the safe area alone where no bar is mounted (checkout)', () => {
+    expect(rule(':root:not(:has([data-bottom-nav], [data-sticky-buy-bar]))')).toBe(
+      '--bottom-bar-room: env(safe-area-inset-bottom);',
+    )
+  })
+
+  it('follows the navigation sliding away, but never past a buy bar or a focused tab', () => {
+    expect(
+      rule(
+        ':root[data-compact]:not(:has([data-sticky-buy-bar])):not(:has([data-bottom-nav] :focus-visible))',
+      ),
+    ).toBe('--bottom-bar-room: env(safe-area-inset-bottom);')
+  })
+
+  it('is the safe area alone from md, where neither bar shows', () => {
+    expect(css).toContain(
+      '@media (width >= 48rem) { :root { --bottom-bar-room: env(safe-area-inset-bottom); } }',
+    )
+  })
+})

@@ -1,13 +1,36 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { isCardProduct, toCardProduct, type CardProduct } from '@/features/catalog/card-product'
 import { ensureHydrated, savedItems } from '@/lib/store/persisted'
 
 /** How many recently viewed products are kept. */
 export const RECENT_MAX = 20
 
-/** Enough of the card to render a ProductCard without a request. */
-export type RecentItem = CardProduct
+/**
+ * What the strip shows of a viewed product: picture, name and link. No price, stock or rating:
+ * kept on the device they would go stale, and prices come only from the API.
+ */
+export interface RecentItem {
+  id: number
+  slug: string
+  name: string
+  image: string
+}
+
+/** A copy with only those fields (drops whatever else a caller or an older version saved). */
+export function toRecentItem({ id, slug, name, image }: RecentItem): RecentItem {
+  return { id, slug, name, image }
+}
+
+export function isRecentItem(value: unknown): value is RecentItem {
+  if (typeof value !== 'object' || value === null) return false
+  const item = value as Record<string, unknown>
+  return (
+    typeof item.id === 'number' &&
+    typeof item.slug === 'string' &&
+    typeof item.name === 'string' &&
+    typeof item.image === 'string'
+  )
+}
 
 export interface RecentlyViewedState {
   /** Most recent first, one per slug. */
@@ -27,7 +50,7 @@ export const useRecentlyViewed = create<RecentlyViewedState>()(
       items: [],
       record: (item) => {
         ensureHydrated(api)
-        const entry = toCardProduct(item)
+        const entry = toRecentItem(item)
         const others = get().items.filter((listed) => listed.slug !== entry.slug)
         set({ items: [entry, ...others].slice(0, RECENT_MAX) })
       },
@@ -42,7 +65,7 @@ export const useRecentlyViewed = create<RecentlyViewedState>()(
       partialize: (state) => ({ items: state.items }),
       merge: (saved, current) => ({
         ...current,
-        items: savedItems(saved, isCardProduct).map(toCardProduct).slice(0, RECENT_MAX),
+        items: savedItems(saved, isRecentItem).map(toRecentItem).slice(0, RECENT_MAX),
       }),
       skipHydration: true,
     },

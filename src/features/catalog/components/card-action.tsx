@@ -1,42 +1,40 @@
-import { ListFilter } from 'lucide-react'
-import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { buttonClasses } from '@/components/ui/button-styles'
 import { AddToCartButton } from '@/features/cart/components/add-to-cart-button'
 import type { CardProduct } from '@/features/catalog/card-product'
+import { QuickViewLink } from '@/features/quick-view/quick-view-link'
+
+/** What the decision reads: a list card has it all; the compare table builds it from a detail. */
+export type ActionProduct = Pick<
+  CardProduct,
+  'slug' | 'name' | 'image' | 'type' | 'in_stock' | 'default_variant_id' | 'order_limit_min'
+>
 
 /**
- * A product card's action row, shared by rails and grids. A simple product with a variant adds
- * in one tap. A variable one gets a «choose options» link to the product page, where the variant
- * is chosen (quick view replaces it in Plan 2 Task 9). It repeats the card's own link, so it is
- * kept out of the accessibility tree and the tab order. It keeps every card in a row the same
- * height, so the prices line up. A product without variants has nothing to sell: no action.
+ * The add slot of a product card or column, the one place the one-tap ruling is decided (spec
+ * §8.3), for rails, grids, related products and the compare table:
+ * - a non-variable product with a default variant adds in one tap («ناموجود» when out of stock);
+ * - a variable product gets «انتخاب ویژگی‌ها», which opens quick view on its representative
+ *   variant, so the shopper always sees the variant they add;
+ * - a product without variants has nothing to sell: no action.
+ * Both controls are described by the product's name (`describedBy`, the card's name link), like
+ * the card's other buttons. Every card in a row gets a slot of the same height, so the prices
+ * line up. Server-renderable: both controls are client leaves.
  */
-export function cardAction(product: CardProduct): ReactNode {
-  if (product.type !== 'variable' && product.default_variant_id !== null) {
-    return (
-      <AddToCartButton
-        variantId={product.in_stock ? product.default_variant_id : null}
-        quantity={product.order_limit_min || 1}
-        product={{ name: product.name, image: product.image }}
-        size="sm"
-        variant="secondary"
-        fullWidth
-        label="افزودن به سبد"
-      />
-    )
+export function cardAction(product: ActionProduct, describedBy?: string): ReactNode {
+  if (product.type === 'variable') {
+    return <QuickViewLink slug={product.slug} describedBy={describedBy} />
   }
-  if (product.type !== 'variable') return undefined
+  if (product.default_variant_id === null) return undefined
   return (
-    <Link
-      href={`/product/${encodeURIComponent(product.slug)}/`}
-      prefetch={false}
-      tabIndex={-1}
-      aria-hidden
-      className={buttonClasses({ variant: 'outline', size: 'sm', fullWidth: true })}
-    >
-      <ListFilter />
-      {'انتخاب ویژگی\u{200C}ها'}
-    </Link>
+    <AddToCartButton
+      variantId={product.in_stock ? product.default_variant_id : null}
+      quantity={product.order_limit_min || 1}
+      product={{ name: product.name, image: product.image }}
+      size="sm"
+      variant="secondary"
+      fullWidth
+      label="افزودن به سبد"
+      describedBy={describedBy}
+    />
   )
 }

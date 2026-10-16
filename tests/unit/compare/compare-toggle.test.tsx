@@ -5,6 +5,8 @@ import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CompareToggle } from '@/features/compare/compare-toggle'
 import { useCompare, type CompareItem } from '@/features/compare/store'
+import type { PublicStoreConfig } from '@/config/resolve-store-config'
+import { StoreConfigProvider } from '@/lib/config-context'
 
 const mocks = vi.hoisted(() => ({ info: vi.fn() }))
 vi.mock('@/components/ui/toaster', () => ({ notify: { info: mocks.info, error: vi.fn() } }))
@@ -75,7 +77,38 @@ describe('CompareToggle', () => {
     for (let n = 2; n <= 5; n++) useCompare.getState().add(item(n))
     render(<CompareToggle item={item(1)} />)
     await userEvent.click(await screen.findByRole('button', { name: 'افزودن به مقایسه' }))
-    expect(mocks.info).toHaveBeenCalledWith(expect.stringContaining('۴'))
+    expect(mocks.info).toHaveBeenCalledWith('حداکثر ۴ کالا را می\u{200C}توانید مقایسه کنید')
     expect(useCompare.getState().items).toHaveLength(4)
+  })
+
+  it('warns when the product is of another category than the first, and still adds it', async () => {
+    useCompare.getState().add(item(2))
+    render(<CompareToggle item={{ ...item(1), categoryId: 10030 }} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'افزودن به مقایسه' }))
+    expect(mocks.info).toHaveBeenCalledWith('این کالا با کالاهای فهرست مقایسه هم\u{200C}دسته نیست')
+    expect(useCompare.getState().items.map((listed) => listed.slug)).toEqual([
+      'product-2',
+      'product-1',
+    ])
+  })
+
+  it('says nothing for a product of the same category, or the first one', async () => {
+    const { unmount } = render(<CompareToggle item={item(1)} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'افزودن به مقایسه' }))
+    unmount()
+    render(<CompareToggle item={item(2)} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'افزودن به مقایسه' }))
+    expect(mocks.info).not.toHaveBeenCalled()
+    expect(useCompare.getState().items).toHaveLength(2)
+  })
+
+  it('is not shown while the shop has comparison switched off', () => {
+    const config = { features: { compare: false } } as PublicStoreConfig
+    render(
+      <StoreConfigProvider value={config}>
+        <CompareToggle item={item(1)} />
+      </StoreConfigProvider>,
+    )
+    expect(screen.queryByRole('button')).toBeNull()
   })
 })

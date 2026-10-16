@@ -22,6 +22,10 @@ export interface AddToCartButtonProps {
   label?: string
   /** `secondary` is the quieter look for a grid of cards. */
   variant?: 'primary' | 'secondary'
+  /** Id of the element naming the product (a card's name link), for `aria-describedby`. */
+  describedBy?: string
+  /** Called once the cart has the product (not after a refusal). */
+  onAdded?: () => void
   className?: string
 }
 
@@ -40,6 +44,8 @@ export function AddToCartButton({
   fullWidth = false,
   label,
   variant = 'primary',
+  describedBy,
+  onAdded,
   className,
 }: AddToCartButtonProps) {
   const t = useT()
@@ -54,8 +60,10 @@ export function AddToCartButton({
       loading={isPending}
       disabled={disabled || unavailable}
       iconStart={unavailable ? undefined : <ShoppingCart />}
-      onClick={() => {
-        if (variantId !== null) void add(variantId, quantity, product)
+      aria-describedby={describedBy}
+      onClick={async () => {
+        if (variantId === null) return
+        if (await add(variantId, quantity, product)) onAdded?.()
       }}
       className={className}
     >

@@ -78,9 +78,10 @@ describe('isSameOriginLinkClick', () => {
     for (const link of document.querySelectorAll('body > a')) link.remove()
   })
 
-  function clickOn(href: string): boolean {
+  function clickOn(href: string, attributes: Record<string, string> = {}): boolean {
     const link = document.createElement('a')
     link.href = href
+    for (const [name, value] of Object.entries(attributes)) link.setAttribute(name, value)
     document.body.append(link)
     let result = false
     const read = (event: MouseEvent) => {
@@ -101,5 +102,9 @@ describe('isSameOriginLinkClick', () => {
   it('does not count a jump within this page (the skip link, an in-page anchor)', () => {
     expect(clickOn('#main')).toBe(false)
     expect(clickOn(`${window.location.pathname}${window.location.search}#reviews`)).toBe(false)
+  })
+
+  it('does not count a link upgraded to open a dialog (quick view): it does not leave', () => {
+    expect(clickOn('/product/samsung-galaxy-s25-ultra/', { 'data-opens-dialog': '' })).toBe(false)
   })
 })

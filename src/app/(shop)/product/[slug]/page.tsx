@@ -165,12 +165,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <AdminFaq items={product.question_answers} />
         {product.is_collection && <BundleItems items={product.bundle_items} />}
         <RelatedProducts products={product.related_products} settings={productSettings} />
-        {config.features.recentlyViewed && (
-          <RecentlyViewedStrip
-            showOutOfStockLabel={productSettings.show_out_of_stock_label}
-            excludeSlug={product.slug}
-          />
-        )}
+        {config.features.recentlyViewed && <RecentlyViewedStrip excludeSlug={product.slug} />}
       </div>
       <StickyBuyBar />
       <RecordRecentlyViewed />

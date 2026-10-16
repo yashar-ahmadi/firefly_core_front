@@ -30,7 +30,7 @@ export interface ProductGridProps {
   /** Shown instead of the grid when `products` is empty. */
   emptyState?: ReactNode
   columns?: GridColumns
-  /** Each card gets its add-to-cart (or choose-options) row, as in product rails. */
+  /** Each card gets its add-to-cart (or «انتخاب ویژگی‌ها») row, as in product rails. */
   withAction?: boolean
   /** How many leading cards load their image eagerly; 0 below the fold. */
   priorityCount?: number
@@ -59,7 +59,7 @@ export function ProductGrid({
             product={product}
             priority={index < priorityCount}
             showOutOfStockLabel={showOutOfStockLabel}
-            addSlot={withAction ? cardAction(product) : undefined}
+            addSlot={withAction ? (nameId) => cardAction(product, nameId) : undefined}
           />
         </li>
       ))}

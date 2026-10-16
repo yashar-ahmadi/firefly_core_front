@@ -27,7 +27,7 @@ export function ProductRail({ products, ariaLabel, showOutOfStockLabel }: Produc
           key={product.id}
           product={product}
           showOutOfStockLabel={showOutOfStockLabel}
-          addSlot={cardAction(product)}
+          addSlot={(nameId) => cardAction(product, nameId)}
         />
       ))}
     </Carousel>

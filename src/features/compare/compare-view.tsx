@@ -1,0 +1,146 @@
+'use client'
+
+import { useQueries } from '@tanstack/react-query'
+import { GitCompareArrows } from 'lucide-react'
+import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
+import { productDetailQuery } from '@/features/product/product-query'
+import { isApiNotFound } from '@/lib/api/errors'
+import type { ProductDetail } from '@/lib/api/types/catalog'
+import { usePersistHydration } from '@/lib/store/persisted'
+import { CompareTable } from './compare-table'
+import { useCompare } from './store'
+
+const EMPTY = 'هنوز کالایی برای مقایسه انتخاب نکرده\u{200C}اید'
+const ONE_MORE = 'برای مقایسه، دست\u{200C}کم یک کالای دیگر به فهرست بیفزایید.'
+const FAILED = 'دریافت اطلاعات کالاها ممکن نشد.'
+const gone = (name: string) => `«${name}» دیگر موجود نیست و از فهرست مقایسه برداشته شد.`
+
+/** The server's and hydration's render, and the wait for the products. */
+function CompareSkeleton() {
+  return (
+    <div role="status" aria-busy="true" className="rounded-card bg-white p-3 shadow-card">
+      <span className="sr-only">در حال بارگذاری مقایسه</span>
+      <div className="flex gap-3 overflow-hidden">
+        {[0, 1, 2].map((column) => (
+          <div key={column} className="flex w-40 shrink-0 flex-col gap-2 md:w-56">
+            <Skeleton className="size-16 md:size-24" />
+            <Skeleton className="h-5 w-full" />
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="mt-3 h-4 w-3/4" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CompareEmpty() {
+  return (
+    <EmptyState
+      icon={<GitCompareArrows />}
+      title={EMPTY}
+      description={'دکمه\u{0654} مقایسه روی کارت هر کالا آن را به این فهرست می\u{200C}افزاید.'}
+      action={
+        <Button asChild variant="outline">
+          <Link href="/">{'بازگشت به صفحه\u{0654} اصلی'}</Link>
+        </Button>
+      }
+      className="rounded-card bg-white shadow-card"
+    />
+  )
+}
+
+/**
+ * The compare page's body: the list saved on this device (`ff-compare`), each product's payload
+ * read through the BFF in parallel (the queries quick view shares), then the table. The server
+ * and hydration render a loading shell (the list is only known in the browser). A product that
+ * answers 404 is taken off the list with a note; any other failure offers a retry. Removing a
+ * column moves the focus to the next one's «حذف از مقایسه», or to the page heading when none is
+ * left. `headingId` names the page's `<h1>` (focusable from code).
+ */
+export function CompareView({ headingId }: { headingId: string }) {
+  const hydrated = usePersistHydration(useCompare)
+  const items = useCompare((state) => state.items)
+  const remove = useCompare((state) => state.remove)
+  const queries = useQueries({ queries: items.map((item) => productDetailQuery(item.slug)) })
+  const rootRef = useRef<HTMLDivElement>(null)
+  const focusAfterRemove = useRef<number | null>(null)
+
+  // The products that no longer exist: noted (kept after they leave the list), then removed.
+  const missing = items.filter((_, index) => isApiNotFound(queries[index]?.error))
+  const [goneNames, setGoneNames] = useState<string[]>([])
+  const fresh = missing.filter((item) => !goneNames.includes(item.name))
+  if (fresh.length > 0) setGoneNames([...goneNames, ...fresh.map((item) => item.name)])
+  const missingKey = missing.map((item) => item.slug).join('\n')
+  useEffect(() => {
+    if (missingKey) for (const slug of missingKey.split('\n')) remove(slug)
+  }, [missingKey, remove])
+
+  useEffect(() => {
+    const index = focusAfterRemove.current
+    if (index === null) return
+    focusAfterRemove.current = null
+    const buttons = rootRef.current?.querySelectorAll<HTMLElement>('[data-compare-remove]')
+    const next = buttons?.[Math.min(index, buttons.length - 1)]
+    if (next) next.focus()
+    else document.getElementById(headingId)?.focus()
+  }, [items, headingId])
+
+  const notice = goneNames.length > 0 && (
+    <p role="status" className="rounded-control bg-info/10 px-4 py-3 text-base text-ink-800">
+      {goneNames.map(gone).join(' ')}
+    </p>
+  )
+
+  let body
+  if (!hydrated) {
+    body = <CompareSkeleton />
+  } else if (items.length === 0) {
+    body = <CompareEmpty />
+  } else if (queries.some((query) => query.isError && !isApiNotFound(query.error))) {
+    body = (
+      <div className="flex flex-col items-center gap-4 rounded-card bg-white py-12 text-center shadow-card">
+        <p className="text-ink-700">{FAILED}</p>
+        <Button
+          variant="outline"
+          onClick={() => {
+            for (const query of queries) if (query.isError) void query.refetch()
+          }}
+        >
+          تلاش دوباره
+        </Button>
+      </div>
+    )
+  } else if (queries.some((query) => query.isPending)) {
+    body = <CompareSkeleton />
+  } else {
+    const products = queries.flatMap((query) => (query.data ? [query.data] : []))
+    body = (
+      <>
+        {products.length === 1 && <p className="text-base text-ink-700">{ONE_MORE}</p>}
+        <CompareTable
+          products={products}
+          onRemove={(slug) => {
+            focusAfterRemove.current = products.findIndex(
+              (product: ProductDetail) => product.slug === slug,
+            )
+            remove(slug)
+          }}
+        />
+      </>
+    )
+  }
+
+  return (
+    <div ref={rootRef} className="flex flex-col gap-4">
+      {notice}
+      {body}
+    </div>
+  )
+}

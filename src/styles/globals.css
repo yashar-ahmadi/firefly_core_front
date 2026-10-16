@@ -259,6 +259,31 @@ body[data-buy-bar-shown] [data-bottom-nav] {
   display: none;
 }
 
+/*
+ * The room the phone's bottom bar (the navigation, or a page's own buy bar; both 4rem) takes at
+ * the bottom of the viewport, safe area included, for UI floating above it (the compare bar).
+ * Only the safe area where no bar is mounted (checkout), while the navigation has slid away
+ * (compact, no buy bar, nothing in it focused) and from md, where neither bar shows. Separate
+ * rules: a browser without `:has()` drops those and keeps the full room (a gap, never overlap).
+ */
+:root {
+  --bottom-bar-room: calc(4rem + env(safe-area-inset-bottom));
+}
+
+:root:not(:has([data-bottom-nav], [data-sticky-buy-bar])) {
+  --bottom-bar-room: env(safe-area-inset-bottom);
+}
+
+:root[data-compact]:not(:has([data-sticky-buy-bar])):not(:has([data-bottom-nav] :focus-visible)) {
+  --bottom-bar-room: env(safe-area-inset-bottom);
+}
+
+@media (width >= 48rem) {
+  :root {
+    --bottom-bar-room: env(safe-area-inset-bottom);
+  }
+}
+
 @layer base {
   html {
     font-size: 16px;

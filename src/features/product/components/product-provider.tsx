@@ -20,7 +20,10 @@ export interface ProductState {
   selection: Selection
   /** What the buy buttons add; null when the selection is no variant. */
   variant: Variant | null
-  /** Chooses a value (auto-adjusting a missing combination) and writes `?variant=` to the URL. */
+  /**
+   * Chooses a value (auto-adjusting a missing combination); on the product page it also writes
+   * `?variant=` to the URL.
+   */
   select: (axisId: number, valueId: number) => void
   /** Always within `bounds`; starts at the minimum. */
   quantity: number
@@ -46,8 +49,12 @@ export interface ProductProviderProps {
   /** A `ProductDetail`, or the slice of it the page hands to the browser (`toClientProduct`). */
   product: ClientProduct
   /**
-   * The variant to start on. By default the URL's `?variant=` when it names a variant of this
-   * product (a shared link opens the same variant), else the default variant. Read through
+   * The variant to start on, given by a host that owns the choice (quick view, over any page):
+   * the provider is then detached from the URL, which it neither reads nor writes.
+   *
+   * Left out (the product page), the URL is the record: it starts on the URL's `?variant=` when
+   * that names a variant of this product (a shared link opens the same variant), else the
+   * default variant, follows a later `?variant=` and writes each choice back. Read through
    * `useSearchParams`, which the server render and hydration see alike on this dynamic route,
    * and which is right on a page restored by Back/Forward too (its payload was built for the
    * URL it was first opened at, so the page cannot pass it).
@@ -57,18 +64,21 @@ export interface ProductProviderProps {
 }
 
 /**
- * The product page's client state: the selected values, the variant they resolve to and the
- * quantity. Choosing a value changes the image, price, stock text and limits with no request,
- * and records the variant in the URL with `history.replaceState` (no history entry, no
- * navigation); never while a navigation to another page is on its way, which it would cancel.
+ * The product's client state (the product page, quick view): the selected values, the variant
+ * they resolve to and the quantity. Choosing a value changes the image, price, stock text and
+ * limits with no request. On the product page (URL mode: no `initialVariantId`) it records the
+ * variant in the URL with `history.replaceState` (no history entry, no navigation; the null
+ * state is Next's documented way to sync `useSearchParams`); never while a navigation to another
+ * page is on its way, which it would cancel.
  */
 export function ProductProvider({ product, initialVariantId, children }: ProductProviderProps) {
+  const urlMode = initialVariantId === undefined
   const requested = useSearchParams().get('variant') ?? undefined
   const [selection, setSelection] = useState(() =>
     initialSelection(
       product.variant_options,
       product.variants,
-      initialVariantId === undefined
+      urlMode
         ? requestedVariantId(product, requested)
         : (initialVariantId ?? product.default_variant_id),
     ),
@@ -89,7 +99,7 @@ export function ProductProvider({ product, initialVariantId, children }: Product
     setSeenRequest(requested)
     const id = requestedVariantId(product, requested)
     const named = id !== null && String(id) === requested
-    if (initialVariantId === undefined && named && id !== variant?.id) {
+    if (urlMode && named && id !== variant?.id) {
       setSelection(initialSelection(product.variant_options, product.variants, id))
     }
   }
@@ -108,7 +118,7 @@ export function ProductProvider({ product, initialVariantId, children }: Product
       )
       setSelection(next)
       setAnnouncement(choiceSummary(product, next, currentVariant(product, next)))
-      if (leaving) return
+      if (!urlMode || leaving) return
       window.history.replaceState(null, '', addressWith(currentVariant(product, next)))
     },
     quantity: clampQuantity(wanted ?? bounds.min, bounds),

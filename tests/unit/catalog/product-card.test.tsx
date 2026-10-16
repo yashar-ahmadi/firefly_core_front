@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ProductCard } from '@/features/catalog/components/product-card'
 import { useCompare } from '@/features/compare/store'
+import { useQuickViewStore } from '@/features/quick-view/use-quick-view'
 import type { ProductCard as ProductCardData } from '@/lib/api/types/catalog'
 import { clientProviders } from '../support/providers'
 import { cardFixture, discountedCard } from './card-fixtures'
@@ -135,18 +136,33 @@ describe('ProductCard', () => {
     expect(within(card()).queryByRole('timer')).toBeNull()
   })
 
-  it('offers quick view only when the host handles it', async () => {
-    const { unmount } = renderCard(cardFixture())
-    expect(within(card()).queryByRole('button', { name: 'مشاهده سریع' })).toBeNull()
-    unmount()
-
-    const onQuickView = vi.fn()
-    const { wrapper } = clientProviders()
-    render(<ProductCard product={cardFixture()} showOutOfStockLabel onQuickView={onQuickView} />, {
-      wrapper,
-    })
+  it('opens quick view on the product from its icon', async () => {
+    useQuickViewStore.setState({ request: null, open: false, hosts: 1 })
+    renderCard(cardFixture())
     await userEvent.click(within(card()).getByRole('button', { name: 'مشاهده سریع' }))
-    expect(onQuickView).toHaveBeenCalledWith('samsung-galaxy-s25-ultra')
+    expect(useQuickViewStore.getState()).toMatchObject({
+      open: true,
+      request: { slug: 'samsung-galaxy-s25-ultra' },
+    })
+  })
+
+  it('hands its name id to an add slot given as a function', () => {
+    const { wrapper } = clientProviders()
+    render(
+      <ProductCard
+        product={cardFixture()}
+        showOutOfStockLabel
+        addSlot={(nameId) => (
+          <button type="button" aria-describedby={nameId}>
+            افزودن به سبد خرید
+          </button>
+        )}
+      />,
+      { wrapper },
+    )
+    expect(
+      within(card()).getByRole('button', { name: 'افزودن به سبد خرید' }),
+    ).toHaveAccessibleDescription(NAME)
   })
 
   it('renders the add slot inside the card', () => {
@@ -195,9 +211,7 @@ describe('ProductCard', () => {
 
   it('describes each action button with the product name', () => {
     const { wrapper } = clientProviders()
-    render(<ProductCard product={cardFixture()} showOutOfStockLabel onQuickView={vi.fn()} />, {
-      wrapper,
-    })
+    render(<ProductCard product={cardFixture()} showOutOfStockLabel />, { wrapper })
     const buttons = within(card()).getAllByRole('button')
     expect(buttons).toHaveLength(3)
     for (const button of buttons) expect(button).toHaveAccessibleDescription(NAME)
@@ -205,9 +219,7 @@ describe('ProductCard', () => {
 
   it('reveals the action buttons on hover only where hover exists', () => {
     const { wrapper } = clientProviders()
-    render(<ProductCard product={cardFixture()} showOutOfStockLabel onQuickView={vi.fn()} />, {
-      wrapper,
-    })
+    render(<ProductCard product={cardFixture()} showOutOfStockLabel />, { wrapper })
     for (const button of within(card()).getAllByRole('button')) {
       expect(button).toHaveClass(
         '[@media(hover:hover)]:opacity-0',

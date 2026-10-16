@@ -23,10 +23,20 @@ function row(id: number, changes: Partial<ProductSpecification>): ProductSpecifi
 describe('specRows', () => {
   it('joins the values with «، », else takes the free text, in the payload order', () => {
     expect(specRows(s25Product().specifications)).toEqual([
-      { id: 10001, name: 'رنگ', text: 'مشکی، نقره ای، طلایی' },
-      { id: 10002, name: 'حافظه داخلی', text: '۲۵۶ گیگابایت، ۵۱۲ گیگابایت، ۱ ترابایت' },
-      { id: 10003, name: 'حافظه رم', text: '۱۲ گیگابایت' },
-      { id: 10004, name: 'جنس', text: 'نمایشگر ۶.۸ اینچی QHD+ با نرخ نوسازی ۱۲۰ هرتز' },
+      { id: 10001, attributeId: 10001, name: 'رنگ', text: 'مشکی، نقره ای، طلایی' },
+      {
+        id: 10002,
+        attributeId: 10002,
+        name: 'حافظه داخلی',
+        text: '۲۵۶ گیگابایت، ۵۱۲ گیگابایت، ۱ ترابایت',
+      },
+      { id: 10003, attributeId: 10003, name: 'حافظه رم', text: '۱۲ گیگابایت' },
+      {
+        id: 10004,
+        attributeId: 10005,
+        name: 'جنس',
+        text: 'نمایشگر ۶.۸ اینچی QHD+ با نرخ نوسازی ۱۲۰ هرتز',
+      },
     ])
   })
 
@@ -37,7 +47,7 @@ describe('specRows', () => {
       row(3, { values: ['فولاد'] }),
       row(4, { values: ['', ' '] }),
     ])
-    expect(rows).toEqual([{ id: 3, name: 'ویژگی 3', text: 'فولاد' }])
+    expect(rows).toEqual([{ id: 3, attributeId: 3, name: 'ویژگی 3', text: 'فولاد' }])
   })
 })
 

@@ -24,9 +24,9 @@ describe('useRecentlyViewed', () => {
     const { record } = useRecentlyViewed.getState()
     record(product(1))
     record(product(2))
-    record({ ...product(1), final_price: 1000 })
+    record({ ...product(1), name: 'نام تازه' })
     expect(slugs()).toEqual(['product-1', 'product-2'])
-    expect(useRecentlyViewed.getState().items[0]?.final_price).toBe(1000)
+    expect(useRecentlyViewed.getState().items[0]?.name).toBe('نام تازه')
   })
 
   it('keeps the 20 most recent', () => {
@@ -38,15 +38,29 @@ describe('useRecentlyViewed', () => {
     expect(slugs().at(-1)).toBe('product-6')
   })
 
-  it('stores only the card fields, under ff-recent', () => {
+  it('stores only what the strip shows (no price or stock to go stale), under ff-recent', () => {
     useRecentlyViewed.getState().record(product(1))
     const saved = JSON.parse(localStorage.getItem('ff-recent') ?? 'null')
     const [item] = saved.state.items
-    expect(item.slug).toBe('product-1')
-    expect(item.final_price).toBe(78_500_000)
-    expect(item).not.toHaveProperty('brand')
-    expect(item).not.toHaveProperty('created')
-    expect(item).not.toHaveProperty('extra_detail')
+    expect(item).toEqual({
+      id: 1,
+      slug: 'product-1',
+      name: 'کالای 1',
+      image: product(1).image,
+    })
+  })
+
+  it('keeps an entry saved by an older version, without its prices', async () => {
+    localStorage.setItem(
+      'ff-recent',
+      JSON.stringify({ state: { items: [product(1)] }, version: 0 }),
+    )
+    vi.resetModules()
+    const fresh = await import('@/features/recently-viewed/store')
+    await fresh.useRecentlyViewed.persist.rehydrate()
+    expect(fresh.useRecentlyViewed.getState().items).toEqual([
+      { id: 1, slug: 'product-1', name: 'کالای 1', image: product(1).image },
+    ])
   })
 
   it('clears', () => {

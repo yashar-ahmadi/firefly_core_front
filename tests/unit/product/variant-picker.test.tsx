@@ -217,6 +217,25 @@ describe('the chosen variant in the URL (?variant=)', () => {
     expect(lastUrl()).toBe(`${PAGE}?utm_source=sms&variant=10004`)
   })
 
+  it('with a variant given by its host (quick view) neither reads nor writes ?variant=', async () => {
+    const user = userEvent.setup()
+    router.search = 'variant=10003'
+    const { rerender } = renderPicker(10001)
+    expect(probe()).toMatch(/^10001:/)
+    await user.click(within(storage()).getByRole('radio', { name: /^۵۱۲ گیگابایت/ }))
+    expect(probe()).toMatch(/^10002:/)
+    expect(replaceState).not.toHaveBeenCalled()
+    // The page's own ?variant= changing is not this provider's business either.
+    router.search = 'variant=10004'
+    rerender(
+      <>
+        <VariantPicker />
+        <Probe />
+      </>,
+    )
+    expect(probe()).toMatch(/^10002:/)
+  })
+
   it('leaves the URL alone while a navigation to another page is on its way', async () => {
     const user = userEvent.setup()
     renderPicker()

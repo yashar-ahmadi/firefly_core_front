@@ -3,7 +3,7 @@ import { storeName, storeSlogan } from '@/app/_shell/metadata'
 import { CONTAINER } from '@/components/layout/container'
 import { cn } from '@/components/ui/cn'
 import { getStoreConfig } from '@/config/store-config'
-import { getHomePage, getProductSettings } from '@/features/catalog/api'
+import { getHomePage } from '@/features/catalog/api'
 import { buildHomeMetadata } from '@/features/home/home-metadata'
 import { SectionRenderer } from '@/features/home/sections/section-renderer'
 import { RecentlyViewedStrip } from '@/features/recently-viewed/strip'
@@ -27,11 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function ShopHomePage() {
   const config = getStoreConfig()
-  const [home, settings, productSettings] = await Promise.all([
-    getHomePage(),
-    getSiteSettings(),
-    getProductSettings(),
-  ])
+  const [home, settings] = await Promise.all([getHomePage(), getSiteSettings()])
   return (
     <>
       {/* Open Graph rows need property=, which Next's metadata cannot write; React hoists these. */}
@@ -41,9 +37,7 @@ export default async function ShopHomePage() {
       <h1 className="sr-only">{storeName(config, settings)}</h1>
       <div className={cn(CONTAINER, 'flex flex-col gap-8 pt-4 pb-10 md:gap-12 md:pt-6 md:pb-14')}>
         <SectionRenderer sections={home.sections} />
-        {config.features.recentlyViewed && (
-          <RecentlyViewedStrip showOutOfStockLabel={productSettings.show_out_of_stock_label} />
-        )}
+        {config.features.recentlyViewed && <RecentlyViewedStrip />}
       </div>
     </>
   )

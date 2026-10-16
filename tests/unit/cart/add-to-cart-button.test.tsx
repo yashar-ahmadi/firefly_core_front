@@ -99,4 +99,38 @@ describe('AddToCartButton', () => {
     renderButton({ disabled: true })
     expect(screen.getByRole('button', { name: 'افزودن به سبد خرید' })).toBeDisabled()
   })
+
+  it("is described by the product name, like the card's other buttons", () => {
+    const { wrapper } = clientProviders()
+    render(
+      <>
+        <span id="product-name">{PRODUCT.name}</span>
+        <AddToCartButton
+          variantId={10062}
+          quantity={1}
+          product={PRODUCT}
+          describedBy="product-name"
+        />
+      </>,
+      { wrapper },
+    )
+    expect(screen.getByRole('button', { name: 'افزودن به سبد خرید' })).toHaveAccessibleDescription(
+      PRODUCT.name,
+    )
+  })
+
+  it('tells its parent once the cart has the product, and not after a refusal', async () => {
+    const onAdded = vi.fn()
+    mocks.bffFetch
+      .mockRejectedValueOnce(new ApiError({ status: 400, code: 'cart_item_out_of_stock' }))
+      .mockResolvedValueOnce(result(cart([cartLine({ variant_id: 10062 })]), MSG_ADDED))
+    renderButton({ onAdded })
+    const button = screen.getByRole('button', { name: 'افزودن به سبد خرید' })
+    await userEvent.click(button)
+    await waitFor(() => expect(mocks.error).toHaveBeenCalled())
+    expect(onAdded).not.toHaveBeenCalled()
+    await waitFor(() => expect(button).toBeEnabled())
+    await userEvent.click(button)
+    await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(1))
+  })
 })
