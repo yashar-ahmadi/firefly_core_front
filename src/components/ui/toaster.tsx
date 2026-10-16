@@ -61,16 +61,47 @@ interface Shown {
   description?: ReactNode
 }
 
-/** How long the stand-in shows a message. */
+/** How long the stand-in shows a message, unless it is hovered or holds the focus. */
 const FALLBACK_MS = 6000
+
+function FallbackToast({ item, onClose }: { item: Shown; onClose: () => void }) {
+  return (
+    <div
+      className={cn(
+        'pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-card border bg-white p-4 text-base shadow-raised',
+        item.kind === 'error' ? 'border-danger text-danger' : 'border-ink-200 text-ink-900',
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="font-semibold">{item.message}</div>
+        {item.description && <div className="text-ink-700">{item.description}</div>}
+      </div>
+      <button
+        type="button"
+        aria-label="بستن اعلان"
+        onClick={onClose}
+        className="-m-3 grid size-11 shrink-0 place-items-center rounded-control text-ink-600 hover:bg-ink-100"
+      >
+        <X aria-hidden className="size-4" />
+      </button>
+    </div>
+  )
+}
+
+// Never hidden while empty: a live region must be in the accessibility tree before its message.
+const REGION = 'flex w-full flex-col items-center gap-2'
 
 /**
  * Stands in for Sonner when its code could not be downloaded (a stale chunk after a deploy, a
- * dropped connection): each message in a plain box at the top, read out (errors as alerts),
- * with a close button, gone after six seconds.
+ * dropped connection): each message in a plain box at the top with a close button. Messages
+ * are put into two live regions that are on the page before any arrives (one polite, one
+ * assertive for errors), so screen readers announce them. A message goes after six seconds,
+ * but not while the pointer is over the messages or one of them holds the focus.
  */
 function FallbackToasts() {
   const [shown, setShown] = useState<Shown[]>([])
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
   useEffect(() => {
     let key = 0
     return connectToasts((notice) => {
@@ -90,40 +121,41 @@ function FallbackToasts() {
       setShown((list) => [...list.filter((n) => id === undefined || n.id !== id), item].slice(-3))
     })
   }, [])
+  const held = hovered || focused
   useEffect(() => {
-    if (shown.length === 0) return
+    if (shown.length === 0 || held) return
     const timer = window.setTimeout(() => setShown((list) => list.slice(1)), FALLBACK_MS)
     return () => window.clearTimeout(timer)
-  }, [shown])
+  }, [shown, held])
+
+  const boxes = (errors: boolean) =>
+    shown
+      .filter((item) => (item.kind === 'error') === errors)
+      .map((item) => (
+        <FallbackToast
+          key={item.key}
+          item={item}
+          onClose={() => setShown((list) => list.filter((n) => n.key !== item.key))}
+        />
+      ))
 
   return (
     <section
       aria-label="اعلان‌ها"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false)
+      }}
       className="pointer-events-none fixed inset-x-4 top-4 z-[100] flex flex-col items-center gap-2"
     >
-      {shown.map((item) => (
-        <div
-          key={item.key}
-          role={item.kind === 'error' ? 'alert' : 'status'}
-          className={cn(
-            'pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-card border bg-white p-4 text-base shadow-raised',
-            item.kind === 'error' ? 'border-danger text-danger' : 'border-ink-200 text-ink-900',
-          )}
-        >
-          <div className="min-w-0 flex-1">
-            <div className="font-semibold">{item.message}</div>
-            {item.description && <div className="text-ink-700">{item.description}</div>}
-          </div>
-          <button
-            type="button"
-            aria-label="بستن اعلان"
-            onClick={() => setShown((list) => list.filter((n) => n.key !== item.key))}
-            className="-m-3 grid size-11 shrink-0 place-items-center rounded-control text-ink-600 hover:bg-ink-100"
-          >
-            <X aria-hidden className="size-4" />
-          </button>
-        </div>
-      ))}
+      <div role="status" aria-live="polite" className={REGION}>
+        {boxes(false)}
+      </div>
+      <div role="alert" aria-live="assertive" className={REGION}>
+        {boxes(true)}
+      </div>
     </section>
   )
 }
