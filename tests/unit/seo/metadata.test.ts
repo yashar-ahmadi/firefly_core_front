@@ -79,6 +79,24 @@ describe('seoMetadata', () => {
     expect(seoMetadata({ path: '/a/', image: '  ' }).twitter).toMatchObject({ card: 'summary' })
   })
 
+  it('names the shop in og:site_name, as the home page does', () => {
+    const meta = seoMetadata({ path: '/brand/apple/', siteName: ' فایرفلای ' })
+    expect(meta.openGraph).toMatchObject({ siteName: 'فایرفلای' })
+    expect(seoMetadata({ path: '/a/', siteName: ' ' }).openGraph).not.toHaveProperty('siteName')
+  })
+
+  it('takes the small Twitter card when asked (a 70×70 brand logo)', () => {
+    const meta = seoMetadata({
+      path: '/a/',
+      image: 'https://api.shop.ir/media/l.jpg',
+      card: 'summary',
+    })
+    expect(meta.twitter).toMatchObject({
+      card: 'summary',
+      images: ['https://api.shop.ir/media/l.jpg'],
+    })
+  })
+
   it('noindex keeps links followed', () => {
     expect(seoMetadata({ path: '/a/', noindex: true }).robots).toEqual({
       index: false,

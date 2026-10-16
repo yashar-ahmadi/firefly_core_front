@@ -5,10 +5,15 @@ import { apiFetch } from '@/lib/api/server'
 /**
  * Operator redirect rules (managed in the admin panel), applied by `src/proxy.ts`.
  *
- * Every `resolve/` hit is counted by the API, so it is called only for paths that match a known
- * rule source. The list of sources is kept in memory per server process: refreshed every five
- * minutes, served stale while one refresh runs, and awaited only by the very first request. A
- * failed load (say the storefront started before the backend) is retried after 30 seconds.
+ * Every `resolve/` hit is counted by the API, so it is called only for paths whose spelling
+ * (`ruleSpelling`) is a known rule source, or that cannot be spelled locally but are well-formed
+ * (the API spells those itself). Garbage (a path that cannot be percent-decoded and is no rule
+ * source) never reaches the API; the proxy answers it 404 after this lookup, so an operator rule
+ * for a legacy non-UTF-8 URL still redirects.
+ *
+ * The list of sources is kept in memory per server process: refreshed every five minutes, served
+ * stale while one refresh runs, and awaited only by the very first request. A failed load (say
+ * the storefront started before the backend) is retried after 30 seconds.
  */
 
 export interface RedirectRule {
@@ -42,22 +47,49 @@ let nextLoadAt = 0
 let settled = false
 let refreshing: Promise<void> | null = null
 
+const HEX_PAIR = /^[0-9a-f]{2}$/i
+
 /**
- * The spelling the API stores for `pathname` (backend `normalize_path`): percent-decoded,
- * repeated slashes collapsed, trailing slash dropped (except for `/`), case kept. Null when it
- * cannot be computed locally: an encoded `/ ? # %` (the API keeps those encoded), invalid
- * percent-encoding, or whitespace and control characters.
+ * The backend's `unquote` (Python, UTF-8 with errors="replace"): each run of escapes is decoded
+ * as UTF-8, every invalid sequence becoming one U+FFFD; a `%` that starts no escape stays as is.
+ * Never throws, unlike `decodeURIComponent`.
+ */
+function unquoteReplacing(text: string): string {
+  const decoder = new TextDecoder()
+  let decoded = ''
+  let bytes: number[] = []
+  const flush = () => {
+    if (bytes.length === 0) return
+    decoded += decoder.decode(new Uint8Array(bytes))
+    bytes = []
+  }
+  for (let index = 0; index < text.length;) {
+    const pair = text.slice(index + 1, index + 3)
+    if (text[index] === '%' && HEX_PAIR.test(pair)) {
+      bytes.push(Number.parseInt(pair, 16))
+      index += 3
+    } else {
+      flush()
+      decoded += text[index]
+      index += 1
+    }
+  }
+  flush()
+  return decoded
+}
+
+/**
+ * The spelling the API stores for `pathname` (backend `normalize_path`): percent-decoded as the
+ * backend does (a legacy path in another encoding gets U+FFFD for each invalid sequence, and a
+ * `%` that starts no escape is written `%25`), repeated slashes collapsed, trailing slash dropped
+ * (except for `/`), case kept. Null when it is not computed locally: an encoded `/ ? # %` (the
+ * API keeps those encoded), or whitespace and control characters.
  */
 export function ruleSpelling(pathname: string): string | null {
   if (/%(?:25|2f|3f|23)/i.test(pathname)) return null
-  let path: string
-  try {
-    path = decodeURIComponent(pathname)
-  } catch {
-    return null
-  }
+  let path = unquoteReplacing(pathname)
   if (/[\s\p{Cc}]/u.test(path)) return null
-  path = path.replace(/\/{2,}/g, '/')
+  path = path.replaceAll('%', '%25').replace(/\/{2,}/g, '/')
   return path.length > 1 ? path.replace(/\/+$/, '') || '/' : path
 }
 

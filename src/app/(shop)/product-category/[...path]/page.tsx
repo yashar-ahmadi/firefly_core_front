@@ -21,6 +21,7 @@ import { siteBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { JsonLd } from '@/features/seo/json-ld'
 import { seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
+import { shopName } from '@/features/seo/shop-name'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -59,6 +60,7 @@ export async function generateMetadata({
     keywords: category.page_keywords,
     image: isPlaceholderImage(category.image) ? null : category.image,
     path,
+    siteName: await shopName(),
     ...listingIndexing(sp, { path, canonicalLink: category.canonical_link }),
   })
 }

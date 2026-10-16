@@ -10,13 +10,14 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { getBrands } from '@/features/catalog/api'
 import { BRANDS_PATH, brandPath } from '@/features/catalog/listing-routes'
 import { seoMetadata } from '@/features/seo/metadata'
+import { shopName } from '@/features/seo/shop-name'
 import { formatNumber } from '@/lib/format'
 
 const TITLE = 'برندها'
 const HEADING_ID = 'brands-heading'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { ...seoMetadata({ path: BRANDS_PATH }), title: TITLE }
+  return { ...seoMetadata({ path: BRANDS_PATH, siteName: await shopName() }), title: TITLE }
 }
 
 /** The API orders brands by code point (پ چ ژ گ last): this is Persian alphabetical order. */

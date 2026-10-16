@@ -1,4 +1,5 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, test, type APIRequestContext } from '@playwright/test'
+import { watchErrors } from '../support/watch-errors'
 
 // The homepage against the dev backend's homepage builder (sample data): a 3-slide slider, the
 // featured product carousel, category grids, banners, posts and a rich text.
@@ -17,22 +18,6 @@ async function sections(request: APIRequestContext): Promise<Section[]> {
   const res = await request.get(`${API_URL}/api/v1/homepage/`)
   expect(res.ok(), 'homepage from the backend').toBe(true)
   return ((await res.json()) as { data: { sections: Section[] } }).data.sections
-}
-
-/**
- * Page errors and console errors seen while the page runs: hydration mismatches included, also
- * the production build's minified ones («Minified React error #418»). Only failed resource
- * loads are let through: the dev backend has no media files.
- */
-function watchErrors(page: Page): string[] {
-  const errors: string[] = []
-  page.on('pageerror', (error) => errors.push(error.message))
-  page.on('console', (message) => {
-    if (message.type() !== 'error') return
-    if (/^Failed to load resource/.test(message.text())) return
-    errors.push(message.text())
-  })
-  return errors
 }
 
 test.describe('home', () => {

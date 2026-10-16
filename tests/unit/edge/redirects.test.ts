@@ -46,12 +46,21 @@ describe('ruleSpelling', () => {
     ['/festival', '/festival'],
     ['//product//old-name', '/product/old-name'],
     ['/Product/Old-Name/', '/Product/Old-Name'],
+    // As the backend's `unquote` (UTF-8, errors="replace") and re-escaped `%`: a legacy path in
+    // another encoding is stored with U+FFFD for each bad sequence, a stray `%` as `%25`.
+    ['/old/%C7%E1/', '/old/\u{FFFD}\u{FFFD}'],
+    ['/old/%C7a%E1', '/old/\u{FFFD}a\u{FFFD}'],
+    ['/blog/%DA%A9%E0%A4/', '/blog/\u{06A9}\u{FFFD}'],
+    ['/blog/%DA%A9%E0%A4%A/', '/blog/\u{06A9}\u{FFFD}%25A'],
+    ['/x/%ED%A0%80', '/x/\u{FFFD}\u{FFFD}\u{FFFD}'],
+    ['/page/abc%ZZ/', '/page/abc%25ZZ'],
+    ['/page/100%', '/page/100%25'],
   ])('spells %s as %s', async (input, expected) => {
     const { ruleSpelling } = await load()
     expect(ruleSpelling(input)).toBe(expected)
   })
 
-  it.each(['/a%2Fb', '/a%2fb', '/a%3Fb', '/a%23b', '/a%25b', '/page/abc%ZZ/', '/a%20b', '/a%0Ab'])(
+  it.each(['/a%2Fb', '/a%2fb', '/a%3Fb', '/a%23b', '/a%25b', '/a%ZZ%2Fb', '/a%20b', '/a%0Ab'])(
     'has no local spelling for %s',
     async (input) => {
       const { ruleSpelling } = await load()

@@ -10,11 +10,15 @@ import { getClientIp } from '@/lib/http/client-ip'
 
 /**
  * Runs before every page (Node.js runtime), in this order:
- * 0. A path that cannot be percent-decoded answers 404 (Next would fail on it with a 500).
- * 1. `/media/*`, `/static/*` and `/sitemap.xml` are proxied to the Django backend.
+ * 1. `/media/*`, `/static/*` and `/sitemap.xml` are proxied to the Django backend (one that cannot
+ *    be percent-decoded answers 404 instead).
  * 2. Next internals, route handlers (`/api/*`, `/s/*`, `/healthz/`) and asset files are left alone.
- * 3. GET/HEAD: operator redirect rules answer 301/302, or 410 with a status page.
- * 4. An expiring or missing access token is refreshed, for the browser and for this render.
+ *    Catalog paths are never asset files: one with an extension that cannot be decoded goes on.
+ * 3. GET/HEAD: operator redirect rules answer 301/302, or 410 with a status page. Only a path
+ *    whose spelling is a known rule source costs an API call (see `redirects.ts`), so a legacy
+ *    non-UTF-8 URL an operator redirects still works, and random garbage stays free.
+ * 4. A path that cannot be percent-decoded answers 404 (Next would fail on it with a 500).
+ * 5. An expiring or missing access token is refreshed, for the browser and for this render.
  */
 
 const GONE_TITLE = 'این صفحه حذف شده است'
@@ -46,8 +50,13 @@ function isForwarded(pathname: string): boolean {
   return pathname === '/sitemap.xml' || /^\/(?:media|static)\//.test(pathname)
 }
 
-function isSkipped(pathname: string): boolean {
-  return SKIPPED_PREFIX.test(pathname) || HEALTH_CHECK.test(pathname) || ASSET_FILE.test(pathname)
+/** Catalog routes, which never serve files (the matcher sends extension-bearing ones here too). */
+const CATALOG_PATH = /^\/(?:product-category|brand|product)\//
+
+function isSkipped(pathname: string, decodable: boolean): boolean {
+  if (SKIPPED_PREFIX.test(pathname) || HEALTH_CHECK.test(pathname)) return true
+  // An undecodable catalog path is a page URL gone wrong: it goes on to the 404 guard.
+  return ASSET_FILE.test(pathname) && (decodable || !CATALOG_PATH.test(pathname))
 }
 
 /** Proxy to the API host, without the visitor's session cookies or credentials. */
@@ -62,14 +71,16 @@ function forward(request: NextRequest, apiUrl: string): NextResponse {
 async function redirectFor(
   request: NextRequest,
   forwardedFor: string | null,
+  decodable: boolean,
 ): Promise<Response | null> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return null
   if (request.headers.get('purpose') === 'prefetch') return null
   const url = request.nextUrl.clone()
   url.searchParams.delete('_rsc')
-  // Only listed sources cost an API call; a path with no local spelling is left to the API.
+  // Only listed sources cost an API call. A well-formed path with no local spelling is left to
+  // the API; an undecodable one without a spelling is garbage and never reaches it.
   const spelled = ruleSpelling(url.pathname)
-  if (spelled !== null && !(await knownSources()).has(spelled)) return null
+  if (spelled === null ? !decodable : !(await knownSources()).has(spelled)) return null
 
   const rule = await resolveRedirect(url.pathname + url.search, forwardedFor)
   if (rule === null) return null
@@ -136,22 +147,28 @@ async function withSession(
   return response
 }
 
+const notFoundPage = () => statusPage(404, NOT_FOUND_TITLE, NOT_FOUND_MESSAGE)
+
 export async function proxy(request: NextRequest): Promise<Response> {
   const { pathname } = request.nextUrl
-  // Before anything else: no API call, no session refresh for a path no route can read.
-  if (!isDecodable(pathname)) return statusPage(404, NOT_FOUND_TITLE, NOT_FOUND_MESSAGE)
+  const decodable = isDecodable(pathname)
   // Forwarded paths come first: `/media/a.png` also looks like an asset file.
-  if (isForwarded(pathname)) return forward(request, getServerEnv().FIREFLY_API_URL)
+  if (isForwarded(pathname)) {
+    return decodable ? forward(request, getServerEnv().FIREFLY_API_URL) : notFoundPage()
+  }
   // Skipped paths never read the environment, so the health probe reports a broken one itself.
-  if (isSkipped(pathname)) return NextResponse.next()
+  if (isSkipped(pathname, decodable)) return NextResponse.next()
 
   const env = getServerEnv()
   const forwardedFor = getClientIp(request.headers, env.CLIENT_IP_HEADER)
-  const redirect = await redirectFor(request, forwardedFor)
+  const redirect = await redirectFor(request, forwardedFor, decodable)
   if (redirect !== null) return redirect
+  // No route can read it: no session refresh either.
+  if (!decodable) return notFoundPage()
   return withSession(request, env, forwardedFor)
 }
 
+// Next reads `config` statically at build time: literals only, no shared constants.
 export const config = {
   matcher: [
     {
@@ -160,6 +177,15 @@ export const config = {
       // skip the proxy so they never count a redirect hit.
       source:
         '/((?!_next/|api/|s/|icons/|favicon\\.ico|robots\\.txt|healthz/?$|.*\\.(?!xml$|html?$|php$|aspx?$)[^/.]+$).*)',
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    },
+    {
+      // Catalog paths with an extension too (`/product/x%ZZ.png`): no file lives there, and an
+      // undecodable one must reach the 404 guard instead of failing in Next with a 500.
+      source: '/(product-category|brand|product)/:path*',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },

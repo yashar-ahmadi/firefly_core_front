@@ -119,6 +119,31 @@ describe('the brand page', () => {
     expect((await brandMetadata(slugProps('nope'))).title).toEqual(NOT_FOUND_TITLE)
   })
 
+  it('builds its BreadcrumbList from the visible trail: home, brands, the brand', async () => {
+    const { container } = await show(BrandPage(slugProps('samsung')))
+    const trail = screen.getByRole('navigation', { name: 'مسیر صفحه' })
+    expect(within(trail).getByRole('link', { name: 'خانه' })).toHaveAttribute('href', '/')
+    expect(within(trail).getByRole('link', { name: 'برندها' })).toHaveAttribute('href', '/brand/')
+    expect(within(trail).getByText('سامسونگ')).toHaveAttribute('aria-current', 'page')
+    const script = container.querySelector('script[type="application/ld+json"]')
+    const list = JSON.parse(script?.textContent ?? '{}') as {
+      itemListElement: { position: number; name: string; item: string }[]
+    }
+    expect(list.itemListElement).toEqual([
+      { '@type': 'ListItem', position: 1, name: 'خانه', item: 'https://shop.ir/' },
+      { '@type': 'ListItem', position: 2, name: 'برندها', item: 'https://shop.ir/brand/' },
+      { '@type': 'ListItem', position: 3, name: 'سامسونگ', item: 'https://shop.ir/brand/samsung/' },
+    ])
+  })
+
+  it('shares its 70×70 logo on a small Twitter card, with the shop name', async () => {
+    const logo = 'https://api.shop.ir/media/brands/samsung.jpg'
+    mocks.getBrand.mockResolvedValue(brandFixture({ image: logo }))
+    const meta = await brandMetadata(slugProps('samsung'))
+    expect(meta.twitter).toMatchObject({ card: 'summary', images: [logo] })
+    expect(meta.openGraph).toMatchObject({ images: [logo], siteName: 'فایرفلای' })
+  })
+
   it('takes its title and description from the backend', async () => {
     const meta = await brandMetadata(slugProps('samsung', { page: '2' }))
     expect(meta.title).toEqual({ absolute: 'خرید محصولات سامسونگ' })
@@ -174,6 +199,7 @@ describe('the brands index', () => {
     expect(meta.title).toBe('برندها')
     expect(meta.alternates).toEqual({ canonical: '/brand/' })
     expect(meta).not.toHaveProperty('robots')
+    expect(meta.openGraph).toMatchObject({ siteName: 'فایرفلای' })
   })
 })
 
@@ -213,6 +239,7 @@ describe('the curated list page', () => {
     expect(meta.title).toEqual({ absolute: 'گوشی های پرچمدار' })
     expect(meta.robots).toEqual({ index: false, follow: true })
     expect(meta.alternates).toEqual({ canonical: '/product/list/flagship-phones/' })
+    expect(meta.openGraph).toMatchObject({ siteName: 'فایرفلای' })
   })
 })
 
@@ -238,5 +265,6 @@ describe('the generic listing', () => {
     expect(meta.title).toBe('تخفیف‌ها')
     expect(meta.robots).toEqual({ index: false, follow: true })
     expect(meta.alternates).toEqual({ canonical: '/product/list/' })
+    expect(meta.openGraph).toMatchObject({ siteName: 'فایرفلای' })
   })
 })

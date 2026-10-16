@@ -8,6 +8,7 @@ import { parseListingParams } from '@/features/catalog/listing-params'
 import { genericListingTitle, LISTING_PATH } from '@/features/catalog/listing-routes'
 import { seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
+import { shopName } from '@/features/seo/shop-name'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -25,7 +26,8 @@ async function listingTitle(sp: SearchParams): Promise<string> {
 export async function generateMetadata({ searchParams }: ListingPageProps): Promise<Metadata> {
   const sp = await searchParams
   if (await isPastLastPage(parseListingParams(sp))) return notFoundMetadata()
-  return { ...seoMetadata({ path: LISTING_PATH, noindex: true }), title: await listingTitle(sp) }
+  const meta = seoMetadata({ path: LISTING_PATH, noindex: true, siteName: await shopName() })
+  return { ...meta, title: await listingTitle(sp) }
 }
 
 /**

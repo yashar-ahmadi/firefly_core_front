@@ -234,6 +234,7 @@ describe('category metadata', () => {
     expect(meta).not.toHaveProperty('robots')
     // The API's grey placeholder is no picture to share.
     expect(meta.openGraph).not.toHaveProperty('images')
+    expect(meta.openGraph).toMatchObject({ siteName: 'فایرفلای' })
   })
 
   it('is noindex for a filtered URL and self-canonical with the page number on page 2', async () => {

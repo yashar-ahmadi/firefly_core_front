@@ -37,6 +37,11 @@ describe('matcher', () => {
     // Undecodable: the proxy answers 404 itself.
     '/product-category/abc%ZZ/',
     '/product-category/digital/%E0%A4%A/',
+    // Catalog paths never name files, so an extension there still reaches the guard.
+    '/product-category/abc%ZZ.png',
+    '/product-category/digital/x%ZZ.webp',
+    '/brand/x%ZZ.jpg',
+    '/product/x%ZZ.png',
   ])('runs on %s', async (url) => {
     expect(await matches(url)).toBe(true)
   })
@@ -64,6 +69,7 @@ describe('matcher', () => {
     'skips page prefetches (%o)',
     async (headers) => {
       expect(await matches('/festival/', headers)).toBe(false)
+      expect(await matches('/product/x%ZZ.png', headers)).toBe(false)
     },
   )
 })

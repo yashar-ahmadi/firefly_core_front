@@ -59,13 +59,19 @@ afterEach(() => {
 })
 
 describe('undecodable paths', () => {
+  const NO_RULE = new Set(['/festival'])
+
   it.each([
     '/product-category/abc%ZZ/',
     '/product-category/digital/%E0%A4%A/',
-    '/media/%E0%A4%A.png',
+    // Extension-bearing catalog paths are not asset files: they reach the guard too.
+    '/product-category/abc%ZZ.png',
+    '/brand/x%ZZ.jpg',
+    '/product/x%ZZ.png',
   ])(
-    'answers %s with a 404 page before anything else (Next would fail with a 500)',
+    'answers %s with a 404 page after the redirect lookup, without asking the API',
     async (path) => {
+      knownSources.mockResolvedValue(NO_RULE)
       const { proxy } = await load()
       const res = await proxy(request(path, { cookies: { ff_rt: jwtExpiringIn(-60) } }))
       expect(res.status).toBe(404)
@@ -73,17 +79,59 @@ describe('undecodable paths', () => {
       expect(res.headers.get('cache-control')).toBe('no-store')
       expect(await res.text()).toContain('<title>صفحه پیدا نشد</title>')
       expect(getRewrittenUrl(res as never)).toBeNull()
-      expect(knownSources).not.toHaveBeenCalled()
+      // Random garbage costs no API call: its spelling is not a rule source.
       expect(resolveRedirect).not.toHaveBeenCalled()
       expect(refreshAccess).not.toHaveBeenCalled()
     },
   )
+
+  it('answers an undecodable media path with a 404 page instead of forwarding it', async () => {
+    const { proxy } = await load()
+    const res = await proxy(request('/media/%E0%A4%A.png'))
+    expect(res.status).toBe(404)
+    expect(getRewrittenUrl(res as never)).toBeNull()
+    expect(knownSources).not.toHaveBeenCalled()
+  })
+
+  it('redirects a legacy non-UTF-8 path that is a rule source (spelled as the backend does)', async () => {
+    knownSources.mockResolvedValue(new Set(['/old/\u{FFFD}\u{FFFD}']))
+    resolveRedirect.mockResolvedValue({ status: 301, target: '/product/new/' })
+    const { proxy } = await load()
+    const res = await proxy(request('/old/%C7%E1/'))
+    expect(resolveRedirect).toHaveBeenCalledWith('/old/%C7%E1/', '203.0.113.9')
+    expect(res.status).toBe(301)
+    expect(res.headers.get('location')).toBe('https://shop.test/product/new/')
+  })
+
+  it('still answers 404 when a listed legacy path has no rule after all', async () => {
+    knownSources.mockResolvedValue(new Set(['/old/\u{FFFD}\u{FFFD}']))
+    const { proxy } = await load()
+    const res = await proxy(request('/old/%C7%E1/', { cookies: { ff_rt: jwtExpiringIn(-60) } }))
+    expect(resolveRedirect).toHaveBeenCalledTimes(1)
+    expect(res.status).toBe(404)
+    expect(refreshAccess).not.toHaveBeenCalled()
+  })
+
+  it('never asks the API about an undecodable path it cannot spell', async () => {
+    const { proxy } = await load()
+    const res = await proxy(request('/a%ZZ%2Fb/'))
+    expect(resolveRedirect).not.toHaveBeenCalled()
+    expect(res.status).toBe(404)
+  })
 
   it('lets a well-formed encoded path through', async () => {
     const { proxy } = await load()
     const res = await proxy(request('/product-category/%DA%A9%D8%A7%D9%84%D8%A7/'))
     expect(res.status).toBe(200)
     expect(res.headers.get('x-middleware-next')).toBe('1')
+  })
+
+  it('leaves a decodable catalog path with an extension to its page', async () => {
+    const { proxy } = await load()
+    const res = await proxy(request('/product/x.png', { cookies: { ff_rt: jwtExpiringIn(-60) } }))
+    expect(res.headers.get('x-middleware-next')).toBe('1')
+    expect(resolveRedirect).not.toHaveBeenCalled()
+    expect(refreshAccess).not.toHaveBeenCalled()
   })
 })
 

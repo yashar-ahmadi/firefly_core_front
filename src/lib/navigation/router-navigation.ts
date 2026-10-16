@@ -20,8 +20,9 @@ export function announceRouterNavigation(url: string): void {
 }
 
 /**
- * Whether a click follows a link to this shop in this tab: an unmodified primary click on an
- * `<a href>` on the page's own origin, not opening a new tab and not a download.
+ * Whether a click follows a link to another page of this shop in this tab: an unmodified primary
+ * click on an `<a href>` on the page's own origin, not opening a new tab and not a download. A
+ * jump within this page (the skip link, an in-page `#anchor`) does not leave it.
  */
 export function isSameOriginLinkClick(event: MouseEvent): boolean {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
@@ -31,16 +32,33 @@ export function isSameOriginLinkClick(event: MouseEvent): boolean {
   if (!(link instanceof HTMLAnchorElement) || link.hasAttribute('download')) return false
   const target = link.target.toLowerCase()
   if (target !== '' && target !== '_self') return false
+  let url: URL
   try {
-    return new URL(link.href).origin === window.location.origin
+    url = new URL(link.href)
   } catch {
     return false
   }
+  if (url.origin !== window.location.origin) return false
+  const samePage =
+    url.pathname === window.location.pathname && url.search === window.location.search
+  return !(samePage && url.hash !== '')
 }
 
-/** pathname + search, as Next's hooks report the URL on screen. */
+function decodedPath(pathname: string): string {
+  try {
+    return decodeURIComponent(pathname)
+  } catch {
+    return pathname
+  }
+}
+
+/**
+ * One spelling of a URL for comparing: the path decoded (a Persian slug may arrive encoded or
+ * not) and the query as `URLSearchParams` writes it, the form `useSearchParams()` reports.
+ */
 function locationKey(pathname: string, search: string): string {
-  return search ? `${pathname}?${search}` : pathname
+  const query = new URLSearchParams(search).toString()
+  return query ? `${decodedPath(pathname)}?${query}` : decodedPath(pathname)
 }
 
 /**
@@ -58,7 +76,7 @@ export function useLeavingPage(onLeave: () => void): boolean {
     onLeave()
     if (url === null) return
     const target = new URL(url, window.location.href)
-    if (locationKey(target.pathname, target.search.slice(1)) !== here) setLeavingFrom(here)
+    if (locationKey(target.pathname, target.search) !== here) setLeavingFrom(here)
   })
 
   useEffect(() => {

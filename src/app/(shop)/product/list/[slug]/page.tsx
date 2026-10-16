@@ -14,6 +14,7 @@ import { breadcrumbTrail, siteBreadcrumb } from '@/features/seo/breadcrumb-json-
 import { JsonLd } from '@/features/seo/json-ld'
 import { seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
+import { shopName } from '@/features/seo/shop-name'
 
 interface ListPageProps {
   params: Promise<{ slug: string }>
@@ -34,6 +35,7 @@ export async function generateMetadata({ params, searchParams }: ListPageProps):
     description: list.page_description,
     keywords: list.page_keywords,
     path,
+    siteName: await shopName(),
     ...listingIndexing(sp, { path, canonicalLink: list.canonical_link }),
   })
 }

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
-import { storeName } from '@/app/_shell/metadata'
-import { getStoreConfig } from '@/config/store-config'
-import { getSiteSettings, getTranslations } from '@/features/settings/api'
+import { shopName } from '@/features/seo/shop-name'
+import { getTranslations } from '@/features/settings/api'
 import { createTranslator } from '@/lib/i18n/translator'
 
 /**
@@ -12,9 +11,7 @@ import { createTranslator } from '@/lib/i18n/translator'
  * `noindex` to the 404 itself.
  */
 export async function notFoundMetadata(): Promise<Metadata> {
-  const [settings, translations] = await Promise.all([getSiteSettings(), getTranslations()])
+  const [name, translations] = await Promise.all([shopName(), getTranslations()])
   const t = createTranslator(translations)
-  return {
-    title: { absolute: `${t('not_found_meta_title')} | ${storeName(getStoreConfig(), settings)}` },
-  }
+  return { title: { absolute: `${t('not_found_meta_title')} | ${name}` } }
 }

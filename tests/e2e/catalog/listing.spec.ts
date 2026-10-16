@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { watchErrors } from '../support/watch-errors'
 
 // The listing routes against the dev backend's sample data: category, brand, curated list and
 // the generic listing (product digest §6, §12).
@@ -6,22 +7,6 @@ import { expect, test, type Page } from '@playwright/test'
 const PHONES = '/product-category/digital/mobile-phone/'
 /** The sidebar replaces the filter sheet from lg (1024px). */
 const LG = 1024
-
-/**
- * Page errors and console errors seen while the page runs: hydration mismatches included, also
- * the production build's minified ones («Minified React error #418»). Only failed resource
- * loads are let through: the dev backend has no media files.
- */
-function watchErrors(page: Page): string[] {
-  const errors: string[] = []
-  page.on('pageerror', (error) => errors.push(error.message))
-  page.on('console', (message) => {
-    if (message.type() !== 'error') return
-    if (/^Failed to load resource/.test(message.text())) return
-    errors.push(message.text())
-  })
-  return errors
-}
 
 /** The server-rendered grid of the first page. */
 const firstPage = (page: Page) => page.getByRole('list', { name: 'صفحهٔ ۱' })
@@ -109,7 +94,14 @@ test.describe('category page', () => {
     await expect(page).toHaveTitle(/^صفحه پیدا نشد \|/)
   })
 
-  for (const path of ['/product-category/abc%ZZ/', '/product-category/digital/%E0%A4%A/']) {
+  for (const path of [
+    '/product-category/abc%ZZ/',
+    '/product-category/digital/%E0%A4%A/',
+    // Extension-bearing catalog paths are page URLs too, never asset files.
+    '/product-category/abc%ZZ.png',
+    '/brand/x%ZZ.jpg',
+    '/product/x%ZZ.png',
+  ]) {
     test(`an undecodable path answers 404, not 500: ${path}`, async ({ request }) => {
       const response = await request.get(path, { maxRedirects: 0 })
       expect(response.status()).toBe(404)
@@ -148,6 +140,26 @@ test.describe('brands', () => {
 
   test('an unknown brand answers 404', async ({ page }) => {
     expect((await page.goto('/brand/no-such-brand/'))?.status()).toBe(404)
+  })
+
+  test('the brand trail and its BreadcrumbList name the same pages', async ({ page }) => {
+    await page.goto('/brand/samsung/')
+    const trail = page.getByRole('navigation', { name: 'مسیر صفحه' })
+    await expect(trail.getByRole('link', { name: 'برندها' })).toHaveAttribute('href', '/brand/')
+    const jsonLd = await page.locator('script[type="application/ld+json"]').first().textContent()
+    const crumbs = JSON.parse(jsonLd ?? '{}') as {
+      itemListElement: { name: string; item: string }[]
+    }
+    expect(crumbs.itemListElement.map(({ name, item }) => [name, item])).toEqual([
+      ['خانه', 'http://localhost:3000/'],
+      ['برندها', 'http://localhost:3000/brand/'],
+      ['سامسونگ', 'http://localhost:3000/brand/samsung/'],
+    ])
+    await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary')
+    await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute(
+      'content',
+      'فایرفلای',
+    )
   })
 
   test('the brands index links every brand to its page', async ({ page }) => {

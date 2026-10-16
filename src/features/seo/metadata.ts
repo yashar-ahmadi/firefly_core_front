@@ -19,6 +19,10 @@ export interface SeoInput {
   image?: string | null
   /** `robots: noindex, follow` (a filtered or sorted listing, the generic listing). */
   noindex?: boolean
+  /** The shop's name for `og:site_name` (`shopName()`), as on the home page. */
+  siteName?: string | null
+  /** The Twitter card; by default the large one with an image, else `summary`. */
+  card?: 'summary' | 'summary_large_image'
 }
 
 /**
@@ -27,8 +31,8 @@ export interface SeoInput {
  *   social cards).
  * - description and keywords: only when set, never as `undefined` (that wipes the layout's).
  * - canonical (and `og:url`): `canonical`, else `path`.
- * - Open Graph `website` in `fa_IR` with the image; Twitter `summary_large_image` when there is
- *   an image, else `summary`.
+ * - Open Graph `website` in `fa_IR` with the image and the shop's name; Twitter `card`, else
+ *   `summary_large_image` when there is an image and `summary` without one.
  */
 export function seoMetadata(input: SeoInput): Metadata {
   const image = input.image?.trim() || null
@@ -38,7 +42,8 @@ export function seoMetadata(input: SeoInput): Metadata {
     keywords: input.keywords,
     canonical: input.canonical?.trim() || input.path,
     image,
-    card: image ? 'summary_large_image' : 'summary',
+    siteName: input.siteName,
+    card: input.card ?? (image ? 'summary_large_image' : 'summary'),
     robots: input.noindex ? { index: false, follow: true } : null,
   })
 }
