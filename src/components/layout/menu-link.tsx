@@ -6,6 +6,7 @@ import { useState, type HTMLAttributes, type MouseEvent, type ReactNode } from '
 import { cn } from '@/components/ui/cn'
 import type { MenuNode } from '@/lib/api/types/settings'
 import { useOptionalStoreConfig } from '@/lib/config-context'
+import { isShortLinkPath } from '@/lib/links/short-link'
 import { menuHref } from './menu-tree'
 
 export interface MenuLinkProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
@@ -40,7 +41,9 @@ export function MenuIcon({ src, className }: { src: string; className?: string }
 /**
  * One menu item as a link (content.md §5.4): a group heading (`url: null`) is a `<span>`,
  * `open_in_new_tab` opens a new tab with `rel="noopener"` (internal paths too), a storefront
- * path is a Next `Link`, and any other URL a plain `<a>`. The URL is used as the API sends it.
+ * path is a Next `Link`, and any other URL a plain `<a>`. A short link (`/s/<code>`) is a plain
+ * `<a>` too: every request to it counts a visit, so it must never be prefetched. The URL is used
+ * as the API sends it.
  */
 export function MenuLink({
   node,
@@ -73,7 +76,7 @@ export function MenuLink({
       </a>
     )
   }
-  if (href.startsWith('/') && !href.startsWith('//')) {
+  if (href.startsWith('/') && !href.startsWith('//') && !isShortLinkPath(href)) {
     return (
       <Link href={href} prefetch={prefetch} onClick={handleClick} {...props}>
         {content}

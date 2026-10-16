@@ -68,13 +68,27 @@ describe('robots.txt', () => {
 
 describe('short links', () => {
   type Short = typeof import('@/app/s/[code]/route')
-  const visit = async (code: string) => {
+  const visit = async (code: string, headers: Record<string, string> = {}) => {
     const { GET } = await load<Short>('@/app/s/[code]/route')
     const req = new NextRequest(`https://shop.test/s/${code}/`, {
-      headers: { 'x-real-ip': '203.0.113.9' },
+      headers: { 'x-real-ip': '203.0.113.9', ...headers },
     })
     return GET(req, { params: Promise.resolve({ code }) })
   }
+
+  it.each<Record<string, string>>([
+    { 'next-router-prefetch': '1' },
+    { purpose: 'prefetch' },
+    { 'sec-purpose': 'prefetch' },
+    { 'sec-purpose': 'prefetch;prerender' },
+  ])('answers a prefetch (%o) with an uncached 204 and counts no visit', async (headers) => {
+    const res = await visit('phone-fest', headers)
+    expect(res.status).toBe(204)
+    expect(res.headers.get('cache-control')).toBe('no-store')
+    expect(res.headers.get('location')).toBeNull()
+    expect(await res.text()).toBe('')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
 
   it('answers an uncached 302 to the target and forwards the visitor IP', async () => {
     fetchSpy.mockResolvedValue(

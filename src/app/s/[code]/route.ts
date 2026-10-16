@@ -4,11 +4,13 @@ import { ApiError } from '@/lib/api/errors'
 import { apiFetch } from '@/lib/api/server'
 import { statusPage } from '@/lib/edge/status-page'
 import { getClientIp } from '@/lib/http/client-ip'
+import { isPrefetchRequest } from '@/lib/http/prefetch'
 
 /**
  * Short links (`/s/<code>`, printed on SMS and QR campaigns). Every API 200 counts a visit, so
  * the answer is always a fresh 302: a 301 would be cached by the browser, uncounted, and could
  * never show "campaign ended". Panel URLs have no trailing slash: one 308 hop comes first.
+ * A prefetch (Next router or browser speculation) is not a visit: an uncached 204, no API call.
  */
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +38,9 @@ interface Context {
 }
 
 export async function GET(req: NextRequest, { params }: Context): Promise<Response> {
+  if (isPrefetchRequest(req.headers)) {
+    return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } })
+  }
   const { code } = await params
   if (!CODE.test(code)) return notFound()
 

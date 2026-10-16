@@ -44,6 +44,17 @@ describe('MenuLink', () => {
     expect(link).not.toHaveAttribute('target')
   })
 
+  it.each(['/s/phone-fest/', '/s/phone-fest?utm_source=menu', 'https://shop.ir/s/phone-fest/'])(
+    'renders the short link %s as a plain <a>, never a prefetching Next Link',
+    (url) => {
+      render(withConfig(<MenuLink node={menuNode({ id: 9, title: 'جشنواره', url })} />))
+      const link = screen.getByRole('link', { name: 'جشنواره' })
+      expect(link.getAttribute('href')).toMatch(/^\/s\/phone-fest/)
+      expect(link).not.toHaveAttribute('data-next-link')
+      expect(link).not.toHaveAttribute('target')
+    },
+  )
+
   it('opens open_in_new_tab items in a new tab with rel="noopener", internal paths too', () => {
     render(
       <MenuLink

@@ -60,6 +60,34 @@ test.describe('edge', () => {
     expect(res.headers()['location']).toMatch(/\/product\/list\/flagship-phones\/$/)
   })
 
+  test('a short-link prefetch answers an uncached 204 instead of redirecting', async ({
+    request,
+  }) => {
+    const prefetches: Record<string, string>[] = [
+      { 'next-router-prefetch': '1' },
+      { 'sec-purpose': 'prefetch' },
+    ]
+    for (const headers of prefetches) {
+      const res = await request.get('/s/phone-fest/', { maxRedirects: 0, headers })
+      expect(res.status()).toBe(204)
+      expect(res.headers()['cache-control']).toBe('no-store')
+      expect(res.headers()['location']).toBeUndefined()
+    }
+  })
+
+  test('pages, route handlers and forwarded files carry the baseline security headers', async ({
+    request,
+  }) => {
+    for (const path of ['/', '/robots.txt', '/healthz/', '/static/defaults/default.png']) {
+      const headers = (await request.get(path, { maxRedirects: 0 })).headers()
+      expect(headers['x-frame-options'], path).toBe('SAMEORIGIN')
+      expect(headers['content-security-policy'], path).toBe("frame-ancestors 'self'")
+      expect(headers['x-content-type-options'], path).toBe('nosniff')
+    }
+    const page = (await request.get('/', { maxRedirects: 0 })).headers()
+    expect(page['referrer-policy']).toBe('strict-origin-when-cross-origin')
+  })
+
   test('an unknown short link answers 404 with a Persian page', async ({ request }) => {
     const res = await request.get('/s/nope-404/', { maxRedirects: 0 })
     expect(res.status()).toBe(404)
