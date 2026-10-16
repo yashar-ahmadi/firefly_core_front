@@ -14,17 +14,14 @@ import {
   type ReactNode,
 } from 'react'
 import { toPersianDigits } from '@/lib/format'
+import { gutterClasses, type SlidesPerView } from './carousel-gutters'
 import { cn } from './cn'
 import { IconButton } from './icon-button'
 import { usePrefersReducedMotion } from './use-media-query'
 
 type EmblaApi = NonNullable<UseEmblaCarouselType[1]>
 
-export interface SlidesPerView {
-  base: number
-  md?: number
-  lg?: number
-}
+export type { SlidesPerView }
 
 export interface CarouselProps {
   /** One child per slide. */
@@ -62,17 +59,6 @@ function useEmblaValue<T>(api: EmblaApi | undefined, read: (api: EmblaApi) => T,
     subscribe,
     () => (api ? read(api) : fallback),
     () => fallback,
-  )
-}
-
-/** `arrowGutters`: `mx-14` from `sm` up at each breakpoint where the slides overflow. */
-function gutterClasses(count: number, perView: SlidesPerView): string {
-  const md = perView.md ?? perView.base
-  const lg = perView.lg ?? md
-  return cn(
-    count > perView.base && 'sm:mx-14',
-    count > md ? 'md:mx-14' : 'md:mx-0',
-    count > lg ? 'lg:mx-14' : 'lg:mx-0',
   )
 }
 

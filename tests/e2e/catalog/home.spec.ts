@@ -19,12 +19,18 @@ async function sections(request: APIRequestContext): Promise<Section[]> {
   return ((await res.json()) as { data: { sections: Section[] } }).data.sections
 }
 
-/** Page errors and hydration complaints seen while the page runs. */
+/**
+ * Page errors and console errors seen while the page runs: hydration mismatches included, also
+ * the production build's minified ones («Minified React error #418»). Only failed resource
+ * loads are let through: the dev backend has no media files.
+ */
 function watchErrors(page: Page): string[] {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
-    if (message.type() === 'error' && /hydrat/i.test(message.text())) errors.push(message.text())
+    if (message.type() !== 'error') return
+    if (/^Failed to load resource/.test(message.text())) return
+    errors.push(message.text())
   })
   return errors
 }
@@ -50,7 +56,9 @@ test.describe('home', () => {
 
     test("only the hero's first picture loads eagerly with high priority", async ({ page }) => {
       await page.goto('/')
-      const slide = page.getByRole('group', { name: '۱ از ۳' })
+      const slide = page
+        .getByRole('region', { name: 'اسلایدر ویژه' })
+        .getByRole('group', { name: '۱ از ۳' })
       await expect(slide.locator('picture > img')).toHaveAttribute('fetchpriority', 'high')
       await expect(slide.locator('picture > img')).toHaveAttribute('loading', 'eager')
       await expect(page.locator('main img[fetchpriority="high"]')).toHaveCount(1)
@@ -92,6 +100,23 @@ test.describe('home', () => {
     await link.click()
     // The product page itself comes with Plan 2 Task 7: only the URL is checked here.
     await expect(page).toHaveURL((url) => url.pathname === href)
+  })
+
+  test("a variable product's «choose options» row opens its product page", async ({ page }) => {
+    const errors = watchErrors(page)
+    await page.goto('/')
+    // The featured carousel holds variable products only.
+    const card = page.getByRole('region', { name: FEATURED }).getByRole('article').first()
+    const href = await card.getByRole('link').getAttribute('href')
+    expect(href).toMatch(/^\/product\/[^/]+\/$/)
+    // Hidden from assistive tech and the tab order: the card's own link already names it.
+    const options = card.locator('a[aria-hidden="true"][tabindex="-1"]')
+    await expect(options).toHaveText('انتخاب ویژگی\u{200C}ها')
+    await expect(options).toHaveAttribute('href', href!)
+    await options.click()
+    // The product page itself comes with Plan 2 Task 7: only the URL is checked here.
+    await expect(page).toHaveURL((url) => url.pathname === href)
+    expect(errors).toEqual([])
   })
 
   test('category tiles link to their full path', async ({ page }) => {

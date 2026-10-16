@@ -44,23 +44,30 @@ const TEXT: Record<PromoSize, TextStyle> = {
 }
 
 /**
- * Title, description and button over the bottom of the picture. The scrim under them is solid
- * where the text is and fades out above it (`--fade`, the top padding), so the text reaches AA
- * on any picture (see promoTone). The operator's colour applies to the title and description
- * only; the button is the shop's.
+ * Title, description and button over the bottom of the picture. Under the words a scrim is
+ * solid where they are and fades out above them (`--fade`, the top padding), so they reach AA on
+ * any picture (see promoTone). A button alone needs none: it carries its own fill. The
+ * operator's colour applies to the title and description only; the button is the shop's.
  */
 function PromoText({ item, size, cta }: { item: HomeItem; size: PromoSize; cta: string }) {
   const tone = promoTone(item.text_color)
   const scrim = scrimColor(SCRIM[tone.scrim])
   const text = TEXT[size]
-  const style: CSSProperties = {
-    backgroundImage: `linear-gradient(to top, ${scrim}, ${scrim} calc(100% - var(--fade)), transparent)`,
-  }
   const title = item.title.trim()
   const description = item.description.trim()
+  const words = title !== '' || description !== ''
+  const style: CSSProperties | undefined = words
+    ? {
+        backgroundImage: `linear-gradient(to top, ${scrim}, ${scrim} calc(100% - var(--fade)), transparent)`,
+      }
+    : undefined
   return (
-    <div className={cn('absolute inset-x-0 bottom-0 flex pt-(--fade)', text.box)} style={style}>
-      {(title || description) && (
+    <div
+      data-scrim={words ? tone.scrim : undefined}
+      className={cn('absolute inset-x-0 bottom-0 flex pt-(--fade)', text.box)}
+      style={style}
+    >
+      {words && (
         <div className={cn('flex max-w-2xl min-w-0 flex-col', text.words)}>
           {title && (
             <p className={cn('font-bold', text.title)} style={{ color: tone.color }}>

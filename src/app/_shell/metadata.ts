@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import type { StoreConfig, ThemeConfig } from '@/config/resolve-store-config'
 import type { SiteSettings } from '@/lib/api/types/settings'
+import { homeTitle } from '@/lib/seo/title'
 
 // Root metadata from the shop's settings. Pure, so the null-settings fallback is easy to test.
 
@@ -17,11 +18,6 @@ export function storeName(config: Pick<StoreConfig, 'presetLabel'>, settings: Si
 /** The shop's slogan; null when the settings are missing or it is blank. */
 export function storeSlogan(settings: SiteSettings | null): string | null {
   return present(settings?.slogan)
-}
-
-/** The home page's default title: `<store name> | <slogan>`, or the name alone. */
-export function homeTitle(name: string, slogan: string | null): string {
-  return slogan ? `${name} | ${slogan}` : name
 }
 
 /**

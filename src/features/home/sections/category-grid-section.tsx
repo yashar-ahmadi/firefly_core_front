@@ -7,15 +7,16 @@ import { SectionShell } from './section-header'
 
 /**
  * Phones: one row that scrolls sideways to the screen edges, snapping per tile, with 4.5 tiles
- * in view so the cut one shows there is more. From md: a centred grid that wraps.
+ * in view so the cut one shows there is more. From md: centred rows that wrap, so a short last
+ * row sits in the middle (six categories fit one row at 768px).
  */
 const LIST = cn(
   '-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pt-1 pb-2',
   '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-  'md:mx-0 md:grid md:snap-none md:grid-cols-[repeat(auto-fit,minmax(6.5rem,8rem))] md:justify-center md:gap-6 md:overflow-visible md:px-0',
+  'md:mx-0 md:snap-none md:flex-wrap md:justify-center md:gap-x-4 md:gap-y-6 md:overflow-visible md:px-0 lg:gap-x-6',
 )
 
-const ITEM = 'w-[min(7rem,calc((100vw-1rem)/4.5-0.75rem))] shrink-0 snap-start md:w-auto'
+const ITEM = 'w-[min(7rem,calc((100vw-1rem)/4.5-0.75rem))] shrink-0 snap-start md:w-26 lg:w-28'
 
 export interface CategoryGridSectionProps {
   section: Extract<HomeSection, { type: 'category_grid' }>

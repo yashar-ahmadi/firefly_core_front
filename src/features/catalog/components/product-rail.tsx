@@ -1,7 +1,7 @@
 import { ListFilter } from 'lucide-react'
+import Link from 'next/link'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { Carousel, type SlidesPerView } from '@/components/ui/carousel'
-import { cn } from '@/components/ui/cn'
 import { AddToCartButton } from '@/features/cart/components/add-to-cart-button'
 import type { CardProduct } from '@/features/catalog/card-product'
 import { ProductCard } from './product-card'
@@ -10,10 +10,11 @@ import { ProductCard } from './product-card'
 const PER_VIEW: SlidesPerView = { base: 2.2, md: 3.5, lg: 5 }
 
 /**
- * The card's action row. A simple product with a variant adds in one tap. A variable one shows
- * a «choose options» label drawn as a button but inert: a click passes through to the card's
- * link, where the variant is chosen (quick view replaces it in Plan 2 Task 9). It keeps every
- * card in a rail the same height, so the prices line up.
+ * The card's action row. A simple product with a variant adds in one tap. A variable one gets
+ * a «choose options» link to the product page, where the variant is chosen (quick view
+ * replaces it in Plan 2 Task 9). It repeats the card's own link, so it is kept out of the
+ * accessibility tree and the tab order. It keeps every card in a rail the same height, so the
+ * prices line up.
  */
 function cardAction(product: CardProduct) {
   if (product.type !== 'variable' && product.default_variant_id !== null) {
@@ -31,16 +32,16 @@ function cardAction(product: CardProduct) {
   }
   if (product.type !== 'variable') return undefined
   return (
-    <span
+    <Link
+      href={`/product/${encodeURIComponent(product.slug)}/`}
+      prefetch={false}
+      tabIndex={-1}
       aria-hidden
-      className={cn(
-        buttonClasses({ variant: 'outline', size: 'sm', fullWidth: true }),
-        'pointer-events-none',
-      )}
+      className={buttonClasses({ variant: 'outline', size: 'sm', fullWidth: true })}
     >
       <ListFilter />
       {'انتخاب ویژگی\u{200C}ها'}
-    </span>
+    </Link>
   )
 }
 

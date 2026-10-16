@@ -169,6 +169,24 @@ describe('slider and banners', () => {
     expect(screen.getByText('کمپین جمعه\u{0654} سیاه')).toBeInTheDocument()
   })
 
+  it('lays a scrim under the words only: a button alone stays on the bare picture', async () => {
+    const { container } = await renderSections([
+      bannerSection([
+        slideFixture({ id: 1, text_color: '' }),
+        slideFixture({ id: 2, title: '', description: '', link: { url: '/x/', title: 'خرید' } }),
+        slideFixture({ id: 3, text_color: '#111827' }),
+      ]),
+    ])
+    const [words, buttonOnly, dark] = [...container.querySelectorAll('[data-count] > a')]
+    expect(words?.querySelector('[data-scrim="dark"]')?.getAttribute('style')).toContain(
+      'linear-gradient',
+    )
+    expect(buttonOnly?.querySelector('[data-scrim]')).toBeNull()
+    expect(within(buttonOnly as HTMLElement).getByText('خرید')).toBeInTheDocument()
+    // Dark operator text gets the light scrim.
+    expect(dark?.querySelector('[data-scrim="light"]')).toBeInTheDocument()
+  })
+
   it.each([
     [1, '1'],
     [2, '2'],
@@ -237,6 +255,15 @@ describe('product carousel', () => {
       'href',
       '/product/variable/',
     )
+    // A variable product's «choose options» row is a real link to its page, out of the
+    // accessibility tree and the tab order (the card's own link already names it).
+    expect(within(variable!).getAllByRole('link')).toHaveLength(1)
+    const options = within(variable!).getByText('انتخاب ویژگی\u{200C}ها').closest('a')
+    expect(options).toHaveAttribute('href', '/product/variable/')
+    expect(options).toHaveAttribute('aria-hidden', 'true')
+    expect(options).toHaveAttribute('tabindex', '-1')
+    expect(within(simple!).queryByText('انتخاب ویژگی\u{200C}ها')).toBeNull()
+    expect(within(noVariant!).queryByText('انتخاب ویژگی\u{200C}ها')).toBeNull()
   })
 
   it('names the carousel after the section', async () => {

@@ -131,17 +131,23 @@ describe('home page', () => {
     await expect(generateMetadata()).rejects.toThrow('API down')
   })
 
-  it("writes the operator's Open Graph tags with property=", async () => {
+  it("writes the operator's Open Graph tags with property=, in order, hoisted into <head>", async () => {
     mocks.home = homePage({
-      meta_tags: [{ field: 'og:image', value: 'https://api.shop.ir/og.png' }],
+      meta_tags: [
+        { field: 'og:image', value: 'https://api.shop.ir/og-1.png' },
+        { field: 'google-site-verification', value: 'abc' },
+        { field: 'og:image', value: 'https://api.shop.ir/og-2.png' },
+      ],
     })
     const { container } = await renderPage()
-    // React hoists <meta> into <head>.
-    const meta = document.head.querySelector('meta[property="og:image"]')
-    expect(meta ?? container.querySelector('meta[property="og:image"]')).toHaveAttribute(
-      'content',
-      'https://api.shop.ir/og.png',
-    )
+    const images = [...document.head.querySelectorAll('meta[property="og:image"]')]
+    expect(images.map((meta) => meta.getAttribute('content'))).toEqual([
+      'https://api.shop.ir/og-1.png',
+      'https://api.shop.ir/og-2.png',
+    ])
+    expect(container.querySelector('meta')).toBeNull()
+    // A name= row goes through the metadata, never as a property tag.
+    expect(document.head.querySelector('meta[property="google-site-verification"]')).toBeNull()
   })
 
   it('builds the metadata from the homepage SEO fields and the shop name', async () => {

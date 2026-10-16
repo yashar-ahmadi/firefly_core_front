@@ -98,6 +98,35 @@ describe('buildHomeMetadata', () => {
     expect(meta.twitter).not.toHaveProperty('card')
   })
 
+  it('writes description and keywords once: an operator row of that name wins', () => {
+    const meta = buildHomeMetadata(
+      home({
+        meta_tags: [
+          { field: 'Description', value: 'توضیح اپراتور' },
+          { field: 'keywords', value: 'کلید اپراتور' },
+          { field: 'description', value: 'دومی' },
+          { field: 'author', value: 'فایرفلای' },
+        ],
+      }),
+      SHOP,
+    )
+    expect(meta.description).toBe('توضیح اپراتور')
+    expect(meta.keywords).toBe('کلید اپراتور')
+    expect(meta.other).toEqual({ author: ['فایرفلای'] })
+    expect(meta.openGraph).toMatchObject({ description: 'توضیح اپراتور' })
+    expect(meta.twitter).toMatchObject({ description: 'توضیح اپراتور' })
+    expect(undefinedKeys(meta)).toEqual([])
+  })
+
+  it('takes an operator description even when the SEO field is empty', () => {
+    const meta = buildHomeMetadata(
+      home({ page_description: '', meta_tags: [{ field: 'description', value: 'از ردیف' }] }),
+      SHOP,
+    )
+    expect(meta.description).toBe('از ردیف')
+    expect(meta).not.toHaveProperty('other')
+  })
+
   it("leaves out its own Open Graph values the operator's tags replace", () => {
     const meta = buildHomeMetadata(
       home({

@@ -2,7 +2,7 @@
 
 import { useId } from 'react'
 import { ProductRail } from '@/features/catalog/components/product-rail'
-import { SectionHeader } from '@/features/home/sections/section-header'
+import { SectionHeader } from '@/components/layout/section-header'
 import { useT } from '@/lib/i18n/i18n-context'
 import { usePersistHydration } from '@/lib/store/persisted'
 import { useRecentlyViewed } from './store'
