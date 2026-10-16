@@ -10,7 +10,23 @@ export interface PersistedStore {
     hasHydrated: () => boolean
     rehydrate: () => Promise<void> | void
     onFinishHydration: (listener: (state: unknown) => void) => () => void
+    getOptions: () => { name?: string }
   }
+}
+
+/**
+ * Keeps the store in step with the visitor's other tabs: when another tab writes (or clears)
+ * the store's localStorage key, the saved state is read again. Call once, at module level, in
+ * the browser. A store not yet hydrated reads the latest value at its own first read anyway.
+ */
+export function syncAcrossTabs(store: PersistedStore): void {
+  if (typeof window === 'undefined') return
+  window.addEventListener('storage', (event) => {
+    if (event.storageArea !== window.localStorage) return
+    // `key` is null when the other tab cleared the whole storage.
+    if (event.key !== null && event.key !== store.persist.getOptions().name) return
+    if (store.persist.hasHydrated()) void store.persist.rehydrate()
+  })
 }
 
 /**

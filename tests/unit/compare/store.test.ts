@@ -129,3 +129,35 @@ describe('compareItemFrom', () => {
     expect(compareItemFrom({ ...card, categories: [] }).categoryId).toBeNull()
   })
 })
+
+describe('useCompare across tabs', () => {
+  /** What another tab's write looks like here: the value is in storage, then the event. */
+  function otherTabWrites(key: string, items: CompareItem[] | null) {
+    if (items === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, JSON.stringify({ state: { items }, version: 0 }))
+    window.dispatchEvent(new StorageEvent('storage', { key, storageArea: localStorage }))
+  }
+
+  it('reads the list again when another tab changes it', async () => {
+    useCompare.getState().add(item(1))
+    otherTabWrites('ff-compare', [item(1), item(2)])
+    await vi.waitFor(() =>
+      expect(useCompare.getState().items.map((listed) => listed.slug)).toEqual([
+        'product-1',
+        'product-2',
+      ]),
+    )
+    otherTabWrites('ff-compare', null)
+    await vi.waitFor(() => expect(useCompare.getState().items).toEqual([]))
+  })
+
+  it('ignores the other keys of the storage', async () => {
+    useCompare.getState().add(item(1))
+    localStorage.setItem('ff-compare', JSON.stringify({ state: { items: [] }, version: 0 }))
+    window.dispatchEvent(
+      new StorageEvent('storage', { key: 'ff-recent', storageArea: localStorage }),
+    )
+    await Promise.resolve()
+    expect(useCompare.getState().items).toHaveLength(1)
+  })
+})

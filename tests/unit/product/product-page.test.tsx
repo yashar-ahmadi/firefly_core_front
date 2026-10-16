@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProductPage, { generateMetadata } from '@/app/(shop)/product/[slug]/page'
+import { useRecentlyViewed } from '@/features/recently-viewed/store'
 import { FeatureProvider } from '@/features/settings/feature-context'
 import { ApiError } from '@/lib/api/errors'
 import { stubBrowserApis } from '../support/dom-stubs'
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   getProductSettings: vi.fn(),
   getFirstComments: vi.fn(),
   providerProps: [] as unknown[],
+  recentlyViewed: 'true',
 }))
 
 vi.mock('server-only', () => ({}))
@@ -55,6 +57,7 @@ vi.mock('@/config/store-config', async () => {
         FIREFLY_API_URL: 'https://api.shop.ir/',
         SITE_URL: 'https://shop.ir/',
         FIREFLY_API_KEY: 'k',
+        FEATURE_RECENTLY_VIEWED: mocks.recentlyViewed,
       }),
     )
   return { ...pure, getStoreConfig: config }
@@ -91,6 +94,9 @@ beforeEach(() => {
   vi.clearAllMocks()
   resetRouter()
   mocks.providerProps.length = 0
+  mocks.recentlyViewed = 'true'
+  localStorage.clear()
+  useRecentlyViewed.setState({ items: [] })
   mocks.getProductDetail.mockResolvedValue(s25Product())
   mocks.getProductSettings.mockResolvedValue(SETTINGS)
   mocks.getFirstComments.mockImplementation(async (_slug: string, type: string) =>
@@ -328,6 +334,19 @@ describe('the product page below the fold', () => {
     mocks.getFirstComments.mockResolvedValue(null)
     await renderPage()
     expect(screen.getByLabelText('در حال بارگذاری دیدگاه\u{200C}ها')).toBeInTheDocument()
+  })
+})
+
+describe('recently viewed', () => {
+  it('records the visit on this device', async () => {
+    await renderPage()
+    expect(useRecentlyViewed.getState().items.map((item) => item.slug)).toEqual([SLUG])
+  })
+
+  it('records nothing while the shop has the feature off', async () => {
+    mocks.recentlyViewed = 'false'
+    await renderPage()
+    expect(useRecentlyViewed.getState().items).toEqual([])
   })
 })
 

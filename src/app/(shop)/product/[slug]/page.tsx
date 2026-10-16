@@ -192,7 +192,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         {config.features.recentlyViewed && <RecentlyViewedStrip excludeSlug={product.slug} />}
       </div>
       <StickyBuyBar />
-      <RecordRecentlyViewed />
+      {config.features.recentlyViewed && <RecordRecentlyViewed />}
     </ProductProvider>
   )
 }

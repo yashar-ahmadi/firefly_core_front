@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { ensureHydrated, savedItems } from '@/lib/store/persisted'
+import { ensureHydrated, savedItems, syncAcrossTabs } from '@/lib/store/persisted'
 
 /** How many recently viewed products are kept. */
 export const RECENT_MAX = 20
@@ -42,7 +42,8 @@ export interface RecentlyViewedState {
 
 /**
  * Recently viewed products, saved in localStorage (`ff-recent`). Rehydrated after mount: render
- * the list through `usePersistHydration(useRecentlyViewed)`.
+ * the list through `usePersistHydration(useRecentlyViewed)`. A product viewed in another tab is
+ * read again here (`syncAcrossTabs`).
  */
 export const useRecentlyViewed = create<RecentlyViewedState>()(
   persist(
@@ -71,3 +72,5 @@ export const useRecentlyViewed = create<RecentlyViewedState>()(
     },
   ),
 )
+
+syncAcrossTabs(useRecentlyViewed)

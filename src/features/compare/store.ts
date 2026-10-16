@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { ensureHydrated, savedItems } from '@/lib/store/persisted'
+import { ensureHydrated, savedItems, syncAcrossTabs } from '@/lib/store/persisted'
 import { isCompareItem, type CompareItem } from './compare-item'
 
 export { compareItemFrom, deepestCategoryId, type CompareItem } from './compare-item'
@@ -21,7 +21,8 @@ export interface CompareState {
 
 /**
  * The compare list, saved in localStorage (`ff-compare`). Rehydrated after mount: render the
- * list through `usePersistHydration(useCompare)` to avoid showing the empty state as real.
+ * list through `usePersistHydration(useCompare)` to avoid showing the empty state as real. A
+ * change made in another tab is read again here (`syncAcrossTabs`).
  */
 export const useCompare = create<CompareState>()(
   persist(
@@ -57,3 +58,5 @@ export const useCompare = create<CompareState>()(
     },
   ),
 )
+
+syncAcrossTabs(useCompare)

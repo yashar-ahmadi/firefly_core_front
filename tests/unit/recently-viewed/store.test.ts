@@ -96,3 +96,20 @@ describe('useRecentlyViewed', () => {
     expect(fresh.useRecentlyViewed.getState().items.map((item) => item.slug)).toEqual(['product-1'])
   })
 })
+
+describe('useRecentlyViewed across tabs', () => {
+  it('reads the list again when another tab records a product', async () => {
+    useRecentlyViewed.getState().record(product(1))
+    const items = [product(2), product(1)].map(({ id, slug, name, image }) => ({
+      id,
+      slug,
+      name,
+      image,
+    }))
+    localStorage.setItem('ff-recent', JSON.stringify({ state: { items }, version: 0 }))
+    window.dispatchEvent(
+      new StorageEvent('storage', { key: 'ff-recent', storageArea: localStorage }),
+    )
+    await vi.waitFor(() => expect(slugs()).toEqual(['product-2', 'product-1']))
+  })
+})
