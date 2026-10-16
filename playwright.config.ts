@@ -31,17 +31,21 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
     },
   ],
+  // The production artifact, as the Docker image runs it: the standalone server.js with
+  // .next/static and public copied next to it (scripts/start-standalone.mjs).
   webServer: {
-    command: 'pnpm build && pnpm start',
+    command: 'pnpm build && pnpm start:standalone',
     url: baseURL,
     reuseExistingServer: true,
     timeout: 300_000,
     env: {
       FIREFLY_API_URL: 'http://localhost:8000',
-      // `next start` requires a key; the dev backend's key gate is off, so any value works.
+      // Production requires a key; the dev backend's key gate is off, so any value works.
       FIREFLY_API_KEY: process.env.FIREFLY_API_KEY ?? 'e2e-dev-key',
       SITE_URL: 'http://localhost:3000',
       PORT: new URL(baseURL).port || '3000',
+      // server.js listens on HOSTNAME; some shells export the machine name under that variable.
+      HOSTNAME: new URL(baseURL).hostname,
     },
   },
 })

@@ -1,0 +1,125 @@
+# Firefly storefront behind nginx: example server block for ONE shop.
+# نمونهٔ پیکربندی nginx جلوی فروشگاه؛ برای هر فروشگاه یک server جدا بسازید.
+#
+# Replace every <...> placeholder. See docs/DEPLOYMENT.md for the full picture (backend settings,
+# topologies, health check). Copy into /etc/nginx/conf.d/<shop>.conf and run `nginx -t`.
+#
+# The storefront container listens on 127.0.0.1:3000 here, e.g.
+#   docker run -d --name <shop>-front --env-file /etc/firefly/<shop>.env \
+#     -p 127.0.0.1:3000:3000 firefly-front
+# Never publish port 3000 on a public interface: the app trusts X-Real-IP from this proxy.
+#
+# Brotli needs the ngx_brotli module (packaged as libnginx-mod-http-brotli-filter and
+# libnginx-mod-http-brotli-static on Debian/Ubuntu). Without it, delete the brotli_* lines:
+# nginx -t fails on unknown directives. If the module is dynamic, load it at the top of nginx.conf:
+#   load_module modules/ngx_http_brotli_filter_module.so;
+#   load_module modules/ngx_http_brotli_static_module.so;
+
+upstream firefly_storefront {
+    server 127.0.0.1:3000;
+    keepalive 32;
+}
+
+# Plain HTTP: ACME challenges, then everything to HTTPS.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name <shop.example.ir> www.<shop.example.ir>;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://<shop.example.ir>$request_uri;
+    }
+}
+
+# www → bare domain (SITE_URL, STOREFRONT_URL and SITE_DOMAIN all use the bare domain).
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name www.<shop.example.ir>;
+
+    ssl_certificate     /etc/letsencrypt/live/<shop.example.ir>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<shop.example.ir>/privkey.pem;
+
+    return 301 https://<shop.example.ir>$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;    # nginx 1.25.1+; older versions: `listen 443 ssl http2;` instead
+    server_name <shop.example.ir>;
+
+    # --- TLS (placeholders: point at your certificate) -----------------------------------------
+    ssl_certificate     /etc/letsencrypt/live/<shop.example.ir>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<shop.example.ir>/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_session_cache   shared:firefly_ssl:10m;
+    ssl_session_timeout 1d;
+
+    # add_header is not inherited by a location that has its own add_header: repeat it there.
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Receipt (card-to-card) and avatar uploads are up to 5 MB, plus multipart overhead.
+    client_max_body_size 6m;
+
+    # --- Compression ------------------------------------------------------------------------------
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml application/xml application/javascript
+               application/json application/manifest+json image/svg+xml font/ttf;
+
+    brotli on;
+    brotli_comp_level 5;
+    brotli_min_length 1024;
+    brotli_types text/plain text/css text/xml application/xml application/javascript
+                 application/json application/manifest+json image/svg+xml font/ttf;
+
+    # --- Proxy headers ----------------------------------------------------------------------------
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $host;
+    # The visitor IP. nginx OVERWRITES this header, so a browser cannot forge it: the storefront
+    # reads it (CLIENT_IP_HEADER=x-real-ip, the default) and passes it on to the API.
+    proxy_set_header X-Real-IP $remote_addr;
+    # Appends to whatever the browser sent, so it is spoofable: informational only. Never set
+    # CLIENT_IP_HEADER=x-forwarded-for behind this proxy.
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_read_timeout 60s;
+
+    # Build assets have content hashes in their names: cache them for a year.
+    location /_next/static/ {
+        proxy_pass http://firefly_storefront;
+        proxy_hide_header Cache-Control;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    # Everything else: pages, /api/bff/ (the BFF), robots.txt, /s/<code> short links, and the paths
+    # the storefront forwards to the API itself (/media/, /static/, /sitemap.xml and the bank
+    # callback /api/v1/payment/gateway/callback/...). Methods, bodies and the trailing slash are
+    # kept as they are.
+    location / {
+        proxy_pass http://firefly_storefront;
+        # Pages stream (React Suspense): pass chunks on as they come.
+        proxy_buffering off;
+    }
+
+    # Single-origin topology only (Django is served from this same host, FIREFLY_API_URL is
+    # https://<shop.example.ir>): /api/v1/, /media/, /static/, /sitemap.xml and the panel must
+    # then go to Django HERE, before `location /`, or the storefront would forward them back to
+    # itself. The full server block is in docs/DEPLOYMENT.md (single origin).
+}

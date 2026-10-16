@@ -1,0 +1,44 @@
+# Checks every push and pull request to main. End-to-end tests are not run here: they need the
+# Firefly backend with its sample data (a separate repository), so Playwright runs locally
+# before each push (see docs/DEPLOYMENT.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, lint, format, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v5
+
+      # pnpm in the version pinned by "packageManager" in package.json.
+      - uses: pnpm/action-setup@v4
+
+      # Node from .nvmrc (22.12+: sanitize-html needs require(esm)); the pnpm store is cached.
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test
+      # No backend is needed: all shop configuration is read at runtime.
+      - run: pnpm build

@@ -1,0 +1,41 @@
+# Build context for the production image: sources and config only.
+
+# Installed and built inside the image (native packages differ on Alpine)
+node_modules
+.pnpm-store
+.next
+out
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets: runtime configuration is passed to the container, never baked into the image
+.env
+.env.*
+!.env.example
+*.pem
+
+# Tests, reports and tooling the image does not need
+tests
+coverage
+playwright-report
+test-results
+blob-report
+playwright
+scripts
+
+# Repository and docs
+.git
+.github
+.superpowers
+docs
+deploy
+*.md
+Dockerfile
+.dockerignore
+
+# Editors and OS files
+.idea
+.vscode
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
