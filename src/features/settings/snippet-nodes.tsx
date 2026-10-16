@@ -25,16 +25,35 @@ function warnOnce(snippet: Snippet, problem: string): void {
 }
 
 /**
+ * Bare code is written into a <script> or <style> element as raw text, and the HTML parser ends
+ * that element at the first `</script` (`</style`) in any letter case: escape it as `<\/script`.
+ * In a script, `<!--` followed by `<script` would also keep the parser from ever seeing the real
+ * end tag (the rest of the page would become script text): escape it as `\x3C!--`, as the HTML
+ * spec advises. Both keep their meaning in strings, template literals, regular expressions and
+ * comments (and CSS strings). Snippets written as HTML keep their scripts exactly as written.
+ */
+function escapeScriptText(code: string): string {
+  return code.replace(/<\/(script)/gi, '<\\/$1').replace(/<!--/g, '\\x3C!--')
+}
+
+function escapeStyleText(code: string): string {
+  return code.replace(/<\/(style)/gi, '<\\/$1')
+}
+
+/**
  * The render-ready nodes of one snippet. Complete HTML (it starts with '<') is parsed; anything
- * else is wrapped by `type` (script or style). Meta and link snippets must be HTML, and loose
- * HTML has no place in <head>: both are skipped with a warning.
+ * else is wrapped by `type` (script or style), escaped so it cannot end its wrapper early. Meta
+ * and link snippets must be HTML, and loose HTML has no place in <head>: both are skipped with a
+ * warning.
  */
 export function snippetNodes(snippet: Snippet, placement: SnippetPlacement): SnippetNode[] {
   const code = snippet.snippet.trim()
   if (code === '') return []
   if (!code.startsWith('<')) {
-    if (snippet.type === 'script') return [{ tag: 'script', inline: code, attrs: {} }]
-    if (snippet.type === 'style') return [{ tag: 'style', inline: code }]
+    if (snippet.type === 'script') {
+      return [{ tag: 'script', inline: escapeScriptText(code), attrs: {} }]
+    }
+    if (snippet.type === 'style') return [{ tag: 'style', inline: escapeStyleText(code) }]
     warnOnce(snippet, 'is not HTML and its type cannot wrap it; skipped')
     return []
   }

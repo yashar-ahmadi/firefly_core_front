@@ -7,7 +7,8 @@ import { apiFetch } from '@/lib/api/server'
  *
  * Every `resolve/` hit is counted by the API, so it is called only for paths that match a known
  * rule source. The list of sources is kept in memory per server process: refreshed every five
- * minutes, served stale while one refresh runs, and awaited only by the very first request.
+ * minutes, served stale while one refresh runs, and awaited only by the very first request. A
+ * failed load (say the storefront started before the backend) is retried after 30 seconds.
  */
 
 export interface RedirectRule {
@@ -27,6 +28,7 @@ interface ResolvedRule {
 }
 
 const RULE_LIST_TTL_MS = 5 * 60 * 1000
+const RETRY_AFTER_FAILURE_MS = 30 * 1000
 const LIST_TIMEOUT_MS = 3_000
 const RESOLVE_TIMEOUT_MS = 1_000
 const PAGE_SIZE = 100
@@ -34,7 +36,10 @@ const PAGE_SIZE = 100
 const MAX_PAGES = 1_000
 
 let ruleSources: Set<string> | null = null
-let loadedAt = 0
+/** When the list is due for a (re)load: five minutes after a success, 30 s after a failure. */
+let nextLoadAt = 0
+/** Whether a load has finished, successfully or not: only the very first one is awaited. */
+let settled = false
 let refreshing: Promise<void> | null = null
 
 /**
@@ -73,19 +78,21 @@ async function loadRuleSources(): Promise<Set<string>> {
 
 /** The `source_path` of every active rule (gone rules included). Empty until the API answers. */
 export async function knownSources(): Promise<Set<string>> {
-  if (Date.now() - loadedAt > RULE_LIST_TTL_MS) {
+  if (Date.now() > nextLoadAt) {
     refreshing ??= loadRuleSources()
       .then((sources) => {
         ruleSources = sources
+        nextLoadAt = Date.now() + RULE_LIST_TTL_MS
       })
       .catch((error: unknown) => {
         console.error('[redirects] could not load the rule list', error)
+        nextLoadAt = Date.now() + RETRY_AFTER_FAILURE_MS
       })
       .finally(() => {
-        loadedAt = Date.now()
+        settled = true
         refreshing = null
       })
-    if (ruleSources === null) await refreshing
+    if (!settled) await refreshing
   }
   return ruleSources ?? new Set()
 }

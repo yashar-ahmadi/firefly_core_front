@@ -4,6 +4,7 @@ import { Direction } from 'radix-ui'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MegaMenu } from '@/components/layout/mega-menu'
+import { navItems } from '@/components/layout/menu-tree'
 import { focusedElement, stubBrowserApis } from '../support/dom-stubs'
 import { categoryNode, menuNode, sampleTree } from './support'
 
@@ -51,7 +52,7 @@ afterEach(() => {
 describe('MegaMenu', () => {
   it('renders the category tree roots when the main menu is empty', async () => {
     const user = userEvent.setup()
-    render(rtl(<MegaMenu menu={[]} categories={sampleTree()} />))
+    render(rtl(<MegaMenu items={navItems([], sampleTree())} />))
     await user.click(screen.getByRole('button', { name: TRIGGER }))
 
     const roots = screen.getByRole('list', { name: TRIGGER })
@@ -74,13 +75,13 @@ describe('MegaMenu', () => {
   })
 
   it('renders nothing when there is neither a menu nor a category', () => {
-    const { container } = render(rtl(<MegaMenu menu={[]} categories={[]} />))
+    const { container } = render(rtl(<MegaMenu items={navItems([], [])} />))
     expect(container).toBeEmptyDOMElement()
   })
 
   it('uses the main menu when it has items: headings, links and third-level links', async () => {
     const user = userEvent.setup()
-    render(rtl(<MegaMenu menu={mainMenu()} categories={sampleTree()} />))
+    render(rtl(<MegaMenu items={navItems(mainMenu(), sampleTree())} />))
     const trigger = screen.getByRole('button', { name: TRIGGER })
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     await user.click(trigger)
@@ -102,7 +103,7 @@ describe('MegaMenu', () => {
 
   it('shows the children of the item that gets focus and hides the others', async () => {
     const user = userEvent.setup()
-    render(rtl(<MegaMenu menu={[]} categories={sampleTree()} />))
+    render(rtl(<MegaMenu items={navItems([], sampleTree())} />))
     await user.click(screen.getByRole('button', { name: TRIGGER }))
     expect(screen.getByRole('link', { name: 'گوشی موبایل' })).toBeInTheDocument()
 
@@ -115,7 +116,7 @@ describe('MegaMenu', () => {
 
   it('opens on hover after a 120ms delay', () => {
     vi.useFakeTimers()
-    render(rtl(<MegaMenu menu={[]} categories={sampleTree()} />))
+    render(rtl(<MegaMenu items={navItems([], sampleTree())} />))
     const trigger = screen.getByRole('button', { name: TRIGGER })
 
     fireEvent.pointerOver(trigger, { pointerType: 'mouse' })
@@ -127,7 +128,7 @@ describe('MegaMenu', () => {
 
   it('moves with the arrow keys (RTL), follows columns and closes on Escape', async () => {
     const user = userEvent.setup()
-    render(rtl(<MegaMenu menu={mainMenu()} categories={[]} />))
+    render(rtl(<MegaMenu items={navItems(mainMenu(), [])} />))
     const trigger = screen.getByRole('button', { name: TRIGGER })
     act(() => trigger.focus())
 
@@ -161,7 +162,7 @@ describe('MegaMenu', () => {
     tree[1].children = [
       categoryNode({ id: 10009, name: 'یخچال و فریزر', path: 'home-appliance/refrigerator' }),
     ]
-    render(rtl(<MegaMenu menu={[]} categories={tree} />))
+    render(rtl(<MegaMenu items={navItems([], tree)} />))
     await user.click(screen.getByRole('button', { name: TRIGGER }))
     const item = screen.getByRole('link', { name: 'لوازم خانگی' })
 
@@ -189,7 +190,7 @@ describe('MegaMenu', () => {
     const { rerender } = render(
       rtl(
         <>
-          <MegaMenu menu={[]} categories={sampleTree()} />
+          <MegaMenu items={navItems([], sampleTree())} />
           <p>محتوای صفحه</p>
         </>,
       ),
@@ -202,7 +203,7 @@ describe('MegaMenu', () => {
     await user.click(trigger)
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
     nav.pathname = '/product-category/digital/'
-    rerender(rtl(<MegaMenu menu={[]} categories={sampleTree()} />))
+    rerender(rtl(<MegaMenu items={navItems([], sampleTree())} />))
     expect(screen.getByRole('button', { name: TRIGGER })).toHaveAttribute('aria-expanded', 'false')
   })
 })

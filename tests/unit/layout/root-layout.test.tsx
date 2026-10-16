@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ThemeHead } from '@/app/_shell/theme-head'
 import RootLayout, { generateMetadata, generateViewport } from '@/app/layout'
 import { Providers } from '@/app/providers'
+import { SkipLink } from '@/components/layout/skip-link'
 import { parseServerEnv } from '@/config/env-schema'
 import { resolveStoreConfig, type StoreConfig } from '@/config/resolve-store-config'
 import { SnippetHtmlZone, Snippets } from '@/features/settings/snippets'
@@ -128,12 +129,23 @@ describe('RootLayout', () => {
       .concat(body?.props.children)
       .filter(isValidElement) as Element[]
     expect(bodyChildren.map((element) => [element.type, element.props.position])).toEqual([
+      // The skip link is the first focusable element, before any operator HTML.
+      [SkipLink, undefined],
       [SnippetHtmlZone, 'top'],
       [Snippets, 'top_of_body'],
       [Providers, undefined],
       // The bottom zone (trust seals) is placed by the shop footer, not here (R8).
       [Snippets, 'bottom_of_body'],
     ])
+  })
+
+  it('labels the skip link from the dictionary, with operator overrides', async () => {
+    const tree = await RootLayout({ children: null })
+    const skip = elements(tree).find((element) => element.type === SkipLink)
+    expect(skip?.props.label).toBe('رفتن به محتوای اصلی')
+    expect(renderToStaticMarkup(<SkipLink label="پرش به محتوا" />)).toMatch(
+      /^<a href="#main" class="[^"]*sr-only[^"]*focus:not-sr-only[^"]*">پرش به محتوا<\/a>$/,
+    )
   })
 
   it('starts the snippets request together with the other loaders', async () => {

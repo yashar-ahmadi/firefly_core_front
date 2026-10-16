@@ -1,8 +1,23 @@
 import 'server-only'
 import { ApiError } from '@/lib/api/errors'
-import { apiFetch } from '@/lib/api/server'
+import { apiFetch, type ApiFetchOptions, type ApiFetchResult } from '@/lib/api/server'
 
 /** Shared plumbing of the settings loaders: never-throw wrapper, paging and payload guards. */
+
+/**
+ * The shell loaders run before the first byte of every page. With a cold cache and a hanging
+ * backend, each request gives up after 3.5 s (instead of the transport's 10 s) and its loader
+ * falls back, so the page still renders in a few seconds.
+ */
+export const SHELL_TIMEOUT_MS = 3_500
+
+/** `apiFetch` with the shell timeout. */
+export function shellFetch<T>(
+  path: string,
+  options: ApiFetchOptions = {},
+): Promise<ApiFetchResult<T>> {
+  return apiFetch<T>(path, { timeoutMs: SHELL_TIMEOUT_MS, ...options })
+}
 
 const PAGE_SIZE = 100
 /** A bound on a misbehaving `next` link: 2000 rows per list. */
@@ -45,7 +60,7 @@ export async function fetchAllRows(
 ): Promise<unknown[]> {
   const rows: unknown[] = []
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const { data } = await apiFetch<unknown>(path, {
+    const { data } = await shellFetch<unknown>(path, {
       query: { limit: PAGE_SIZE, page },
       ...options,
     })

@@ -2,7 +2,7 @@
 
 import { LayoutGrid } from 'lucide-react'
 import { usePathname } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import {
   Accordion,
   AccordionContent,
@@ -15,7 +15,6 @@ import type { MenuNode } from '@/lib/api/types/settings'
 import { useT } from '@/lib/i18n/i18n-context'
 import { isListing } from './mega-menu-content'
 import { MenuIcon, MenuLink } from './menu-link'
-import { navItems, type CategoryLinkNode } from './menu-tree'
 import { CATEGORIES_TRIGGER } from './nav-styles'
 
 function rowClasses(depth: number) {
@@ -84,19 +83,10 @@ function DrawerTree({
 
 /**
  * The «دسته‌بندی‌ها» entry on tablets (md to lg): a drawer from the start side with the main menu
- * (or the category tree while it is empty) as an accordion. Closes on navigation.
+ * (or the category tree while it is empty, see `navItems`) as an accordion. Closes on navigation.
  */
-export function CategoriesDrawer({
-  menu,
-  categories,
-  className,
-}: {
-  menu: MenuNode[]
-  categories: readonly CategoryLinkNode[]
-  className?: string
-}) {
+export function CategoriesDrawer({ items, className }: { items: MenuNode[]; className?: string }) {
   const t = useT()
-  const items = useMemo(() => navItems(menu, categories), [menu, categories])
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const [shownPath, setShownPath] = useState(pathname)

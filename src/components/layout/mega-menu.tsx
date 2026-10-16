@@ -3,14 +3,13 @@
 import { ChevronDown, LayoutGrid } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { Direction } from 'radix-ui'
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { cn } from '@/components/ui/cn'
 import type { MenuNode } from '@/lib/api/types/settings'
 import { useT } from '@/lib/i18n/i18n-context'
 import { isListing } from './mega-menu-content'
 import { firstLink, MegaMenuPanel, nextContentFocus, type StartItemProps } from './mega-menu-panel'
-import { navItems, type CategoryLinkNode } from './menu-tree'
 import { CATEGORIES_TRIGGER } from './nav-styles'
 
 /** Hover intent: the pointer must rest this long before the menu opens or switches item. */
@@ -23,9 +22,8 @@ const SCROLL_CLOSE = 8
 type TimerName = 'open' | 'close' | 'item'
 
 export interface MegaMenuProps {
-  /** `menu/main`; while it is empty the category tree is shown instead. */
-  menu: MenuNode[]
-  categories: readonly CategoryLinkNode[]
+  /** The start column: `menu/main`, or the category tree while it is empty (`navItems`). */
+  items: MenuNode[]
   className?: string
 }
 
@@ -36,10 +34,9 @@ export interface MegaMenuProps {
  * RTL) moves into the columns and between them, Enter follows a link and Tab moves naturally.
  * Rendered from lg up; it must sit in a `relative` full-width bar (the panel spans it).
  */
-export function MegaMenu({ menu, categories, className }: MegaMenuProps) {
+export function MegaMenu({ items, className }: MegaMenuProps) {
   const t = useT()
   const forward = Direction.useDirection() === 'rtl' ? 'ArrowLeft' : 'ArrowRight'
-  const items = useMemo(() => navItems(menu, categories), [menu, categories])
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)

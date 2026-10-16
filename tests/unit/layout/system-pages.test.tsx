@@ -96,10 +96,8 @@ describe('not-found.tsx and the shop shell', () => {
     expect(ShopLayout({ children: null }).type).toBe(ShopShell)
   })
 
-  it('puts the footer between the page and the bottom navigation', async () => {
-    const shell = (await ShopShell({ children: <p>صفحه</p> })) as ReactElement<{
-      children: ReactNode
-    }>
+  it('puts the footer between the page and the bottom navigation', () => {
+    const shell = ShopShell({ children: <p>صفحه</p> }) as ReactElement<{ children: ReactNode }>
     const parts = Children.toArray(shell.props.children).filter(isValidElement)
     expect(parts.map((part) => part.type).slice(-4)).toEqual([
       SiteHeader,
@@ -107,10 +105,23 @@ describe('not-found.tsx and the shop shell', () => {
       SiteFooter,
       MobileBottomNav,
     ])
+    // The skip link lives in the root layout (first in <body>); its target is this <main>.
+    expect(parts.some((part) => part.type === 'a')).toBe(false)
+    const main = parts.find((part) => part.type === 'main') as ReactElement<{ id?: string }>
+    expect(main.props.id).toBe('main')
   })
 })
 
 describe('error.tsx', () => {
+  it('is the skip link target when it replaces the shop layout', () => {
+    const { container } = render(
+      <ErrorPage error={new Error('x')} reset={vi.fn()} retry={vi.fn()} />,
+    )
+    expect(container.querySelector('main#main')).toContainElement(
+      screen.getByRole('heading', { level: 1 }),
+    )
+  })
+
   it('shows a friendly message, retries and links home', async () => {
     const user = userEvent.setup()
     const retry = vi.fn()

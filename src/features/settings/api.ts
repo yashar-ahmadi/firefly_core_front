@@ -1,9 +1,8 @@
 import 'server-only'
 import { cache } from 'react'
 import { buildCategoryTree } from '@/features/settings/category-tree'
-import { fetchAllRows, guarded, isRecord, text } from '@/features/settings/load'
+import { fetchAllRows, guarded, isRecord, shellFetch, text } from '@/features/settings/load'
 import { ApiError } from '@/lib/api/errors'
-import { apiFetch } from '@/lib/api/server'
 import { FEATURE_KEYS, isFeatureKey, type FeatureKey } from '@/lib/api/types/common'
 import type {
   AuthSettings,
@@ -22,6 +21,7 @@ import type {
  * throws: a failure is logged once (status and code only, never headers or URLs) and the
  * documented fallback is returned. Reads are anonymous and cached by the Next.js data cache, so
  * the visitor's IP is deliberately not forwarded. `cache()` dedupes the calls within one render.
+ * Every request uses the 3.5 s shell timeout (`shellFetch`).
  */
 
 const REVALIDATE_SECONDS = 300
@@ -43,7 +43,7 @@ function disabledAuth(): AuthSettings {
 /** `GET global/settings/`: shop identity, contact data, footer HTML and the `auth` block. */
 export const getSiteSettings = cache(async (): Promise<SiteSettings | null> =>
   guarded('getSiteSettings', null, async () => {
-    const { data } = await apiFetch<unknown>('global/settings', {
+    const { data } = await shellFetch<unknown>('global/settings', {
       revalidate: REVALIDATE_SECONDS,
       tags: ['settings'],
     })
@@ -101,7 +101,7 @@ function normalizeMenu(raw: unknown): MenuNode[] {
 export const getMenu = cache(async (key: MenuKey): Promise<MenuNode[]> =>
   guarded(`getMenu(${key})`, [], async () => {
     try {
-      const { data } = await apiFetch<unknown>(`menu/${key}`, {
+      const { data } = await shellFetch<unknown>(`menu/${key}`, {
         revalidate: REVALIDATE_SECONDS,
         tags: [`menu:${key}`],
       })
@@ -171,7 +171,7 @@ function stringEntries(raw: unknown): Record<string, string> {
 }
 
 async function translationFromEndpoint(): Promise<Record<string, string>> {
-  const { data } = await apiFetch<unknown>('global/get-translation/fa', {
+  const { data } = await shellFetch<unknown>('global/get-translation/fa', {
     revalidate: REVALIDATE_SECONDS,
     tags: ['translations'],
   })
@@ -183,7 +183,7 @@ async function translationFromEndpoint(): Promise<Record<string, string>> {
 }
 
 async function translationFromLanguages(): Promise<Record<string, string>> {
-  const { data } = await apiFetch<unknown>('global/languages', {
+  const { data } = await shellFetch<unknown>('global/languages', {
     query: { platform: 'web' },
     revalidate: REVALIDATE_SECONDS,
     tags: ['translations'],

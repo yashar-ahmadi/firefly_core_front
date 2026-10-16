@@ -1,7 +1,10 @@
 import { render, screen, within } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Providers } from '@/app/providers'
+import { CategoriesDrawer } from '@/components/layout/categories-drawer'
+import { MegaMenu } from '@/components/layout/mega-menu'
+import { categoriesToMenu } from '@/components/layout/menu-tree'
 import { SiteHeader } from '@/components/layout/site-header'
 import { parseServerEnv } from '@/config/env-schema'
 import { resolveStoreConfig, toPublicConfig } from '@/config/resolve-store-config'
@@ -168,5 +171,34 @@ describe('SiteHeader', () => {
     await renderHeader({ hasSession: true })
     expect(screen.queryByRole('link', { name: /ورود/ })).toBeNull()
     expect(screen.getByRole('button', { name: 'حساب من' })).toHaveAttribute('aria-haspopup', 'menu')
+  })
+
+  it('sends the navigation menus only the items they show, never the unused category tree', async () => {
+    type Props = Record<string, unknown> & { children?: ReactNode }
+    const walk = (node: ReactNode): ReactElement<Props>[] => {
+      if (Array.isArray(node)) return node.flatMap(walk)
+      if (!isValidElement<Props>(node)) return []
+      return [node, ...walk(node.props.children)]
+    }
+    const navProps = async () =>
+      walk(await SiteHeader())
+        .filter((element) => element.type === MegaMenu || element.type === CategoriesDrawer)
+        .map((element) => element.props)
+
+    const main = [menuNode({ id: 1, title: 'سامسونگ', url: '/brand/samsung/' })]
+    mocks.menus = { ...mocks.menus, main }
+    const withMenu = await navProps()
+    expect(withMenu).toHaveLength(2)
+    for (const props of withMenu) {
+      expect(props.items).toEqual(main)
+      expect(props).not.toHaveProperty('categories')
+      expect(props).not.toHaveProperty('menu')
+    }
+
+    // An empty main menu: the category tree, as menu items (no dates, counts or images).
+    mocks.menus = { ...mocks.menus, main: [] }
+    for (const props of await navProps()) {
+      expect(props.items).toEqual(categoriesToMenu(sampleTree()))
+    }
   })
 })

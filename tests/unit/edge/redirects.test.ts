@@ -106,6 +106,47 @@ describe('knownSources', () => {
     const { knownSources } = await load()
     expect((await knownSources()).size).toBe(0)
   })
+
+  it('retries a failed load after 30 seconds, not five minutes', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    // The storefront booted before the backend: the first load fails.
+    fetchSpy.mockRejectedValueOnce(new TypeError('fetch failed'))
+    const { knownSources } = await load()
+    expect((await knownSources()).size).toBe(0)
+
+    vi.setSystemTime(Date.now() + 20 * 1000)
+    await knownSources()
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    vi.setSystemTime(Date.now() + 11 * 1000)
+    fetchSpy.mockResolvedValueOnce(listPage(['/festival'], null))
+    await vi.waitFor(async () => expect((await knownSources()).has('/festival')).toBe(true))
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+
+    // A successful load is kept for the full five minutes again.
+    vi.setSystemTime(Date.now() + 4 * 60 * 1000)
+    await knownSources()
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps serving the last good list while a failed refresh waits 30 seconds', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    fetchSpy.mockResolvedValueOnce(listPage(['/old'], null))
+    const { knownSources } = await load()
+    expect((await knownSources()).has('/old')).toBe(true)
+
+    vi.setSystemTime(Date.now() + 6 * 60 * 1000)
+    fetchSpy.mockRejectedValueOnce(new TypeError('fetch failed'))
+    expect((await knownSources()).has('/old')).toBe(true)
+    await vi.waitFor(() => expect(console.error).toHaveBeenCalled())
+
+    vi.setSystemTime(Date.now() + 31 * 1000)
+    fetchSpy.mockResolvedValueOnce(listPage(['/new'], null))
+    await vi.waitFor(async () => expect((await knownSources()).has('/new')).toBe(true))
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+  })
 })
 
 describe('resolveRedirect', () => {

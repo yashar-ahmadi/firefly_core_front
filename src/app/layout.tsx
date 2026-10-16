@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { buildRootMetadata, buildRootViewport } from '@/app/_shell/metadata'
 import { ThemeHead } from '@/app/_shell/theme-head'
 import { Providers } from '@/app/providers'
+import { SkipLink } from '@/components/layout/skip-link'
 import { getStoreConfig, toPublicConfig } from '@/config/store-config'
 import {
   getFeatureStatus,
@@ -14,6 +15,7 @@ import {
 import { SnippetHtmlZone, Snippets } from '@/features/settings/snippets'
 import { COOKIE } from '@/lib/auth/cookies'
 import { vazirmatn } from '@/lib/fonts'
+import { createTranslator } from '@/lib/i18n/translator'
 
 // The theme comes from runtime configuration, so the layout must not be rendered at build time.
 export const dynamic = 'force-dynamic'
@@ -42,6 +44,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Snippets position="in_head" />
       </head>
       <body>
+        {/* First focusable element of the page: before any operator HTML or script. */}
+        <SkipLink label={createTranslator(translations)('skip_to_content')} />
         <SnippetHtmlZone position="top" />
         <Snippets position="top_of_body" />
         <Providers

@@ -11,7 +11,7 @@ import { HeaderActions } from './header-actions'
 import { HeaderLinks } from './header-links'
 import { HeaderSearchForm } from './header-search-form'
 import { MegaMenu } from './mega-menu'
-import { slimCategories } from './menu-tree'
+import { navItems } from './menu-tree'
 import { StoreLogo } from './store-logo'
 import { SupportPhone } from './support-phone'
 
@@ -37,7 +37,9 @@ export async function SiteHeader() {
   ])
   const t = createTranslator(translations)
   const name = storeName(getStoreConfig(), settings)
-  const categories = slimCategories(tree)
+  // Resolved here, so the client menus receive only what they show: the `main` menu, or the
+  // category tree as menu items while that menu is empty (never both, never full category cards).
+  const items = navItems(main, tree)
   const announcement = htmlToText(settings?.announcement)
   const phone = settings?.phone?.trim() || null
   const phoneLabels = { label: t('support'), iconLabel: t('phone_support') }
@@ -88,8 +90,8 @@ export async function SiteHeader() {
             aria-label={t('main_navigation')}
             className={cn(CONTAINER, 'flex h-12 items-center gap-2')}
           >
-            <MegaMenu menu={main} categories={categories} className="hidden lg:flex" />
-            <CategoriesDrawer menu={main} categories={categories} className="lg:hidden" />
+            <MegaMenu items={items} className="hidden lg:flex" />
+            <CategoriesDrawer items={items} className="lg:hidden" />
             {headerMenu.length > 0 && <span aria-hidden className="h-5 w-px shrink-0 bg-ink-200" />}
             <HeaderLinks items={headerMenu} className="flex-1" />
             {phone && <SupportPhone phone={phone} {...phoneLabels} className="ms-auto" />}

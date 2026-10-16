@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { CategoriesDrawer } from '@/components/layout/categories-drawer'
 import { HeaderLinks } from '@/components/layout/header-links'
+import { navItems } from '@/components/layout/menu-tree'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { menuNode, sampleTree } from './support'
 
@@ -14,7 +15,7 @@ stubBrowserApis()
 describe('CategoriesDrawer', () => {
   it('opens the category tree as an accordion and closes when a link is followed', async () => {
     const user = userEvent.setup()
-    render(<CategoriesDrawer menu={[]} categories={sampleTree()} />)
+    render(<CategoriesDrawer items={navItems([], sampleTree())} />)
     await user.click(screen.getByRole('button', { name: 'دسته‌بندی‌ها' }))
     const drawer = screen.getByRole('dialog', { name: 'دسته‌بندی‌ها' })
     expect(within(drawer).getByRole('link', { name: 'لوازم خانگی' })).toHaveAttribute(
@@ -35,7 +36,7 @@ describe('CategoriesDrawer', () => {
   })
 
   it('renders nothing without items', () => {
-    const { container } = render(<CategoriesDrawer menu={[]} categories={[]} />)
+    const { container } = render(<CategoriesDrawer items={navItems([], [])} />)
     expect(container).toBeEmptyDOMElement()
   })
 })

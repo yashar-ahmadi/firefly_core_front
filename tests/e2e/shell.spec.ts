@@ -42,6 +42,19 @@ test.describe('shell', () => {
     expect(errors).toEqual([])
   })
 
+  test('the first Tab reaches the skip link, which moves focus to the main content', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.waitForLoadState('load')
+    await page.keyboard.press('Tab')
+    const skip = page.getByRole('link', { name: 'رفتن به محتوای اصلی' })
+    await expect(skip).toBeFocused()
+    await expect(skip).toBeVisible()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('main#main')).toBeFocused()
+  })
+
   test('desktop: the mega-menu opens on hover and shows the main menu', async ({ page }) => {
     test.skip(width(page) < 1024, 'the mega-menu is shown from lg up')
     await page.goto('/')
