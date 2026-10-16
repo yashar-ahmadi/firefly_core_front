@@ -67,8 +67,9 @@ export function DialogContent({
       if (event.defaultPrevented) return
       const field = body.current?.querySelector<HTMLElement>(FIELD)
       if (!field) return
-      event.preventDefault()
       field.focus()
+      // A field that cannot take focus (inside a hidden section, say) leaves Radix's default.
+      if (document.activeElement === field) event.preventDefault()
     },
     onCloseAutoFocus,
   })

@@ -45,8 +45,14 @@
 
   --shadow-card: var(--shadow-card);
   --shadow-raised: var(--shadow-raised);
+}
 
-  /* next/font/local defines --font-vazirmatn (see src/lib/fonts.ts). */
+/*
+ * The font stack. Not `inline`: utilities and the base font read var(--font-sans), so the
+ * THEME_FONT=custom override in theme-vars (src/lib/theme/custom-font.ts) takes effect.
+ * next/font/local defines --font-vazirmatn (see src/lib/fonts.ts).
+ */
+@theme {
   --font-sans:
     var(--font-vazirmatn), ui-sans-serif, system-ui, 'Segoe UI', Tahoma, Arial, sans-serif;
 }

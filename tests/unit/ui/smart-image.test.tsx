@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { PLACEHOLDER_SRC, SmartImage, isOptimizable } from '@/components/ui/smart-image'
+import type { PublicStoreConfig } from '@/config/resolve-store-config'
+import { StoreConfigProvider } from '@/lib/config-context'
 
 const MEDIA = 'https://api.shop.ir'
 
@@ -57,5 +59,26 @@ describe('SmartImage', () => {
     const { container } = render(<SmartImage src={null} alt="" ratio="1/1" className="frame" />)
     const frame = container.querySelector('.frame') as HTMLElement
     expect(frame.style.aspectRatio).toBe('1 / 1')
+  })
+
+  it('takes the media origin from the store config', () => {
+    const config = { mediaOrigin: MEDIA } as PublicStoreConfig
+    render(
+      <StoreConfigProvider value={config}>
+        <SmartImage src={`${MEDIA}/media/a.jpg`} alt="از تنظیمات" width={100} height={100} />
+        <SmartImage
+          src={`${MEDIA}/media/b.jpg`}
+          alt="مبدأ دیگر"
+          mediaOrigin="https://other.example.com"
+          width={100}
+          height={100}
+        />
+      </StoreConfigProvider>,
+    )
+    const fromConfig = screen.getByRole('img', { name: 'از تنظیمات' }).getAttribute('src') ?? ''
+    expect(fromConfig).toContain('/_next/image')
+    // An explicit prop still wins.
+    const overridden = screen.getByRole('img', { name: 'مبدأ دیگر' }).getAttribute('src')
+    expect(overridden).toBe(`${MEDIA}/media/b.jpg`)
   })
 })

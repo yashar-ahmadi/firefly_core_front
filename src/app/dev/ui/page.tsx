@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { Toaster } from '@/components/ui/toaster'
 import { ControlSections } from './control-sections'
 import { DisplaySections } from './display-sections'
 import { NavigationSections } from './navigation-sections'
@@ -54,8 +53,6 @@ export default function UiShowcasePage() {
         <OverlaySections />
         <NavigationSections />
       </main>
-      {/* Only this page mounts the toaster for now; the app shell gets it in Task 11. */}
-      <Toaster />
     </div>
   )
 }

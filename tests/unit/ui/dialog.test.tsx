@@ -77,6 +77,26 @@ describe('Dialog', () => {
     expect(screen.getByRole('textbox', { name: 'نام' })).toHaveFocus()
   })
 
+  it('keeps the default focus when the first field cannot take focus', async () => {
+    const user = userEvent.setup()
+    render(
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button>فیلتر</Button>
+        </DialogTrigger>
+        <DialogContent title="فیلترها">
+          <div hidden>
+            <input aria-label="حداقل قیمت" />
+          </div>
+          <Button>اعمال</Button>
+        </DialogContent>
+      </Dialog>,
+    )
+    await user.click(screen.getByRole('button', { name: 'فیلتر' }))
+    // Radix's own choice: the first tabbable element, the close button.
+    expect(screen.getByRole('button', { name: 'بستن' })).toHaveFocus()
+  })
+
   it('starts a dialog without fields on its first button (the close button)', async () => {
     const user = userEvent.setup()
     render(

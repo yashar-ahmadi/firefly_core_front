@@ -2,6 +2,7 @@
 
 import Image, { type ImageProps } from 'next/image'
 import { useState } from 'react'
+import { useOptionalStoreConfig } from '@/lib/config-context'
 import { cn } from './cn'
 
 /** Shown when there is no image or it fails to load (public/images/placeholder.svg). */
@@ -44,7 +45,10 @@ export interface SmartImageProps extends Omit<ImageProps, 'src' | 'alt'> {
    * frame with that ratio and `className` styles the frame.
    */
   ratio?: string
-  /** The API's public origin (PublicStoreConfig.mediaOrigin); media there is optimized. */
+  /**
+   * The API's public origin; media there is optimized. Defaults to the store config's
+   * `mediaOrigin` (the root providers supply it); pass it only to override that.
+   */
   mediaOrigin?: string
   fit?: 'cover' | 'contain'
   /** Classes for the `<img>` when `ratio` is set. */
@@ -64,6 +68,8 @@ export function SmartImage({
   onError,
   ...props
 }: SmartImageProps) {
+  const config = useOptionalStoreConfig()
+  const origin = mediaOrigin ?? config?.mediaOrigin
   // Remember which source failed, so a new `src` is tried again without an effect.
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const shown = src && src !== failedSrc ? src : PLACEHOLDER_SRC
@@ -73,7 +79,7 @@ export function SmartImage({
       {...extra}
       src={shown}
       alt={alt}
-      unoptimized={unoptimized || shown === PLACEHOLDER_SRC || !isOptimizable(shown, mediaOrigin)}
+      unoptimized={unoptimized || shown === PLACEHOLDER_SRC || !isOptimizable(shown, origin)}
       onError={(event) => {
         if (src) setFailedSrc(src)
         onError?.(event)
