@@ -11,13 +11,19 @@ import { toPersianDigits } from '@/lib/format'
 const DAY_MS = 86_400_000
 /** The snapshot once the deal is over. */
 const OVER = -1
+/**
+ * One slot for the text in every state: the placeholder «--:--:--» (3.5em), «۲ روز» (2.1em) and
+ * the clock «۰۱:۰۲:۰۳» (4.7em, tabular digits). As wide as the clock, so neither hydration nor
+ * the last day's switch to the clock changes the pill's width (which would re-wrap the badge).
+ */
+const SLOT = 'inline-block w-[4.75em] text-center'
 
 /**
  * A card's timed discount as a sale pill on the image (white on `sale`, AA). From one day up it
  * shows whole days left («۲ روز»), which fits a phone card; under a day the ticking «۰۴:۵۶:۲۸».
  * It disappears when the time is up, also when it was already over at mount (a cached page).
  * `endsAt` is the API's end timestamp in ms. The server and hydration show the clock's
- * placeholder, so the markup never mismatches.
+ * placeholder, so the markup never mismatches; the text keeps one width throughout (SLOT).
  */
 export function DiscountTimer({ endsAt, className }: { endsAt: number; className?: string }) {
   // Whole days left (0 under a day), OVER, or null before the clock runs. A number, so the pill
@@ -44,9 +50,11 @@ export function DiscountTimer({ endsAt, className }: { endsAt: number; className
       <Timer aria-hidden className="size-3.5 shrink-0" />
       <VisuallyHidden>{'زمان باقی\u{200C}مانده تا پایان تخفیف: '}</VisuallyHidden>
       {daysLeft !== null && daysLeft > 0 ? (
-        <span role="timer" aria-live="off">{`${toPersianDigits(daysLeft)} روز`}</span>
+        <span role="timer" aria-live="off" className={SLOT}>
+          {`${toPersianDigits(daysLeft)} روز`}
+        </span>
       ) : (
-        <Countdown endsAt={endsAt} className="font-bold" />
+        <Countdown endsAt={endsAt} className={cn(SLOT, 'font-bold')} />
       )}
     </span>
   )

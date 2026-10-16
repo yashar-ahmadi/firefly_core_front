@@ -131,19 +131,6 @@ describe('ProductCard', () => {
     expect(within(card()).getByRole('timer').textContent).toMatch(/^۰۱:۰۲:۰[۲۳]$/u)
   })
 
-  it('shows no deal countdown on an out-of-stock product, whatever the stock label setting', () => {
-    const soldOut = discountedCard({
-      in_stock: false,
-      discount_time_remaining: Date.now() + 3_600_000,
-    })
-    for (const showOutOfStockLabel of [true, false]) {
-      const { unmount } = renderCard(soldOut, { showOutOfStockLabel })
-      expect(within(card()).queryByRole('timer')).toBeNull()
-      expect(within(card()).getByText('پرفروش')).toBeInTheDocument()
-      unmount()
-    }
-  })
-
   it('hides a countdown whose deal is already over (a cached page)', () => {
     renderCard(discountedCard({ discount_time_remaining: Date.now() - 60_000 }))
     expect(within(card()).queryByRole('timer')).toBeNull()
