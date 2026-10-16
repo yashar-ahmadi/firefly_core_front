@@ -46,7 +46,8 @@ const pageOf = (params: URLSearchParams) =>
  *
  * The URL: after each append, `history.replaceState` sets `page` to the last page shown (no new
  * history entry, no server render), so a reload or a shared link lands near the same products
- * and the pager's «next» goes on from there. Cards already shown are skipped (a product can move
+ * and the pager's «next» goes on from there. Appended pages are not restored: a reload, or
+ * coming back from a product, shows that last page alone. Cards already shown are skipped (a product can move
  * between pages as stock changes), and focus moves to the first new card. Remount it (a `key`
  * per query) when the query changes; going to another page of the same query starts over.
  */

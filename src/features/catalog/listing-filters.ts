@@ -21,20 +21,45 @@ export interface FacetGroups {
   attributes: FilterAttribute[]
   /** The slider bounds; null when there is no range to choose from. */
   price: { min: number; max: number } | null
+  /** The name of the URL's category when it is not among `categories` (a deeper category). */
+  chosenCategoryName?: string
 }
 
 const NO_FACETS: FacetGroups = { categories: [], brands: [], attributes: [], price: null }
 
 /**
+ * The context to load filter metadata for: the route context plus the URL's category, when the
+ * route has no category of its own and the URL picks one, so choosing a category on a brand,
+ * list or generic listing brings that category's attributes, brands and price range. (The API
+ * reads only the first of category > brand > list.) null when the route context is all there is.
+ */
+export function filtersContextFor(
+  context: ListingContext,
+  q: ListingApiQuery,
+): ListingContext | null {
+  if (context.category !== undefined || q.category === undefined) return null
+  return { ...context, category: q.category }
+}
+
+/**
  * The facet groups of a listing. A group is left out when it has nothing to offer, or when the
  * route context supplies its key (no category facet on a category page, no brand facet on a
  * brand page: the URL could not change them). There is never a list facet.
+ *
+ * `categoryFilters` is where the category options come from: the route context's own metadata
+ * when `filters` follows a category chosen in the URL, so the choice stays among the options it
+ * was made from (checked, and switchable).
  */
-export function facetGroups(filters: FiltersMetadata | null, context: ListingContext): FacetGroups {
+export function facetGroups(
+  filters: FiltersMetadata | null,
+  context: ListingContext,
+  categoryFilters: FiltersMetadata | null = filters,
+): FacetGroups {
   if (filters === null) return NO_FACETS
-  const anyCategory = filters.categories.some((option) => option.product_count > 0)
+  const options = categoryFilters?.categories ?? []
+  const anyCategory = options.some((option) => option.product_count > 0)
   return {
-    categories: context.category === undefined && anyCategory ? filters.categories : [],
+    categories: context.category === undefined && anyCategory ? options : [],
     brands: context.brand === undefined ? filters.brands : [],
     attributes: filters.attributes.filter((attribute) => attribute.values.length > 0),
     price: filters.price.max > filters.price.min ? filters.price : null,
@@ -100,7 +125,9 @@ export function activeFilters(q: ListingApiQuery, groups: FacetGroups): ActiveFi
     chips.push({ key: 'search', label: `جستجو: ${q.search}`, patch: { search: undefined } })
   }
   if (q.category) {
-    const name = groups.categories.find((option) => option.slug === q.category)?.name
+    const name =
+      groups.categories.find((option) => option.slug === q.category)?.name ??
+      groups.chosenCategoryName
     chips.push({
       key: 'category',
       label: name ?? q.category,

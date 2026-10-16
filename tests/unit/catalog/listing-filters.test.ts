@@ -4,6 +4,7 @@ import {
   activeFilters,
   clearFilters,
   facetGroups,
+  filtersContextFor,
 } from '@/features/catalog/listing-filters'
 import { LIST_CATEGORIES, MOBILE_FILTERS, STORE_BRANDS } from './filter-fixtures'
 
@@ -43,6 +44,14 @@ describe('facetGroups', () => {
     expect(groups.price).toBeNull()
     expect(facetGroups(STORE, {}).price).not.toBeNull()
     expect(facetGroups({ ...STORE, price: { min: 5, max: 5 } }, {}).price).toBeNull()
+  })
+
+  it('takes the category options from the route-context metadata when given', () => {
+    const base = { ...STORE, attributes: [] }
+    const groups = facetGroups(MOBILE_FILTERS, {}, base)
+    expect(groups.categories).toBe(LIST_CATEGORIES)
+    expect(groups.brands).toBe(MOBILE_FILTERS.brands)
+    expect(groups.attributes).toHaveLength(3)
   })
 
   it('has no facets without filter metadata', () => {
@@ -141,5 +150,26 @@ describe('activeFilters', () => {
       groups,
     )
     expect(new Set(chips.map((chip) => chip.key)).size).toBe(chips.length)
+  })
+})
+
+describe('filtersContextFor', () => {
+  it('adds the URL category when the route has no category of its own', () => {
+    expect(filtersContextFor({}, { category: 'mobile-phone', brand: ['apple'] })).toEqual({
+      category: 'mobile-phone',
+    })
+    expect(filtersContextFor({ brand: 'samsung' }, { category: 'digital' })).toEqual({
+      brand: 'samsung',
+      category: 'digital',
+    })
+    expect(filtersContextFor({ list: 'deals' }, { category: 'laptop' })).toEqual({
+      list: 'deals',
+      category: 'laptop',
+    })
+  })
+
+  it('is null when the route context is all there is', () => {
+    expect(filtersContextFor({}, { brand: ['apple'] })).toBeNull()
+    expect(filtersContextFor({ category: 'mobile-phone' }, { category: 'mobile-phone' })).toBeNull()
   })
 })

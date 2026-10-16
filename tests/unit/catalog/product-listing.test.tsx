@@ -6,12 +6,13 @@ import {
 } from '@/features/catalog/components/listing/product-listing'
 import { ApiError } from '@/lib/api/errors'
 import type { ProductCard } from '@/lib/api/types/catalog'
+import type { CategoryNode } from '@/lib/api/types/settings'
 import type { Paginated } from '@/lib/api/types/common'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { clientProviders } from '../support/providers'
 import { resolveServerTree } from '../support/server-tree'
 import { cardFixture } from './card-fixtures'
-import { MOBILE_FILTERS } from './filter-fixtures'
+import { LIST_CATEGORIES, MOBILE_FILTERS, STORE_BRANDS } from './filter-fixtures'
 
 const api = vi.hoisted(() => ({
   getProductList: vi.fn(),
@@ -26,6 +27,8 @@ const nav = vi.hoisted(() => ({
 }))
 
 vi.mock('@/features/catalog/api', () => api)
+const settings = vi.hoisted(() => ({ getCategoryTree: vi.fn() }))
+vi.mock('@/features/settings/api', () => settings)
 vi.mock('next/navigation', () => ({
   notFound: nav.notFound,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -67,8 +70,31 @@ async function renderListing(props: Partial<ProductListingProps>, search = '') {
   return render(<>{tree}</>, { wrapper })
 }
 
+/** A slice of the published category tree (`getCategoryTree()`). */
+function node(slug: string, name: string, children: CategoryNode[] = []): CategoryNode {
+  return {
+    id: slug.length,
+    name,
+    slug,
+    path: slug,
+    parent_id: null,
+    short_description: null,
+    image: '',
+    icon: '',
+    show_in_homepage: false,
+    default_sorting: null,
+    product_count: 0,
+    created: '',
+    updated: '',
+    children,
+  }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
+  settings.getCategoryTree.mockResolvedValue([
+    node('digital', 'کالای دیجیتال', [node('mobile-phone', 'گوشی موبایل')]),
+  ])
   api.getFilters.mockResolvedValue(MOBILE_FILTERS)
   api.getProductSettings.mockResolvedValue(SETTINGS)
   api.getProductList.mockResolvedValue(listOf([cardFixture()]))
@@ -86,6 +112,8 @@ describe('ProductListing data', () => {
     await vi.waitFor(() =>
       expect(api.getFilters).toHaveBeenCalledWith({ category: 'mobile-phone' }),
     )
+    // The route's category wins over the URL's: one filters call, for the route.
+    expect(api.getFilters).toHaveBeenCalledOnce()
     expect(api.getProductList).toHaveBeenCalledWith({
       category: 'mobile-phone',
       brand: ['apple'],
@@ -117,6 +145,82 @@ describe('ProductListing data', () => {
     api.getFilters.mockRejectedValueOnce(new ApiError({ status: 503 }))
     await expect(ProductListing(PROPS)).rejects.toMatchObject({ status: 503 })
     expect(nav.notFound).not.toHaveBeenCalled()
+  })
+})
+
+describe('ProductListing facets for a category chosen in the URL', () => {
+  /** The store-wide metadata: root categories, every brand, no attributes. */
+  const STORE_FILTERS = {
+    ...MOBILE_FILTERS,
+    categories: LIST_CATEGORIES,
+    brands: STORE_BRANDS,
+    attributes: [],
+  }
+  const GENERIC: Partial<ProductListingProps> = {
+    context: {},
+    basePath: '/product/list/',
+    searchParams: { category: 'mobile-phone' },
+  }
+
+  beforeEach(() => {
+    api.getFilters.mockImplementation(async (ctx: { category?: string }) =>
+      ctx.category === 'mobile-phone' ? MOBILE_FILTERS : STORE_FILTERS,
+    )
+  })
+
+  it("loads that category's filters beside the route's, both in parallel with the list", async () => {
+    let resolveList: (value: unknown) => void = () => {}
+    api.getProductList.mockReturnValue(new Promise((resolve) => (resolveList = resolve)))
+    const rendering = ProductListing({ ...PROPS, ...GENERIC })
+    await vi.waitFor(() => expect(api.getFilters).toHaveBeenCalledTimes(2))
+    expect(api.getFilters).toHaveBeenCalledWith({ category: 'mobile-phone' })
+    expect(api.getFilters).toHaveBeenCalledWith({})
+    resolveList(listOf([cardFixture()]))
+    await expect(rendering).resolves.toBeTruthy()
+  })
+
+  it("keeps the route's other context keys in the category's filters call", async () => {
+    await ProductListing({
+      ...PROPS,
+      context: { brand: 'samsung' },
+      basePath: '/brand/samsung/',
+      searchParams: { category: 'mobile-phone' },
+    })
+    expect(api.getFilters).toHaveBeenCalledWith({ brand: 'samsung', category: 'mobile-phone' })
+    expect(api.getFilters).toHaveBeenCalledWith({ brand: 'samsung' })
+  })
+
+  it("offers the category's attributes and brands, and the route's categories with the choice checked", async () => {
+    await renderListing(GENERIC, 'category=mobile-phone')
+    const sidebar = screen.getByRole('complementary', { name: 'فیلترها' })
+    expect(within(sidebar).getByRole('group', { name: 'رنگ' })).toBeInTheDocument()
+    expect(
+      within(sidebar).getAllByRole('checkbox', { name: /^(اپل|سامسونگ|شیائومی)$/ }),
+    ).toHaveLength(3)
+    const categories = within(sidebar).getByRole('radiogroup', { name: 'دسته‌بندی' })
+    expect(within(categories).getByRole('radio', { name: /گوشی موبایل/ })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'حذف فیلتر گوشی موبایل' })).toBeInTheDocument()
+  })
+
+  it("names a URL category outside the route's options from the category tree", async () => {
+    api.getFilters.mockImplementation(async (ctx: { category?: string }) =>
+      ctx.category === 'mobile-phone'
+        ? MOBILE_FILTERS
+        : { ...STORE_FILTERS, categories: [{ ...LIST_CATEGORIES[1]!, slug: 'laptop' }] },
+    )
+    await renderListing(GENERIC, 'category=mobile-phone')
+    expect(screen.getByRole('button', { name: 'حذف فیلتر گوشی موبایل' })).toBeInTheDocument()
+  })
+
+  it("falls back to the route's filters when the category's are not found", async () => {
+    api.getFilters.mockImplementation(async (ctx: { category?: string }) =>
+      ctx.category ? null : STORE_FILTERS,
+    )
+    await renderListing({ ...GENERIC, searchParams: { category: 'unknown' } }, 'category=unknown')
+    const sidebar = screen.getByRole('complementary', { name: 'فیلترها' })
+    expect(within(sidebar).queryByRole('group', { name: 'رنگ' })).toBeNull()
+    expect(within(sidebar).getByRole('radiogroup', { name: 'دسته‌بندی' })).toBeInTheDocument()
+    expect(within(sidebar).getByRole('searchbox', { name: 'جستجوی برند' })).toBeInTheDocument()
   })
 })
 

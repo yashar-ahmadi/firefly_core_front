@@ -7,6 +7,7 @@ import {
   activeFilterCount,
   FALLBACK_SORT_OPTIONS,
   facetGroups,
+  filtersContextFor,
 } from '@/features/catalog/listing-filters'
 import {
   parseListingParams,
@@ -15,8 +16,10 @@ import {
   type ListingApiQuery,
   type ListingContext,
 } from '@/features/catalog/listing-params'
+import { getCategoryTree } from '@/features/settings/api'
 import { isApiNotFound } from '@/lib/api/errors'
 import type { SortValue } from '@/lib/api/types/catalog'
+import type { CategoryNode } from '@/lib/api/types/settings'
 import { ProductGrid } from '../product-grid'
 import { ActiveFilterChips, ClearFiltersButton, LISTING_RESULTS_ID } from './active-filter-chips'
 import { FilterPanel } from './filter-panel'
@@ -58,9 +61,38 @@ async function loadList(q: ListingApiQuery) {
 }
 
 /**
+ * The filter metadata: the route context's own (`base`), and, when the URL picks a category the
+ * route does not fix (`extended`), that category's (`filters`), both requested at once. An
+ * unknown category (null) falls back to the route's, so the page never loses its facets.
+ */
+async function loadFilters(context: ListingContext, extended: ListingContext | null) {
+  const own = getFilters(context)
+  if (extended === null) {
+    const base = await own
+    return { filters: base, base }
+  }
+  const [picked, base] = await Promise.all([getFilters(extended), own])
+  return { filters: picked ?? base, base }
+}
+
+/** A category's name anywhere in the tree, by slug. */
+function nameInTree(nodes: CategoryNode[], slug: string): string | undefined {
+  for (const node of nodes) {
+    const name = node.slug === slug ? node.name : nameInTree(node.children, slug)
+    if (name !== undefined) return name
+  }
+  return undefined
+}
+
+const NO_TREE: CategoryNode[] = []
+
+/**
  * A product listing: the filter sidebar (lg+) or sheet, the toolbar, the active filter chips,
  * the server-rendered grid, «نمایش بیشتر» and the page links. The URL is the single source of
  * truth; the client parts are only the interactive leaves.
+ *
+ * Facets follow the route context, and a category picked in the URL when the route has none
+ * (its attributes, brands and price range; the category options stay the route's).
  *
  * Status codes (R9): the list and the filters are awaited, in parallel, before anything renders.
  * Render this outside any `<Suspense>` and with no `loading.tsx` on its segment, so a page past
@@ -77,14 +109,21 @@ export async function ProductListing({
   const query = parseListingParams(await searchParams, { context })
   const apiQuery: ListingApiQuery =
     query.sort === undefined && defaultSort ? { ...query, sort: defaultSort } : query
-  const [list, filters, settings] = await Promise.all([
+  const extended = filtersContextFor(context, query)
+  const [list, { filters, base }, settings, tree] = await Promise.all([
     loadList(apiQuery),
-    getFilters(context),
+    loadFilters(context, extended),
     getProductSettings(),
+    // Names a URL category deeper than the route's options (a homepage «see all» link). The shell
+    // header loads the same tree, so this costs no request; it never throws.
+    extended?.category === undefined ? NO_TREE : getCategoryTree(),
   ])
 
   const urlQuery = withoutContext(query, context)
-  const groups = facetGroups(filters, context)
+  const groups = {
+    ...facetGroups(filters, context, base),
+    chosenCategoryName: extended?.category && nameInTree(tree, extended.category),
+  }
   const showOutOfStockLabel = settings.show_out_of_stock_label
 
   return (
