@@ -9,11 +9,27 @@ const SERVER_ERROR =
   'Failed to load resource: the server responded with a status of 500 (Internal Server Error)'
 
 describe('isExpectedFailure', () => {
-  it('lets through the backend pictures under /media/ and /static/', () => {
+  it('lets through the backend pictures under /media/ and /static/ that are missing (404)', () => {
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:8000/media/CACHE/a.jpg')).toBe(true)
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/static/defaults/default.png')).toBe(
       true,
     )
+  })
+
+  it('reports a backend picture that fails any other way (a 5xx, a refused connection)', () => {
+    expect(isExpectedFailure(SERVER_ERROR, 'http://localhost:8000/media/CACHE/a.jpg')).toBe(false)
+    expect(
+      isExpectedFailure(
+        'Failed to load resource: the server responded with a status of 502 (Bad Gateway)',
+        'http://localhost:3000/static/defaults/default.png',
+      ),
+    ).toBe(false)
+    expect(
+      isExpectedFailure(
+        'Failed to load resource: net::ERR_CONNECTION_REFUSED',
+        'http://localhost:8000/media/a.jpg',
+      ),
+    ).toBe(false)
   })
 
   it("reports a failed Next chunk under /_next/static/ (the path only contains '/static/')", () => {

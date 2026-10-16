@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 
-/** The dev backend's picture paths: its pictures and placeholders may fail to load in dev. */
+/** The dev backend's picture paths: its pictures and placeholders may be missing in dev. */
 const MEDIA_PATH = /^\/(?:media|static)\//
 
 /**
@@ -11,7 +11,6 @@ const MEDIA_PATH = /^\/(?:media|static)\//
  */
 const NOT_YET_BUILT = /^\/(?:login|register|forgot-password|account|cart|checkout|blog|page)\//
 
-const FAILED_LOAD = /^Failed to load resource/
 const NOT_FOUND = /^Failed to load resource: the server responded with a status of 404\b/
 
 function pathOf(url: string): string | null {
@@ -23,14 +22,15 @@ function pathOf(url: string): string | null {
 }
 
 /**
- * Whether a console error is one the dev environment is expected to log: a failed load of a
- * backend picture (a path under `/media/` or `/static/`, so `/_next/static/` chunks are still
- * reported), or a 404 from a route not built yet. Pure, for the unit test.
+ * Whether a console error is one the dev environment is expected to log: a 404 for a backend
+ * picture (a path under `/media/` or `/static/`, so `/_next/static/` chunks are still reported)
+ * or for a route not built yet. Any other failure there (a 5xx, a refused connection) is
+ * reported. Pure, for the unit test.
  */
 export function isExpectedFailure(text: string, url: string): boolean {
   const path = pathOf(url)
-  if (path === null || !FAILED_LOAD.test(text)) return false
-  return MEDIA_PATH.test(path) || (NOT_FOUND.test(text) && NOT_YET_BUILT.test(path))
+  if (path === null || !NOT_FOUND.test(text)) return false
+  return MEDIA_PATH.test(path) || NOT_YET_BUILT.test(path)
 }
 
 /**
