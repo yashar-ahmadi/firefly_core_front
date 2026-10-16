@@ -19,6 +19,7 @@ the API digests in [backend-integration/](backend-integration/) and
 - [Cookies and the session](#cookies-and-the-session)
 - [Caching](#caching)
 - [Rendering rules](#rendering-rules)
+- [Performance](#performance)
 - [Errors and degraded operation](#errors-and-degraded-operation)
 - [Operator content: sanitised HTML versus snippets](#operator-content-sanitised-html-versus-snippets)
 - [Folder conventions](#folder-conventions)
@@ -236,6 +237,31 @@ signed-in header to another.
   (`t(key)`), never inline strings in shared components.
 - **Accessibility floor.** 44 px touch targets, 16 px body text (14 px for secondary labels), visible
   focus rings, `prefers-reduced-motion` respected.
+
+## Performance
+
+- **JavaScript budget (ruling P2-R4): at most 250 KB gzip per catalog route.** Next 16 no longer
+  prints First Load JS, so the figure is measured as the browser loads the production build:
+  every `/_next/static/**/*.js` a page requests by `load` + 3 s with no interaction, each
+  compressed with gzip -9 and summed. `noModule` polyfills are never requested by a modern browser
+  and do not count; neither does code that loads on first use. The framework alone (react-dom, the
+  App Router, the Turbopack runtime) is about 140 KB of it.
+- **The guard:** `tests/e2e/catalog/budget.spec.ts` (desktop project, part of `pnpm test:e2e`)
+  measures home, category, product, search, compare and brand, prints `[js-budget] <route>: <KB>`
+  for each and fails a route over 250 KB. At Plan 2's end: home 219, category and brand 238,
+  product 237, search 208, compare 214.
+- **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
+  use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
+  (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
+  loader ends in `.catch` with a local fallback (the page it would have led to, or the content
+  shown in place), and its trigger preloads on hover, focus or press. Content that only folds uses
+  the native `Disclosure` (`<details>`), not the Radix `Accordion`. Server Components must not
+  import a heavy client primitive just to wrap a trigger (a `Dialog` imported by a Server
+  Component ships with every page that renders it).
+- **Layout stability.** Vazirmatn loads with `display: swap` behind Persian-tuned fallback faces
+  (`styles/font-fallbacks.css`, listed in `lib/fonts.ts`), so text keeps its width and line breaks
+  when the font arrives. Images have fixed frames, and countdowns and badges keep one width
+  through hydration.
 
 ## Errors and degraded operation
 
