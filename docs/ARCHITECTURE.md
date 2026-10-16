@@ -48,7 +48,9 @@ the API digests in [backend-integration/](backend-integration/) and
   `server-only` and are never called at module top level.
 - **Providers** (`src/app/providers.tsx`, mounted once by the root layout): RTL direction, public
   store config, i18n (operator overrides merged over `fa.ts`), session flag, feature switches,
-  TanStack Query (30 s stale time, no retry on 4xx or `feature_disabled`), tooltips and toasts.
+  TanStack Query (30 s stale time, no retry on 4xx or `feature_disabled`) and the toaster, which
+  loads Sonner with the first toast. Tooltips are not a provider: each `Tooltip` brings its own
+  (group several with `TooltipProvider`), so pages without one do not load its code.
 
 ## Request topology
 
@@ -241,23 +243,28 @@ signed-in header to another.
 ## Performance
 
 - **JavaScript budget (ruling P2-R4): at most 250 KB gzip per catalog route.** Next 16 no longer
-  prints First Load JS, so the figure is measured as the browser loads the production build:
-  every `/_next/static/**/*.js` a page requests by `load` + 3 s with no interaction, each
-  compressed with gzip -9 and summed. `noModule` polyfills are never requested by a modern browser
-  and do not count; neither does code that loads on first use. The framework alone (react-dom, the
-  App Router, the Turbopack runtime) is about 140 KB of it.
+  prints First Load JS, so the figure is measured as the browser loads the production build with
+  no interaction: every `/_next/static/**/*.js` the page requests until it settles (after `load`,
+  no `/_next/static` request in flight for 1 s, network-idle style limited to the app's own
+  assets), each compressed with gzip -9 and summed. `noModule` polyfills are never requested by a
+  modern browser and do not count; neither does code that loads on first use. The framework
+  alone (react-dom, the App Router, the Turbopack runtime) is about 140 KB of it.
 - **The guard:** `tests/e2e/catalog/budget.spec.ts` (desktop project, part of `pnpm test:e2e`)
-  measures home, category, product, search, compare and brand, prints `[js-budget] <route>: <KB>`
-  for each and fails a route over 250 KB. At Plan 2's end: home 219, category and brand 238,
-  product 237, search 208, compare 214.
+  measures home, category, a curated list, product, search, compare, a brand and the brand index,
+  prints `[js-budget] <route>: <KB>` for each and fails a route over 250 KB. At Plan 2's end: home
+  219, category, list and brand 238, product 237, search 208, compare 214, brand index 204.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
   loader ends in `.catch` with a local fallback (the page it would have led to, or the content
-  shown in place), and its trigger preloads on hover, focus or press. Content that only folds uses
-  the native `Disclosure` (`<details>`), not the Radix `Accordion`. Server Components must not
-  import a heavy client primitive just to wrap a trigger (a `Dialog` imported by a Server
-  Component ships with every page that renders it).
+  shown in place), and its trigger preloads on hover, focus or press. Content that only folds (the
+  phone footer columns, an FAQ) uses the native `Disclosure` (`<details>`), not the Radix
+  `Accordion`: no JavaScript, and the content is in the HTML while closed. Its trade-offs: the
+  title heading sits inside `<summary>`, which VoiceOver reads as a plain disclosure (the heading
+  is flattened out of its rotor), and it opens and closes without the accordion's animation. Use
+  the `Accordion` where either matters or the state is driven from code (the listing filters).
+  Server Components must not import a heavy client primitive just to wrap a trigger (a `Dialog`
+  imported by a Server Component ships with every page that renders it).
 - **Layout stability.** Vazirmatn loads with `display: swap` behind Persian-tuned fallback faces
   (`styles/font-fallbacks.css`, listed in `lib/fonts.ts`), so text keeps its width and line breaks
   when the font arrives. Images have fixed frames, and countdowns and badges keep one width
