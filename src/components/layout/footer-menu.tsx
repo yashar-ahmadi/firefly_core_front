@@ -22,13 +22,14 @@ export interface FooterColumn {
  * `menu/footer` as columns (content.md §5.1): every top-level item with children is a column
  * headed by that item, and the top-level links without children are gathered into one column
  * titled `looseTitle` («لینک‌های مفید»), placed where the first of them is. A `none` heading
- * without children stays a column with its heading only.
+ * without children has nothing to show and is dropped, so every column has at least one link.
  */
 export function footerColumns(items: readonly MenuNode[], looseTitle: string): FooterColumn[] {
   const columns: FooterColumn[] = []
   let loose: FooterColumn | null = null
   for (const item of items) {
-    if (item.children.length > 0 || item.url === null) {
+    if (item.children.length === 0 && item.url === null) continue
+    if (item.children.length > 0) {
       columns.push({
         key: `item-${item.id}`,
         heading: item,
@@ -73,12 +74,10 @@ export function FooterMenu({ items, t }: { items: readonly MenuNode[]; t: Transl
   const columns = footerColumns(items, t('useful_links'))
   if (columns.length === 0) return null
   // On phones a heading that is a link moves into its panel, first («مشاهدهٔ …»).
-  const panels = columns
-    .map((column) => ({
-      column,
-      own: column.heading?.url ? column.heading : null,
-    }))
-    .filter(({ column, own }) => own !== null || column.links.length > 0)
+  const panels = columns.map((column) => ({
+    column,
+    own: column.heading?.url ? column.heading : null,
+  }))
 
   return (
     <nav aria-label={t('footer_navigation')}>
@@ -104,25 +103,23 @@ export function FooterMenu({ items, t }: { items: readonly MenuNode[]; t: Transl
         })}
       </div>
 
-      {panels.length > 0 && (
-        <Accordion type="multiple" className="border-y border-ink-200 md:hidden">
-          {panels.map(({ column, own }) => (
-            <AccordionItem key={column.key} value={column.key}>
-              <AccordionTrigger level={2} className="font-bold">
-                {column.title}
-              </AccordionTrigger>
-              <AccordionContent className="pb-3">
-                {own && (
-                  <MenuLink node={own} prefetch={false} className={cn(LINK, 'font-medium')}>
-                    {t('menu_view', { name: own.title })}
-                  </MenuLink>
-                )}
-                <FooterLinks nodes={column.links} />
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      )}
+      <Accordion type="multiple" className="border-y border-ink-200 md:hidden">
+        {panels.map(({ column, own }) => (
+          <AccordionItem key={column.key} value={column.key}>
+            <AccordionTrigger level={2} className="font-bold">
+              {column.title}
+            </AccordionTrigger>
+            <AccordionContent className="pb-3">
+              {own && (
+                <MenuLink node={own} prefetch={false} className={cn(LINK, 'font-medium')}>
+                  {t('menu_view', { name: own.title })}
+                </MenuLink>
+              )}
+              <FooterLinks nodes={column.links} />
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
     </nav>
   )
 }

@@ -182,6 +182,23 @@ describe('sanitizeOperatorHtml: links and images', () => {
     expect(relative).toHaveAttribute('target', '_blank')
   })
 
+  it('treats backslash and tab spellings of another host as external (browsers read them as //)', () => {
+    const hrefs = [
+      '/\\evil.example/',
+      '\\\\evil.example/',
+      '\\/evil.example/',
+      'https:\\\\evil.example/',
+    ]
+    for (const href of [...hrefs, '/&#9;/evil.example/']) {
+      const link = dom(`<a href="${href}">پیوند</a>`, SITE).querySelector('a')
+      expect(link, href).toHaveAttribute('target', '_blank')
+      expect(link, href).toHaveAttribute('rel', 'noopener noreferrer')
+    }
+    expect(dom('<a href="/page\\about/">درباره</a>', SITE).querySelector('a')).not.toHaveAttribute(
+      'target',
+    )
+  })
+
   it('keeps internal, mailto and tel links in the same tab', () => {
     const container = dom(
       '<a href="/page/about/" target="_self">درباره</a><a href="mailto:hi@shop.ir">ایمیل</a>' +

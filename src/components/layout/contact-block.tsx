@@ -37,6 +37,20 @@ function text(value: string | null | undefined): string {
   return value?.trim() ?? ''
 }
 
+/**
+ * `phone` and `phone2` as links, each number once: two spellings of one number
+ * (`+982191000000`, `021-9100-0000`) display the same and count as one.
+ */
+function uniquePhones(values: ReadonlyArray<string | null | undefined>) {
+  const byLabel = new Map<string, string>()
+  for (const value of values) {
+    const phone = text(value)
+    const label = phone && formatIranMobile(phone)
+    if (label && !byLabel.has(label)) byLabel.set(label, phone)
+  }
+  return [...byLabel].map(([label, tel]) => ({ label, tel }))
+}
+
 const LINK = 'rounded-control transition-colors hover:text-brand-700'
 const EXTERNAL = { target: '_blank', rel: 'noopener noreferrer' } as const
 
@@ -79,7 +93,7 @@ export function ContactBlock({
   t: Translate
   className?: string
 }) {
-  const phones = [text(settings.phone), text(settings.phone2)].filter(Boolean)
+  const phones = uniquePhones([settings.phone, settings.phone2])
   const email = text(settings.email)
   const address = text(settings.address)
   const postalCode = text(settings.postal_code)
@@ -114,18 +128,18 @@ export function ContactBlock({
           {phones.length > 0 && (
             <Item icon={Phone} label={t('contact_phone')}>
               <span className="flex flex-wrap items-center gap-x-3">
-                {phones.map((phone, index) => (
-                  <span key={phone} className="flex items-center gap-x-3">
+                {phones.map(({ label, tel }, index) => (
+                  <span key={label} className="flex items-center gap-x-3">
                     {index > 0 && <span aria-hidden className="h-4 w-px bg-ink-300" />}
                     <a
-                      href={`tel:${phone}`}
+                      href={`tel:${tel}`}
                       dir="ltr"
                       className={cn(
                         LINK,
                         'inline-flex min-h-11 items-center text-lg font-bold tracking-wide text-ink-900',
                       )}
                     >
-                      {formatIranMobile(phone)}
+                      {label}
                     </a>
                   </span>
                 ))}

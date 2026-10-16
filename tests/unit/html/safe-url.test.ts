@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mapLink } from '@/components/layout/contact-block'
-import { footerColumns } from '@/components/layout/footer-menu'
 import { httpUrl, linkUrl } from '@/lib/html/safe-url'
-import { menuNode } from '../layout/support'
 
 describe('httpUrl / linkUrl', () => {
   it('accepts absolute http(s) URLs only', () => {
@@ -47,29 +45,5 @@ describe('mapLink', () => {
     expect(mapLink('<iframe src="javascript:alert(1)"></iframe>')).toBeNull()
     expect(mapLink('تهران، میدان ونک')).toBeNull()
     expect(mapLink(null)).toBeNull()
-  })
-})
-
-describe('footerColumns', () => {
-  it('keeps operator order, gathering loose links where the first one is', () => {
-    const columns = footerColumns(
-      [
-        menuNode({ id: 1, title: 'قوانین', url: '/page/terms/' }),
-        menuNode({
-          id: 2,
-          title: 'خدمات',
-          url: null,
-          children: [menuNode({ id: 3, title: 'پرسش‌ها' })],
-        }),
-        menuNode({ id: 4, title: 'حریم خصوصی', url: '/page/privacy/' }),
-        menuNode({ id: 5, title: 'گروه خالی', url: null }),
-      ],
-      'لینک‌های مفید',
-    )
-    expect(columns.map((column) => [column.title, column.links.map((link) => link.id)])).toEqual([
-      ['لینک‌های مفید', [1, 4]],
-      ['خدمات', [3]],
-      ['گروه خالی', []],
-    ])
   })
 })

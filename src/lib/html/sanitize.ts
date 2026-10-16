@@ -84,12 +84,19 @@ function absolutize(value: string | undefined, apiOrigin: string | null): string
   return MEDIA_PATH.test(trimmed) ? `${apiOrigin}${trimmed}` : value
 }
 
-/** Whether a link leaves the shop: an absolute or protocol-relative URL on another origin. */
+/**
+ * Whether a link leaves the shop: an absolute or protocol-relative URL on another origin.
+ * Browsers drop tabs and line breaks from URLs and read `\` as `/` in http(s) URLs, so
+ * `/\host`, `\\host` and `/<tab>/host` are protocol-relative too: normalise before checking.
+ */
 function isExternal(href: string, siteOrigin: string | null): boolean {
-  const trimmed = href.trim()
-  if (!ABSOLUTE.test(trimmed)) return false
+  const normalised = href
+    .trim()
+    .replace(/[\t\n\r]/g, '')
+    .replaceAll('\\', '/')
+  if (!ABSOLUTE.test(normalised)) return false
   try {
-    return new URL(trimmed, siteOrigin ?? 'https://invalid.invalid').origin !== siteOrigin
+    return new URL(normalised, siteOrigin ?? 'https://invalid.invalid').origin !== siteOrigin
   } catch {
     return true
   }
