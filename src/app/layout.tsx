@@ -5,8 +5,13 @@ import { buildRootMetadata, buildRootViewport } from '@/app/_shell/metadata'
 import { ThemeHead } from '@/app/_shell/theme-head'
 import { Providers } from '@/app/providers'
 import { getStoreConfig, toPublicConfig } from '@/config/store-config'
-import { getFeatureStatus, getSiteSettings, getTranslations } from '@/features/settings/api'
-import { Snippets } from '@/features/settings/snippets'
+import {
+  getFeatureStatus,
+  getSiteSettings,
+  getSnippets,
+  getTranslations,
+} from '@/features/settings/api'
+import { SnippetHtmlZone, Snippets } from '@/features/settings/snippets'
 import { COOKIE } from '@/lib/auth/cookies'
 import { vazirmatn } from '@/lib/fonts'
 
@@ -23,10 +28,12 @@ export function generateViewport(): Viewport {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const config = getStoreConfig()
+  // getSnippets() is started here with the rest; the snippet slots below read its cached result.
   const [features, translations, cookieStore] = await Promise.all([
     getFeatureStatus(),
     getTranslations(),
     cookies(),
+    getSnippets(),
   ])
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
@@ -35,6 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Snippets position="in_head" />
       </head>
       <body>
+        <SnippetHtmlZone position="top" />
         <Snippets position="top_of_body" />
         <Providers
           config={toPublicConfig(config)}
@@ -44,6 +52,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           {children}
         </Providers>
+        {/* Task 13 moves this zone into the footer's trust-badge area. */}
+        <SnippetHtmlZone position="bottom" />
         <Snippets position="bottom_of_body" />
       </body>
     </html>

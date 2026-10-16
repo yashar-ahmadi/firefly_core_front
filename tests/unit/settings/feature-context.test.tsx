@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -7,7 +7,7 @@ import {
   useMarkFeatureDisabled,
   type FeatureMap,
 } from '@/features/settings/feature-context'
-import { FEATURE_KEYS, type FeatureKey } from '@/lib/api/types/common'
+import { FEATURE_KEYS } from '@/lib/api/types/common'
 
 function featureMap(overrides: Partial<FeatureMap> = {}): FeatureMap {
   const map = Object.fromEntries(
@@ -67,30 +67,38 @@ describe('feature context', () => {
     expect(result.current.coupons).toEqual({ enabled: false, reason: null })
   })
 
-  it('re-renders only the components that read the changed feature', () => {
-    const renders: Record<string, number> = {}
-    function Reader({ feature }: { feature: FeatureKey }) {
-      renders[feature] = (renders[feature] ?? 0) + 1
-      const { enabled } = useFeature(feature)
-      return <p>{`${feature}:${enabled ? 'on' : 'off'}`}</p>
-    }
-    let mark: ((key: FeatureKey, reason: string) => void) | undefined
-    function Marker() {
-      mark = useMarkFeatureDisabled()
-      return null
-    }
-    render(
-      <FeatureProvider initial={featureMap()}>
-        <Reader feature="coupons" />
-        <Reader feature="wallet" />
-        <Marker />
-      </FeatureProvider>,
+  it('takes a newer map from a server re-render, keeping the same marker', () => {
+    let initial = featureMap({
+      coupons: { key: 'coupons', name: '', enabled: false, reason: 'خاموش' },
+    })
+    const { result, rerender } = renderHook(
+      () => ({
+        coupons: useFeature('coupons'),
+        wallet: useFeature('wallet'),
+        mark: useMarkFeatureDisabled(),
+      }),
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <FeatureProvider initial={initial}>{children}</FeatureProvider>
+        ),
+      },
     )
-    expect(screen.getByText('coupons:on')).toBeInTheDocument()
+    const mark = result.current.mark
+    act(() => mark('wallet', 'x'))
+    rerender()
+    // The same server map: the client's own knowledge stays.
+    expect(result.current.wallet).toEqual({ enabled: false, reason: 'x' })
 
-    act(() => mark?.('coupons', 'x'))
-    expect(screen.getByText('coupons:off')).toBeInTheDocument()
-    expect(renders).toEqual({ coupons: 2, wallet: 1 })
+    // router.refresh() after the operator switched coupons back on.
+    initial = featureMap()
+    rerender()
+    expect(result.current.coupons).toEqual({ enabled: true, reason: null })
+    expect(result.current.wallet).toEqual({ enabled: true, reason: null })
+
+    // The QueryClient keeps the first marker it was given: it must still work.
+    expect(result.current.mark).toBe(mark)
+    act(() => mark('coupons', 'y'))
+    expect(result.current.coupons).toEqual({ enabled: false, reason: 'y' })
   })
 
   it('throws a clear error outside the provider', () => {

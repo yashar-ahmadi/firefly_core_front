@@ -6,7 +6,7 @@ import RootLayout, { generateMetadata, generateViewport } from '@/app/layout'
 import { Providers } from '@/app/providers'
 import { parseServerEnv } from '@/config/env-schema'
 import { resolveStoreConfig, type StoreConfig } from '@/config/resolve-store-config'
-import { Snippets } from '@/features/settings/snippets'
+import { SnippetHtmlZone, Snippets } from '@/features/settings/snippets'
 import { FEATURE_KEYS } from '@/lib/api/types/common'
 import type { FeatureState, SiteSettings } from '@/lib/api/types/settings'
 
@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   config: undefined as unknown as StoreConfig,
   settings: null as SiteSettings | null,
   cookies: new Set<string>(),
+  getSnippets: vi.fn(async () => []),
 }))
 
 vi.mock('server-only', () => ({}))
@@ -36,7 +37,7 @@ vi.mock('@/features/settings/api', () => ({
   getSiteSettings: async () => mocks.settings,
   getFeatureStatus: async () => features,
   getTranslations: async () => ({ cart: 'سبد من' }),
-  getSnippets: async () => [],
+  getSnippets: mocks.getSnippets,
 }))
 
 function configWith(env: Record<string, string> = {}): StoreConfig {
@@ -123,11 +124,23 @@ describe('RootLayout', () => {
       'in_head',
     )
 
-    const bodyChildren = ([] as ReactNode[]).concat(body?.props.children).filter(isValidElement)
-    const slots = bodyChildren.map((element) => (element as Element).props.position)
-    expect(slots[0]).toBe('top_of_body')
-    expect(slots.at(-1)).toBe('bottom_of_body')
-    expect(bodyChildren[1]?.type).toBe(Providers)
+    const bodyChildren = ([] as ReactNode[])
+      .concat(body?.props.children)
+      .filter(isValidElement) as Element[]
+    expect(bodyChildren.map((element) => [element.type, element.props.position])).toEqual([
+      [SnippetHtmlZone, 'top'],
+      [Snippets, 'top_of_body'],
+      [Providers, undefined],
+      [SnippetHtmlZone, 'bottom'],
+      [Snippets, 'bottom_of_body'],
+    ])
+  })
+
+  it('starts the snippets request together with the other loaders', async () => {
+    mocks.getSnippets.mockClear()
+    // The tree is not rendered here, so only the layout itself can have called it.
+    await RootLayout({ children: null })
+    expect(mocks.getSnippets).toHaveBeenCalledTimes(1)
   })
 
   it('passes the public config, features, translations and session flag to the providers', async () => {

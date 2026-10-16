@@ -6,7 +6,8 @@ import { parseSnippet, type SnippetNode } from '@/lib/snippets/parse'
  * Turns the operator's head/body snippets into React elements. Server-rendered HTML runs the
  * scripts on page load; React never re-creates them, because the root layout does not re-render
  * on client navigation. Snippets are trusted operator code and stay unsanitised by design
- * (analytics must execute); only attributes React cannot render from markup are dropped.
+ * (analytics must execute); only attributes React cannot render from markup are dropped, with a
+ * warning.
  * Pure: no `server-only`.
  */
 
@@ -38,6 +39,7 @@ export function snippetNodes(snippet: Snippet, placement: SnippetPlacement): Sni
     return []
   }
   const nodes = parseSnippet(code)
+  warnDroppedAttributes(snippet, nodes)
   if (placement === 'body') return nodes
   const headNodes = nodes.filter((node) => node.tag !== 'html')
   if (headNodes.length < nodes.length) {
@@ -74,6 +76,18 @@ function isUnrenderable(name: string): boolean {
   )
 }
 
+/** Report, by name only, the attributes the renderer will leave out (an `onload` handler, say). */
+function warnDroppedAttributes(snippet: Snippet, nodes: SnippetNode[]): void {
+  const dropped = new Set<string>()
+  for (const node of nodes) {
+    if (!('attrs' in node)) continue
+    for (const name of Object.keys(node.attrs)) if (isUnrenderable(name)) dropped.add(name)
+  }
+  if (dropped.size > 0) {
+    warnOnce(snippet, `dropped attributes React cannot render: ${[...dropped].join(', ')}`)
+  }
+}
+
 function toProps(attrs: Record<string, string>): Record<string, string | boolean> {
   const props: Record<string, string | boolean> = {}
   for (const [name, value] of Object.entries(attrs)) {
@@ -85,8 +99,8 @@ function toProps(attrs: Record<string, string>): Record<string, string | boolean
 
 /**
  * One node as an element. React 19 keeps `<meta>`, `<link>` and `async` external scripts in the
- * head wherever they are rendered; everything else stays in place. Loose HTML (body only) goes
- * into a hidden wrapper, so stray markup never shifts the layout.
+ * head wherever they are rendered; everything else stays in place. Loose HTML (a trust seal, a
+ * widget's mount point) is visible markup: the snippet zones (snippets.tsx) decide where it goes.
  */
 export function renderSnippetNode(node: SnippetNode, key: string): ReactNode {
   switch (node.tag) {
@@ -117,8 +131,7 @@ export function renderSnippetNode(node: SnippetNode, key: string): ReactNode {
       return (
         <div
           key={key}
-          hidden
-          // Third-party code may rewrite this markup before React hydrates it.
+          // Third-party code (a seal's own script) may rewrite this markup before hydration.
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: node.inline }}
         />

@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { act, render, renderHook, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Providers } from '@/app/providers'
 import { IconButton } from '@/components/ui/icon-button'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -138,5 +138,17 @@ describe('Providers', () => {
     )
     await user.hover(screen.getByRole('button', { name: 'علاقه‌مندی' }))
     expect(await screen.findByRole('tooltip')).toHaveTextContent('افزودن به علاقه‌مندی‌ها')
+  })
+})
+
+describe('hooks outside their provider', () => {
+  it.each<[string, () => unknown, RegExp]>([
+    ['useStoreConfig', () => useStoreConfig(), /StoreConfigProvider/],
+    ['useSession', () => useSession(), /SessionProvider/],
+  ])('%s throws a clear error', (_name, hook, message) => {
+    // React reports the render error too; keep the test output clean.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(() => renderHook(hook)).toThrow(message)
+    error.mockRestore()
   })
 })

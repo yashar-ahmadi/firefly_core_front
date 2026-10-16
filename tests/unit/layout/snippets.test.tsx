@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
-import { Snippets } from '@/features/settings/snippets'
+import { SnippetHtmlZone, Snippets } from '@/features/settings/snippets'
 import type { Snippet } from '@/lib/api/types/settings'
 
 vi.mock('server-only', () => ({}))
@@ -23,11 +23,19 @@ async function markup(position: Slot): Promise<string> {
   return renderToStaticMarkup(await Snippets({ position }))
 }
 
+async function zoneMarkup(position: 'top' | 'bottom'): Promise<string> {
+  return renderToStaticMarkup(await SnippetHtmlZone({ position }))
+}
+
 /** Parsed into a detached element: scripts inserted through innerHTML never run. */
-async function nodes(position: Slot): Promise<HTMLElement> {
+function parse(html: string): HTMLElement {
   const container = document.createElement('div')
-  container.innerHTML = await markup(position)
+  container.innerHTML = html
   return container
+}
+
+async function nodes(position: Slot): Promise<HTMLElement> {
+  return parse(await markup(position))
 }
 
 let warn: MockInstance<typeof console.warn>
@@ -161,12 +169,47 @@ describe('<Snippets>', () => {
     expect(fragment.querySelector('noscript')?.innerHTML).toContain('px.example.com/p.gif')
   })
 
-  it('puts loose HTML into a hidden wrapper in body positions', async () => {
+  it('renders top_of_body HTML visibly in the top zone; the slot keeps the scripts', async () => {
     serve(snippet('top_of_body', 'script', '<div id="chat-root"></div><script>chat()</script>'))
-    const fragment = await nodes('top_of_body')
-    const wrapper = fragment.querySelector('div[hidden]')
-    expect(wrapper?.querySelector('#chat-root')).not.toBeNull()
-    expect(fragment.querySelector('script')?.textContent).toBe('chat()')
+    expect(await markup('top_of_body')).toBe('<script>chat()</script>')
+
+    const zone = parse(await zoneMarkup('top')).querySelector('[data-snippet-zone="top"]')
+    expect(zone?.querySelector('#chat-root')).not.toBeNull()
+    expect(zone?.closest('[hidden]')).toBeNull()
+    expect(zone?.querySelector('[hidden]')).toBeNull()
+  })
+
+  it('collects bottom_of_body and outside_of_body HTML in a visible, centred bottom zone', async () => {
+    const seal =
+      '<a referrerpolicy="origin" target="_blank" href="https://trustseal.enamad.ir/?id=1&Code=x">' +
+      '<img referrerpolicy="origin" src="https://trustseal.enamad.ir/logo.aspx?id=1" alt="" id="enamad-seal"></a>'
+    serve(
+      snippet('bottom_of_body', 'script', seal),
+      snippet('outside_of_body', 'script', '<span id="other-badge">نشان</span>'),
+    )
+    // HTML has no place in the script slot.
+    expect(await markup('bottom_of_body')).toBe('')
+
+    const zone = parse(await zoneMarkup('bottom')).querySelector('[data-snippet-zone="bottom"]')
+    expect(zone).not.toBeNull()
+    expect(zone?.className).toContain('justify-center')
+    expect(zone?.querySelector('[hidden]')).toBeNull()
+    expect(
+      zone?.querySelector('a[href^="https://trustseal.enamad.ir/"] img#enamad-seal'),
+    ).not.toBeNull()
+    // API order: bottom_of_body, then outside_of_body.
+    expect(zone?.innerHTML.indexOf('enamad-seal')).toBeLessThan(
+      zone?.innerHTML.indexOf('other-badge') ?? -1,
+    )
+  })
+
+  it('renders no zone when there is no HTML', async () => {
+    serve(
+      snippet('top_of_body', 'script', '<script>top()</script>'),
+      snippet('bottom_of_body', 'script', '<script>bottom()</script>'),
+    )
+    expect(await zoneMarkup('top')).toBe('')
+    expect(await zoneMarkup('bottom')).toBe('')
   })
 
   it('skips loose HTML in the head with a warning', async () => {
@@ -178,18 +221,25 @@ describe('<Snippets>', () => {
   })
 
   it('drops attributes React cannot render from markup and keeps the rest', async () => {
-    serve(
-      snippet(
-        'bottom_of_body',
-        'script',
-        '<script src="https://cdn.example.com/w.js" class="widget" onload="init()" style="x" key="k" ref="r" id="w"></script>',
-      ),
+    const row = snippet(
+      'bottom_of_body',
+      'script',
+      '<script src="https://cdn.example.com/w.js" class="widget" onload="init()" style="x" key="k" ref="r" id="w"></script>',
     )
+    serve(row)
     const script = (await nodes('bottom_of_body')).querySelector('script')
     expect(script).toHaveAttribute('src', 'https://cdn.example.com/w.js')
     expect(script).toHaveAttribute('class', 'widget')
     expect(script).toHaveAttribute('id', 'w')
     for (const name of ['onload', 'style', 'key', 'ref']) expect(script).not.toHaveAttribute(name)
+
+    // One warning naming the snippet and the attributes, never their values.
+    await markup('bottom_of_body')
+    expect(warn).toHaveBeenCalledTimes(1)
+    const message = String(warn.mock.calls[0]?.[0])
+    expect(message).toContain(`snippet ${row.id}`)
+    expect(message).toContain('onload, style, key, ref')
+    expect(message).not.toContain('init()')
   })
 
   it('ignores unknown positions and renders nothing without snippets', async () => {
@@ -197,6 +247,7 @@ describe('<Snippets>', () => {
     for (const slot of ['in_head', 'top_of_body', 'bottom_of_body'] as const) {
       expect(await markup(slot)).toBe('')
     }
+    expect(await zoneMarkup('bottom')).toBe('')
     serve()
     expect(await markup('bottom_of_body')).toBe('')
   })

@@ -156,6 +156,26 @@ describe('toPublicConfig', () => {
     expect(pub.firebase).toBeNull()
   })
 
+  it('sends exactly the allow-listed keys, even when the server config grows', () => {
+    const config = resolveStoreConfig(envWith())
+    const grown = { ...config, apiKey: 'secret-key' } as typeof config
+    for (const pub of [toPublicConfig(config), toPublicConfig(grown)]) {
+      expect(Object.keys(pub).sort()).toEqual(
+        [
+          'features',
+          'firebase',
+          'map',
+          'mediaOrigin',
+          'preset',
+          'presetLabel',
+          'siteUrl',
+          'theme',
+        ].sort(),
+      )
+    }
+    expect(JSON.stringify(toPublicConfig(grown))).not.toContain('secret-key')
+  })
+
   it('keeps a non-default port in mediaOrigin', () => {
     const config = resolveStoreConfig(parseServerEnv({}))
     expect(toPublicConfig(config).mediaOrigin).toBe('http://localhost:8000')

@@ -32,8 +32,14 @@ export interface StoreConfig {
   firebase: FirebaseWebConfig | null
 }
 
-/** What the browser may see: no API URL, only the origin that serves media files. */
-export type PublicStoreConfig = Omit<StoreConfig, 'apiUrl'> & { mediaOrigin: string }
+/**
+ * What the browser may see: an allow-list, so a key added to StoreConfig later is never sent by
+ * accident. No API URL, only the origin that serves media files.
+ */
+export type PublicStoreConfig = Pick<
+  StoreConfig,
+  'preset' | 'presetLabel' | 'siteUrl' | 'theme' | 'features' | 'map' | 'firebase'
+> & { mediaOrigin: string }
 
 /** Combines the chosen preset with the env overrides. */
 export function resolveStoreConfig(env: ServerEnv): StoreConfig {
@@ -67,8 +73,16 @@ export function resolveStoreConfig(env: ServerEnv): StoreConfig {
   }
 }
 
-/** Strips the API URL and adds the API origin, which the browser needs for media images. */
+/** Copies the public keys and adds the API origin, which the browser needs for media images. */
 export function toPublicConfig(config: StoreConfig): PublicStoreConfig {
-  const { apiUrl, ...rest } = config
-  return { ...rest, mediaOrigin: new URL(apiUrl).origin }
+  return {
+    preset: config.preset,
+    presetLabel: config.presetLabel,
+    siteUrl: config.siteUrl,
+    theme: config.theme,
+    features: config.features,
+    map: config.map,
+    firebase: config.firebase,
+    mediaOrigin: new URL(config.apiUrl).origin,
+  }
 }
