@@ -1,14 +1,16 @@
 'use client'
 
-import { ListFilter, ShoppingCart } from 'lucide-react'
+import { ListFilter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { notify } from '@/components/ui/toaster'
+import { AddToCartButton } from '@/features/cart/components/add-to-cart-button'
 import { ProductCard } from '@/features/catalog/components/product-card'
 import type { ProductCard as ProductCardData } from '@/lib/api/types/catalog'
 
 // The product card as a Client Component parent uses it. Following the spec's one-tap rule, a
 // simple product adds straight from the card; a variable one opens quick view, so the shopper
-// always sees the variant. Plan 2 Tasks 3 and 9 supply the real buttons; these only toast.
+// always sees the variant. The add button is the real one (it writes to the dev cart through the
+// BFF); quick view (Plan 2 Task 9) only toasts here.
 
 export function ProductCardDemo({ product }: { product: ProductCardData }) {
   const openQuickView = (slug: string) => notify.info(`مشاهده سریع: ${slug}`)
@@ -20,16 +22,15 @@ export function ProductCardDemo({ product }: { product: ProductCardData }) {
       onQuickView={openQuickView}
       addSlot={
         oneTap ? (
-          <Button
+          <AddToCartButton
+            variantId={product.in_stock ? product.default_variant_id : null}
+            quantity={product.order_limit_min || 1}
+            product={{ name: product.name, image: product.image }}
             size="sm"
             variant="secondary"
             fullWidth
-            iconStart={<ShoppingCart />}
-            disabled={!product.in_stock}
-            onClick={() => notify.success(`«${product.name}» به سبد خرید افزوده شد.`)}
-          >
-            {product.in_stock ? 'افزودن به سبد' : 'ناموجود'}
-          </Button>
+            label="افزودن به سبد"
+          />
         ) : (
           <Button
             size="sm"

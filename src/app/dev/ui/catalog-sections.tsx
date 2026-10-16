@@ -1,3 +1,4 @@
+import { AddToCartButton } from '@/features/cart/components/add-to-cart-button'
 import { ProductCard } from '@/features/catalog/components/product-card'
 import { ProductCardSkeleton } from '@/features/catalog/components/product-card-skeleton'
 import { ProductGrid, ProductGridSkeleton } from '@/features/catalog/components/product-grid'
@@ -10,6 +11,7 @@ import { Demo, Section, sectionTitle } from './showcase'
 const SIDE_BY_SIDE = 'grid grid-cols-2 items-start gap-2 sm:gap-3 md:grid-cols-4'
 
 export function ProductCardSection() {
+  const samsung = showcaseProduct('samsung-galaxy-s25-ultra')
   return (
     <Section
       id="products"
@@ -52,6 +54,21 @@ export function ProductCardSection() {
         </div>
         <div data-showcase="skeleton-action">
           <ProductCardSkeleton withAction />
+        </div>
+      </Demo>
+
+      <Demo label="دکمه افزودن به سبد با سبد واقعی از راه BFF: گوشی سامسونگ S25 اولترا، و حالت ناموجود">
+        <div data-showcase="add-to-cart" className="contents">
+          <AddToCartButton
+            variantId={samsung.default_variant_id}
+            quantity={samsung.order_limit_min || 1}
+            product={{ name: samsung.name, image: samsung.image }}
+          />
+          <AddToCartButton
+            variantId={null}
+            quantity={1}
+            product={{ name: samsung.name, image: samsung.image }}
+          />
         </div>
       </Demo>
 

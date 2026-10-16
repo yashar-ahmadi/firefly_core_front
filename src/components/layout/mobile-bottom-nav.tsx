@@ -4,9 +4,9 @@ import { CircleUserRound, House, LayoutGrid, ShoppingCart, type LucideIcon } fro
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/components/ui/cn'
+import { CartBadge, useCartLabel } from '@/features/cart/components/cart-badge'
 import { useT } from '@/lib/i18n/i18n-context'
 import { useSession } from '@/lib/session/session-context'
-import { CountBadge } from './count-badge'
 
 /** Pages that bring their own bottom bar (checkout's "pay" bar). */
 const HIDDEN_ON = /^\/checkout(?:\/|$)/
@@ -16,7 +16,8 @@ interface Tab {
   label: string
   icon: LucideIcon
   active: boolean
-  count?: number
+  /** The cart tab: its accessible name carries the item count, and it shows the badge. */
+  cart?: boolean
 }
 
 const under = (pathname: string, ...prefixes: string[]) =>
@@ -27,10 +28,11 @@ const under = (pathname: string, ...prefixes: string[]) =>
  * is brand-coloured with a filled icon. It slides away while scrolling down and is not shown
  * during checkout. It also reserves its height at the end of the page, so nothing hides under it.
  */
-export function MobileBottomNav({ cartCount }: { cartCount?: number }) {
+export function MobileBottomNav() {
   const t = useT()
   const pathname = usePathname() ?? '/'
   const { hasSession } = useSession()
+  const cartLabel = useCartLabel()
   if (HIDDEN_ON.test(pathname)) return null
 
   const tabs: Tab[] = [
@@ -46,7 +48,7 @@ export function MobileBottomNav({ cartCount }: { cartCount?: number }) {
       label: t('cart'),
       icon: ShoppingCart,
       active: under(pathname, '/cart/'),
-      count: cartCount,
+      cart: true,
     },
     {
       href: hasSession ? '/account/' : '/login/?next=/account/',
@@ -68,12 +70,12 @@ export function MobileBottomNav({ cartCount }: { cartCount?: number }) {
         )}
       >
         <ul className="grid h-16 grid-cols-4">
-          {tabs.map(({ href, label, icon: Icon, active, count }) => (
+          {tabs.map(({ href, label, icon: Icon, active, cart }) => (
             <li key={href}>
               <Link
                 href={href}
                 aria-current={active ? 'page' : undefined}
-                aria-label={count ? t('cart_count', { count }) : undefined}
+                aria-label={cart ? cartLabel : undefined}
                 className={cn(
                   'relative flex h-full flex-col items-center justify-center gap-1 text-sm focus-visible:-outline-offset-2',
                   'before:absolute before:top-0 before:h-0.5 before:w-10 before:rounded-b-full',
@@ -86,7 +88,7 @@ export function MobileBottomNav({ cartCount }: { cartCount?: number }) {
                     strokeWidth={active ? 2.2 : 1.8}
                     className={cn('size-6', active ? 'fill-brand-100' : 'text-ink-500')}
                   />
-                  {count ? <CountBadge count={count} /> : null}
+                  {cart && <CartBadge />}
                 </span>
                 {label}
               </Link>

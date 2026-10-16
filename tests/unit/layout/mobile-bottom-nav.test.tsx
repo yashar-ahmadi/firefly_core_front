@@ -2,13 +2,16 @@ import { render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav'
-import { SessionProvider } from '@/lib/session/session-context'
+import { cart, cartLine, result } from '../cart/support'
+import { clientProviders } from '../support/providers'
 
-const nav = vi.hoisted(() => ({ pathname: '/' }))
+const nav = vi.hoisted(() => ({ pathname: '/', bffFetch: vi.fn() }))
 vi.mock('next/navigation', () => ({ usePathname: () => nav.pathname }))
+vi.mock('@/lib/api/client', () => ({ bffFetch: nav.bffFetch }))
 
 function withSession(children: ReactNode, hasSession = false) {
-  return <SessionProvider initialHasSession={hasSession}>{children}</SessionProvider>
+  const { wrapper: Wrapper } = clientProviders({ hasSession })
+  return <Wrapper>{children}</Wrapper>
 }
 
 function bottomNav() {
@@ -17,6 +20,8 @@ function bottomNav() {
 
 beforeEach(() => {
   nav.pathname = '/'
+  nav.bffFetch.mockReset()
+  nav.bffFetch.mockResolvedValue(result(cart()))
 })
 
 describe('MobileBottomNav', () => {
@@ -65,11 +70,12 @@ describe('MobileBottomNav', () => {
     }
   })
 
-  it('shows the cart count in Persian digits', () => {
-    render(withSession(<MobileBottomNav cartCount={3} />))
-    const cart = within(bottomNav()).getByRole('link', { name: /سبد خرید/ })
-    expect(cart).toHaveAccessibleName('سبد خرید، ۳ کالا')
-    expect(cart).toHaveTextContent('۳')
+  it('shows the cart count in Persian digits once the cart is read', async () => {
+    nav.bffFetch.mockResolvedValue(result(cart([cartLine({ quantity: 3 })])))
+    render(withSession(<MobileBottomNav />))
+    const link = await within(bottomNav()).findByRole('link', { name: 'سبد خرید، ۳ کالا' })
+    expect(link).toHaveAttribute('href', '/cart/')
+    expect(link).toHaveTextContent('۳')
   })
 
   it('is not rendered during checkout', () => {

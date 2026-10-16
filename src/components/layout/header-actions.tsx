@@ -3,6 +3,7 @@
 import { ChevronDown, CircleUserRound, LogIn, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState, type MouseEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClasses, iconButtonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
@@ -12,11 +13,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { SHEET_SIDE_QUERY } from '@/components/ui/sheet'
+import { useMediaQuery } from '@/components/ui/use-media-query'
+import { CartBadge, useCartLabel } from '@/features/cart/components/cart-badge'
+import { MiniCart } from '@/features/cart/components/mini-cart'
 import { useFeature } from '@/features/settings/feature-context'
 import { useT } from '@/lib/i18n/i18n-context'
 import { loginHref } from '@/lib/links/login'
 import { useSession } from '@/lib/session/session-context'
-import { CountBadge } from './count-badge'
 
 /** Signed in: the account entry (Plan 3 adds the summary and sign-out). */
 function AccountMenu() {
@@ -45,11 +49,44 @@ function AccountMenu() {
   )
 }
 
+/** A click that should open the link elsewhere (new tab or window) or is not the main button. */
+function isModifiedClick(event: MouseEvent): boolean {
+  return event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+}
+
 /**
- * The header's end: the account entry (from md; phones use the bottom bar) and the cart.
- * `cartCount` is a slot for the cart store (Plan 4); without it no badge is shown.
+ * The cart icon with its item count. Below md it is a plain link to the cart page (phones also
+ * have it in the bottom bar); from md it opens the mini-cart drawer instead, while a modified
+ * click still opens the cart page in a new tab.
  */
-export function HeaderActions({ cartCount }: { cartCount?: number }) {
+function CartEntry() {
+  const label = useCartLabel()
+  const wide = useMediaQuery(SHEET_SIDE_QUERY)
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Link
+        href="/cart/"
+        aria-label={label}
+        aria-haspopup={wide ? 'dialog' : undefined}
+        aria-expanded={wide ? open : undefined}
+        onClick={(event) => {
+          if (!wide || isModifiedClick(event)) return
+          event.preventDefault()
+          setOpen(true)
+        }}
+        className={cn(iconButtonClasses(), 'text-ink-800')}
+      >
+        <ShoppingCart aria-hidden />
+        <CartBadge className="-end-0.5 -top-0.5" />
+      </Link>
+      <MiniCart open={open} onOpenChange={setOpen} />
+    </>
+  )
+}
+
+/** The header's end: the account entry (from md; phones use the bottom bar) and the cart. */
+export function HeaderActions() {
   const t = useT()
   const pathname = usePathname() ?? '/'
   const { hasSession } = useSession()
@@ -71,14 +108,7 @@ export function HeaderActions({ cartCount }: { cartCount?: number }) {
         )}
       </div>
       <span aria-hidden className="hidden h-6 w-px bg-ink-200 md:block" />
-      <Link
-        href="/cart/"
-        aria-label={cartCount ? t('cart_count', { count: cartCount }) : t('cart')}
-        className={cn(iconButtonClasses(), 'text-ink-800')}
-      >
-        <ShoppingCart aria-hidden />
-        {cartCount ? <CountBadge count={cartCount} className="-end-0.5 -top-0.5" /> : null}
-      </Link>
+      <CartEntry />
     </div>
   )
 }

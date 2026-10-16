@@ -34,6 +34,11 @@ vi.mock('@/config/store-config', async () => {
   )
   return { ...pure, getStoreConfig: () => config }
 })
+// The header's cart badge reads the cart through the BFF: a guest without a cart.
+vi.mock('@/lib/api/client', async () => {
+  const { cart, result } = await import('../cart/support')
+  return { bffFetch: async () => result(cart()) }
+})
 vi.mock('@/features/settings/api', () => ({
   getSiteSettings: async () => mocks.settings,
   getMenu: async (key: string) => mocks.menus[key] ?? [],
