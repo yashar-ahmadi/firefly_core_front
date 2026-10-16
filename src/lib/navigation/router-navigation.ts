@@ -13,7 +13,7 @@ import { useEffect, useEffectEvent, useState } from 'react'
 export const ROUTER_NAVIGATION_START = 'ff:router-navigation-start'
 
 /** A navigation that has not landed by then went elsewhere (a redirect back here, an error). */
-const PENDING_LIMIT_MS = 10_000
+export const PENDING_LIMIT_MS = 10_000
 
 export function announceRouterNavigation(url: string): void {
   window.dispatchEvent(new CustomEvent(ROUTER_NAVIGATION_START, { detail: url }))
@@ -26,24 +26,29 @@ export function announceRouterNavigation(url: string): void {
  * upgraded to open a dialog (`data-opens-dialog`: quick view's «انتخاب ویژگی‌ها»).
  */
 export function isSameOriginLinkClick(event: MouseEvent): boolean {
+  return sameOriginLinkTarget(event) !== null
+}
+
+/** The URL a click is about to follow when `isSameOriginLinkClick` holds, else null. */
+export function sameOriginLinkTarget(event: MouseEvent): URL | null {
   if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-    return false
+    return null
   }
   const link = event.target instanceof Element ? event.target.closest('a[href]') : null
-  if (!(link instanceof HTMLAnchorElement) || link.hasAttribute('download')) return false
-  if (link.hasAttribute('data-opens-dialog')) return false
+  if (!(link instanceof HTMLAnchorElement) || link.hasAttribute('download')) return null
+  if (link.hasAttribute('data-opens-dialog')) return null
   const target = link.target.toLowerCase()
-  if (target !== '' && target !== '_self') return false
+  if (target !== '' && target !== '_self') return null
   let url: URL
   try {
     url = new URL(link.href)
   } catch {
-    return false
+    return null
   }
-  if (url.origin !== window.location.origin) return false
+  if (url.origin !== window.location.origin) return null
   const samePage =
     url.pathname === window.location.pathname && url.search === window.location.search
-  return !(samePage && url.hash !== '')
+  return samePage && url.hash !== '' ? null : url
 }
 
 function decodedPath(pathname: string): string {
@@ -58,7 +63,7 @@ function decodedPath(pathname: string): string {
  * One spelling of a URL for comparing: the path decoded (a Persian slug may arrive encoded or
  * not) and the query as `URLSearchParams` writes it, the form `useSearchParams()` reports.
  */
-function locationKey(pathname: string, search: string): string {
+export function locationKey(pathname: string, search: string): string {
   const query = new URLSearchParams(search).toString()
   return query ? `${decodedPath(pathname)}?${query}` : decodedPath(pathname)
 }
