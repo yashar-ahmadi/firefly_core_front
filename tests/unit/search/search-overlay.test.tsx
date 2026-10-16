@@ -1,5 +1,6 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HeaderSearchForm } from '@/components/layout/header-search-form'
@@ -111,6 +112,13 @@ describe('the header search on phones', () => {
     expect(useRecentSearches.getState().items).toEqual(['سامسونگ'])
   })
 
+  it('announces how many suggestions there are, as the desktop box does', async () => {
+    mocks.bffFetch.mockResolvedValue(answer(SAMSUNG))
+    const dialog = await openOverlay(renderPhone())
+    await userEvent.type(within(dialog).getByRole('combobox'), 'سامسونگ')
+    await waitFor(() => expect(within(dialog).getByRole('status')).toHaveTextContent('۵ پیشنهاد'))
+  })
+
   it('shows the recent searches while its field is empty', async () => {
     const items = ['هدفون', 'لپ تاپ']
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify({ state: { items }, version: 0 }))
@@ -185,5 +193,45 @@ describe('the header search on phones', () => {
     await waitFor(() => expect(mocks.bffFetch).toHaveBeenCalled())
     await act(async () => {})
     expect(within(dialog).queryByText(/خطا/)).toBeNull()
+  })
+})
+
+describe('the phone field before hydration', () => {
+  it('stays a plain field for a visitor already typing in it, until it loses the focus', async () => {
+    const { wrapper: Wrapper } = clientProviders()
+    const ui = (
+      <Wrapper>
+        <HeaderSearchForm size="md" overlay />
+        <button type="button">elsewhere</button>
+      </Wrapper>
+    )
+    const container = document.createElement('div')
+    container.innerHTML = renderToString(ui)
+    document.body.append(container)
+    // A fast tap and some typing on a page whose scripts have not run yet.
+    const field = container.querySelector<HTMLInputElement>('input[name="q"]')!
+    field.focus()
+    field.value = 'هدف'
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    await act(async () => {
+      root = hydrateRoot(container, ui)
+    })
+    try {
+      // Hydrated, but still the field being typed in: not read-only, nothing lost, no overlay.
+      expect(field).not.toHaveAttribute('readonly')
+      expect(field).toHaveValue('هدف')
+      expect(field).toHaveFocus()
+      expect(screen.queryByRole('dialog')).toBeNull()
+      // Once the visitor leaves it, it opens the overlay like any other time, with the text.
+      act(() => screen.getByRole('button', { name: 'elsewhere' }).focus())
+      expect(field).toHaveAttribute('readonly')
+      expect(field).toHaveAttribute('aria-haspopup', 'dialog')
+      fireEvent.click(field)
+      const dialog = await screen.findByRole('dialog', { name: 'جستجو' })
+      expect(within(dialog).getByRole('combobox')).toHaveValue('هدف')
+    } finally {
+      act(() => root?.unmount())
+      container.remove()
+    }
   })
 })

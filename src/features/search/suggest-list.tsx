@@ -2,16 +2,23 @@
 
 import { History, Search, X } from 'lucide-react'
 import Link from 'next/link'
-import { useId, type ReactNode } from 'react'
+import { useId, type MouseEvent, type ReactNode } from 'react'
 import { CategoryThumb } from '@/components/layout/category-thumb'
 import { cn } from '@/components/ui/cn'
 import { SmartImage } from '@/components/ui/smart-image'
 import { Highlight } from './highlight'
 import { SUGGEST_GROUPS, type SuggestOption } from './suggest-options'
 
+/**
+ * A row of the list. Hover tints it grey; the highlighted (keyboard) option is tinted brand and
+ * marked by a bar at its start edge in brand-600, which stands out at well over 3:1 against
+ * the white panel and the tint, so the highlight never rests on a pale background alone.
+ */
 const OPTION = cn(
-  'flex min-h-11 w-full cursor-pointer items-center gap-3 px-4 py-1.5 text-start text-base text-ink-800',
+  'relative flex min-h-11 w-full cursor-pointer items-center gap-3 px-4 py-1.5 text-start text-base text-ink-800',
   'transition-colors hover:bg-ink-50 aria-selected:bg-brand-50 aria-selected:text-ink-900',
+  'before:absolute before:inset-y-1 before:start-0 before:w-1 before:rounded-e-full before:bg-brand-600',
+  'before:opacity-0 aria-selected:before:opacity-100',
 )
 const GROUP_LABEL = 'px-4 pt-3 pb-1 text-sm font-bold text-ink-600'
 const RECENT_LABEL = 'جستجوهای اخیر'
@@ -26,7 +33,7 @@ export interface SuggestListProps {
   /** The element id of option `index` (the input's `aria-activedescendant`). */
   optionId: (index: number) => string
   onChoose: (option: SuggestOption) => void
-  onFollow: () => void
+  onFollow: (event: MouseEvent) => void
   onRemove: (term: string) => void
   onClear: () => void
 }
@@ -133,8 +140,9 @@ function Suggestions({
 /**
  * The recent searches: options in a listbox, and beside each, outside the listbox (an option
  * may not hold a control), its × button. Rows have one fixed height, so the two columns line
- * up. The × buttons stay out of the tab order (Delete removes the highlighted one from the
- * keyboard); «پاک کردن همه» is a normal button.
+ * up. The × buttons stay out of the tab order: from the keyboard, Delete or Backspace removes
+ * the highlighted one (announced by the field's description and each option's
+ * `aria-keyshortcuts`); «پاک کردن همه» is a normal button.
  */
 function RecentSearches({
   id,
@@ -169,6 +177,7 @@ function RecentSearches({
                 id={optionId(index)}
                 role="option"
                 aria-selected={index === activeIndex}
+                aria-keyshortcuts="Delete Backspace"
                 onClick={() => onChoose(option)}
                 className={cn(OPTION, 'h-11 pe-14')}
               >

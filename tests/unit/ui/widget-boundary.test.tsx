@@ -23,9 +23,16 @@ function Broken(): never {
 let consoleError: MockInstance<typeof console.error>
 
 beforeEach(() => {
-  // React reports every error a boundary catches; the boundary logs its own line too.
+  // React (and Next's onCaughtError in production) reports every error a boundary catches.
   consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
 })
+
+/** The console.error calls that carry the error with `message`. */
+function reports(message: string) {
+  return consoleError.mock.calls.filter((args) =>
+    args.some((arg) => arg instanceof Error && arg.message === message),
+  )
+}
 
 afterEach(() => {
   consoleError.mockRestore()
@@ -42,7 +49,7 @@ describe('WidgetBoundary', () => {
     expect(consoleError).not.toHaveBeenCalled()
   })
 
-  it('keeps a render error to the widget: the page beside it stays, and the error is logged', () => {
+  it('keeps a render error to the widget: the page beside it stays, and the error is reported once', () => {
     render(
       <main>
         <p>page</p>
@@ -53,10 +60,19 @@ describe('WidgetBoundary', () => {
     )
     expect(screen.getByText('page')).toBeInTheDocument()
     expect(screen.getByRole('main')).toHaveTextContent(/^page$/)
-    expect(consoleError).toHaveBeenCalledWith(
-      expect.stringContaining('compare-bar'),
-      expect.objectContaining({ message: 'widget render bug' }),
+    // React's report names the failed component and the boundary; the boundary adds none.
+    expect(consoleError).toHaveBeenCalledTimes(1)
+    expect(reports('widget render bug')).toHaveLength(1)
+  })
+
+  it('tells its owner that the widget failed', () => {
+    const onError = vi.fn()
+    render(
+      <WidgetBoundary name="search-overlay" onError={onError}>
+        <Broken />
+      </WidgetBoundary>,
     )
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'widget render bug' }))
   })
 
   it('shows its fallback instead of a failed widget', () => {
@@ -84,9 +100,6 @@ describe('the header actions', () => {
     const link = await screen.findByRole('link', { name: /^سبد خرید/ })
     expect(link).toHaveAttribute('href', '/cart/')
     expect(link).not.toHaveAttribute('aria-haspopup')
-    expect(consoleError).toHaveBeenCalledWith(
-      expect.stringContaining('mini-cart'),
-      expect.objectContaining({ message: 'mini-cart render bug' }),
-    )
+    expect(reports('mini-cart render bug')).toHaveLength(1)
   })
 })

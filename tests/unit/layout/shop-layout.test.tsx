@@ -48,10 +48,11 @@ describe('the shop layout', () => {
       expect(screen.getByRole('main')).toHaveTextContent('page')
       expect(screen.getByText('quick-view-host')).toBeInTheDocument()
       expect(screen.queryByText('compare-bar')).toBeNull()
-      expect(consoleError).toHaveBeenCalledWith(
-        expect.stringContaining('compare-bar'),
-        expect.any(Error),
+      // Reported once (by React), not again by the boundary.
+      const reports = consoleError.mock.calls.filter((args) =>
+        args.some((arg) => arg instanceof Error && arg.message === 'compare bar render bug'),
       )
+      expect(reports).toHaveLength(1)
     } finally {
       consoleError.mockRestore()
     }

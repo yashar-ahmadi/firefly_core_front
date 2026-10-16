@@ -19,11 +19,14 @@ const TIPS = [
 const CATEGORY_LIMIT = 8
 const PANEL = 'rounded-card bg-white px-4 py-6 shadow-card md:px-8'
 
-/** The search field under a message, as wide as a field reads well. */
-function SearchAgain() {
+/**
+ * The search field under a message, as wide as a field reads well. Its `search` landmark is
+ * named: the header has the other one.
+ */
+function SearchAgain({ label, initialValue }: { label: string; initialValue?: string }) {
   return (
     <div className="mx-auto w-full max-w-lg">
-      <HeaderSearchForm />
+      <HeaderSearchForm label={label} initialValue={initialValue} />
     </div>
   )
 }
@@ -58,7 +61,7 @@ export function SearchStart() {
         description={'نام کالا، برند یا دسته\u{200C}بندی را بنویسید.'}
         className="py-4"
       />
-      <SearchAgain />
+      <SearchAgain label="جستجو در فروشگاه" />
       <SearchTips />
     </div>
   )
@@ -106,8 +109,8 @@ export function NoResults({ query, categories }: { query: string; categories: Ca
   )
 }
 
-/** A term the API refused (400): its own reason, and the field to try another. */
-export function SearchRefused({ detail }: { detail: string }) {
+/** A term the API refused (400): the reason, and the field (holding the term) to try again. */
+export function SearchRefused({ detail, q }: { detail: string; q: string }) {
   return (
     <div className={PANEL}>
       <EmptyState
@@ -116,7 +119,7 @@ export function SearchRefused({ detail }: { detail: string }) {
         description={detail}
         className="py-4"
       />
-      <SearchAgain />
+      <SearchAgain label="جستجوی دوباره" initialValue={q} />
     </div>
   )
 }

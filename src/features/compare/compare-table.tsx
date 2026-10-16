@@ -21,13 +21,18 @@ const LABEL_CELL = 'sticky start-0 z-[1] w-28 min-w-28 border-e border-ink-100 b
  */
 const PRODUCT_CELL = 'min-w-40 md:min-w-56'
 
-/** A column of the table: a product's payload, or one that could not be read (with a retry). */
+/**
+ * A column of the table: a product's payload, or one that could not be read (with a retry).
+ * `slug` is the entry's slug in the compare list: the column's key and what «حذف از مقایسه»
+ * removes. The payload's own slug may be spelled differently (an older or encoded slug that the
+ * API answers with the current product), and two entries may even read the same product.
+ */
 export type CompareColumn =
-  | { kind: 'product'; product: ProductDetail }
+  | { kind: 'product'; slug: string; product: ProductDetail }
   | { kind: 'failed'; item: CompareItem; onRetry: () => void; retrying: boolean }
 
 const slugOf = (column: CompareColumn) =>
-  column.kind === 'product' ? column.product.slug : column.item.slug
+  column.kind === 'product' ? column.slug : column.item.slug
 
 /** Each column's place among the loaded products (the rows' values), or null for a failed one. */
 function valueIndexes(columns: readonly CompareColumn[]): (number | null)[] {
@@ -102,7 +107,7 @@ export function CompareTable({ columns, onRemove }: CompareTableProps) {
                   {column.kind === 'product' ? (
                     <CompareColumnHead
                       product={column.product}
-                      onRemove={() => onRemove(column.product.slug)}
+                      onRemove={() => onRemove(column.slug)}
                     />
                   ) : (
                     <CompareColumnFailed

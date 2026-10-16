@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState, type KeyboardEvent } from 'react'
+import { useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { usePersistHydration } from '@/lib/store/persisted'
 import { searchHref } from './query'
 import { useRecentSearches } from './recent-searches'
@@ -17,6 +17,8 @@ export interface SearchBox {
   activeIndex: number
   /** The list is on screen (`aria-expanded`). */
   expanded: boolean
+  /** The list on screen is the recent searches (the field is empty). */
+  recentShown: boolean
   /** Suggestions for the current term are still to come. */
   loading: boolean
   /** How many products, categories and brands are suggested. */
@@ -26,8 +28,11 @@ export interface SearchBox {
   onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void
   /** Acts on an option chosen from the keyboard or by a click on a non-link option. */
   choose: (option: SuggestOption) => void
-  /** A suggestion link was clicked: its navigation is the link's own. */
-  follow: () => void
+  /**
+   * A suggestion link was clicked: its navigation is the link's own. A modified click (a new
+   * tab or window) leaves the box as it is and remembers nothing.
+   */
+  follow: (event: MouseEvent) => void
   /** The form was submitted. */
   submitted: () => void
   removeRecent: (term: string) => void
@@ -42,7 +47,8 @@ export interface SearchBox {
  * - Enter goes to the highlighted option; with none, the form submits as usual.
  * - Escape closes the list, then (closed) clears the field. A handler that already took the
  *   key (the overlay's dialog) wins.
- * - Delete forgets the highlighted recent search.
+ * - Delete or Backspace forgets the highlighted recent search (the field is empty then, so
+ *   nothing else is lost) and moves the highlight to the next one.
  * Choosing anything remembers the query among the recent searches. `inline` lists are always
  * shown (the overlay); others open on focus and typing. `onDone` runs after a navigation.
  */
@@ -119,10 +125,14 @@ export function useSearchBox({
         }
         return
       case 'Delete':
+      case 'Backspace': {
         if (active?.kind !== 'recent') return
         event.preventDefault()
+        const next = options[activeIndex + 1] ?? options[activeIndex - 1]
         remove(active.term)
+        setActiveKey(next?.key ?? null)
         return
+      }
     }
   }
 
@@ -136,6 +146,7 @@ export function useSearchBox({
     options,
     activeIndex,
     expanded,
+    recentShown: expanded && options[0]?.kind === 'recent',
     loading: isLoading,
     suggestionCount: options.filter((option) => option.kind === 'suggestion').length,
     open: () => setOpen(true),
@@ -145,7 +156,10 @@ export function useSearchBox({
     },
     onKeyDown,
     choose,
-    follow: () => {
+    follow: (event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return
+      }
       if (typedTerm(value) !== '') add(value)
       finish()
     },

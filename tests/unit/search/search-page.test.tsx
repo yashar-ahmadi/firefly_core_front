@@ -99,7 +99,11 @@ describe('the search page without a term', () => {
       screen.getByRole('heading', { name: 'چه چیزی را جستجو می\u{200C}کنید؟' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'راهنمای جستجو' })).toBeInTheDocument()
-    expect(screen.getByRole('search', { name: '' })).toHaveAttribute('action', '/search/')
+    // The page's own search form, named apart from the header's.
+    expect(screen.getByRole('search', { name: 'جستجو در فروشگاه' })).toHaveAttribute(
+      'action',
+      '/search/',
+    )
   })
 
   it('has a «جستجو» title, noindex, and no API call for its metadata', async () => {
@@ -239,7 +243,21 @@ describe('the search page when the API refuses', () => {
       screen.getByRole('heading', { name: 'این عبارت را نمی\u{200C}توان جستجو کرد' }),
     ).toBeInTheDocument()
     expect(screen.getByText('عبارت جستجو باید دست\u{200C}کم ۲ نویسه باشد.')).toBeInTheDocument()
-    expect(screen.getByRole('search')).toBeInTheDocument()
+    // The field to try again, named, with the refused term in it.
+    const again = screen.getByRole('search', { name: 'جستجوی دوباره' })
+    expect(within(again).getByRole('combobox')).toHaveValue('س')
+  })
+
+  it.each([
+    ['max_length', 'عبارت جستجو بیش از حد بلند است.'],
+    ['null_characters_not_allowed', 'عبارت جستجو نویسه\u{200C}ای نامعتبر دارد.'],
+    ['some_new_code', 'عبارت دیگری را امتحان کنید.'],
+  ])('says why in its own words when the API gives no reason (%s)', async (code, copy) => {
+    mocks.apiFetch.mockRejectedValue(
+      new ApiError({ status: 400, errors: [{ code, detail: ' ', attr: 'q' }] }),
+    )
+    await show({ q: 'x'.repeat(201) })
+    expect(screen.getByText(copy)).toBeInTheDocument()
   })
 
   it('asks to try again later after a 429', async () => {

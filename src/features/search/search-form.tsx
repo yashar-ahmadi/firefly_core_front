@@ -20,11 +20,14 @@ import { SEARCH_SUBMIT, searchInputClasses, type SearchFieldSize } from './searc
 export function SearchForm({
   className,
   formRef,
+  label,
   onSearch,
   children,
 }: {
   className?: string
   formRef?: Ref<HTMLFormElement>
+  /** Names the `search` landmark: needed when a page has more than one. */
+  label?: string
   onSearch?: () => void
   children: ReactNode
 }) {
@@ -34,6 +37,7 @@ export function SearchForm({
       ref={formRef}
       action="/search/"
       role="search"
+      aria-label={label}
       className={cn('relative flex w-full items-center', className)}
       onSubmit={(event) => {
         const input = event.currentTarget.elements.namedItem('q')
@@ -82,20 +86,25 @@ export const SEARCH_INPUT_PROPS = {
 export function PlainSearchForm({
   size = 'lg',
   className,
+  label,
+  initialValue,
 }: {
   size?: SearchFieldSize
   className?: string
+  label?: string
+  initialValue?: string
 }) {
   const t = useT()
   const id = useId()
   return (
-    <SearchForm className={className}>
+    <SearchForm className={className} label={label}>
       <label htmlFor={id} className="sr-only">
         {t('search')}
       </label>
       <input
         id={id}
         {...SEARCH_INPUT_PROPS}
+        defaultValue={initialValue}
         placeholder={t('search_placeholder')}
         className={searchInputClasses(size)}
       />

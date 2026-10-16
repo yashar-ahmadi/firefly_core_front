@@ -7,8 +7,8 @@ import { cn } from '@/components/ui/cn'
 import { IconButton } from '@/components/ui/icon-button'
 import { useReturnFocus } from '@/components/ui/overlay-panel'
 import { useT } from '@/lib/i18n/i18n-context'
-import { SEARCH_INPUT_PROPS, SearchForm, SearchSubmit } from './search-form'
-import { searchInputClasses } from './search-field'
+import { ComboboxField, optionId, SuggestionStatus } from './combobox-field'
+import { SearchForm, SearchSubmit } from './search-form'
 import { SuggestList } from './suggest-list'
 import { useSearchBox } from './use-search-box'
 
@@ -24,11 +24,9 @@ const HINT = 'نام کالا، برند یا دسته\u{200C}بندی را بن
 /** The open overlay: mounted on each opening, so it always starts from `initialValue`. */
 function OverlayContent({ initialValue, onClose }: { initialValue: string; onClose: () => void }) {
   const t = useT()
-  const inputId = useId()
   const listboxId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const box = useSearchBox({ inline: true, initialValue, onDone: onClose })
-  const optionId = (index: number) => `${listboxId}-option-${index}`
   const returnFocus = useReturnFocus({
     onOpenAutoFocus(event) {
       event.preventDefault()
@@ -58,24 +56,7 @@ function OverlayContent({ initialValue, onClose }: { initialValue: string; onClo
           <IconButton label={t('back')} icon={<ArrowRight className="ltr:rotate-180" />} />
         </DialogPrimitive.Close>
         <SearchForm onSearch={box.submitted} className="flex-1">
-          <label htmlFor={inputId} className="sr-only">
-            {t('search')}
-          </label>
-          <input
-            ref={inputRef}
-            id={inputId}
-            {...SEARCH_INPUT_PROPS}
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded={box.expanded}
-            aria-controls={listboxId}
-            aria-activedescendant={box.activeIndex === -1 ? undefined : optionId(box.activeIndex)}
-            value={box.value}
-            onChange={(event) => box.setValue(event.target.value)}
-            onKeyDown={box.onKeyDown}
-            placeholder={t('search_placeholder')}
-            className={searchInputClasses('md')}
-          />
+          <ComboboxField box={box} listboxId={listboxId} size="md" inputRef={inputRef} />
           <SearchSubmit />
         </SearchForm>
       </div>
@@ -89,7 +70,7 @@ function OverlayContent({ initialValue, onClose }: { initialValue: string; onClo
           options={box.options}
           activeIndex={box.activeIndex}
           query={box.value}
-          optionId={optionId}
+          optionId={(index) => optionId(listboxId, index)}
           onChoose={box.choose}
           onFollow={box.follow}
           onRemove={box.removeRecent}
@@ -100,6 +81,7 @@ function OverlayContent({ initialValue, onClose }: { initialValue: string; onClo
         />
         {box.options.length === 0 && <p className="px-4 py-6 text-center text-ink-600">{HINT}</p>}
       </div>
+      <SuggestionStatus box={box} />
     </DialogPrimitive.Content>
   )
 }

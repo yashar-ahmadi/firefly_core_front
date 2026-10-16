@@ -74,7 +74,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   const outcome = await searchCatalog(q)
   if (outcome.kind === 'refused') {
-    return page(TITLE, <SearchRefused detail={outcome.detail} />)
+    return page(TITLE, <SearchRefused detail={outcome.detail} q={q} />)
   }
   if (outcome.kind === 'throttled') {
     return page(TITLE, <SearchThrottled q={q} />)

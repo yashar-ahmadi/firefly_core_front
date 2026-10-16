@@ -1,5 +1,4 @@
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { act, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ActiveFilterChips,
@@ -28,7 +27,15 @@ function renderChips(search: string) {
       </ListingUrlProvider>
     </NavigatingRouter>,
   )
-  return userEvent.setup()
+}
+
+/**
+ * Presses a button whose navigation stays pending (the results never arrive here), in an
+ * awaited act: user-event's synchronous act warns about the transition suspending inside it.
+ */
+async function press(name: string) {
+  const button = screen.getByRole('button', { name })
+  await act(async () => button.click())
 }
 
 const heading = () => screen.getByRole('heading', { name: 'کالاها' })
@@ -39,8 +46,8 @@ beforeEach(() => {
 
 describe('ActiveFilterChips focus', () => {
   it('moves focus to the chip that took the removed one’s place, at once', async () => {
-    const user = renderChips('brand=apple,samsung')
-    await user.click(screen.getByRole('button', { name: 'حذف فیلتر اپل' }))
+    renderChips('brand=apple,samsung')
+    await press('حذف فیلتر اپل')
     // Before the new results arrive: the chip is gone (optimistic) and focus moved on.
     expect(navigation.pending).toHaveLength(1)
     expect(screen.queryByRole('button', { name: 'حذف فیلتر اپل' })).toBeNull()
@@ -49,23 +56,23 @@ describe('ActiveFilterChips focus', () => {
   })
 
   it('moves focus to the results heading when the last chip goes', async () => {
-    const user = renderChips('brand=apple')
-    await user.click(screen.getByRole('button', { name: 'حذف فیلتر اپل' }))
+    renderChips('brand=apple')
+    await press('حذف فیلتر اپل')
     expect(screen.queryByRole('list', { name: 'فیلترهای فعال' })).toBeNull()
     expect(focusedElement()).toBe(heading())
   })
 
   it('moves focus to the results heading after «حذف همه»', async () => {
-    const user = renderChips('brand=apple&in_stock=true&sort=sale')
-    await user.click(screen.getByRole('button', { name: 'حذف همه' }))
+    renderChips('brand=apple&in_stock=true&sort=sale')
+    await press('حذف همه')
     expect(navigation.replace).toHaveBeenCalledWith('/c/?sort=sale', { scroll: false })
     expect(focusedElement()).toBe(heading())
     expect(screen.queryByRole('list', { name: 'فیلترهای فعال' })).toBeNull()
   })
 
   it('moves focus to the results heading after «حذف فیلترها»', async () => {
-    const user = renderChips('brand=apple')
-    await user.click(screen.getByRole('button', { name: 'حذف فیلترها' }))
+    renderChips('brand=apple')
+    await press('حذف فیلترها')
     expect(navigation.replace).toHaveBeenCalledWith('/c/', { scroll: false })
     expect(focusedElement()).toBe(heading())
   })

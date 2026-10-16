@@ -12,9 +12,25 @@ import { getClientIp } from '@/lib/http/client-ip'
 /** What the results page shows: the results, a term the API refused (400), or a 429. */
 export type SearchOutcome =
   | { kind: 'found'; results: SearchResults }
-  /** `detail`: the API's own Persian reason (too short, too long, a NUL character…). */
+  /** `detail`: the API's own Persian reason (too short, too long, a NUL…), or copy by code. */
   | { kind: 'refused'; detail: string }
   | { kind: 'throttled' }
+
+/** The API's reasons in the store's words, for a 400 that carries no detail of its own. */
+const REFUSAL_COPY: Record<string, string> = {
+  min_length: 'عبارت جستجو دست\u{200C}کم دو حرف باشد.',
+  max_length: 'عبارت جستجو بیش از حد بلند است.',
+  null_characters_not_allowed: 'عبارت جستجو نویسه\u{200C}ای نامعتبر دارد.',
+  required: 'عبارتی برای جستجو بنویسید.',
+  blank: 'عبارتی برای جستجو بنویسید.',
+}
+const REFUSAL_FALLBACK = 'عبارت دیگری را امتحان کنید.'
+
+/** Why the API refused the term: its own Persian detail, else the copy for its code. */
+function refusal(error: ApiError): string {
+  const detail = error.errors.find((item) => item.detail.trim() !== '')?.detail.trim()
+  return detail || REFUSAL_COPY[error.code] || REFUSAL_FALLBACK
+}
 
 function group<T>(raw: SearchGroup<T> | undefined): SearchGroup<T> {
   return {
@@ -59,7 +75,7 @@ export const searchCatalog = cache(async (q: string): Promise<SearchOutcome> => 
     return { kind: 'found', results: tidy(data) }
   } catch (error) {
     if (error instanceof ApiError && error.status === 400) {
-      return { kind: 'refused', detail: error.detail }
+      return { kind: 'refused', detail: refusal(error) }
     }
     if (error instanceof ApiError && error.status === 429) return { kind: 'throttled' }
     throw error

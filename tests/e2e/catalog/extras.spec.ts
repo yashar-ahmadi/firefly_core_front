@@ -180,6 +180,10 @@ test.describe('recently viewed', () => {
     for (const product of [S25, IPHONE_15]) {
       await page.goto(`/product/${product.slug}/`)
       await expect(page.getByRole('heading', { level: 1, name: product.name })).toBeVisible()
+      // The server HTML shows the heading before hydration: wait until the visit is saved.
+      await expect
+        .poll(() => page.evaluate(() => localStorage.getItem('ff-recent') ?? ''))
+        .toContain(`"slug":"${product.slug}"`)
     }
     await page.goto('/')
     const strip = page.getByRole('region', { name: 'بازدیدهای اخیر' })

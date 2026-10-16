@@ -36,6 +36,26 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+/**
+ * Clicks `element` and tells whether the page left the link to the browser (did not prevent the
+ * default). jsdom cannot follow it, so a window listener, which runs after the page's own
+ * handlers, stops the navigation once the page had its say.
+ */
+function follows(element: HTMLElement, init?: MouseEventInit): boolean {
+  let left = false
+  const stop = (event: Event) => {
+    left = !event.defaultPrevented
+    event.preventDefault()
+  }
+  window.addEventListener('click', stop)
+  try {
+    fireEvent.click(element, init)
+  } finally {
+    window.removeEventListener('click', stop)
+  }
+  return left
+}
+
 describe('QuickViewLink («انتخاب ویژگی‌ها»)', () => {
   it('is a plain link to the product page in the server HTML (works before hydration)', () => {
     const html = renderToString(<Named>{link()}</Named>)
@@ -93,17 +113,14 @@ describe('QuickViewLink («انتخاب ویژگی‌ها»)', () => {
 
   it('leaves a modified click to the browser (a new tab on the product page)', () => {
     render(<Named>{link()}</Named>)
-    const followed = fireEvent.click(screen.getByRole('button', { name: CHOOSE }), {
-      ctrlKey: true,
-    })
-    expect(followed).toBe(true)
+    expect(follows(screen.getByRole('button', { name: CHOOSE }), { ctrlKey: true })).toBe(true)
     expect(useQuickViewStore.getState().open).toBe(false)
   })
 
   it('follows the link when no quick view host is mounted', () => {
     useQuickViewStore.setState({ hosts: 0 })
     render(<Named>{link()}</Named>)
-    expect(fireEvent.click(screen.getByRole('button', { name: CHOOSE }))).toBe(true)
+    expect(follows(screen.getByRole('button', { name: CHOOSE }))).toBe(true)
   })
 
   it('stays a link to the product page while quick view is switched off', () => {

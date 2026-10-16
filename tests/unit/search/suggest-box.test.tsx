@@ -16,6 +16,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 stubBrowserApis()
 
 const SEARCH_ALL = (q: string) => `جستجوی «${q}» در همه\u{0654} محصولات`
+const REMOVE_HINT = 'برای حذف جستجوی انتخاب\u{200C}شده، Delete یا Backspace را بزنید.'
 const ZWJ = /\u{200D}/gu
 
 /** Form submissions that reached the document (the test stops the browser's navigation). */
@@ -193,6 +194,25 @@ describe('SuggestBox', () => {
     expect(input).toHaveAttribute('aria-expanded', 'false')
   })
 
+  it('announces how many suggestions there are', async () => {
+    const input = renderBox()
+    await typeSamsung(input)
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('۵ پیشنهاد'))
+  })
+
+  it('leaves a modified click (a new tab) alone: the list stays open and nothing is remembered', async () => {
+    const input = renderBox()
+    await typeSamsung(input)
+    const brand = within(screen.getByRole('group', { name: 'برندها' })).getByRole('option')
+    brand.addEventListener('click', (event) => event.preventDefault())
+    const user = userEvent.setup()
+    await user.keyboard('{Control>}')
+    await user.click(brand)
+    await user.keyboard('{/Control}')
+    expect(useRecentSearches.getState().items).toEqual([])
+    expect(input).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('offers only «search everywhere» when suggestions fail, and shows no error', async () => {
     mocks.bffFetch.mockRejectedValue(new ApiError({ status: 429, code: 'throttled' }))
     const input = renderBox()
@@ -248,6 +268,30 @@ describe('SuggestBox recent searches', () => {
     expect(input).toHaveFocus()
     await userEvent.keyboard('{ArrowDown}{Delete}')
     expect(useRecentSearches.getState().items).toEqual(['لپ تاپ'])
+  })
+
+  it('tells how to remove one: a description on the field, shortcuts on each option', async () => {
+    const input = renderBox()
+    expect(input).not.toHaveAccessibleDescription()
+    await userEvent.click(input)
+    expect(input).toHaveAccessibleDescription(REMOVE_HINT)
+    for (const option of within(listbox()).getAllByRole('option')) {
+      expect(option).toHaveAttribute('aria-keyshortcuts', 'Delete Backspace')
+    }
+    await userEvent.type(input, 'سا')
+    expect(input).not.toHaveAccessibleDescription()
+  })
+
+  it('removes the highlighted one with Backspace too, keeping the highlight at its place', async () => {
+    const input = renderBox()
+    await userEvent.click(input)
+    await userEvent.keyboard('{ArrowDown}{Backspace}')
+    expect(useRecentSearches.getState().items).toEqual(['گوشی سامسونگ', 'لپ تاپ'])
+    expect(text(active(input))).toBe('گوشی سامسونگ')
+    await userEvent.keyboard('{ArrowDown}{Delete}')
+    expect(useRecentSearches.getState().items).toEqual(['گوشی سامسونگ'])
+    expect(text(active(input))).toBe('گوشی سامسونگ')
+    expect(input).toHaveValue('')
   })
 
   it('«پاک کردن همه» forgets them all and gives the focus back to the field', async () => {

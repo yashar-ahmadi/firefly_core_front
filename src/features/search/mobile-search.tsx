@@ -45,7 +45,8 @@ interface OverlayState {
 
 /**
  * The phone header's search field. The server and a page without JS get the plain GET form to
- * `/search/`. Once hydrated, the field is a read-only trigger (`aria-haspopup="dialog"`): a tap,
+ * `/search/`; a field already focused when the page hydrates stays that plain field until it
+ * loses the focus, so typing is never interrupted. Once hydrated, the field is a read-only trigger (`aria-haspopup="dialog"`): a tap,
  * Enter, Space, an arrow or a typed key opens SearchOverlay (the key typed is kept), and so does
  * the magnifier. A navigation of the page behind closes it. If the overlay's code cannot load,
  * or it fails to render, the field goes back to being the plain form's input, focused for
@@ -57,12 +58,18 @@ export function MobileSearch({ className }: { className?: string }) {
   const fieldRef = useRef<HTMLInputElement>(null)
   const hydrated = useHydrated()
   const [failed, setFailed] = useState(false)
+  // Focused before the page hydrated (a fast tap on a slow page): the visitor may be typing in
+  // it. It stays a plain field, with what it holds, until it loses the focus; then it becomes
+  // the overlay's trigger like any other time. Read once, from the DOM the server rendered.
+  const [typingFirst, setTypingFirst] = useState(
+    () => typeof document !== 'undefined' && document.activeElement?.id === id,
+  )
   const [state, setState] = useState<OverlayState>({
     open: false,
     mounted: false,
     initialValue: '',
   })
-  const overlay = hydrated && !failed
+  const overlay = hydrated && !failed && !typingFirst
   const markFailed = useCallback(() => setFailed(true), [])
 
   // The header outlives the page: a navigation behind the overlay (the phone's Back button)
@@ -102,6 +109,7 @@ export function MobileSearch({ className }: { className?: string }) {
           aria-haspopup={overlay ? 'dialog' : undefined}
           onPointerDown={overlay ? preloadOverlay : undefined}
           onClick={overlay ? (event) => openWith(event.currentTarget.value) : undefined}
+          onBlur={typingFirst ? () => setTypingFirst(false) : undefined}
           onKeyDown={overlay ? onKeyDown : undefined}
           placeholder={t('search_placeholder')}
           className={searchInputClasses('md')}

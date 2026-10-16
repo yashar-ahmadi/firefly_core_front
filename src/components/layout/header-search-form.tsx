@@ -16,19 +16,23 @@ export function HeaderSearchForm({
   size = 'lg',
   overlay = false,
   className,
+  label,
+  initialValue,
 }: {
   /** `lg` is 48px (desktop and tablet), `md` 44px (phones). */
   size?: SearchFieldSize
   overlay?: boolean
   className?: string
+  /** Names the `search` landmark of a form placed in a page (the header's is the other). */
+  label?: string
+  /** What the field starts with (the suggest box only). */
+  initialValue?: string
 }) {
   if (overlay) return <MobileSearch className={className} />
+  const field = { size, className, label, initialValue }
   return (
-    <WidgetBoundary
-      name="search-box"
-      fallback={<PlainSearchForm size={size} className={className} />}
-    >
-      <SuggestBox size={size} className={className} />
+    <WidgetBoundary name="search-box" fallback={<PlainSearchForm {...field} />}>
+      <SuggestBox {...field} />
     </WidgetBoundary>
   )
 }

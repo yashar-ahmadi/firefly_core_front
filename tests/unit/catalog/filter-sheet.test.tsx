@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FilterSheet } from '@/features/catalog/components/listing/filter-sheet'
@@ -31,7 +31,10 @@ describe('FilterSheet', () => {
     )
     await user.click(screen.getByRole('button', { name: 'فیلترها، ۲ فیلتر فعال' }))
     const sheet = await screen.findByRole('dialog', { name: 'فیلترها' })
-    await user.click(within(sheet).getByRole('button', { name: 'حذف همه' }))
+    // The navigation stays pending (the results never arrive here): an awaited act, since
+    // user-event's synchronous one warns about the transition that suspends inside it.
+    const clearAll = within(sheet).getByRole('button', { name: 'حذف همه' })
+    await act(async () => clearAll.click())
     expect(navigation.replace).toHaveBeenCalledWith('/c/', { scroll: false })
     // «حذف همه» is now disabled; focus moved to the button that shows the results.
     expect(within(sheet).getByRole('button', { name: 'حذف همه' })).toBeDisabled()

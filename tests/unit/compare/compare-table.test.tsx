@@ -84,9 +84,9 @@ describe('differingRows («فقط تفاوت‌ها»)', () => {
   })
 })
 
-/** Every product loaded: one column each. */
+/** Every product loaded: one column each, listed under its own slug. */
 const loaded = (products: ProductDetail[]): CompareColumn[] =>
-  products.map((product) => ({ kind: 'product', product }))
+  products.map((product) => ({ kind: 'product', slug: product.slug, product }))
 
 function tableUi(columns: CompareColumn[], onRemove: (slug: string) => void) {
   return <CompareTable columns={columns} onRemove={onRemove} />
@@ -144,9 +144,21 @@ describe('CompareTable', () => {
     expect(screen.getByRole('row', { name: /^حافظه داخلی/ })).toBeInTheDocument()
   })
 
+  it('keys and removes a column by its slug in the compare list, whatever slug the API answers with', async () => {
+    const user = userEvent.setup()
+    // Two saved entries (an old, encoded spelling and the current one) that read the same product.
+    const { onRemove } = renderColumns([
+      { kind: 'product', slug: 'samsung-galaxy-s25-ultra', product: phone() },
+      { kind: 'product', slug: 'samsung%2Dgalaxy-s25-ultra', product: phone() },
+    ])
+    const [, , second] = screen.getAllByRole('columnheader')
+    await user.click(within(second!).getByRole('button', { name: 'حذف از مقایسه' }))
+    expect(onRemove).toHaveBeenCalledWith('samsung%2Dgalaxy-s25-ultra')
+  })
+
   it('says so when the products differ in nothing', async () => {
     const user = userEvent.setup()
-    renderTable([phone(), phone()])
+    renderTable([phone(), { ...phone(), id: 10009, slug: 'samsung-galaxy-s25-ultra-twin' }])
     await user.click(screen.getByRole('switch', { name: 'فقط تفاوت\u{200C}ها' }))
     expect(screen.getByText('مشخصات این کالاها تفاوتی با هم ندارد.')).toBeInTheDocument()
   })
@@ -200,7 +212,7 @@ describe('CompareTable', () => {
       categoryId: 10002,
     }
     const { onRemove } = renderColumns([
-      { kind: 'product', product: phone() },
+      { kind: 'product', slug: 'samsung-galaxy-s25-ultra', product: phone() },
       { kind: 'failed', item: failed, onRetry, retrying: false },
     ])
     const [, ok, broken] = screen.getAllByRole('columnheader')

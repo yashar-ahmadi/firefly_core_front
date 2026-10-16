@@ -121,7 +121,7 @@ export function CompareView({ headingId }: { headingId: string }) {
     // and one still on its way joins when it arrives.
     const columns = items.flatMap((item, index): CompareColumn[] => {
       const query = queries[index]
-      if (query?.data) return [{ kind: 'product', product: query.data }]
+      if (query?.data) return [{ kind: 'product', slug: item.slug, product: query.data }]
       if (!hasFailed(query) || isApiNotFound(query.error)) return []
       return [
         { kind: 'failed', item, onRetry: () => void query.refetch(), retrying: query.isFetching },

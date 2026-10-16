@@ -82,6 +82,17 @@ describe('SmartImage', () => {
     expect(overridden).toBe(`${MEDIA}/media/b.jpg`)
   })
 
+  /**
+   * jsdom has neither CSS nor layout: give the picture's frame the position its class sets and
+   * the picture a height, as a browser would, before next/image's development checks read them
+   * on load.
+   */
+  function laidOut(img: HTMLElement): HTMLElement {
+    img.parentElement!.style.position = 'relative'
+    Object.defineProperty(img, 'height', { configurable: true, value: 120 })
+    return img
+  }
+
   it('shows a skeleton in the frame until the image loads', async () => {
     const { container } = render(
       <SmartImage src="https://cdn.example.com/a.jpg" alt="گوشی" ratio="1/1" skeleton />,
@@ -89,7 +100,7 @@ describe('SmartImage', () => {
     const skeleton = () => container.querySelector('[data-image-skeleton]')
     expect(skeleton()).not.toBeNull()
     // next/image reports the load after `decode()`, a microtask later.
-    fireEvent.load(screen.getByRole('img', { name: 'گوشی' }))
+    fireEvent.load(laidOut(screen.getByRole('img', { name: 'گوشی' })))
     await waitFor(() => expect(skeleton()).toBeNull())
   })
 
@@ -101,7 +112,7 @@ describe('SmartImage', () => {
     fireEvent.error(screen.getByRole('img', { name: 'گوشی' }))
     expect(skeleton()).not.toBeNull()
     // next/image reports the load after `decode()`, a microtask later.
-    fireEvent.load(screen.getByRole('img', { name: 'گوشی' }))
+    fireEvent.load(laidOut(screen.getByRole('img', { name: 'گوشی' })))
     await waitFor(() => expect(skeleton()).toBeNull())
   })
 
