@@ -1,5 +1,6 @@
-import { devices, expect, test, type Browser, type Page } from '@playwright/test'
+import { devices, expect, test, type Browser } from '@playwright/test'
 import { SAMPLE, seedCompare } from '../support/compare-seed'
+import { shellHydrated } from '../support/hydrated'
 import { watchErrors } from '../support/watch-errors'
 
 // The production build hydrates every catalog page cleanly, on a phone (375) and on a desktop
@@ -34,22 +35,6 @@ const VIEWPORTS = [
 /** Hydration errors React or Next may log in any console channel. */
 const HYDRATION = /Hydration failed|Minified React error #(?:418|423|425)\b|hydration/i
 
-/**
- * Resolves once the shell has hydrated: below md the header's search field becomes a read-only
- * trigger, from md the cart icon becomes a button that opens the mini-cart.
- */
-async function hydrated(page: Page, width: number) {
-  const banner = page.getByRole('banner')
-  if (width < 768) {
-    await expect(banner.getByRole('searchbox', { name: 'جستجو' })).toHaveAttribute('readonly', '')
-  } else {
-    await expect(banner.getByRole('link', { name: /^سبد خرید/ })).toHaveAttribute(
-      'aria-haspopup',
-      'dialog',
-    )
-  }
-}
-
 async function visit(browser: Browser, path: string, viewport: (typeof VIEWPORTS)[number]) {
   const context = await browser.newContext({
     ...viewport.options,
@@ -64,7 +49,7 @@ async function visit(browser: Browser, path: string, viewport: (typeof VIEWPORTS
     if (HYDRATION.test(message.text())) hydration.push(`${message.type()}: ${message.text()}`)
   })
   const response = await page.goto(path)
-  await hydrated(page, viewport.width)
+  await shellHydrated(page)
   // The seeded products are compared side by side (read on the client, after hydration).
   if (path === '/compare/') await expect(page.getByRole('table')).toBeVisible()
   await page.waitForLoadState('load')

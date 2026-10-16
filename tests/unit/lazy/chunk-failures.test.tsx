@@ -124,7 +124,7 @@ describe('the phone search overlay whose code cannot load', () => {
   it('leaves the header field a plain search field, focused for typing', async () => {
     withProviders(<HeaderSearchForm size="md" overlay />)
     const field = screen.getByRole('searchbox', { name: 'جستجو' })
-    await waitFor(() => expect(field).toHaveAttribute('readonly'))
+    await waitFor(() => expect(field).toHaveAttribute('aria-haspopup', 'dialog'))
     // A clock 10 ms ahead on every read: React's scheduler yields after each task, as it does on
     // a busy main thread, so a focus left to a later task would not be there yet.
     const now = performance.now.bind(performance)
@@ -132,12 +132,12 @@ describe('the phone search overlay whose code cannot load', () => {
     const clock = vi.spyOn(performance, 'now').mockImplementation(() => now() + (ahead += 10))
     try {
       fireEvent.click(field)
-      await waitFor(() => expect(field).not.toHaveAttribute('readonly'))
+      await waitFor(() => expect(field).not.toHaveAttribute('aria-haspopup'))
       expect(field).toHaveFocus()
     } finally {
       clock.mockRestore()
     }
-    expect(field).not.toHaveAttribute('aria-haspopup')
+    expect(field).not.toHaveAttribute('readonly')
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByRole('search')).toHaveAttribute('action', '/search/')
   })

@@ -296,6 +296,19 @@ signed-in header to another.
   the `Accordion` where either matters or the state is driven from code (the listing filters).
   Server Components must not import a heavy client primitive just to wrap a trigger (a `Dialog`
   imported by a Server Component ships with every page that renders it).
+- **The phone search overlay and the iOS keyboard.** iOS raises the keyboard only for a field the
+  visitor taps or one focused inside the tap's own event handling. The phone header field
+  (`features/search/mobile-search.tsx`) is therefore a real, writable input (never read-only
+  before a tap), and on touch phones (`(pointer: coarse)` below md) the overlay's code is
+  preloaded on idle after hydration (`requestIdleCallback`, else a 1.5 s timer;
+  `features/search/overlay-loader.ts`). With the code in, a tap opens the overlay inside
+  `flushSync` and its field takes the focus before the tap's handler returns. Without it yet, the
+  focus and whatever is typed stay in the header field, and the overlay opens with that text once
+  the code arrives (leaving the field first cancels the opening). After closing, the focus returns
+  to the header field read-only until it leaves, so the return does not raise the keyboard. If the
+  code cannot load, the field stays the plain GET form. **Unverified on a real iPhone**: the unit
+  tests check that the overlay field is focused while the tap is still being handled, which is the
+  condition iOS needs, but no device test was possible here.
 - **Layout stability.** Vazirmatn loads with `display: swap` behind Persian-tuned fallback faces
   (`styles/font-fallbacks.css`, listed in `lib/fonts.ts`), so text keeps its width and line breaks
   when the font arrives. Images have fixed frames, and countdowns and badges keep one width

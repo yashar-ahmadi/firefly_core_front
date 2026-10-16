@@ -217,14 +217,14 @@ describe('the phone field before hydration', () => {
       root = hydrateRoot(container, ui)
     })
     try {
-      // Hydrated, but still the field being typed in: not read-only, nothing lost, no overlay.
-      expect(field).not.toHaveAttribute('readonly')
+      // Hydrated, but still the field being typed in: a plain field, nothing lost, no overlay.
+      expect(field).not.toHaveAttribute('aria-haspopup')
       expect(field).toHaveValue('هدف')
       expect(field).toHaveFocus()
       expect(screen.queryByRole('dialog')).toBeNull()
       // Once the visitor leaves it, it opens the overlay like any other time, with the text.
       act(() => screen.getByRole('button', { name: 'elsewhere' }).focus())
-      expect(field).toHaveAttribute('readonly')
+      expect(field).not.toHaveAttribute('readonly')
       expect(field).toHaveAttribute('aria-haspopup', 'dialog')
       fireEvent.click(field)
       const dialog = await screen.findByRole('dialog', { name: 'جستجو' })

@@ -65,6 +65,8 @@ test.describe('search', () => {
     await page.goto('/')
     await hydrated(page)
     const trigger = page.getByRole('banner').getByRole('searchbox', { name: 'جستجو' })
+    // A real field (a tap focuses it inside the gesture, so iOS raises the keyboard).
+    await expect(trigger).not.toHaveAttribute('readonly')
     await trigger.tap()
     const dialog = page.getByRole('dialog', { name: 'جستجو' })
     await expect(dialog).toBeVisible()
@@ -75,6 +77,8 @@ test.describe('search', () => {
     await dialog.getByRole('button', { name: 'بازگشت' }).click()
     await expect(dialog).toBeHidden()
     await expect(trigger).toBeFocused()
+    // Back on the field without raising the keyboard again: read-only until it leaves.
+    await expect(trigger).toHaveAttribute('readonly', '')
     expect(errors).toEqual([])
   })
 
