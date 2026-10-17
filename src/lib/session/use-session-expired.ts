@@ -3,6 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback } from 'react'
+import { clearPushState } from '@/features/push/push-storage'
 import { isAccountPath } from '@/lib/edge/account-guard'
 import { loginHref } from '@/lib/links/login'
 import { useSession } from './session-context'
@@ -23,7 +24,7 @@ export type SessionExpired = (options?: SessionExpiredOptions) => void
  * - the page stops acting signed in: `hasSession` turns false, which disables every
  *   session-only query, so nothing asks again (no loop, and no re-request per mounted heart);
  * - what this visitor saw is dropped (`clearViewerQueries`) and the profile is known to be
- *   nobody (`['me']` is null);
+ *   nobody (`['me']` is null); the browser forgets its web push registration;
  * - on a page that needs a session (the account area), login replaces it, with the page as
  *   `next`; after an action of the visitor (`toLogin`), login is pushed. A background read on a
  *   public page (the hearts' wishlist ids, the header's name) only turns the page into its guest
@@ -44,6 +45,8 @@ export function useSessionExpired(): SessionExpired {
       if (first) {
         void clearViewerQueries(client)
         client.setQueryData(ME_KEY, null)
+        // No request can unregister the push device any more: this browser forgets it instead.
+        clearPushState()
       }
       const { pathname, search } = window.location
       const login = loginHref(`${pathname}${search}`)

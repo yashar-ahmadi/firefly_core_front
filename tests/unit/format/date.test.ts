@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { formatJalaliDate, formatJalaliDateTime, formatRelative } from '@/lib/format/date'
+import { formatJalaliDate } from '@/lib/format/date'
+import { formatJalaliDateTime, formatRelative } from '@/lib/format/date-time'
 
 // 2026-10-15 15:00 in Tehran is Thursday 23 Mehr 1405.
 const ISO = '2026-10-15T15:00:00+03:30'

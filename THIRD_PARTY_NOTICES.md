@@ -2,7 +2,8 @@
 
 Code from the packages below is bundled into the storefront's browser JavaScript, where the
 minifier drops their licence headers, so their notices are reproduced here. The map code loads
-only when a visitor opens the address map picker. Vazirmatn's licence (SIL OFL 1.1) ships next
+only when a visitor opens the address map picker; Firebase's only when web push is configured and
+a visitor turns it on (or it is on and its token is checked). Vazirmatn's licence (SIL OFL 1.1) ships next
 to the font: `src/assets/fonts/vazirmatn/OFL.txt`.
 
 ## Leaflet 1.9.4
@@ -43,6 +44,28 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Neshan's Leaflet SDK by Neshan Maps Org. (the map of stores with `NESHAN_MAP_KEY`). Its
 `package.json` declares the licence `ISC`; the package ships no licence file or copyright line.
 It is a build of Leaflet 1.9.4, whose notice is above.
+
+## Firebase JavaScript SDK 12.19.0
+
+Packages `firebase`, `@firebase/app` and `@firebase/messaging` (with `@firebase/installations`,
+`@firebase/component`, `@firebase/util` and `@firebase/logger`): web push's token. Copyright Google
+LLC. Licensed under the Apache License, Version 2.0 (the "License"); you may not use these files
+except in compliance with the License. You may obtain a copy of the License at
+<http://www.apache.org/licenses/LICENSE-2.0>. Unless required by applicable law or agreed to in
+writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+Firebase bundles `idb` 7.1.1:
+
+```
+ISC License (ISC)
+Copyright (c) 2016, Jake Archibald <jaffathecake@gmail.com>
+
+Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+```
 
 ## Map data
 

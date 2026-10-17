@@ -1,0 +1,123 @@
+import { act, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderInbox } from './render-inbox'
+import { apiError, listReads, newInboxApi, notification, readIds, stubInboxApi } from './support'
+
+// Opening a notification (a disclosure) shows all of it; an unread one is marked read
+// (`POST notification/<id>/read/`) at once on screen, the count with it. A failure puts both
+// back; a 404 (the shop deleted it) takes the row out and reads the inbox again.
+
+const mocks = vi.hoisted(() => ({
+  bffFetch: vi.fn(),
+  router: { replace: vi.fn(), push: vi.fn() },
+  notify: { success: vi.fn(), error: vi.fn(), info: vi.fn(), dismiss: vi.fn() },
+}))
+vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
+vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
+vi.mock('@/components/ui/toaster', () => ({ notify: mocks.notify, toastRegionReady: () => true }))
+
+const SHIPPED = notification(10002, {
+  title: 'سفارش شما ارسال شد',
+  image: 'http://localhost:8000/media/notification/parcel.jpg',
+})
+const FESTIVAL = notification(10001, { title: 'جشنواره پاییزی آغاز شد', is_read: true })
+let api = newInboxApi([SHIPPED, FESTIVAL])
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  api = newInboxApi([SHIPPED, FESTIVAL])
+  stubInboxApi(mocks.bffFetch, api)
+})
+
+afterEach(() => {
+  window.history.replaceState(null, '', '/')
+})
+
+const shipped = () => screen.getByRole('button', { name: /^سفارش شما ارسال شد/ })
+const UNREAD_NAME = 'سفارش شما ارسال شد خوانده‌نشده'
+
+/** The inbox with its count in. */
+async function inbox() {
+  const view = renderInbox()
+  await screen.findByText('۱ اعلان خوانده‌نشده')
+  return view
+}
+
+describe('opening a notification', () => {
+  it('shows all of it and marks it read at once, before the API answers; once only', async () => {
+    let answer: () => void = () => {}
+    api.read.mockImplementationOnce(
+      () => new Promise((resolve) => (answer = () => resolve({ data: {}, status: 200 }))),
+    )
+    const { user } = await inbox()
+    const row = shipped().closest('article')!
+    // The picture (decorative: alt="") only once it is open.
+    expect(row.querySelector('img')).toBeNull()
+    await user.click(shipped())
+    expect(shipped()).toHaveAttribute('aria-expanded', 'true')
+    expect(document.getElementById(shipped().getAttribute('aria-controls')!)).toBe(
+      within(row).getByText(/متن اعلان/).parentElement,
+    )
+    expect(within(row).getByText(/متن اعلان/)).not.toHaveClass('line-clamp-2')
+    expect(row.querySelector('img')).toHaveAttribute('alt', '')
+    await waitFor(() => expect(shipped()).toHaveAccessibleName('سفارش شما ارسال شد'))
+    expect(screen.getByText('همهٔ اعلان‌ها خوانده شده است.')).toBeVisible()
+    expect(readIds(api)).toEqual([10002])
+    act(() => answer())
+    // Closed and opened again: nothing more is sent.
+    await user.click(shipped())
+    await user.click(shipped())
+    expect(readIds(api)).toEqual([10002])
+  })
+
+  it('a read one sends nothing', async () => {
+    const { user } = await inbox()
+    await user.click(screen.getByRole('button', { name: 'جشنواره پاییزی آغاز شد' }))
+    expect(screen.getByRole('button', { name: 'جشنواره پاییزی آغاز شد' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+    expect(readIds(api)).toEqual([])
+  })
+
+  it('a failure puts it back as unread, the count too, and says why', async () => {
+    api.read.mockRejectedValueOnce(apiError(500, 'server_error'))
+    const { user } = await inbox()
+    await user.click(shipped())
+    await waitFor(() => expect(mocks.notify.error).toHaveBeenCalledWith('پیام server_error'))
+    expect(shipped()).toHaveAccessibleName(UNREAD_NAME)
+    expect(screen.getByText('۱ اعلان خوانده‌نشده')).toBeVisible()
+  })
+
+  it('a 429: put back, with a calm word', async () => {
+    api.read.mockRejectedValueOnce(apiError(429, 'throttled', { retry_after: 20 }))
+    const { user } = await inbox()
+    await user.click(shipped())
+    await waitFor(() =>
+      expect(mocks.notify.error).toHaveBeenCalledWith('لطفاً کمی بعد دوباره تلاش کنید.'),
+    )
+    expect(shipped()).toHaveAccessibleName(UNREAD_NAME)
+  })
+
+  it('a 404 (deleted by the shop): the row goes and the inbox is read again', async () => {
+    api.read.mockRejectedValueOnce(apiError(404, 'not_found'))
+    const { user } = await inbox()
+    const before = listReads(mocks.bffFetch).length
+    api.list = () => newInboxApi([FESTIVAL]).list({ limit: '20' })
+    await user.click(shipped())
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^سفارش شما/ })).toBeNull())
+    await waitFor(() => expect(listReads(mocks.bffFetch).length).toBeGreaterThan(before))
+    expect(screen.getAllByRole('article')).toHaveLength(1)
+    expect(mocks.notify.error).not.toHaveBeenCalled()
+  })
+
+  it('a session that is gone: login, with the page as next', async () => {
+    window.history.replaceState(null, '', '/account/notifications/')
+    api.read.mockRejectedValueOnce(apiError(401, 'token_not_valid'))
+    const { user } = await inbox()
+    await user.click(shipped())
+    await waitFor(() =>
+      expect(mocks.router.replace).toHaveBeenCalledWith('/login/?next=/account/notifications/'),
+    )
+  })
+})

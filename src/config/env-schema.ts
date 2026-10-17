@@ -106,7 +106,11 @@ function buildSchema(isProduction: boolean) {
     )
 }
 
-/** The Firebase config exists only when all five variables are set. */
+/**
+ * The Firebase config exists only when all five variables are set. Some of them without the rest
+ * is a mistake, not a choice: web push stays off and one warning names what is missing (never a
+ * value).
+ */
 function buildFirebase(values: {
   FIREBASE_API_KEY?: string
   FIREBASE_PROJECT_ID?: string
@@ -119,7 +123,15 @@ function buildFirebase(values: {
   const messagingSenderId = values.FIREBASE_MESSAGING_SENDER_ID
   const appId = values.FIREBASE_APP_ID
   const vapidKey = values.FIREBASE_VAPID_KEY
-  if (!apiKey || !projectId || !messagingSenderId || !appId || !vapidKey) return undefined
+  if (!apiKey || !projectId || !messagingSenderId || !appId || !vapidKey) {
+    const missing = Object.entries(values).flatMap(([name, value]) => (value ? [] : [name]))
+    if (missing.length < Object.keys(values).length) {
+      console.warn(
+        `[env] Web push is off: FIREBASE_* is incomplete (missing ${missing.join(', ')}).`,
+      )
+    }
+    return undefined
+  }
   return { apiKey, projectId, messagingSenderId, appId, vapidKey }
 }
 

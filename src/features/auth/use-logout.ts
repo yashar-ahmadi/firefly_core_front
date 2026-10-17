@@ -6,6 +6,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
 import { announce } from '@/components/ui/live-announcer'
 import { notify, toastRegionReady } from '@/components/ui/toaster'
+import { clearPushState, readPushState } from '@/features/push/push-storage'
 import { sweepAfterNavigation } from '@/lib/session/after-logout'
 import { useSession } from '@/lib/session/session-context'
 import { clearViewerQueries } from '@/lib/session/viewer-queries'
@@ -69,12 +70,15 @@ function forgetVisitor(client: QueryClient, setHasSession: (value: boolean) => v
 /**
  * Logout (auth digest §4.10–4.11, F6):
  *
- * 1. The steps registered with `onBeforeLogout` (web push unregisters this device), while the
- *    session still exists; one that fails or hangs never holds the logout back.
- * 2. `POST logout/` (the BFF adds this device's refresh token) or `logout-all/`. The BFF clears
- *    the session cookies whatever the API answers, even when it cannot be reached.
- * 3. Whatever the answer (F6: never blocked by the server), the tab forgets the visitor
- *    (`forgetVisitor`), goes home (`router.replace('/')`) and says so in a toast.
+ * 1. The steps registered with `onBeforeLogout`, while the session still exists; one that fails
+ *    or hangs never holds the logout back.
+ * 2. `POST logout/` (the BFF adds this device's refresh token) with this browser's push token when
+ *    web push is on (`registration_id`: the API deactivates the device, digest §4.3), or
+ *    `logout-all/` (which deactivates every device itself). The BFF clears the session cookies
+ *    whatever the API answers, even when it cannot be reached.
+ * 3. Whatever the answer (F6: never blocked by the server), the browser forgets its push
+ *    registration, the tab forgets the visitor (`forgetVisitor`), goes home
+ *    (`router.replace('/')`) and says so in a toast.
  */
 export function useLogout(): Logout {
   const client = useQueryClient()
@@ -88,11 +92,14 @@ export function useLogout(): Logout {
       const all = options.all ?? false
       const run = async () => {
         await runBeforeLogout({ all })
+        const push = readPushState()
         try {
-          await (all ? authApi.logoutAll() : authApi.logout())
+          if (all) await authApi.logoutAll()
+          else await (push ? authApi.logout({ registration_id: push.token }) : authApi.logout())
         } catch {
           // Signed out on this device anyway (F6): the BFF has dropped the session cookies.
         }
+        clearPushState()
         const cleared = forgetVisitor(client, setHasSession)
         router.replace('/')
         notify.success(LOGGED_OUT)

@@ -1,7 +1,7 @@
-// Steps that must run before a logout, while the session still exists: web push (Plan 3 Task 9)
-// registers one that unregisters this browser's device (`DELETE devices/unregister/` needs the
-// bearer). `useLogout` runs them all, then logs out whatever they did: a step that fails or
-// hangs is logged and given up on, never in the way. No React, no API: safe in any bundle.
+// Steps that must run before a logout, while the session still exists (a call that needs the
+// bearer). Web push needs none: `useLogout` sends the push token with the logout request itself.
+// `useLogout` runs them all, then logs out whatever they did: a step that fails or hangs is
+// logged and given up on, never in the way. No React, no API: safe in any bundle.
 
 export interface LogoutStepContext {
   /** Every device is being logged out (`logout-all/` unregisters every push device itself). */

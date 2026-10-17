@@ -166,7 +166,20 @@ describe('parseServerEnv', () => {
     })
     const { FIREBASE_VAPID_KEY: _omit, ...partial } = firebase
     void _omit
-    expect(parseServerEnv({ ...base, ...partial }).FIREBASE).toBeUndefined()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      expect(parseServerEnv({ ...base, ...partial }).FIREBASE).toBeUndefined()
+      // Part of the set is a mistake, not a choice: said once, by name, never the values.
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        '[env] Web push is off: FIREBASE_* is incomplete (missing FIREBASE_VAPID_KEY).',
+      )
+      warn.mockClear()
+      parseServerEnv({ ...base, ...firebase })
+      parseServerEnv(base)
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   it('normalises CLIENT_IP_HEADER to a lower-case header name or none', () => {
