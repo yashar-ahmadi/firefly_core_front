@@ -306,7 +306,9 @@ signed-in header to another.
   island (`CardActions`), not four: they read their grid's or rail's `CardScope` (one hydration
   flag, one wishlist-ids query and one compare-list subscription for every card), and the heart
   and the add button create their mutation only when pressed (`toggleWishlistOnce`,
-  `addToCartOnce`). A card outside a grid or rail brings its own scope. The single buttons
+  `addToCartOnce`, through `runMutation` in `lib/query/run-mutation.ts`: no observer, so the
+  mutation is collected `gcTime` after it settles, and its scope still queues it behind the other
+  cart writes). A card outside a grid or rail brings its own scope. The single buttons
   (`HeartButton`, `CompareToggle`, `AddToCartButton`, `QuickViewLink`) keep their hooks for the
   buy box, quick view and the compare table and share their markup with the island.
 - **Total Blocking Time** (Playwright, 412×823, 4× CPU, 150 ms RTT, 1.6 Mbps; long-task time

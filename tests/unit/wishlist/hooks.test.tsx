@@ -1,6 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useToggleWishlist, useWishlistIds, WISHLIST_IDS_KEY } from '@/features/wishlist/hooks'
+import {
+  toggleWishlistOnce,
+  useToggleWishlist,
+  useWishlistIds,
+  WISHLIST_IDS_KEY,
+} from '@/features/wishlist/hooks'
 import { ApiError } from '@/lib/api/errors'
 import { clientProviders } from '../support/providers'
 
@@ -181,5 +186,28 @@ describe('useToggleWishlist', () => {
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/login/?next=/brand/samsung/'))
     expect(result.current.wishlist.ids.has(2)).toBe(false)
     expect(mocks.error).not.toHaveBeenCalled()
+  })
+})
+
+describe('toggleWishlistOnce', () => {
+  it('leaves no mutation in the cache once it settled and gcTime passed', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const { client } = clientProviders({ hasSession: true })
+      routeCalls([], () =>
+        Promise.resolve({ data: { is_in_wishlist: true }, msg: '', status: 201 }),
+      )
+      const router = { push: mocks.push }
+      await toggleWishlistOnce(client, router, true, { id: 2, slug: 'product-2' })
+      routeCalls([2], () => Promise.reject(new ApiError({ status: 429, code: 'throttled' })))
+      await toggleWishlistOnce(client, router, true, { id: 3, slug: 'product-3' })
+      const cache = client.getMutationCache()
+      const gcTime = cache.getAll()[0]?.gcTime ?? 0
+      expect(gcTime).toBeGreaterThan(0)
+      await vi.advanceTimersByTimeAsync(gcTime + 1)
+      expect(cache.getAll()).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

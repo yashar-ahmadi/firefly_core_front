@@ -1,5 +1,4 @@
 import {
-  MutationObserver,
   useMutation,
   useQuery,
   useQueryClient,
@@ -13,6 +12,7 @@ import { notify, toastRegionReady } from '@/components/ui/toaster'
 import { useHydrated } from '@/components/ui/use-media-query'
 import { ApiError } from '@/lib/api/errors'
 import type { Cart, CartLine } from '@/lib/api/types/cart'
+import { runMutation } from '@/lib/query/run-mutation'
 import { cartApi } from './api'
 import { CART_KEY, CART_WRITES, errorDetail, storeCart } from './cart-cache'
 import { showAddedToCartToast } from './components/added-to-cart-toast'
@@ -128,7 +128,7 @@ function addToCartOptions(
  * none until its button is pressed). Resolves true once the cart has it; never rejects.
  */
 export function addToCartOnce(client: QueryClient, variables: AddVariables): Promise<boolean> {
-  return new MutationObserver(client, addToCartOptions(client)).mutate(variables).then(
+  return runMutation(client, addToCartOptions(client), variables).then(
     () => true,
     () => false,
   )

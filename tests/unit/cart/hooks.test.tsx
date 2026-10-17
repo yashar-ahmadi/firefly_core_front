@@ -3,6 +3,7 @@ import { act, render, renderHook, screen, waitFor } from '@testing-library/react
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  addToCartOnce,
   CART_KEY,
   cartCount,
   lineLimits,
@@ -103,6 +104,54 @@ describe('cart writes', () => {
       await removed
     })
     expect(callsWith('DELETE')).toEqual([['cart/item/10001/remove/', { method: 'DELETE' }]])
+  })
+
+  it('a removal also waits for a one-shot add from a card (addToCartOnce)', async () => {
+    const adding = deferred<ReturnType<typeof result>>()
+    mocks.bffFetch.mockImplementation((path: string) =>
+      path === 'cart/item/add/' ? adding.promise : Promise.resolve(result(cart())),
+    )
+    const { result: hook, client } = setup(() => useRemoveCartLine(), cart([cartLine()]))
+    let added: Promise<boolean> | undefined
+    let removed: Promise<boolean> | undefined
+    act(() => {
+      added = addToCartOnce(client, { variant: 10062, quantity: 1, meta: PRODUCT, toast: false })
+    })
+    act(() => {
+      removed = hook.current.remove(10001)
+    })
+    await waitFor(() => expect(callsWith('POST')).toHaveLength(1))
+    expect(callsWith('DELETE')).toHaveLength(0)
+    await act(async () => {
+      adding.resolve(result(cart([cartLine(), cartLine({ variant_id: 10062 })]), MSG_ADDED))
+      expect(await added).toBe(true)
+    })
+    await act(async () => {
+      await removed
+    })
+    expect(callsWith('DELETE')).toHaveLength(1)
+  })
+
+  it('a one-shot add leaves no mutation in the cache once it settled and gcTime passed', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const { client } = clientProviders()
+      mocks.bffFetch.mockResolvedValueOnce(result(cart([cartLine()]), MSG_ADDED))
+      expect(
+        await addToCartOnce(client, { variant: 10001, quantity: 1, meta: PRODUCT, toast: false }),
+      ).toBe(true)
+      mocks.bffFetch.mockRejectedValueOnce(limitExceeded())
+      expect(
+        await addToCartOnce(client, { variant: 10001, quantity: 9, meta: PRODUCT, toast: false }),
+      ).toBe(false)
+      const cache = client.getMutationCache()
+      const gcTime = cache.getAll()[0]?.gcTime ?? 0
+      expect(gcTime).toBeGreaterThan(0)
+      await vi.advanceTimersByTimeAsync(gcTime + 1)
+      expect(cache.getAll()).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('a quantity change waits for an add still on its way', async () => {

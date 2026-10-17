@@ -1,5 +1,4 @@
 import {
-  MutationObserver,
   useMutation,
   useQuery,
   useQueryClient,
@@ -13,6 +12,7 @@ import { ApiError, GENERIC_ERROR_DETAIL } from '@/lib/api/errors'
 import type { WishlistProductCard } from '@/lib/api/types/catalog'
 import type { Paginated } from '@/lib/api/types/common'
 import { loginHref } from '@/lib/links/login'
+import { runMutation } from '@/lib/query/run-mutation'
 import { useSession } from '@/lib/session/session-context'
 
 // The signed-in visitor's saved products, as a set of product ids for the hearts on cards.
@@ -154,12 +154,14 @@ export function toggleWishlistOnce(
     router.push(loginHref(currentPath()))
     return Promise.resolve()
   }
-  return new MutationObserver(client, toggleOptions(client, router))
-    .mutate({ id, slug, save: !isSaved(client, id) })
-    .then(
-      () => undefined,
-      () => undefined,
-    )
+  return runMutation(client, toggleOptions(client, router), {
+    id,
+    slug,
+    save: !isSaved(client, id),
+  }).then(
+    () => undefined,
+    () => undefined,
+  )
 }
 
 /** The optimistic wishlist toggle (`toggleOptions`) as a hook, for a single heart. */
