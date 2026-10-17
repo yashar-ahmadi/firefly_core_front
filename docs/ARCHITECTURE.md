@@ -280,7 +280,7 @@ page never redirects on the cookie or the flag alone (a session the API refuses 
 
 Registration (`/register/`) and password recovery (`/forgot-password/`) share one pure state
 machine (`code-flow-state.ts`: entry → code → password → done) and every part of login that is
-not login's own: the request runner (one request at a time), the waits (`waits.ts`: a send's 429
+not login's own: the request runner (one request at a time), the waits (`lib/forms/waits.ts`: a send's 429
 holds the next send, any other 429 its step's button), the failure mapping (`auth-failure.ts`,
 with each page's field rules in `code-flow-errors.ts`), the focus rules (`use-step-focus.ts`),
 the code step (`OtpStep`, with the channel switch among the channels the identifier can take)
@@ -301,7 +301,14 @@ No auth form ever submits natively (a GET would put names, an email or a mobile 
 URL, the history and the server logs): every step's form is an `AuthForm` (`method="post"`; Next
 renders the page again for a form POST that is no Server Action), its `SubmitButton` is disabled
 until the page has hydrated (`useHydrated`, so the server HTML has it disabled too, which also
-stops Enter in a field), and a `<noscript>` notice in the card says JavaScript is needed. For the
+stops Enter in a field), and a `<noscript>` notice in the card says JavaScript is needed. The
+account forms use the same parts: `AuthForm`, `SubmitButton`, `FormAlert`, `useFormFocus` and the
+code timers live in `src/components/form/`, the waits and `useCountdown` in `src/lib/forms/`; a
+list or section that could not be read shows `ListError` (`features/account/lists/list-error.tsx`,
+`frame="inline"` inside a section's card), which holds «تلاش دوباره» for a 429's `retry_after`.
+Every session-only read goes through `withSessionExpiry` (`lib/session/with-session-expiry.ts`):
+a 401 that means the session is gone ends it, and stays the read's error or becomes its
+"nobody" value (the profile's null, the wishlist's no ids). For the
 same reason the links between the auth pages carry `next` alone: what the visitor typed goes to
 the next page by a one-shot handoff (`features/auth/identifier-handoff.ts`: this tab's session
 storage, with an in-memory copy when storage is blocked), set by the link's click (`HandoffLink`;

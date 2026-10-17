@@ -2,6 +2,7 @@
 
 import { useReducer, useRef } from 'react'
 import { useFeature } from '@/features/settings/feature-context'
+import { stepWait } from '@/lib/forms/waits'
 import { forgotPasswordHref, registerHref } from '../auth-links'
 import { identifierType, normalizeIdentifier } from '../identifier'
 import { chosenChannel, googleClientId, loginMethods, type LoginMethods } from '../login-methods'
@@ -16,7 +17,6 @@ import { PasswordStep } from './password-step'
 import { TotpStep } from './totp-step'
 import { useLoginActions } from './use-login-actions'
 import { useStepFocus } from './use-step-focus'
-import { stepWait } from './waits'
 
 const NO_METHODS: LoginMethods = { password: false, otpChannels: [], defaultOtpChannel: null }
 

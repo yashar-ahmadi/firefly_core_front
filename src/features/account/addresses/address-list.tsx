@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
-import { SectionError } from '@/features/account/dashboard/section-error'
+import { ListError } from '@/features/account/lists/list-error'
 import { AccountPageHeader } from '@/features/account/layout/account-page-header'
 import { isLoadingSection } from '@/features/account/use-account-query'
 import { AddressCard } from './address-card'
@@ -87,7 +87,10 @@ export function AddressList({ title }: { title: string }) {
       <AccountPageHeader title={title} action={add} />
       {failed ? (
         <div className="rounded-card bg-white shadow-card">
-          <SectionError
+          <ListError
+            frame="inline"
+            error={query.error}
+            errorAt={query.errorUpdatedAt}
             message="آدرس‌ها بارگذاری نشد."
             onRetry={() => void query.refetch()}
             retrying={query.isFetching}

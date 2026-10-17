@@ -5,7 +5,7 @@ import { authApi } from '@/features/auth/api'
 import { CODE_INCOMPLETE } from '@/features/auth/components/auth-messages'
 import { contactFailure } from '@/features/auth/components/code-flow-errors'
 import type { CodeFlowAction, CodeFlowState } from '@/features/auth/components/code-flow-types'
-import { NO_WAIT, stepWaiting, type Wait } from '@/features/auth/components/waits'
+import { NO_WAIT, stepWaiting, type Wait } from '@/lib/forms/waits'
 import { chosenChannel, type CodeChannels } from '@/features/auth/login-methods'
 import type {
   ContactRequestBody,

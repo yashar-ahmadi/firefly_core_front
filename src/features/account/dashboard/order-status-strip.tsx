@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { OrderStatusGroup } from '@/lib/api/types/dashboard'
 import { formatNumber } from '@/lib/format/number'
 import { isLoadingSection } from '../use-account-query'
-import { SectionError } from './section-error'
+import { ListError } from '../lists/list-error'
 import { useSummary } from './use-summary'
 
 /** The five groups the API has today; a key it adds later gets the plain parcel. */
@@ -130,7 +130,10 @@ export function OrderStatusStrip() {
     )
   } else if (!orders) {
     body = (
-      <SectionError
+      <ListError
+        frame="inline"
+        error={query.error}
+        errorAt={query.errorUpdatedAt}
         message="سفارش‌ها بارگذاری نشد."
         onRetry={() => void query.refetch()}
         retrying={query.isFetching}

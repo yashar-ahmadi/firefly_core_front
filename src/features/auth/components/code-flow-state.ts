@@ -6,7 +6,7 @@ import type {
   CodeFlowStep,
   CodeFlowValue,
 } from './code-flow-types'
-import { failureWaits, NO_WAIT, restartWait } from './waits'
+import { failureWaits, NO_WAIT, restartWait } from '@/lib/forms/waits'
 
 // The state machine of registration and password recovery (entry → code → password → done),
 // and of a contact change (entry → code → done). Pure: the flows send the requests and dispatch

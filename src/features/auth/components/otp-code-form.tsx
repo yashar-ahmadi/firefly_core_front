@@ -3,10 +3,10 @@
 import { useId, type ReactNode } from 'react'
 import { OtpInput } from '@/components/ui/otp-input'
 import type { OtpMethod, OtpSent } from '@/lib/api/types/account'
-import { AuthForm } from './auth-form'
-import { CodeExpiry, SendCodeButton, useSubmitWait } from './code-timers'
-import { SubmitButton } from './login-fields'
-import type { Wait } from './waits'
+import { AuthForm } from '@/components/form/auth-form'
+import { CodeExpiry, SendCodeButton, useSubmitWait } from '@/components/form/code-timers'
+import { SubmitButton } from '@/components/form/submit-button'
+import type { Wait } from '@/lib/forms/waits'
 
 /** Where the code goes, the identifier being shown just above: «به این ایمیل», «با پیامک …». */
 const DESTINATION: Record<OtpMethod, string> = {

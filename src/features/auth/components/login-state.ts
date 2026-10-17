@@ -1,5 +1,5 @@
+import { failureWaits, NO_WAIT, restartWait } from '@/lib/forms/waits'
 import type { LoginAction, LoginFailure, LoginField, LoginState, LoginStep } from './login-types'
-import { failureWaits, NO_WAIT, restartWait } from './waits'
 
 // The login page's state machine: identifier → (password | otp) → totp? → done. Pure: the
 // component sends the requests and dispatches what they answered. Going back keeps every value

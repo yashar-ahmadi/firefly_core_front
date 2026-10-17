@@ -9,6 +9,7 @@ import {
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { isSessionExpiredError } from '@/lib/session/viewer-queries'
+import { withSessionExpiry } from '@/lib/session/with-session-expiry'
 
 export interface AccountQueryOptions<T> {
   /** Under a key `clearViewerQueries` removes (`SESSION_QUERIES`): the data is the visitor's. */
@@ -32,16 +33,10 @@ export function useAccountQuery<T>({
 }: AccountQueryOptions<T>): UseQueryResult<T> {
   const { hasSession } = useSession()
   const expire = useSessionExpired()
+  const read = withSessionExpiry(queryFn, expire)
   return useQuery({
     queryKey,
-    queryFn: async ({ signal }) => {
-      try {
-        return await queryFn({ signal })
-      } catch (error) {
-        if (isSessionExpiredError(error)) expire()
-        throw error
-      }
-    },
+    queryFn: ({ signal }) => read({ signal }),
     enabled: hasSession,
     placeholderData,
   })

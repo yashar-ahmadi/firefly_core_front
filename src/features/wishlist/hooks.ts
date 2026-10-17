@@ -16,6 +16,7 @@ import { runMutation } from '@/lib/query/run-mutation'
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired, type SessionExpired } from '@/lib/session/use-session-expired'
 import { isSessionExpiredError, SUMMARY_KEY } from '@/lib/session/viewer-queries'
+import { withSessionExpiry } from '@/lib/session/with-session-expiry'
 
 // The signed-in visitor's saved products, as a set of product ids for the hearts on cards.
 // Pages are cached for everyone without a token, so the hearts are filled in on the client.
@@ -65,17 +66,10 @@ export interface WishlistIds {
 export function useWishlistIds(): WishlistIds {
   const { hasSession } = useSession()
   const expire = useSessionExpired()
+  const read = withSessionExpiry(fetchWishlistIds, expire, (): number[] => [])
   const query = useQuery({
     queryKey: WISHLIST_IDS_KEY,
-    queryFn: async ({ signal }) => {
-      try {
-        return await fetchWishlistIds(signal)
-      } catch (error) {
-        if (!isSessionExpiredError(error)) throw error
-        expire()
-        return []
-      }
-    },
+    queryFn: ({ signal }) => read(signal),
     enabled: hasSession,
     staleTime: STALE_TIME,
     select: toIdSet,

@@ -1,6 +1,6 @@
 'use client'
 
-import { SectionError } from '@/features/account/dashboard/section-error'
+import { ListError } from '@/features/account/lists/list-error'
 import { useMe } from '@/features/auth/use-me'
 import { AvatarUpload } from './avatar-upload'
 import { ContactSection } from './contact-section'
@@ -24,7 +24,10 @@ export function ProfilePage() {
     <div className="flex flex-col gap-5 md:gap-6">
       {failed ? (
         <div className="rounded-card bg-white shadow-card">
-          <SectionError
+          <ListError
+            frame="inline"
+            error={query.error}
+            errorAt={query.errorUpdatedAt}
             message="اطلاعات حساب بارگذاری نشد."
             onRetry={() => void query.refetch()}
             retrying={query.isFetching}

@@ -1,6 +1,7 @@
-// The waits of the auth steps (login, registration, password recovery), always the API's
-// seconds (`resend_after`, `expires_in`, a 429's `retry_after`) turned into absolute deadlines at
-// the moment the answer came. Pure: the reducers store them and the timers count down to them.
+// The waits of the forms (the auth steps, the account forms), always the API's seconds
+// (`resend_after`, `expires_in`, a 429's `retry_after`) turned into absolute deadlines at the
+// moment the answer came. Pure: the reducers store them and the timers (`components/form/
+// code-timers.tsx`) count down to them.
 
 /**
  * A wait that ends at `until` (epoch ms; 0: no wait). An absolute time, so a timer shown again

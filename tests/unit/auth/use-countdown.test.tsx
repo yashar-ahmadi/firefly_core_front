@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useCountdown } from '@/features/auth/use-countdown'
+import { useCountdown } from '@/lib/forms/use-countdown'
 
 beforeEach(() => {
   vi.useFakeTimers()

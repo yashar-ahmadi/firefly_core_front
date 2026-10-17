@@ -11,9 +11,10 @@ export interface AuthFormProps {
 }
 
 /**
- * Every auth step's form (login, registration, password recovery). It never submits natively:
- * a GET would put what was typed (names, an email address or a mobile number) in the URL, the
- * history and the server logs.
+ * Every form that sends what the visitor typed: the auth steps (login, registration, password
+ * recovery) and the account forms (profile, password, contact, address). It never submits
+ * natively: a GET would put what was typed (names, an email address, a mobile number, an
+ * address) in the URL, the history and the server logs.
  *
  * - Its `SubmitButton` is disabled until the page has hydrated, which also stops Enter in a field
  *   (implicit submission needs an enabled default button); from then on `onSubmit` handles it.

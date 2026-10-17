@@ -2,6 +2,7 @@
 
 import { useReducer, useRef } from 'react'
 import { useFeature } from '@/features/settings/feature-context'
+import { stepWait } from '@/lib/forms/waits'
 import { loginPageHref } from '../auth-links'
 import { useAuthSettings } from '../use-auth-settings'
 import { TransitionCard } from './auth-card'
@@ -12,7 +13,6 @@ import { OtpStep } from './otp-step'
 import { RecoveryIdentifierStep } from './recovery-identifier-step'
 import { useRecoveryActions, type RecoveryEntry } from './use-recovery-actions'
 import { useStepFocus } from './use-step-focus'
-import { stepWait } from './waits'
 
 export interface ForgotPasswordFlowProps {
   /** A safe `?next=` path, or '': carried to the login page afterwards. */

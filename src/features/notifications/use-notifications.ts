@@ -3,7 +3,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
-import { isSessionExpiredError } from '@/lib/session/viewer-queries'
+import { withSessionExpiry } from '@/lib/session/with-session-expiry'
 import {
   fetchNotifications,
   fetchUnreadIds,
@@ -21,14 +21,7 @@ export const UNREAD_POLL_MS = 5 * 60_000
  */
 function useSessionRead<A extends unknown[], T>(read: (...args: A) => Promise<T>) {
   const expire = useSessionExpired()
-  return async (...args: A): Promise<T> => {
-    try {
-      return await read(...args)
-    } catch (error) {
-      if (isSessionExpiredError(error)) expire()
-      throw error
-    }
-  }
+  return withSessionExpiry(read, expire)
 }
 
 /**

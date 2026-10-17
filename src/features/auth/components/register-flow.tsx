@@ -2,17 +2,18 @@
 
 import { useReducer, useRef } from 'react'
 import type { ContactType } from '@/lib/api/types/account'
+import { FormAlert } from '@/components/form/form-alert'
+import { stepWait } from '@/lib/forms/waits'
 import { loginPageHref } from '../auth-links'
 import { identifierType, normalizeIdentifier } from '../identifier'
 import { useAuthSettings } from '../use-auth-settings'
-import { FormAlert, TransitionCard } from './auth-card'
+import { TransitionCard } from './auth-card'
 import { codeFlowReducer, initialCodeFlowState } from './code-flow-state'
 import { NewPasswordStep } from './new-password-step'
 import { OtpStep } from './otp-step'
 import { RegisterStartStep } from './register-start-step'
 import { useRegisterActions, type RegisterEntry } from './use-register-actions'
 import { useStepFocus } from './use-step-focus'
-import { stepWait } from './waits'
 
 /** An identifier taken by an account: offered as a login with it. */
 const TAKEN = new Set(['auth_email_already_exists', 'auth_phone_already_exists'])

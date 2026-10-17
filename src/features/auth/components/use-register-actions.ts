@@ -5,6 +5,7 @@ import { useMarkFeatureDisabled } from '@/features/settings/feature-context'
 import { ApiError } from '@/lib/api/errors'
 import type { ContactType, OtpMethod, RegisterStartBody } from '@/lib/api/types/account'
 import type { AuthSettings } from '@/lib/api/types/settings'
+import { NO_WAIT, stepWaiting, type Wait } from '@/lib/forms/waits'
 import { authApi } from '../api'
 import { identifierType, normalizeIdentifier } from '../identifier'
 import { chosenChannel, codeChannels, type CodeChannels } from '../login-methods'
@@ -13,7 +14,6 @@ import { registerFailure } from './code-flow-errors'
 import type { CodeFlowAction, CodeFlowField, CodeFlowState } from './code-flow-types'
 import { useCompleteLogin } from './post-login'
 import { useRequestRunner } from './use-request-runner'
-import { NO_WAIT, stepWaiting, type Wait } from './waits'
 
 /** The first step of registration. Each method keeps what was typed for it (the tabs). */
 export interface RegisterEntry {

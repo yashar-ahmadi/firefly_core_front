@@ -3,11 +3,11 @@
 import type { ReactNode, Ref } from 'react'
 import { Button } from '@/components/ui/button'
 import type { ContactType, OtpMethod, OtpSent } from '@/lib/api/types/account'
+import type { Wait } from '@/lib/forms/waits'
 import { AuthCard, OrDivider } from './auth-card'
 import { ChannelChoice } from './channel-choice'
 import { IdentifierSummary, RememberMe } from './login-fields'
 import { OtpCodeForm } from './otp-code-form'
-import type { Wait } from './waits'
 
 /** The words of the step: login's by default; registration and recovery name their code. */
 export interface OtpStepCopy {

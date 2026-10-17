@@ -1,6 +1,6 @@
 import type { LoginBody, LoginOtpVerifyBody, OtpMethod, OtpSent } from '@/lib/api/types/account'
+import type { StepWait as StepWaitOf, Wait } from '@/lib/forms/waits'
 import type { AuthFailure } from './auth-failure'
-import type { StepWait as StepWaitOf, Wait } from './waits'
 
 // The login state machine's types (see login-state.ts).
 

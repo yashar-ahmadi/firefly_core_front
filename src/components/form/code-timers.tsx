@@ -5,11 +5,11 @@ import { Button, type ButtonVariant } from '@/components/ui/button'
 import { cn } from '@/components/ui/cn'
 import { Spinner } from '@/components/ui/spinner'
 import { toPersianDigits } from '@/lib/format'
-import { useCountdown, type Countdown } from '../use-countdown'
-import type { Wait } from './waits'
+import { useCountdown, type Countdown } from '@/lib/forms/use-countdown'
+import type { Wait } from '@/lib/forms/waits'
 
-// The waits of the login steps, always the API's seconds (`resend_after`, `expires_in`, a 429's
-// `retry_after`). The ticking time is plain text; only the moment a wait ends is read out, in a
+// The waits of the forms (the auth steps, the account forms), always the API's seconds
+// (`resend_after`, `expires_in`, a 429's `retry_after`). The ticking time is plain text; only the moment a wait ends is read out, in a
 // polite region that is on the page from the start.
 
 /** «۰۱:۵۹»: minutes and seconds, in Persian digits. */

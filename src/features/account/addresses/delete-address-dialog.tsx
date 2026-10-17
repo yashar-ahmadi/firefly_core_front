@@ -5,7 +5,7 @@ import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog'
 import { Spinner } from '@/components/ui/spinner'
-import { FormAlert } from '@/features/auth/components/auth-card'
+import { FormAlert } from '@/components/form/form-alert'
 import type { Address } from '@/lib/api/types/address'
 
 export interface DeleteAddressDialogProps {

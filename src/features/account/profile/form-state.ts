@@ -1,7 +1,7 @@
 import type { FailureRules } from '@/features/auth/components/auth-failure'
 import { authFailure } from '@/features/auth/components/auth-failure'
 import type { LoginNotice } from '@/features/auth/components/login-types'
-import { NO_WAIT, restartWait, type Wait } from '@/features/auth/components/waits'
+import { NO_WAIT, restartWait, type Wait } from '@/lib/forms/waits'
 import { ApiError } from '@/lib/api/errors'
 
 // The state of a one-step form of the profile page (the names, the avatar, the password, the

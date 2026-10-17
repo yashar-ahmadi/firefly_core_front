@@ -1,7 +1,7 @@
 import type { OtpSent } from '@/lib/api/types/account'
+import type { StepWait, Wait } from '@/lib/forms/waits'
 import type { AuthFailure } from './auth-failure'
 import type { LoginNotice } from './login-types'
-import type { StepWait, Wait } from './waits'
 
 // The types of the state machine registration, password recovery and the profile's contact
 // change share (code-flow-state.ts).

@@ -9,7 +9,7 @@ import { useFeature } from '@/features/settings/feature-context'
 import type { DashboardSummary } from '@/lib/api/types/dashboard'
 import { formatNumber, formatToman } from '@/lib/format/number'
 import { isLoadingSection } from '../use-account-query'
-import { SectionError } from './section-error'
+import { ListError } from '../lists/list-error'
 import { useSummary } from './use-summary'
 
 /** The wallet: a wide card (icon at the start); the counters: narrow ones (icon on top). */
@@ -170,7 +170,10 @@ export function SummaryCards() {
   // Only without data: a later read that fails leaves the cards as they were.
   if (!loading && !query.data) {
     return (
-      <SectionError
+      <ListError
+        frame="inline"
+        error={query.error}
+        errorAt={query.errorUpdatedAt}
         message={'خلاصه\u{0654} حساب بارگذاری نشد.'}
         onRetry={() => void query.refetch()}
         retrying={query.isFetching}

@@ -3,9 +3,9 @@
 import Script from 'next/script'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '@/components/ui/cn'
+import { useSubmitWait } from '@/components/form/code-timers'
+import type { Wait } from '@/lib/forms/waits'
 import { OrDivider } from './auth-card'
-import { useSubmitWait } from './code-timers'
-import type { Wait } from './waits'
 
 // «ورود با گوگل» through Google Identity Services (auth digest F4). Its script is loaded by this
 // component alone, so only the login page, and only while the settings turn Google on, ever

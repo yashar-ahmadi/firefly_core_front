@@ -4,7 +4,8 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import type { UserProfile } from '@/lib/api/types/account'
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
-import { isSessionExpiredError, ME_KEY } from '@/lib/session/viewer-queries'
+import { ME_KEY } from '@/lib/session/viewer-queries'
+import { withSessionExpiry } from '@/lib/session/with-session-expiry'
 import { fetchProfile } from './profile-api'
 
 export { ME_KEY }
@@ -18,17 +19,10 @@ export { ME_KEY }
 export function useMe(): UseQueryResult<UserProfile | null> {
   const { hasSession } = useSession()
   const expire = useSessionExpired()
+  const read = withSessionExpiry(fetchProfile, expire, () => null)
   return useQuery({
     queryKey: ME_KEY,
-    queryFn: async ({ signal }): Promise<UserProfile | null> => {
-      try {
-        return await fetchProfile({ signal })
-      } catch (error) {
-        if (!isSessionExpiredError(error)) throw error
-        expire()
-        return null
-      }
-    },
+    queryFn: ({ signal }): Promise<UserProfile | null> => read({ signal }),
     enabled: hasSession,
   })
 }

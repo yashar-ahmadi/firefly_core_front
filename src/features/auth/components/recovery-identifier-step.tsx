@@ -2,13 +2,14 @@
 
 import type { ReactNode, Ref } from 'react'
 import type { OtpMethod } from '@/lib/api/types/account'
+import { AuthForm } from '@/components/form/auth-form'
+import { useSubmitWait } from '@/components/form/code-timers'
+import { SubmitButton } from '@/components/form/submit-button'
+import type { Wait } from '@/lib/forms/waits'
 import { AuthCard } from './auth-card'
-import { AuthForm } from './auth-form'
 import { ChannelChoice } from './channel-choice'
 import { HandoffLink } from './handoff-link'
-import { useSubmitWait } from './code-timers'
-import { IdentifierField, SubmitButton, TEXT_LINK } from './login-fields'
-import type { Wait } from './waits'
+import { IdentifierField, TEXT_LINK } from './login-fields'
 
 export interface RecoveryIdentifierStepProps {
   identifier: string

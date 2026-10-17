@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type RefObject } from 'react'
-import { NO_WAIT, restartWait, type Wait } from '@/features/auth/components/waits'
+import { NO_WAIT, restartWait, type Wait } from '@/lib/forms/waits'
 import { ApiError, GENERIC_ERROR_DETAIL, isApiNotFound } from '@/lib/api/errors'
 import type { MyComment } from '@/lib/api/types/dashboard'
 import { useSessionExpired } from '@/lib/session/use-session-expired'

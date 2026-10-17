@@ -1,7 +1,7 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
-import { SectionError } from '@/features/account/dashboard/section-error'
+import { ListError } from '@/features/account/lists/list-error'
 import { isLoadingSection } from '../use-account-query'
 import { ProfileSection } from './profile-section'
 import { TwoFactorBody } from './two-factor-body'
@@ -30,7 +30,10 @@ export function TwoFactorSection() {
       }
     >
       {enabled === undefined ? (
-        <SectionError
+        <ListError
+          frame="inline"
+          error={status.error}
+          errorAt={status.errorUpdatedAt}
           message="وضعیت ورود دومرحله‌ای بارگذاری نشد."
           onRetry={() => void status.refetch()}
           retrying={status.isFetching}

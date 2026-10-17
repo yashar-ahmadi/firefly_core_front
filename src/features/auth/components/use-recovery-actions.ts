@@ -6,6 +6,7 @@ import { announce } from '@/components/ui/live-announcer'
 import { notify, toastRegionReady } from '@/components/ui/toaster'
 import type { ContactType, OtpMethod, PasswordResetRequestBody } from '@/lib/api/types/account'
 import type { AuthSettings } from '@/lib/api/types/settings'
+import { NO_WAIT, stepWaiting, type Wait } from '@/lib/forms/waits'
 import { authApi } from '../api'
 import { loginPageHref } from '../auth-links'
 import { handOffIdentifier } from '../identifier-handoff'
@@ -20,7 +21,6 @@ import {
 import { recoveryFailure } from './code-flow-errors'
 import type { CodeFlowAction, CodeFlowState } from './code-flow-types'
 import { useRequestRunner } from './use-request-runner'
-import { NO_WAIT, stepWaiting, type Wait } from './waits'
 
 /** The first step of password recovery: the identifier as typed, and the channel chosen. */
 export interface RecoveryEntry {

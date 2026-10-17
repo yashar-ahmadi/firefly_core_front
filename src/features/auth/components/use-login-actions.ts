@@ -3,6 +3,7 @@
 import { useState, type Dispatch } from 'react'
 import type { AuthenticatedResponse, ContactType, OtpMethod } from '@/lib/api/types/account'
 import { ApiError } from '@/lib/api/errors'
+import { stepWaiting } from '@/lib/forms/waits'
 import { authApi } from '../api'
 import type { LoginMethods } from '../login-methods'
 import { CODE_INCOMPLETE, IDENTIFIER_INVALID, IDENTIFIER_REQUIRED } from './auth-messages'
@@ -10,7 +11,6 @@ import { loginFailure } from './login-errors'
 import type { LoginAction, LoginState, PendingLogin } from './login-types'
 import { useCompleteLogin } from './post-login'
 import { useRequestRunner } from './use-request-runner'
-import { stepWaiting } from './waits'
 
 function codeSent(sent: Extract<LoginAction, { type: 'otpSent' }>['sent']): LoginAction {
   return { type: 'otpSent', sent, now: Date.now() }

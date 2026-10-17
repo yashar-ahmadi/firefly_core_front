@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import type { ReactNode, Ref } from 'react'
+import { AuthForm } from '@/components/form/auth-form'
+import { SubmitButton } from '@/components/form/submit-button'
 import { AuthCard } from './auth-card'
-import { AuthForm } from './auth-form'
-import { IdentifierField, SubmitButton, TEXT_LINK } from './login-fields'
+import { IdentifierField, TEXT_LINK } from './login-fields'
 
 export interface IdentifierStepProps {
   identifier: string

@@ -10,7 +10,7 @@ import type { Paginated } from '@/lib/api/types/common'
 import type { PurchasedProduct } from '@/lib/api/types/dashboard'
 import { isLoadingSection, useAccountQuery } from '../use-account-query'
 import { PurchaseCard, PurchaseCardSkeleton } from './purchase-card'
-import { SectionError } from './section-error'
+import { ListError } from '../lists/list-error'
 
 /** The dashboard shows the four latest (account guide §2, page 1). */
 const LIMIT = 4
@@ -73,7 +73,10 @@ export function RecentPurchases() {
     )
   } else {
     body = (
-      <SectionError
+      <ListError
+        frame="inline"
+        error={query.error}
+        errorAt={query.errorUpdatedAt}
         message="خریدهای اخیر بارگذاری نشد."
         onRetry={() => void query.refetch()}
         retrying={query.isFetching}

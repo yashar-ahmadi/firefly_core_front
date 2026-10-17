@@ -3,11 +3,11 @@
 import { useId, type ReactNode, type Ref } from 'react'
 import { Button } from '@/components/ui/button'
 import { OtpInput } from '@/components/ui/otp-input'
+import { AuthForm } from '@/components/form/auth-form'
+import { useSubmitWait } from '@/components/form/code-timers'
+import { SubmitButton } from '@/components/form/submit-button'
+import type { Wait } from '@/lib/forms/waits'
 import { AuthCard } from './auth-card'
-import { AuthForm } from './auth-form'
-import { useSubmitWait } from './code-timers'
-import { SubmitButton } from './login-fields'
-import type { Wait } from './waits'
 
 export interface TotpStepProps {
   code: string

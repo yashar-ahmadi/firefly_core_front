@@ -1,12 +1,12 @@
 'use client'
 
 import type { ReactNode, Ref } from 'react'
+import { AuthForm } from '@/components/form/auth-form'
+import { useSubmitWait } from '@/components/form/code-timers'
+import { SubmitButton } from '@/components/form/submit-button'
+import type { Wait } from '@/lib/forms/waits'
 import { AuthCard } from './auth-card'
-import { AuthForm } from './auth-form'
-import { useSubmitWait } from './code-timers'
-import { SubmitButton } from './login-fields'
 import { PasswordFields, type PasswordFieldsProps } from './password-fields'
-import type { Wait } from './waits'
 
 export interface NewPasswordStepProps extends PasswordFieldsProps {
   title: string
