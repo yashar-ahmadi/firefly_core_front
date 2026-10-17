@@ -22,6 +22,8 @@ vi.mock('@/lib/api/client', () => ({
     if (path === 'dashboard/summary/') return ok(summary())
     if (path === 'account/profile/me/') return ok(SARA)
     if (path === 'dashboard/purchased-product/list/') return ok(page(PURCHASES, 7))
+    // The unread count the shell keeps (none unread).
+    if (path === 'notification/list/') return ok(page([], 0))
     throw new Error(`unexpected ${path}`)
   },
 }))

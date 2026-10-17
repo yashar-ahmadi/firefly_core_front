@@ -53,8 +53,9 @@ export function useNotifications() {
  * The number of unread notifications (`UNREAD_NOTIFICATIONS_KEY`, which the header's menu and the
  * account navigation read without asking themselves): the API has no unread count, so the list
  * is paged through (`limit=100` until `next` is null, at most 20 pages) and `is_read: false`
- * counted. Read again every 5 minutes while the tab is in view, never while it is hidden. Mount
- * it on the inbox only: every count costs requests from the visitor's budget.
+ * counted. Read again every 5 minutes while the tab is in view, never while it is hidden. Mounted
+ * on the account pages only (`UnreadCount` in the account shell, and the inbox, which shares the
+ * query): every count costs requests from the visitor's budget, so never on the catalog's.
  */
 export function useUnreadCount() {
   const { hasSession } = useSession()

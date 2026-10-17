@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { CONTAINER } from '@/components/layout/container'
 import { cn } from '@/components/ui/cn'
+import { UnreadCount } from '@/features/notifications/unread-count'
 import { AccountHeader } from './account-header'
 import { AccountNav } from './account-nav'
 import { AccountSessionWatch } from './account-session-watch'
@@ -11,12 +12,14 @@ import { AccountSessionWatch } from './account-session-watch'
  * header) and the page at the end. Below lg the page alone: the dashboard is the hub (it lists
  * the navigation as large rows) and every other page starts with a link back to it
  * (`AccountPageHeader`). Server-rendered markup around client leaves; `AccountSessionWatch` sets
- * right a page that is back on screen after its session ended (Back, another tab).
+ * right a page that is back on screen after its session ended (Back, another tab), and
+ * `UnreadCount` keeps the unread notifications counted (the «اعلان‌ها» badge, the header's dot).
  */
 export function AccountShell({ children }: { children: ReactNode }) {
   return (
     <div className={cn(CONTAINER, 'pt-4 pb-8 md:pt-6 lg:pt-8 lg:pb-12')}>
       <AccountSessionWatch />
+      <UnreadCount />
       <div className="lg:grid lg:grid-cols-[17.5rem_minmax(0,1fr)] lg:items-start lg:gap-8">
         <div className="hidden transition-[top] duration-200 lg:sticky lg:top-[calc(var(--header-offset)+1rem)] lg:block">
           <div className="rounded-card bg-white p-3 shadow-card">

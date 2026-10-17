@@ -55,21 +55,26 @@ async function openPage(url: string, node: ReactNode) {
 const reads = () => mocks.bffFetch.mock.calls.map(([path]) => path as string)
 
 describe('a session that ends on an account page', () => {
-  it('the dashboard: the profile, summary and purchases all answer 401 → one replace to login', async () => {
+  it('the dashboard: the profile, summary, purchases and unread count all answer 401 → one replace to login', async () => {
     const { default: DashboardPage } = await import('@/app/(shop)/account/page')
     const client = await openPage('/account/', DashboardPage())
     await waitFor(() => expect(mocks.replace).toHaveBeenCalled())
     // Let every failing read settle: still one navigation, the page itself as next.
     await waitFor(() =>
       expect(new Set(reads())).toEqual(
-        new Set(['account/profile/me/', 'dashboard/summary/', 'dashboard/purchased-product/list/']),
+        new Set([
+          'account/profile/me/',
+          'dashboard/summary/',
+          'dashboard/purchased-product/list/',
+          'notification/list/',
+        ]),
       ),
     )
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/login/?next=/account/')
     expect(mocks.router.push).not.toHaveBeenCalled()
     // No loop: each read was made once, and none is retried with the session gone.
-    expect(reads()).toHaveLength(3)
+    expect(reads()).toHaveLength(4)
     // The visitor's data is gone; the sections keep their skeletons (no error, no retry).
     expect(client.getQueryData(['summary'])).toBeUndefined()
     expect(screen.queryByRole('button', { name: 'تلاش دوباره' })).toBeNull()

@@ -74,7 +74,7 @@ function Badge({ badge }: { badge: NavBadge }) {
 
 /**
  * The account area's navigation (`nav` «حساب کاربری»): the pages of the brief's table with
- * their badges (`useSummary`; the unread count from the inbox), the page on screen marked
+ * their badges (`useSummary`; the unread count the account shell keeps), the page on screen marked
  * `aria-current="page"`, and «خروج» last (`useLogout`, shared with the header menu). Rows of a
  * switched-off feature (the blog's reading list, the wallet) are left out. `sidebar`: the side
  * column from lg. `hub`: the dashboard's list of large rows below lg (without «پیشخوان»: it is

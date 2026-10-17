@@ -245,7 +245,11 @@ their data is read in the browser through the BFF (`useAccountQuery`: `enabled: 
 401 ends the session as above, the section keeps its skeleton meanwhile). The dashboard's public
 banners are read on the server and streamed in an in-page `<Suspense>` (the page never waits for
 them). A write that changes one of the summary's counters invalidates `SUMMARY_KEY` (a wishlist
-toggle, a comment or question sent).
+toggle, a comment or question sent). The unread notifications have no counter in the API: the
+account shell counts them on every account page (`UnreadCount`: a scan of the list capped at 20
+pages of 100, read again every 5 minutes while the tab is in view; the inbox shares the query)
+for the «اعلان‌ها» badge and the header's dot. Catalog pages never scan; they show what the last
+account page counted.
 
 Signing in (`/login/`, `src/app/(auth)/`: a minimal layout without the shop chrome, `noindex`,
 never cached) is a pure state machine (`features/auth/components/login-state.ts`: identifier →

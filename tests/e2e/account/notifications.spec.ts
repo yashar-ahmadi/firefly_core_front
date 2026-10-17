@@ -166,3 +166,26 @@ test('/sw.js is the site’s worker, with the headers a service worker needs', a
   expect(source).toContain("self.addEventListener('push'")
   expect(source).toContain("self.addEventListener('notificationclick'")
 })
+
+signedInTest(
+  'the unread count shows on any account page, before a visit to the inbox',
+  async ({ page }) => {
+    const errors = watchErrors(page)
+    const tried = await guardWrites(page)
+    await page.goto('/account/')
+    await expect(page.getByRole('heading', { level: 1, name: 'سلام سارا' })).toBeVisible()
+    const unread = (await liveInbox(page)).filter((item) => !item.is_read).length
+    // The sidebar from lg, the dashboard's hub below it: «اعلان‌ها» with its badge either way.
+    const inbox = page
+      .getByRole('navigation', { name: 'حساب کاربری' })
+      .getByRole('link', { name: /^اعلان‌ها/ })
+    // (The browser spaces the label and the badge's words apart: «اعلان‌ها ، …».)
+    await expect(inbox).toHaveAccessibleName(
+      unread === 0
+        ? 'اعلان‌ها'
+        : new RegExp(`^اعلان‌ها\\s*، ${toPersian(unread)} اعلان خوانده‌نشده$`),
+    )
+    expect(tried).toEqual({ reads: [], devices: [] })
+    expect(errors).toEqual([])
+  },
+)
