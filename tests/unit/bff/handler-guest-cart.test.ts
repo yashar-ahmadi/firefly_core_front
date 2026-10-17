@@ -125,8 +125,10 @@ describe('what the copy keeps', () => {
     expect(upstreamCalls(fetchSpy)).toHaveLength(2)
     expect(upstreamCalls(fetchSpy)[1]?.headers.get('X-Forwarded-For')).toBe('203.0.113.9')
 
+    // Within the fill backoff: proxied, without trying to fill again.
     await handleBff(...bff('cart/'))
-    expect(upstreamCalls(fetchSpy)).toHaveLength(4)
+    expect(upstreamCalls(fetchSpy)).toHaveLength(3)
+    expect(upstreamCalls(fetchSpy)[2]?.headers.get('X-Forwarded-For')).toBe('203.0.113.9')
   })
 
   it.each([
@@ -134,6 +136,8 @@ describe('what the copy keeps', () => {
     ['a 429', () => failure(429, 'throttled')],
     ['a 200 that is not JSON', () => new Response('<html>', { status: 200 })],
   ])('never stores %s', async (_label, response) => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-16T10:00:00Z'))
     fetchSpy.mockImplementation(async () => response())
     const handleBff = await loadHandler()
     const res = await handleBff(...bff('cart/'))
@@ -141,10 +145,37 @@ describe('what the copy keeps', () => {
     expect(res.status).not.toBe(200)
 
     fetchSpy.mockImplementation(async () => envelope(emptyCart()))
+    vi.setSystemTime(new Date('2026-10-16T10:00:10Z'))
     await handleBff(...bff('cart/'))
     await handleBff(...bff('cart/'))
-    // A new fill after the error, then the copy.
+    // A new fill once the backoff after the error is over, then the copy.
     expect(upstreamCalls(fetchSpy)).toHaveLength(3)
+  })
+
+  it('waits 10 seconds after a failed fill before filling again; meanwhile it proxies', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-16T10:00:00Z'))
+    fetchSpy.mockImplementation(async () => failure(500, 'server_error'))
+    const handleBff = await loadHandler()
+    await handleBff(...bff('cart/'))
+    // The failed fill, then the proxied request.
+    expect(upstreamCalls(fetchSpy)).toHaveLength(2)
+
+    fetchSpy.mockImplementation(async () => envelope(emptyCart()))
+    vi.setSystemTime(new Date('2026-10-16T10:00:09.999Z'))
+    const meanwhile = await handleBff(...bff('cart/'))
+    expect(meanwhile.status).toBe(200)
+    const calls = upstreamCalls(fetchSpy)
+    expect(calls).toHaveLength(3)
+    // Proxied as usual (the visitor's IP goes along), and the error was never stored.
+    expect(calls[2]?.headers.get('X-Forwarded-For')).toBe('203.0.113.9')
+
+    vi.setSystemTime(new Date('2026-10-16T10:00:10Z'))
+    await handleBff(...bff('cart/'))
+    await handleBff(...bff('cart/'))
+    // One new fill (no visitor IP), then the copy.
+    expect(upstreamCalls(fetchSpy)).toHaveLength(4)
+    expect(upstreamCalls(fetchSpy)[3]?.headers.has('X-Forwarded-For')).toBe(false)
   })
 
   it('falls through to the proxy when the API cannot be reached', async () => {

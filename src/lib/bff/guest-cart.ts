@@ -9,6 +9,11 @@ import { callUpstream } from '@/lib/bff/upstream'
 
 export const GUEST_CART_PATH = 'cart/'
 export const GUEST_CART_TTL_MS = 60_000
+/**
+ * After a fill that gave no copy (an error, an unshareable answer), the next fill waits this
+ * long, so a struggling API is not asked twice (fill, then the proxied call) for every guest.
+ */
+export const GUEST_CART_FILL_BACKOFF_MS = 10_000
 const FILL_TIMEOUT_MS = 5_000
 
 /** Cookies that make a `GET cart/` personal: any of them, even malformed, skips the copy. */
@@ -22,6 +27,8 @@ interface Copy {
 
 let copy: Copy | null = null
 let filling: Promise<Copy | null> | null = null
+/** When the last fill gave no copy; null after a good one. */
+let failedAt: number | null = null
 
 /**
  * Whether this request may be answered from the shared copy: a `GET` of exactly `cart/` with no
@@ -70,15 +77,19 @@ async function fill(apiUrl: string, apiKey: string): Promise<Copy | null> {
 /**
  * The shared empty-cart body, or null when the API did not give a shareable one (an error, a
  * non-empty cart, a token): the caller then proxies the request as usual. Concurrent misses
- * share one upstream call; nothing but a valid empty cart is ever stored.
+ * share one upstream call; nothing but a valid empty cart is ever stored. For
+ * `GUEST_CART_FILL_BACKOFF_MS` after a fill that gave nothing, no fill is tried: null at once.
  */
 export async function anonymousCartBody(apiUrl: string, apiKey: string): Promise<string | null> {
-  if (copy && Date.now() - copy.at < GUEST_CART_TTL_MS) return copy.text
+  const now = Date.now()
+  if (copy && now - copy.at < GUEST_CART_TTL_MS) return copy.text
   copy = null
+  if (!filling && failedAt !== null && now - failedAt < GUEST_CART_FILL_BACKOFF_MS) return null
   filling ??= fill(apiUrl, apiKey)
     .catch(() => null)
     .then((next) => {
       copy = next
+      failedAt = next ? null : Date.now()
       filling = null
       return next
     })

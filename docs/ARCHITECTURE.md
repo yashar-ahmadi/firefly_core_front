@@ -133,7 +133,9 @@ re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
   IP, and kept for 60 s (per server process). Only a `200` whose `data` has `is_empty: true`,
   `item_count: 0`, no lines and an empty or missing `token` is stored, as a string stripped by the
   same `captureSession` as every cart answer; any other answer or failure is never stored and the
-  request is proxied as usual. The response keeps `Cache-Control: no-store`, sets no cookie and is
+  request is proxied as usual. After such a fill no new fill is tried for 10 s: those requests are
+  simply proxied, so a struggling API is not asked twice per guest read. The response keeps
+  `Cache-Control: no-store`, sets no cookie and is
   byte-for-byte the body the proxied read would give. Cost: the empty-cart shape may be up to 60 s
   stale.
 
