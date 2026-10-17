@@ -10,11 +10,11 @@ import { FormAlert } from '@/features/auth/components/auth-card'
 import { AuthForm } from '@/features/auth/components/auth-form'
 import { useSubmitWait } from '@/features/auth/components/code-timers'
 import { SubmitButton } from '@/features/auth/components/login-fields'
-import { useRequestRunner } from '@/features/auth/components/use-request-runner'
 import type { ProfileChanges, UserProfile } from '@/lib/api/types/account'
 import { ME_KEY } from '@/lib/session/viewer-queries'
 import { formFailure, formReducer, initialFormState } from './form-state'
 import { FORM_BUTTON, ProfileSection, SavedNote, useFormFocus } from './profile-section'
+import { useProfileRunner } from './use-profile-runner'
 
 type NameField = 'firstName' | 'lastName'
 type Names = Record<NameField, string>
@@ -60,7 +60,7 @@ function namesErrors(names: Names): Partial<Record<NameField, string>> {
 function NamesForm({ me }: { me: UserProfile }) {
   const client = useQueryClient()
   const [state, dispatch] = useReducer(formReducer<NameField>, undefined, initialFormState)
-  const run = useRequestRunner(dispatch, toFailure)
+  const run = useProfileRunner(dispatch, toFailure)
   const lock = useSubmitWait(state.submitWait)
   const container = useRef<HTMLDivElement>(null)
   useFormFocus(container, state.attempt)

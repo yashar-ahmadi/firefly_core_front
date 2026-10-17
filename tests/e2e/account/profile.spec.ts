@@ -1,4 +1,6 @@
 import { expect, type Page } from '@playwright/test'
+import { codeChannels } from '@/features/auth/login-methods'
+import type { AuthSettings, SiteSettings } from '@/lib/api/types/settings'
 import { SARA, signedInTest } from '../support/session'
 import { watchErrors } from '../support/watch-errors'
 
@@ -15,6 +17,15 @@ const SECTIONS = [
   'ورود دومرحله‌ای',
   'نشست‌ها',
 ]
+
+/** The settings' `auth` block, read the way the page gets it (`global/settings/`). */
+async function authSettings(page: Page): Promise<AuthSettings> {
+  const response = await page.request.get('/api/bff/global/settings/', {
+    headers: { 'X-Requested-With': 'ff' },
+  })
+  expect(response.ok(), 'global/settings/ through the BFF').toBe(true)
+  return ((await response.json()) as { data: SiteSettings }).data.auth
+}
 
 async function openProfile(page: Page) {
   const response = await page.goto('/account/profile/')
@@ -49,8 +60,12 @@ signedInTest('shows sara’s profile: every section, the names filled in', async
   const phone = page.getByRole('group', { name: 'شماره موبایل', exact: true })
   await expect(phone).toContainText('۰۹۱۲ ۱۲۳ ۴۵۰۱')
   await expect(phone).toContainText('تأیید شده')
-  // The dev backend has no SMS or Telegram: no code can reach a phone, so no change is offered.
-  await expect(phone.getByRole('button')).toHaveCount(0)
+  // A change is offered only when a code can reach a phone (SMS or Telegram on; off in dev).
+  const phoneChangeable = codeChannels(await authSettings(page), 'phone').otpChannels.length > 0
+  await expect(phone.getByRole('button', { name: 'تغییر شماره موبایل' })).toHaveCount(
+    phoneChangeable ? 1 : 0,
+  )
+  if (!phoneChangeable) await expect(phone).toContainText('در این فروشگاه ممکن نیست.')
 
   // sara has a password: changing it asks for the current one.
   await expect(page.getByLabel('رمز فعلی', { exact: true })).toHaveAttribute(

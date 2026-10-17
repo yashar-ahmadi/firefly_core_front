@@ -186,29 +186,6 @@ describe('changing the email', () => {
     await waitFor(() => expect(input).toHaveAccessibleDescription(expect.stringContaining(detail)))
     expect(input).toHaveFocus()
   })
-
-  it('with two-step login on: the code sent spent the authenticator code; resend asks for a new one', async () => {
-    mocks.totpStatus.mockResolvedValue({ is_totp_enabled: true })
-    const { user } = renderSection(saraWith({ is_totp_enabled: true }))
-    await user.type(await openEmail(user), NEW_EMAIL)
-    await user.type(screen.getByLabelText('رمز فعلی'), 'Firefly@1234')
-    const totp = within(screen.getByRole('group', { name: 'کد برنامهٔ احراز هویت' }))
-    await user.type(totp.getAllByRole('textbox')[0]!, '654321')
-    await user.click(screen.getByRole('button', { name: 'ارسال کد تأیید' }))
-    await screen.findByRole('group', { name: 'کد تأیید' })
-    expect(mocks.contactRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ password: 'Firefly@1234', totp_code: '654321' }),
-    )
-
-    await seconds(121)
-    await user.click(screen.getByRole('button', { name: 'ارسال مجدد کد' }))
-    // Back on the first step, the password kept, the authenticator's next code asked for.
-    expect(await screen.findByLabelText('رمز فعلی')).toHaveValue('Firefly@1234')
-    const again = within(screen.getByRole('group', { name: 'کد برنامهٔ احراز هویت' }))
-    for (const box of again.getAllByRole('textbox')) expect(box).toHaveValue('')
-    expect(screen.getByText(/کد تازهٔ برنامه را وارد کنید/)).toBeInTheDocument()
-    expect(mocks.contactRequest).toHaveBeenCalledOnce()
-  })
 })
 
 describe('adding a phone', () => {

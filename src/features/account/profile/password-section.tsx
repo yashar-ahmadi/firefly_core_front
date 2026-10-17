@@ -13,12 +13,12 @@ import { useSubmitWait } from '@/features/auth/components/code-timers'
 import { SubmitButton } from '@/features/auth/components/login-fields'
 import { PasswordFields } from '@/features/auth/components/password-fields'
 import { PasswordInput } from '@/features/auth/components/password-input'
-import { useRequestRunner } from '@/features/auth/components/use-request-runner'
 import type { PasswordChangeBody, UserProfile } from '@/lib/api/types/account'
-import { normalizeIranMobile } from '@/lib/format'
 import { ME_KEY } from '@/lib/session/viewer-queries'
+import { usernameOf } from './contact-rules'
 import { formFailure, formReducer, initialFormState } from './form-state'
 import { FORM_BUTTON, ProfileSection, useFormFocus } from './profile-section'
+import { useProfileRunner } from './use-profile-runner'
 
 type PasswordField = 'current' | 'password' | 'confirm'
 type Values = Record<PasswordField, string>
@@ -56,16 +56,10 @@ const COPY = {
   },
 } as const
 
-/** The account's identifier as the login form takes it, for a password manager to save with. */
-function usernameOf(me: UserProfile): string {
-  if (me.email) return me.email
-  return me.phone_number ? (normalizeIranMobile(me.phone_number) ?? me.phone_number) : ''
-}
-
 function PasswordForm({ me }: { me: UserProfile }) {
   const client = useQueryClient()
   const [state, dispatch] = useReducer(formReducer<PasswordField>, undefined, initialFormState)
-  const run = useRequestRunner(dispatch, toFailure)
+  const run = useProfileRunner(dispatch, toFailure)
   const lock = useSubmitWait(state.submitWait)
   const container = useRef<HTMLDivElement>(null)
   useFormFocus(container, state.attempt)

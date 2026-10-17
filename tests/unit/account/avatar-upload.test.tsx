@@ -1,13 +1,13 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AvatarUpload } from '@/features/account/profile/avatar-upload'
 import { avatarFileError } from '@/features/account/profile/avatar-file'
 import { ME_KEY } from '@/lib/session/viewer-queries'
 import { stubBrowserApis } from '../support/dom-stubs'
-import { renderWithMe, saraWith, validationError } from './profile-support'
+import { apiError, renderWithMe, saraWith, validationError } from './profile-support'
 
 // The avatar (auth digest §4.16): JPEG, PNG or WEBP of at most 5 MB, checked before the upload
-// (multipart, field `avatar_picture`), with a preview; removed with a null.
+// (multipart, field `avatar_picture`), with a preview; removed with a null, after a question.
 
 const mocks = vi.hoisted(() => ({ updateMe: vi.fn(), bffFetch: vi.fn(), announce: vi.fn() }))
 vi.mock('@/features/auth/api', () => ({ authApi: { updateMe: mocks.updateMe } }))
@@ -128,7 +128,7 @@ describe('AvatarUpload', () => {
     expect(screen.getByRole('button', { name: 'انتخاب تصویر' })).toHaveFocus()
   })
 
-  it('shows the API’s word on a file it refuses (avatar_picture)', async () => {
+  it('shows the API’s word on a file it refuses; «انصراف» takes it away with the file', async () => {
     mocks.updateMe.mockRejectedValue(
       validationError([['avatar_picture', 'فایل ارسال‌شده تصویر نیست.']]),
     )
@@ -136,17 +136,54 @@ describe('AvatarUpload', () => {
     pick(container, image('fake.png', 'image/png'))
     await user.click(await screen.findByRole('button', { name: 'ذخیرهٔ تصویر' }))
     expect(await screen.findByText('فایل ارسال‌شده تصویر نیست.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'انصراف' }))
+    expect(screen.queryByText('فایل ارسال‌شده تصویر نیست.')).toBeNull()
+    const choose = screen.getByRole('button', { name: 'انتخاب تصویر' })
+    expect(choose).toHaveFocus()
+    expect(choose).toHaveAccessibleDescription('تصویر JPG، PNG یا WEBP، حداکثر ۵ مگابایت.')
   })
 
-  it('removes the picture with a null', async () => {
+  it('a 429 holds «ذخیرهٔ تصویر» for retry_after', async () => {
+    mocks.updateMe
+      .mockRejectedValueOnce(
+        apiError(429, 'throttled', 'لطفاً 30 ثانیه صبر کنید.', { retryAfter: 30 }),
+      )
+      .mockResolvedValueOnce(saraWith({ avatar_picture: PICTURE }))
+    const { container, user } = renderWithMe((me) => <AvatarUpload me={me} />)
+    pick(container, image('me.png', 'image/png'))
+    const save = await screen.findByRole('button', { name: 'ذخیرهٔ تصویر' })
+    await user.click(save)
+    expect(await screen.findByRole('alert')).toHaveTextContent('لطفاً ۳۰ ثانیه صبر کنید.')
+    await waitFor(() => expect(save).toHaveAttribute('aria-disabled', 'true'))
+    expect(save).toHaveAccessibleDescription('زمان باقی‌مانده تا تلاش دوباره: ۰۰:۳۰')
+    await user.click(save)
+    expect(mocks.updateMe).toHaveBeenCalledOnce()
+    await act(() => vi.advanceTimersByTimeAsync(31_000))
+    await user.click(save)
+    expect(await screen.findByText('تصویر پروفایل ذخیره شد.')).toBeInTheDocument()
+  })
+
+  it('«حذف تصویر» asks first, in place: «انصراف» keeps it, «بله، حذف شود» sends a null', async () => {
     mocks.updateMe.mockResolvedValue(saraWith({ avatar_picture: null }))
     const { user, client } = renderWithMe((me) => <AvatarUpload me={me} />, {
       me: saraWith({ avatar_picture: PICTURE }),
     })
+    const remove = screen.getByRole('button', { name: 'حذف تصویر' })
+    await user.click(remove)
+    const question = screen.getByRole('group', { name: 'تصویر حذف شود؟' })
+    // The harmless answer has the focus.
+    expect(within(question).getByRole('button', { name: 'انصراف' })).toHaveFocus()
+    await user.click(within(question).getByRole('button', { name: 'انصراف' }))
+    expect(screen.queryByRole('group', { name: 'تصویر حذف شود؟' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'حذف تصویر' })).toHaveFocus()
+    expect(mocks.updateMe).not.toHaveBeenCalled()
+
     await user.click(screen.getByRole('button', { name: 'حذف تصویر' }))
+    await user.click(screen.getByRole('button', { name: 'بله، حذف شود' }))
     await waitFor(() => expect(mocks.updateMe).toHaveBeenCalledWith({ avatar_picture: null }))
     await waitFor(() => expect(client.getQueryData(ME_KEY)).toMatchObject({ avatar_picture: null }))
     expect(await screen.findByText('تصویر پروفایل حذف شد.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'حذف تصویر' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'انتخاب تصویر' })).toHaveFocus()
   })
 })

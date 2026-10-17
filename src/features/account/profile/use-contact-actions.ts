@@ -5,7 +5,6 @@ import { authApi } from '@/features/auth/api'
 import { CODE_INCOMPLETE } from '@/features/auth/components/auth-messages'
 import { contactFailure } from '@/features/auth/components/code-flow-errors'
 import type { CodeFlowAction, CodeFlowState } from '@/features/auth/components/code-flow-types'
-import { useRequestRunner } from '@/features/auth/components/use-request-runner'
 import { NO_WAIT, stepWaiting, type Wait } from '@/features/auth/components/waits'
 import { chosenChannel, type CodeChannels } from '@/features/auth/login-methods'
 import type {
@@ -20,6 +19,7 @@ import {
   type ContactEntry,
   type ContactProof,
 } from './contact-rules'
+import { useProfileRunner } from './use-profile-runner'
 
 export interface ContactContext {
   type: ContactType
@@ -52,7 +52,7 @@ export interface ContactActions {
  */
 export function useContactActions(context: ContactContext): ContactActions {
   const { type, state, dispatch, channels, proof, onVerified } = context
-  const run = useRequestRunner(dispatch, contactFailure)
+  const run = useProfileRunner(dispatch, contactFailure)
   const { entry } = state
   const channel = chosenChannel(channels, entry.channel)
   const value = normalizeContact(type, entry.value)
@@ -71,12 +71,15 @@ export function useContactActions(context: ContactContext): ContactActions {
         ? { contact_type: 'email', email: value, otp_method: channel, ...proofs }
         : { contact_type: 'phone', phone_number: value, otp_method: channel, ...proofs }
     run(
-      () => authApi.contactRequest(body),
-      (sent) => {
-        dispatch({ type: 'codeSent', sent, now: Date.now(), sentKey })
-        // Spent: the next request needs the authenticator's next code.
-        if (proof.totp) dispatch({ type: 'entry', changes: { totpCode: '' } })
-      },
+      () =>
+        authApi.contactRequest(body).finally(() => {
+          // Once the API has checked the proof (before it sends or refuses to send the code),
+          // the authenticator's code is spent. A request refused earlier (an identifier taken)
+          // did not use it, but the form cannot tell which: after any answer, the next request
+          // asks for the next code.
+          if (proof.totp) dispatch({ type: 'entry', changes: { totpCode: '', totpUsed: true } })
+        }),
+      (sent) => dispatch({ type: 'codeSent', sent, now: Date.now(), sentKey }),
       true,
     )
   }

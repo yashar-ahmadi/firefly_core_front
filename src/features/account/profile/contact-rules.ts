@@ -15,6 +15,8 @@ export interface ContactEntry {
   password: string
   /** The authenticator's code, when the change needs it too. */
   totpCode: string
+  /** A request carried an authenticator code: it is spent, the next one is asked for. */
+  totpUsed: boolean
   /** The visitor's choice of channel (a phone with SMS and Telegram on); null: the default. */
   channel: OtpMethod | null
 }
@@ -30,6 +32,15 @@ export function currentContact(me: UserProfile, type: ContactType) {
   const verified =
     value !== null && (type === 'email' ? me.is_email_verified : me.is_phone_verified)
   return { value, verified }
+}
+
+/**
+ * The account's identifier as the login form takes it (its email, else its mobile as `09…`), for
+ * a password manager to save with the password typed next to it.
+ */
+export function usernameOf(me: UserProfile): string {
+  if (me.email) return me.email
+  return me.phone_number ? (normalizeIranMobile(me.phone_number) ?? me.phone_number) : ''
 }
 
 /** What a contact change must send besides the new value. */

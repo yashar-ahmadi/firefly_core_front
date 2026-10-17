@@ -10,13 +10,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { authApi } from '@/features/auth/api'
 import { FormAlert } from '@/features/auth/components/auth-card'
-import { useRequestRunner } from '@/features/auth/components/use-request-runner'
+import { useSubmitWait } from '@/features/auth/components/code-timers'
 import { profileInitial } from '@/features/auth/profile-display'
 import type { UserProfile } from '@/lib/api/types/account'
 import { ME_KEY } from '@/lib/session/viewer-queries'
 import { AVATAR_ACCEPT, avatarFileError } from './avatar-file'
 import { formFailure, formReducer, initialFormState } from './form-state'
 import { ProfileSection, SavedNote } from './profile-section'
+import { useProfileRunner } from './use-profile-runner'
 
 const HINT = 'تصویر JPG، PNG یا WEBP، حداکثر ۵ مگابایت.'
 const SAVED = 'تصویر پروفایل ذخیره شد.'
@@ -25,6 +26,9 @@ const REMOVED = 'تصویر پروفایل حذف شد.'
 /** The API judges the content: its word on the file goes where the client's does. */
 const toFailure = (error: unknown) =>
   formFailure<'avatar'>(error, { byCode: {}, byAttr: { avatar_picture: 'avatar' } })
+
+/** The buttons the focus moves to as the preview or the remove question come and go. */
+type Focus = 'choose' | 'remove' | 'keep'
 
 interface Picked {
   file: File
@@ -35,21 +39,37 @@ interface Picked {
 function AvatarForm({ me }: { me: UserProfile }) {
   const client = useQueryClient()
   const [state, dispatch] = useReducer(formReducer<'avatar'>, undefined, initialFormState)
-  const run = useRequestRunner(dispatch, toFailure)
+  const run = useProfileRunner(dispatch, toFailure)
+  const lock = useSubmitWait(state.submitWait)
+  const blocked = state.busy || lock.locked
   const [picked, setPicked] = useState<Picked | null>(null)
+  // «حذف تصویر» asks first, in place: «تصویر حذف شود؟».
+  const [confirming, setConfirming] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   const choose = useRef<HTMLButtonElement>(null)
-  // The buttons of a preview go with it: the focus moves back to «انتخاب تصویر».
-  const refocus = useRef(false)
+  const remover = useRef<HTMLButtonElement>(null)
+  const keeper = useRef<HTMLButtonElement>(null)
+  // The buttons pressed go with what they open or close: the focus moves to the one that stays.
+  const refocus = useRef<Focus | null>(null)
   const hintId = useId()
   const errorId = useId()
+  const confirmId = useId()
   const error = state.fieldErrors.avatar
+  // A 429's wait holds the button that would send (`retry_after`), its time left as described.
+  const sending = {
+    'aria-busy': state.busy || undefined,
+    'aria-disabled': lock.locked || undefined,
+    'aria-describedby': lock.locked ? lock.noteId : undefined,
+    iconStart: state.busy ? <Spinner /> : undefined,
+  }
 
   useEffect(() => (picked ? () => URL.revokeObjectURL(picked.url) : undefined), [picked])
   useEffect(() => {
-    if (!refocus.current || picked) return
-    refocus.current = false
-    choose.current?.focus()
+    const target = refocus.current
+    const node = target && { choose, remove: remover, keep: keeper }[target].current
+    if (!node) return
+    refocus.current = null
+    node.focus()
   })
 
   function onFile(file: File | undefined) {
@@ -62,14 +82,15 @@ function AvatarForm({ me }: { me: UserProfile }) {
 
   function done(profile: UserProfile, message: string) {
     client.setQueryData(ME_KEY, profile)
-    refocus.current = true
+    refocus.current = 'choose'
     setPicked(null)
+    setConfirming(false)
     dispatch({ type: 'saved', message })
     announce(message)
   }
 
   function upload() {
-    if (!picked || state.busy) return
+    if (!picked || blocked) return
     const { file } = picked
     run(
       () => authApi.updateMe({ avatar_picture: file }),
@@ -78,7 +99,7 @@ function AvatarForm({ me }: { me: UserProfile }) {
   }
 
   function remove() {
-    if (state.busy) return
+    if (blocked) return
     run(
       () => authApi.updateMe({ avatar_picture: null }),
       (profile) => done(profile, REMOVED),
@@ -103,51 +124,73 @@ function AvatarForm({ me }: { me: UserProfile }) {
           <Avatar src={me.avatar_picture} initial={profileInitial(me)} size="xl" />
         )}
         <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-3">
-            {picked ? (
-              <>
-                <Button
-                  aria-busy={state.busy || undefined}
-                  iconStart={state.busy ? <Spinner /> : undefined}
-                  onClick={upload}
-                >
-                  ذخیرهٔ تصویر
+          {picked ? (
+            <div className="flex flex-wrap gap-3">
+              <Button {...sending} onClick={upload}>
+                ذخیرهٔ تصویر
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  // The API's word on this file goes with it.
+                  dispatch({ type: 'edit', field: 'avatar' })
+                  refocus.current = 'choose'
+                  setPicked(null)
+                }}
+              >
+                انصراف
+              </Button>
+            </div>
+          ) : confirming ? (
+            <div role="group" aria-labelledby={confirmId} className="flex flex-col gap-2">
+              <p id={confirmId} className="text-base leading-7 font-medium text-ink-800">
+                تصویر حذف شود؟
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="danger" {...sending} onClick={remove}>
+                  بله، حذف شود
                 </Button>
                 <Button
-                  variant="ghost"
+                  ref={keeper}
+                  variant="outline"
                   onClick={() => {
-                    refocus.current = true
-                    setPicked(null)
+                    refocus.current = 'remove'
+                    setConfirming(false)
                   }}
                 >
                   انصراف
                 </Button>
-              </>
-            ) : (
-              <>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              <Button
+                ref={choose}
+                variant="outline"
+                iconStart={<ImageUp aria-hidden />}
+                aria-describedby={error ? `${hintId} ${errorId}` : hintId}
+                onClick={() => input.current?.click()}
+              >
+                انتخاب تصویر
+              </Button>
+              {me.avatar_picture && (
                 <Button
-                  ref={choose}
-                  variant="outline"
-                  iconStart={<ImageUp aria-hidden />}
-                  aria-describedby={error ? `${hintId} ${errorId}` : hintId}
-                  onClick={() => input.current?.click()}
+                  ref={remover}
+                  variant="ghost"
+                  className="text-danger"
+                  iconStart={<Trash2 aria-hidden />}
+                  onClick={() => {
+                    // The harmless answer takes the focus.
+                    refocus.current = 'keep'
+                    setConfirming(true)
+                  }}
                 >
-                  انتخاب تصویر
+                  حذف تصویر
                 </Button>
-                {me.avatar_picture && (
-                  <Button
-                    variant="ghost"
-                    className="text-danger"
-                    aria-busy={state.busy || undefined}
-                    iconStart={state.busy ? <Spinner /> : <Trash2 aria-hidden />}
-                    onClick={remove}
-                  >
-                    حذف تصویر
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
+              )}
+            </div>
+          )}
+          {lock.note}
           <p id={hintId} className="text-sm leading-6 text-ink-600">
             {HINT}
           </p>

@@ -73,6 +73,14 @@ describe('ContactSection', () => {
     expect(row('ایمیل').queryByText('تأیید شده')).toBeNull()
   })
 
+  it('an unverified phone starts filled in as it is typed (09…, not E.164)', async () => {
+    const { user } = renderSection(saraWith({ is_phone_verified: false }))
+    await user.click(row('شماره موبایل').getByRole('button', { name: 'تغییر شماره موبایل' }))
+    expect(await screen.findByRole('textbox', { name: 'شماره موبایل تازه' })).toHaveValue(
+      '09121234501',
+    )
+  })
+
   it('offers no phone change when no code can reach a phone (SMS and Telegram off)', () => {
     renderSection(undefined, {
       ...everyMethodAuth(),

@@ -10,11 +10,13 @@ import { useStepFocus } from '@/features/auth/components/use-step-focus'
 import { stepWait } from '@/features/auth/components/waits'
 import type { CodeChannels } from '@/features/auth/login-methods'
 import type { ContactType, UserProfile } from '@/lib/api/types/account'
+import { normalizeIranMobile } from '@/lib/format'
 import { ContactEntryStep } from './contact-entry-step'
 import {
   CONTACT_LABEL,
   contactProof,
   currentContact,
+  usernameOf,
   type ContactEntry,
   type ContactProof,
 } from './contact-rules'
@@ -32,6 +34,12 @@ export interface ContactEditorProps {
 
 /** «تغییر» on the code step names what it goes back to. */
 const CHANGE_LABEL: Record<ContactType, string> = { email: 'ایمیل تازه', phone: 'شمارهٔ تازه' }
+
+/** An unverified identifier, filled in as it is typed (a mobile as `09…`, not E.164). */
+function prefill(type: ContactType, value: string | null): string {
+  if (value === null) return ''
+  return type === 'phone' ? (normalizeIranMobile(value) ?? value) : value
+}
 
 /** The proof the API asked for though the profile said none was needed (a stale profile). */
 function demanded(code: string | null, previous: ContactProof): ContactProof {
@@ -56,8 +64,15 @@ export function ContactEditor({
   const current = currentContact(me, type)
   const [state, dispatch] = useReducer(
     codeFlowReducer<ContactEntry>,
-    current.verified ? '' : (current.value ?? ''),
-    (value) => initialCodeFlowState({ value, password: '', totpCode: '', channel: null }),
+    current.verified ? null : current.value,
+    (value) =>
+      initialCodeFlowState({
+        value: prefill(type, value),
+        password: '',
+        totpCode: '',
+        totpUsed: false,
+        channel: null,
+      }),
   )
   const container = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
@@ -73,7 +88,6 @@ export function ContactEditor({
   const { entry, fieldErrors: errors } = state
   const label = CONTACT_LABEL[type]
   const notice = state.notice && <FormAlert>{state.notice.detail}</FormAlert>
-  const totpSpent = state.sends > 0
 
   return (
     <div ref={container} className="rounded-control border border-ink-200 p-4 sm:p-5">
@@ -89,12 +103,12 @@ export function ContactEditor({
           type={type}
           adding={current.value === null}
           entry={entry}
-          username={me.email ?? me.username}
+          username={usernameOf(me)}
           proof={proof}
           channels={channels.otpChannels}
           channel={actions.channel}
-          totpSpent={totpSpent}
-          focusTotp={totpSpent && state.otpSent === null}
+          totpSpent={entry.totpUsed}
+          focusTotp={entry.totpUsed && state.otpSent === null}
           errors={errors}
           notice={notice}
           busy={state.busy}
