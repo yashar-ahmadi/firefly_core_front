@@ -153,9 +153,9 @@ export function MegaMenuPanel({
                       node={item}
                       prefetch={false}
                       onNavigate={onClose}
+                      // A touch first tap that only shows the children cancels the click, so
+                      // it starts no progress bar; any click that follows the link does.
                       onClick={(event) => onItemClick(event, index)}
-                      // A first tap may only open the children: the click is no page change.
-                      data-opens-dialog={item.children.length > 0 ? '' : undefined}
                       {...props}
                     >
                       {label}

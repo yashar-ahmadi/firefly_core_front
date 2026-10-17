@@ -24,9 +24,9 @@ export function announceRouterNavigation(url: string): void {
  * Whether a click follows a link to another page of this shop in this tab: an unmodified primary
  * click on an `<a href>` on the page's own origin, not opening a new tab and not a download. A
  * jump within this page (the skip link, an in-page `#anchor`) does not leave it, nor does a link
- * marked `data-opens-dialog` (it may open something on the page instead: the card's variant
- * chooser for quick view, the mini-cart, a mega-menu item whose first tap opens its submenu), nor a
- * click a handler has cancelled. Next's `<Link>` cancels its own clicks too: its navigation is
+ * marked `data-opens-dialog` (its click always opens something on the page instead: the card's
+ * variant chooser for quick view, the cart icon while it opens the mini-cart), nor a click a
+ * handler has cancelled (a mega-menu item's touch first tap that only shows its children). Next's `<Link>` cancels its own clicks too: its navigation is
  * announced by the router (`ROUTER_NAVIGATION_START`). Read it once the click's handlers have
  * run, as `onLeavingClick` does.
  */

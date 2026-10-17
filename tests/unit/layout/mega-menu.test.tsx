@@ -176,8 +176,7 @@ describe('MegaMenu', () => {
     )
     await user.click(screen.getByRole('button', { name: TRIGGER }))
     const item = screen.getByRole('link', { name: 'لوازم خانگی' })
-    // The first tap may only open the submenu: no navigation is announced for the click.
-    expect(item).toHaveAttribute('data-opens-dialog')
+    const bar = () => container.querySelector('[data-navigation-progress] [data-phase]')
 
     // Record whether React cancelled each visit, then stop jsdom from navigating.
     const visits: boolean[] = []
@@ -189,14 +188,45 @@ describe('MegaMenu', () => {
     // A real tap: pointerdown, pointerup, then mousedown (which focuses the link) and click.
     await user.pointer({ keys: '[TouchA]', target: item })
     expect(visits).toEqual([false])
-    expect(container.querySelector('[data-navigation-progress] [data-phase]')).toBeNull()
+    // Only the submenu opened: no progress bar for a click that leaves nothing.
+    expect(bar()).toBeNull()
     expect(screen.getByRole('button', { name: TRIGGER })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('link', { name: 'یخچال و فریزر' })).toBeInTheDocument()
 
-    // The second tap on the item that is now shown follows its link.
+    // The second tap on the item that is now shown follows its link, and the bar starts.
     await user.pointer({ keys: '[TouchA]', target: item })
     document.removeEventListener('click', record)
     expect(visits).toEqual([false, true])
+    expect(bar()).toHaveAttribute('data-phase', 'loading')
+  })
+
+  it('a mouse click on a category with children follows it, and the progress bar starts', async () => {
+    const user = userEvent.setup()
+    const tree = sampleTree()
+    tree[1].children = [
+      categoryNode({ id: 10009, name: 'یخچال و فریزر', path: 'home-appliance/refrigerator' }),
+    ]
+    const { container } = render(
+      rtl(
+        <>
+          <NavigationProgress />
+          <MegaMenu items={navItems([], tree)} />
+        </>,
+      ),
+    )
+    await user.click(screen.getByRole('button', { name: TRIGGER }))
+    // jsdom cannot navigate: stop the link on window, after the listeners on document.
+    const stop = (event: Event) => event.preventDefault()
+    window.addEventListener('click', stop)
+    try {
+      await user.click(screen.getByRole('link', { name: 'لوازم خانگی' }))
+    } finally {
+      window.removeEventListener('click', stop)
+    }
+    expect(container.querySelector('[data-navigation-progress] [data-phase]')).toHaveAttribute(
+      'data-phase',
+      'loading',
+    )
   })
 
   it('closes on an outside click and on a route change', async () => {
