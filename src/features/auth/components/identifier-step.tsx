@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import type { ReactNode, Ref } from 'react'
 import { AuthCard } from './auth-card'
+import { AuthForm } from './auth-form'
 import { IdentifierField, SubmitButton, TEXT_LINK } from './login-fields'
 
 export interface IdentifierStepProps {
@@ -40,11 +41,9 @@ export function IdentifierStep({
     >
       {notice}
       {google}
-      <form
-        noValidate
-        className="flex flex-col gap-5"
-        onSubmit={(event) => {
-          event.preventDefault()
+      <AuthForm
+        className="gap-5"
+        onSubmit={() => {
           if (!busy) onContinue()
         }}
       >
@@ -55,7 +54,7 @@ export function IdentifierStep({
           onChange={onIdentifier}
         />
         <SubmitButton busy={busy}>ادامه</SubmitButton>
-      </form>
+      </AuthForm>
       {registerHref && (
         <p className="text-center text-base leading-7 text-ink-700">
           حساب کاربری ندارید؟{' '}

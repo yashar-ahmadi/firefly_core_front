@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { ContactType, OtpMethod } from '@/lib/api/types/account'
 import { AuthCard } from './auth-card'
+import { AuthForm } from './auth-form'
 import { ChannelChoice } from './channel-choice'
 import { useSubmitWait } from './code-timers'
 import type { CodeFlowField } from './code-flow-types'
@@ -94,11 +95,9 @@ export function RegisterStartStep(props: RegisterStartStepProps) {
       titleRef={props.titleRef}
     >
       {notice}
-      <form
-        noValidate
-        className="flex flex-col gap-5"
-        onSubmit={(event) => {
-          event.preventDefault()
+      <AuthForm
+        className="gap-5"
+        onSubmit={() => {
           if (!busy && !lock.locked) props.onSubmit()
         }}
       >
@@ -155,7 +154,7 @@ export function RegisterStartStep(props: RegisterStartStepProps) {
             />
           )}
         </div>
-      </form>
+      </AuthForm>
       <p className="text-center text-base leading-7 text-ink-700">
         حساب کاربری دارید؟{' '}
         <Link href={props.loginHref} className={TEXT_LINK}>

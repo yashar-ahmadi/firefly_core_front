@@ -7,6 +7,7 @@ import { Field } from '@/components/ui/field'
 import type { ContactType } from '@/lib/api/types/account'
 import { normalizeIdentifier } from '../identifier'
 import { AuthCard, OrDivider } from './auth-card'
+import { AuthForm } from './auth-form'
 import { useSubmitWait } from './code-timers'
 import { IdentifierSummary, RememberMe, SubmitButton, TEXT_LINK } from './login-fields'
 import type { Wait } from './waits'
@@ -57,11 +58,9 @@ export function PasswordStep({
     <AuthCard title="رمز عبور را وارد کنید" titleRef={titleRef}>
       <IdentifierSummary identifier={identifier} type={type} onChange={onBack} />
       {notice}
-      <form
-        noValidate
-        className="flex flex-col gap-4"
-        onSubmit={(event) => {
-          event.preventDefault()
+      <AuthForm
+        className="gap-4"
+        onSubmit={() => {
           if (!busy && !lock.locked) onSubmit()
         }}
       >
@@ -93,7 +92,7 @@ export function PasswordStep({
         <SubmitButton busy={busy} lock={lock}>
           ورود
         </SubmitButton>
-      </form>
+      </AuthForm>
       {canUseCode && (
         <>
           <OrDivider />

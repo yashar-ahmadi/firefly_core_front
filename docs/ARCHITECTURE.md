@@ -259,6 +259,11 @@ another try after `auth_password_weak` or `auth_password_unchanged`, and ends wi
 `/login/?identifier=…` (no tokens come back). An unknown identifier gets the API's own
 `404 auth_user_not_found` detail, which the API reveals on purpose (§4.12). The new-password
 strength hint is client-side guidance only and steps aside while the API's reasons are shown.
+No auth form ever submits natively (a GET would put names, an email or a mobile number in the
+URL, the history and the server logs): every step's form is an `AuthForm` (`method="post"`; Next
+renders the page again for a form POST that is no Server Action), its `SubmitButton` is disabled
+until the page has hydrated (`useHydrated`, so the server HTML has it disabled too, which also
+stops Enter in a field), and a `<noscript>` notice in the card says JavaScript is needed.
 
 ## Caching
 

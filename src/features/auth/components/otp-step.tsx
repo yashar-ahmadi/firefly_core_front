@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { OtpInput } from '@/components/ui/otp-input'
 import type { ContactType, OtpMethod, OtpSent } from '@/lib/api/types/account'
 import { AuthCard, OrDivider } from './auth-card'
+import { AuthForm } from './auth-form'
 import { ChannelChoice } from './channel-choice'
 import { CodeExpiry, SendCodeButton, useSubmitWait } from './code-timers'
 import { IdentifierSummary, RememberMe, SubmitButton } from './login-fields'
@@ -96,11 +97,9 @@ export function OtpStep(props: OtpStepProps) {
       {sent === null ? (
         <SendCodeButton label="ارسال کد" wait={sendWait} busy={sending} onSend={props.onSend} />
       ) : (
-        <form
-          noValidate
-          className="flex flex-col gap-4"
-          onSubmit={(event) => {
-            event.preventDefault()
+        <AuthForm
+          className="gap-4"
+          onSubmit={() => {
             if (!blocked) props.onSubmit()
           }}
         >
@@ -137,7 +136,7 @@ export function OtpStep(props: OtpStepProps) {
             busy={sending}
             onSend={props.onSend}
           />
-        </form>
+        </AuthForm>
       )}
       {props.canUsePassword && props.onUsePassword && (
         <>

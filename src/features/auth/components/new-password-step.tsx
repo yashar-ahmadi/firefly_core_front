@@ -2,6 +2,7 @@
 
 import type { ReactNode, Ref } from 'react'
 import { AuthCard } from './auth-card'
+import { AuthForm } from './auth-form'
 import { useSubmitWait } from './code-timers'
 import { SubmitButton } from './login-fields'
 import { PasswordFields, type PasswordFieldsProps } from './password-fields'
@@ -38,11 +39,9 @@ export function NewPasswordStep({
   return (
     <AuthCard title={title} description={description} titleRef={titleRef}>
       {notice}
-      <form
-        noValidate
-        className="flex flex-col gap-5"
-        onSubmit={(event) => {
-          event.preventDefault()
+      <AuthForm
+        className="gap-5"
+        onSubmit={() => {
           if (!busy && !lock.locked) onSubmit()
         }}
       >
@@ -58,7 +57,7 @@ export function NewPasswordStep({
         <SubmitButton busy={busy} lock={lock}>
           {submitLabel}
         </SubmitButton>
-      </form>
+      </AuthForm>
     </AuthCard>
   )
 }

@@ -4,6 +4,7 @@ import { useId, type ReactNode, type Ref } from 'react'
 import { Button } from '@/components/ui/button'
 import { OtpInput } from '@/components/ui/otp-input'
 import { AuthCard } from './auth-card'
+import { AuthForm } from './auth-form'
 import { useSubmitWait } from './code-timers'
 import { SubmitButton } from './login-fields'
 import type { Wait } from './waits'
@@ -44,11 +45,9 @@ export function TotpStep({
       titleRef={titleRef}
     >
       {notice}
-      <form
-        noValidate
-        className="flex flex-col gap-4"
-        onSubmit={(event) => {
-          event.preventDefault()
+      <AuthForm
+        className="gap-4"
+        onSubmit={() => {
           if (!blocked) onSubmit()
         }}
       >
@@ -87,7 +86,7 @@ export function TotpStep({
         <SubmitButton busy={busy} lock={lock}>
           تأیید و ورود
         </SubmitButton>
-      </form>
+      </AuthForm>
       <Button variant="ghost" size="lg" fullWidth onClick={onBack}>
         بازگشت
       </Button>

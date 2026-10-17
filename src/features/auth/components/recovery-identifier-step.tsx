@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { ReactNode, Ref } from 'react'
 import type { OtpMethod } from '@/lib/api/types/account'
 import { AuthCard } from './auth-card'
+import { AuthForm } from './auth-form'
 import { ChannelChoice } from './channel-choice'
 import { useSubmitWait } from './code-timers'
 import { IdentifierField, SubmitButton, TEXT_LINK } from './login-fields'
@@ -41,11 +42,9 @@ export function RecoveryIdentifierStep(props: RecoveryIdentifierStepProps) {
       titleRef={props.titleRef}
     >
       {props.notice}
-      <form
-        noValidate
-        className="flex flex-col gap-5"
-        onSubmit={(event) => {
-          event.preventDefault()
+      <AuthForm
+        className="gap-5"
+        onSubmit={() => {
           if (!busy && !lock.locked) props.onSubmit()
         }}
       >
@@ -61,7 +60,7 @@ export function RecoveryIdentifierStep(props: RecoveryIdentifierStepProps) {
         <SubmitButton busy={busy} lock={lock}>
           ارسال کد بازیابی
         </SubmitButton>
-      </form>
+      </AuthForm>
       <p className="text-center">
         <Link href={props.loginHref} className={TEXT_LINK}>
           بازگشت به صفحهٔ ورود

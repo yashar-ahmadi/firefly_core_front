@@ -6,6 +6,9 @@ import { Spinner } from '@/components/ui/spinner'
 // The one card every auth page shows (login, register, forgot password): a step title, an
 // optional line under it, and the step's content.
 
+/** Shown when JavaScript is off: no auth form can be sent without it. */
+export const NO_SCRIPT = 'برای ورود و ثبت‌نام، جاوااسکریپت مرورگر را فعال کنید.'
+
 export interface AuthCardProps {
   title: ReactNode
   description?: ReactNode
@@ -34,7 +37,15 @@ export function AuthCard({ title, description, titleRef, children, className }: 
         {title}
       </h1>
       {description && <p className="mt-1 text-base leading-7 text-ink-600">{description}</p>}
-      <div className="mt-6 flex flex-col gap-5">{children}</div>
+      <div className="mt-6 flex flex-col gap-5">
+        {/* The forms work only with JavaScript (they never submit natively: see AuthForm). */}
+        <noscript>
+          <p className="rounded-control bg-warning/10 px-4 py-3 text-base leading-7 font-medium text-warning">
+            {NO_SCRIPT}
+          </p>
+        </noscript>
+        {children}
+      </div>
     </section>
   )
 }
