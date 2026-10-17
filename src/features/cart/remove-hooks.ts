@@ -22,8 +22,6 @@ const isLineGone = (error: unknown) =>
 export interface UndoCallbacks {
   /** «بازگردانی» was pressed: its toast is closing (the focus must go somewhere). */
   onUndo?: (line: CartLine) => void
-  /** The line is back in the cart (stored). */
-  onRestored?: (line: CartLine) => void
 }
 
 export interface RemoveLineWithUndo {
@@ -41,10 +39,7 @@ export interface RemoveLineWithUndo {
  * wanted (the cart is read again); a cart that is gone is read again (empty); a session that is
  * gone ends here too; any other refusal is said.
  */
-export function useRemoveLineWithUndo({
-  onUndo,
-  onRestored,
-}: UndoCallbacks = {}): RemoveLineWithUndo {
+export function useRemoveLineWithUndo({ onUndo }: UndoCallbacks = {}): RemoveLineWithUndo {
   const client = useQueryClient()
   const expire = useSessionExpired()
   const mutation = useMutation({
@@ -61,7 +56,6 @@ export function useRemoveLineWithUndo({
         const meta = { name, image }
         if (!(await addToCartOnce(client, { variant, quantity, meta, toast: false }))) return
         tell(`«${name}» به سبد خرید برگشت.`)
-        onRestored?.(line)
       }
       tell(`«${name}» از سبد خرید حذف شد.`, 'success', {
         id: `cart-removed-${variant}`,

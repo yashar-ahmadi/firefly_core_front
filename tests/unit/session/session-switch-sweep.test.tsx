@@ -145,6 +145,33 @@ describe('SessionSwitchSweep on a catalog page', () => {
     expect(mocks.refresh).toHaveBeenCalledTimes(1)
   })
 
+  it('a login elsewhere while this tab is a guest: the header’s name and the hearts are read', async () => {
+    const hearts = vi.fn(async () => [7])
+    function Hearts() {
+      const { hasSession } = useSession()
+      const ids = useQuery({ queryKey: WISHLIST_IDS, queryFn: hearts, enabled: hasSession })
+      return <output aria-label="hearts">{ids.data?.join(',') ?? ''}</output>
+    }
+    const providers = clientProviders({ hasSession: false })
+    render(
+      <>
+        <SessionSwitchSweep />
+        <HeaderName />
+        <Hearts />
+      </>,
+      { wrapper: providers.wrapper },
+    )
+    expect(output('name')).toHaveTextContent('')
+    expect(hearts).not.toHaveBeenCalled()
+    flagCookie('login-b-0123456789')
+    await focus()
+    expect(await screen.findByText('سارا احمدی')).toBeInTheDocument()
+    expect(output('hearts')).toHaveTextContent('7')
+    expect(hearts).toHaveBeenCalledTimes(1)
+    expect(mocks.refresh).toHaveBeenCalledTimes(1)
+    expect(mocks.reloadPage).not.toHaveBeenCalled()
+  })
+
   it('checks nothing on mount, nor while the tab is hidden; a page from the browser’s cache does', async () => {
     flagCookie('login-a-0123456789')
     renderSweep(false)
