@@ -59,8 +59,9 @@ const EMPTY = 'rounded-card bg-white py-12 shadow-card'
  * `/account/comments/` «دیدگاه‌های من» (digest §3.6): the visitor's comments on products, posts
  * and pages in every moderation state, newest first, filtered by subject and status in the URL
  * (`?type=post&status=pending&page=2`), with «حذف دیدگاه». Rows are keyed by subject type and id.
- * Skeletons while it loads (the page on screen stays while another loads); «تلاش دوباره» when it
- * cannot; a page past the end goes to the last one.
+ * Skeletons while it loads (the page on screen stays while another loads, and a page emptied by
+ * its deletes while it goes back one); «تلاش دوباره» when it cannot; a page past the end goes to
+ * the last one.
  */
 export function CommentsPage({ title }: { title: string }) {
   const url = useListUrl(COMMENTS_PATH, parseCommentsParams, commentsSearch)
@@ -86,7 +87,11 @@ export function CommentsPage({ title }: { title: string }) {
   const rows = data?.results ?? []
   const actions = useCommentDelete({ rows, params, pageHeading: heading, goToPage })
   const filtered = params.types.length > 0 || params.status !== null
-  const none = rows.length === 0 && (!filtered || summary.data?.comment_count === 0)
+  // A page after the first whose last row went is on its way to the page before (`goToPage`):
+  // its skeletons under the filters, never an empty state (only page 1 can say there is none).
+  const emptied = rows.length === 0 && params.page > 1
+  const none =
+    rows.length === 0 && params.page === 1 && (!filtered || summary.data?.comment_count === 0)
 
   let body
   if (query.isError && !data && !leaving && !isLoadingSection(query)) {
@@ -99,7 +104,7 @@ export function CommentsPage({ title }: { title: string }) {
         retrying={query.isFetching}
       />
     )
-  } else if (!data || leaving) {
+  } else if (!data || leaving || emptied) {
     body = <ListSkeleton />
   } else if (none) {
     body = (
@@ -120,6 +125,7 @@ export function CommentsPage({ title }: { title: string }) {
           <Link
             href={COMMENTS_PATH}
             scroll={false}
+            onClick={url.follow}
             className={buttonClasses({ variant: 'outline' })}
           >
             نمایش همه
@@ -166,7 +172,7 @@ export function CommentsPage({ title }: { title: string }) {
       <VisuallyHidden role="status">
         {data && !query.isPlaceholderData ? `${formatNumber(data.count)} دیدگاه` : ''}
       </VisuallyHidden>
-      {!(data && none) && <CommentFilters params={params} href={url.href} />}
+      {!(data && none) && <CommentFilters params={params} href={url.href} onFollow={url.follow} />}
       {body}
       {actions.deletion.requested && (
         <LazyDeleteCommentDialog

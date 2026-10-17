@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCompare } from '@/features/compare/store'
 import { ApiError } from '@/lib/api/errors'
 import { stubBrowserApis } from '../support/dom-stubs'
+import { spyOnHistory } from '../support/history'
 import {
   newWishlistApi,
   pageReads,
-  pastTheEnd,
   renderWishlist,
   saved,
   stubWishlistApi,
@@ -32,12 +32,16 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/components/ui/toaster', () => ({ notify: mocks.notify, toastRegionReady: () => true }))
 
 const UNSAVE = 'حذف از علاقه\u{200C}مندی\u{200C}ها'
+const NONE = 'هنوز کالایی به علاقه\u{200C}مندی\u{200C}ها اضافه نکرده\u{200C}اید'
 const PRODUCTS = [saved(1), saved(2), saved(3)]
 let api = newWishlistApi(PRODUCTS)
+
+let history = spyOnHistory()
 
 beforeEach(() => {
   vi.clearAllMocks()
   stubBrowserApis()
+  history = spyOnHistory()
   localStorage.clear()
   useCompare.setState({ items: [] })
   mocks.search = ''
@@ -129,19 +133,26 @@ describe('WishlistPage: removing from the wishlist', () => {
     expect(mocks.notify.success).not.toHaveBeenCalled()
   })
 
-  it('the last card of page 2: goes to page 1', async () => {
+  it('the last card of page 2: goes to page 1, its toolbar and skeleton meanwhile', async () => {
     mocks.search = 'sort=added-asc&page=2'
     api.list = () => wishlistPage([saved(3)], { count: 21, page: 2, totalPages: 2 })
     const { user } = renderWishlist()
     api.saved = [1, 2, 3]
     const heart = await heartOf('کالای ۳')
-    // From now on page 2 is past the end.
-    api.list = (query) => (query.page === 2 ? pastTheEnd() : wishlistPage(PRODUCTS.slice(0, 2)))
+    // Page 2 read again answers a stale, empty 200 (not the API's 404): only the page's own step
+    // back takes the visitor to page 1, not the past-the-end fallback.
+    api.list = (query) =>
+      query.page === 2
+        ? wishlistPage([], { count: 21, page: 2, totalPages: 2 })
+        : wishlistPage(PRODUCTS.slice(0, 2))
+    const before = pageReads(mocks.bffFetch).length
     await user.click(heart)
-    await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith('/account/wishlist/?sort=added-asc', {
-        scroll: false,
-      }),
-    )
+    await waitFor(() => expect(history.replaced()).toContain('/account/wishlist/?sort=added-asc'))
+    await waitFor(() => expect(pageReads(mocks.bffFetch).length).toBeGreaterThan(before))
+    // On its way to page 1 (the URL stays here in this test): never «nothing saved», and the
+    // toolbar stays above skeleton cards.
+    expect(screen.queryByRole('heading', { name: NONE })).toBeNull()
+    expect(screen.getByRole('combobox', { name: 'مرتب‌سازی' })).toBeVisible()
+    expect(screen.getByText('در حال بارگذاری کالاها')).toBeInTheDocument()
   })
 })

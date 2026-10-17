@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { loginHref } from '@/lib/links/login'
 import { stubBrowserApis } from '../support/dom-stubs'
+import { spyOnHistory } from '../support/history'
 import { commentsPage, PENDING_QUESTION, POST_10001, SARA_COMMENTS } from './comment-fixtures'
 import {
   apiError,
@@ -32,9 +33,12 @@ vi.mock('@/components/ui/toaster', () => ({ notify: mocks.notify, toastRegionRea
 
 let api = newCommentsApi()
 
+let history = spyOnHistory()
+
 beforeEach(() => {
   vi.clearAllMocks()
   stubBrowserApis()
+  history = spyOnHistory()
   mocks.search = ''
   api = newCommentsApi()
   stubCommentsApi(mocks.bffFetch, api)
@@ -142,9 +146,7 @@ describe('CommentsPage filters', () => {
         : commentsPage(SARA_COMMENTS, { count: 44, totalPages: 3 })
     renderComments()
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith('/account/comments/?status=accepted&page=3', {
-        scroll: false,
-      }),
+      expect(history.replaced()).toContain('/account/comments/?status=accepted&page=3'),
     )
     expect(screen.queryByText('دیدگاه‌ها بارگذاری نشد.')).toBeNull()
   })

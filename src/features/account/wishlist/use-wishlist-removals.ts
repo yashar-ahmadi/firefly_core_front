@@ -41,6 +41,8 @@ export interface WishlistRemovalsOptions {
   grid: RefObject<HTMLElement | null>
   pageHeading: RefObject<HTMLElement | null>
   goToPage: (page: number) => void
+  /** The list is being read (`isFetching`): a card «بازگردانی» brought back may be on its way. */
+  reading: boolean
 }
 
 /**
@@ -50,7 +52,10 @@ export interface WishlistRemovalsOptions {
  * «بازگردانی», which saves it again; a save brings a removed card back. When the card that went
  * had the focus, the next card's link takes it (else the previous one's, else the page's
  * heading); after «بازگردانی», the card that came back. The last card of a page after the first
- * goes to the page before. Returns the cards to show: `results` without those taken out.
+ * goes to the page before. A removal that succeeds after the visitor went to another view is
+ * still said (the name from the cards last seen); a card that comes back on another page leaves
+ * the focus on the heading once the list read after the write is in. Returns the cards to show:
+ * `results` without those taken out.
  */
 export function useWishlistRemovals({
   results,
@@ -58,6 +63,7 @@ export function useWishlistRemovals({
   grid,
   pageHeading,
   goToPage,
+  reading,
 }: WishlistRemovalsOptions): WishlistProductCard[] {
   const client = useQueryClient()
   const { hasSession } = useSession()
@@ -65,6 +71,11 @@ export function useWishlistRemovals({
   const expire = useSessionExpired()
   const [removed, setRemoved] = useState<ReadonlySet<number>>(() => new Set())
   const products = results.filter((product) => !removed.has(product.id))
+  // Every card shown on this page so far, by id: a write can land after its card left the view.
+  const seen = useRef(new Map<number, WishlistProductCard>())
+  useEffect(() => {
+    for (const product of results) seen.current.set(product.id, product)
+  }, [results])
   // Where the focus goes once the grid shows the change (a slug's card, or the page heading).
   const focusTarget = useRef<string | 'page' | null>(null)
   const [focusRequest, setFocusRequest] = useState(0)
@@ -92,18 +103,20 @@ export function useWishlistRemovals({
     }
     setRemoved((ids) => new Set(ids).add(id))
     const index = products.findIndex((product) => product.id === id)
-    const product = products[index]
+    const product = products[index] ?? seen.current.get(id)
     if (!product) return
+    tell(`«${product.name}» از علاقه‌مندی‌ها حذف شد.`, 'success', {
+      action: { label: 'بازگردانی', onClick: () => restore(product) },
+      duration: UNDO_MS,
+    })
+    // Its card is on another view now (the visitor moved on): nothing here changes.
+    if (index < 0) return
     const remaining = products.filter((other) => other.id !== id)
     const card = cardLink(grid.current, slug)?.closest('article')
     if (focusFree(pageHeading.current) || card?.contains(document.activeElement)) {
       const next = remaining[index] ?? remaining[index - 1]
       moveFocus(next ? next.slug : 'page')
     }
-    tell(`«${product.name}» از علاقه‌مندی‌ها حذف شد.`, 'success', {
-      action: { label: 'بازگردانی', onClick: () => restore(product) },
-      duration: UNDO_MS,
-    })
     if (remaining.length === 0 && page > 1) goToPage(page - 1)
   })
 
@@ -126,10 +139,15 @@ export function useWishlistRemovals({
       return
     }
     const element = target === 'page' ? pageHeading.current : cardLink(grid.current, target)
-    if (!element) return
+    if (!element) {
+      // The list read after the write is in without the card (it came back on another page or
+      // sort): the focus stays on the heading, and nothing waits to take it later.
+      if (!reading) focusTarget.current = null
+      return
+    }
     focusTarget.current = null
     element.focus()
-  }, [focusRequest, results, removed, grid, pageHeading])
+  }, [focusRequest, results, removed, reading, grid, pageHeading])
 
   return products
 }

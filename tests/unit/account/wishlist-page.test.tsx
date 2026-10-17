@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCompare } from '@/features/compare/store'
 import { stubBrowserApis } from '../support/dom-stubs'
+import { spyOnHistory } from '../support/history'
 import {
   newWishlistApi,
   pageReads,
@@ -34,9 +35,12 @@ vi.mock('@/components/ui/toaster', () => ({ notify: mocks.notify, toastRegionRea
 const PRODUCTS = [saved(1), saved(2, { in_stock: false }), saved(3)]
 let api = newWishlistApi(PRODUCTS)
 
+let history = spyOnHistory()
+
 beforeEach(() => {
   vi.clearAllMocks()
   stubBrowserApis()
+  history = spyOnHistory()
   localStorage.clear()
   useCompare.setState({ items: [] })
   mocks.search = ''
@@ -104,13 +108,9 @@ describe('WishlistPage', () => {
     const { user } = renderWishlist()
     await screen.findAllByRole('article')
     await user.selectOptions(sort(), 'قدیمی‌ترین')
-    expect(mocks.replace).toHaveBeenLastCalledWith('/account/wishlist/?sort=added-asc', {
-      scroll: false,
-    })
+    expect(history.replaced().at(-1)).toBe('/account/wishlist/?sort=added-asc')
     await user.click(inStock())
-    expect(mocks.replace).toHaveBeenLastCalledWith('/account/wishlist/?in_stock=true', {
-      scroll: false,
-    })
+    expect(history.replaced().at(-1)).toBe('/account/wishlist/?in_stock=true')
   })
 
   it('turning the switch off clears it from the URL', async () => {
@@ -118,9 +118,7 @@ describe('WishlistPage', () => {
     const { user } = renderWishlist()
     await screen.findAllByRole('article')
     await user.click(inStock())
-    expect(mocks.replace).toHaveBeenLastCalledWith('/account/wishlist/?sort=added-asc', {
-      scroll: false,
-    })
+    expect(history.replaced().at(-1)).toBe('/account/wishlist/?sort=added-asc')
   })
 
   it('a page past the end (404): goes to the last page there is', async () => {
@@ -129,9 +127,7 @@ describe('WishlistPage', () => {
       query.page === 7 ? pastTheEnd() : wishlistPage(PRODUCTS, { count: 45, totalPages: 3 })
     renderWishlist()
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith('/account/wishlist/?in_stock=true&page=3', {
-        scroll: false,
-      }),
+      expect(history.replaced()).toContain('/account/wishlist/?in_stock=true&page=3'),
     )
   })
 
@@ -154,7 +150,7 @@ describe('WishlistPage', () => {
       await screen.findByRole('heading', { name: 'کالای موجودی در علاقه‌مندی‌ها نیست' }),
     ).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'نمایش همه کالاها' }))
-    expect(mocks.replace).toHaveBeenLastCalledWith('/account/wishlist/', { scroll: false })
+    expect(history.replaced().at(-1)).toBe('/account/wishlist/')
   })
 
   it('a failed read (a 404 on page 1 too: no page past the end): «تلاش دوباره» reads it again', async () => {

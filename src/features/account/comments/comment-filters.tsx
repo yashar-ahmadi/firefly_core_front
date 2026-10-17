@@ -2,7 +2,7 @@
 
 import { Check } from 'lucide-react'
 import Link from 'next/link'
-import { useId, type ReactNode } from 'react'
+import { useId, type MouseEvent, type ReactNode } from 'react'
 import { HIT_AREA } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import type { CommentStatus, CommentSubjectType } from '@/lib/api/types/dashboard'
@@ -29,11 +29,13 @@ function FilterLink({
   href,
   current,
   kind,
+  onFollow,
   children,
 }: {
   href: string
   current: boolean
   kind: 'tab' | 'chip'
+  onFollow: (event: MouseEvent<HTMLAnchorElement>) => void
   children: ReactNode
 }) {
   return (
@@ -41,6 +43,7 @@ function FilterLink({
       href={href}
       prefetch={false}
       scroll={false}
+      onClick={onFollow}
       aria-current={current ? (kind === 'tab' ? 'page' : 'true') : undefined}
       className={kind === 'tab' ? TAB : CHIP}
     >
@@ -54,6 +57,8 @@ export interface CommentFiltersProps {
   params: CommentsParams
   /** The page's URL for other filters (`useListUrl`). */
   href: (params: CommentsParams) => string
+  /** A filter link's click (`useListUrl`'s `follow`): the URL changes, nothing is reloaded. */
+  onFollow: (event: MouseEvent<HTMLAnchorElement>) => void
 }
 
 /**
@@ -61,7 +66,7 @@ export interface CommentFiltersProps {
  * 1): the subject tabs («همه» sends no `subject_type`; the view on screen is `aria-current`), then
  * the status chips. Both are kept when the other changes.
  */
-export function CommentFilters({ params, href }: CommentFiltersProps) {
+export function CommentFilters({ params, href, onFollow }: CommentFiltersProps) {
   const statusLabel = useId()
   const only = params.types.length === 1 ? params.types[0] : undefined
   const withTypes = (types: CommentSubjectType[]) => href({ ...params, types, page: 1 })
@@ -72,13 +77,23 @@ export function CommentFilters({ params, href }: CommentFiltersProps) {
         {/* The four fit a 360px phone; narrower, they scroll sideways. */}
         <ul className="flex [scrollbar-width:none] overflow-x-auto px-1 shadow-[inset_0_-1px_0] shadow-ink-200 sm:gap-1 sm:px-2">
           <li>
-            <FilterLink kind="tab" href={withTypes([])} current={params.types.length === 0}>
+            <FilterLink
+              kind="tab"
+              href={withTypes([])}
+              current={params.types.length === 0}
+              onFollow={onFollow}
+            >
               همه
             </FilterLink>
           </li>
           {SUBJECT_TYPES.map((type) => (
             <li key={type.value}>
-              <FilterLink kind="tab" href={withTypes([type.value])} current={only === type.value}>
+              <FilterLink
+                kind="tab"
+                href={withTypes([type.value])}
+                current={only === type.value}
+                onFollow={onFollow}
+              >
                 {type.label}
               </FilterLink>
             </li>
@@ -93,7 +108,12 @@ export function CommentFilters({ params, href }: CommentFiltersProps) {
         <span id={statusLabel} className="me-1 text-sm text-ink-600">
           وضعیت دیدگاه
         </span>
-        <FilterLink kind="chip" href={withStatus(null)} current={params.status === null}>
+        <FilterLink
+          kind="chip"
+          href={withStatus(null)}
+          current={params.status === null}
+          onFollow={onFollow}
+        >
           همه
         </FilterLink>
         {COMMENT_STATUSES.map((status) => (
@@ -102,6 +122,7 @@ export function CommentFilters({ params, href }: CommentFiltersProps) {
             kind="chip"
             href={withStatus(status.value)}
             current={params.status === status.value}
+            onFollow={onFollow}
           >
             {status.label}
           </FilterLink>

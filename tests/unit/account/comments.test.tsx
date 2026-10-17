@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubBrowserApis } from '../support/dom-stubs'
+import { spyOnHistory } from '../support/history'
 import {
   commentsPage,
   PAGE_10001,
@@ -39,9 +40,12 @@ vi.mock('@/components/ui/toaster', () => ({ notify: mocks.notify, toastRegionRea
 let api = newCommentsApi()
 let consoleError: ReturnType<typeof vi.spyOn>
 
+let history = spyOnHistory()
+
 beforeEach(() => {
   vi.clearAllMocks()
   stubBrowserApis()
+  history = spyOnHistory()
   mocks.search = ''
   api = newCommentsApi()
   stubCommentsApi(mocks.bffFetch, api)
@@ -168,19 +172,27 @@ describe('CommentsPage', () => {
     )
   })
 
-  it('the last row of a page after the first: goes to the page before', async () => {
+  it('the last row of a page after the first: goes to the page before, filters kept', async () => {
     mocks.search = 'type=product&page=3'
     api.list = () => commentsPage([PRODUCT_10014], { count: 41, page: 3, totalPages: 3 })
     const { user } = renderComments()
     await screen.findByRole('article')
-    api.list = () => commentsPage([PRODUCT_10001], { count: 40, page: 2, totalPages: 2 })
+    // Page 3 read again is a stale, empty 200: the page goes back by itself.
+    api.list = (query) =>
+      query.page === 3
+        ? commentsPage([], { count: 41, page: 3, totalPages: 3 })
+        : commentsPage([PRODUCT_10001], { count: 40, page: 2, totalPages: 2 })
     const dialog = await askDelete(user, PRODUCT_10014.subject.name)
     await user.click(within(dialog).getByRole('button', { name: 'حذف دیدگاه' }))
     await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith('/account/comments/?type=product&page=2', {
-        scroll: false,
-      }),
+      expect(history.replaced()).toContain('/account/comments/?type=product&page=2'),
     )
+    // On its way (the URL stays here in this test): skeletons under the filters, never «none».
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.queryByRole('heading', { name: 'هنوز دیدگاهی ثبت نکرده‌اید' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'دیدگاهی با این فیلترها پیدا نشد' })).toBeNull()
+    expect(screen.getByRole('navigation', { name: 'نوع دیدگاه' })).toBeVisible()
+    expect(screen.getByText('در حال بارگذاری دیدگاه‌ها')).toBeInTheDocument()
   })
 
   it('a 404 (withdrawn already): no error, the dialog closes and the list is read again quietly', async () => {

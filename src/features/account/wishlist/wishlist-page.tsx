@@ -35,8 +35,9 @@ export interface WishlistPageProps {
  * catalog's own cards (their heart, compare, quick view and add to cart), sorted by when they
  * were saved, «فقط کالاهای موجود» and pages, all in the URL (`?sort=added-asc&in_stock=true&
  * page=2`). A heart pressed here takes its card out once the write succeeded, with «بازگردانی».
- * Skeleton cards while it loads (the page on screen stays while another loads); «تلاش دوباره»
- * when it cannot; a page past the end goes to the last one.
+ * Skeleton cards while it loads (the page on screen stays while another loads, and a page
+ * emptied by its hearts while it goes back one); «تلاش دوباره» when it cannot; a page past the
+ * end goes to the last one.
  */
 export function WishlistPage({ title, showOutOfStockLabel }: WishlistPageProps) {
   const url = useListUrl(WISHLIST_PATH, parseWishlistParams, wishlistSearch)
@@ -66,8 +67,15 @@ export function WishlistPage({ title, showOutOfStockLabel }: WishlistPageProps) 
     grid,
     pageHeading: heading,
     goToPage,
+    reading: query.isFetching,
   })
-  const none = products.length === 0 && (!params.inStock || summary.data?.wishlist_count === 0)
+  // A page after the first whose last card went is on its way to the page before (`goToPage`):
+  // its skeleton under the toolbar, never «nothing saved» (only page 1 can say that).
+  const emptied = products.length === 0 && params.page > 1
+  const none =
+    products.length === 0 &&
+    params.page === 1 &&
+    (!params.inStock || summary.data?.wishlist_count === 0)
 
   let body
   if (query.isError && !data && !leaving && !isLoadingSection(query)) {
@@ -80,7 +88,7 @@ export function WishlistPage({ title, showOutOfStockLabel }: WishlistPageProps) 
         retrying={query.isFetching}
       />
     )
-  } else if (!data || leaving) {
+  } else if (!data || leaving || emptied) {
     body = <ProductGridSkeleton count={8} withAction columns="sidebar" />
   } else if (none) {
     body = (
