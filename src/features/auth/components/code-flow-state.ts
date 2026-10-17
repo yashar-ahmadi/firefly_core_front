@@ -163,7 +163,8 @@ export function codeFlowReducer<E>(
         otpCode: '',
       }
     case 'done':
-      // Nothing secret stays in memory once it has served (the passwords, a code, a token).
+      // Nothing secret stays in memory once it has served (the passwords, a code, a token), nor
+      // anything of the code sent.
       return {
         ...state,
         step: 'done',
@@ -172,6 +173,8 @@ export function codeFlowReducer<E>(
         password: '',
         confirm: '',
         token: null,
+        sentKey: null,
+        otpSent: null,
         fieldErrors: {},
         notice: null,
       }

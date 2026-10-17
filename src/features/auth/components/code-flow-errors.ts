@@ -27,7 +27,8 @@ const REGISTER_RULES: FailureRules<CodeFlowField> = {
     password: 'password',
     confirm_password: 'confirm',
   },
-  restart: TOKEN_GONE,
+  // The identifier is taken: the token started for it is dead, a new start must make another.
+  restart: new Set([...TOKEN_GONE, 'auth_email_already_exists', 'auth_phone_already_exists']),
 }
 
 /** Registration answers that belong to another step than the one on screen. */

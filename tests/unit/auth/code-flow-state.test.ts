@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import { recoveryFailure, registerFailure } from '@/features/auth/components/code-flow-errors'
 import { codeFlowReducer, initialCodeFlowState } from '@/features/auth/components/code-flow-state'
 import type {
   CodeFlowAction,
   CodeFlowFailure,
   CodeFlowState,
 } from '@/features/auth/components/code-flow-types'
+import { ApiError } from '@/lib/api/errors'
 
 // The registration and recovery state machine: entry → code → password → done. Pure.
 
@@ -140,4 +142,64 @@ describe('codeFlowReducer', () => {
     expect(state.step).toBe('code')
     expect(state.notice?.code).toBe('auth_not_verified')
   })
+})
+
+describe('codeFlowReducer with the real failure mappings', () => {
+  const apiError = (status: number, code: string, detail = 'خطا') =>
+    new ApiError({ status, code, detail })
+
+  it('done keeps nothing of the code sent: no otpSent, no sentKey', () => {
+    const done = run(sentState(), { type: 'verified' }, { type: 'done' })
+    expect(done).toMatchObject({ step: 'done', token: null, otpSent: null, sentKey: null })
+  })
+
+  it.each(['auth_email_already_exists', 'auth_phone_already_exists'])(
+    'register %s: back to the entry, the token dropped, the message under the identifier',
+    (code) => {
+      const detail = 'قبلاً ثبت‌نام کرده است.'
+      const state = run(
+        sentState(),
+        { type: 'verified' },
+        { type: 'submit' },
+        failed(registerFailure(apiError(400, code, detail))),
+      )
+      expect(state).toMatchObject({
+        step: 'entry',
+        token: null,
+        sentKey: null,
+        otpSent: null,
+        errorCode: code,
+        notice: null,
+      })
+      expect(state.fieldErrors).toEqual({ identifier: detail })
+    },
+  )
+
+  it('register auth_already_verified on a resend: on to the password, token kept', () => {
+    const state = run(
+      sentState(),
+      { type: 'submit', sending: true },
+      failed(registerFailure(apiError(400, 'auth_already_verified'))),
+    )
+    expect(state).toMatchObject({ step: 'password', token: 't1', busy: false })
+    expect(state.notice?.code).toBe('auth_already_verified')
+  })
+
+  it.each([
+    ['register', registerFailure],
+    ['recovery', recoveryFailure],
+  ])(
+    '%s auth_otp_not_found: the code is gone, a new one is asked for on the code step',
+    (_, map) => {
+      const state = run(
+        sentState(),
+        { type: 'edit', field: 'otpCode', value: '123456' },
+        { type: 'submit' },
+        failed(map(apiError(400, 'auth_otp_not_found'))),
+      )
+      // No code sent any more: the step offers «ارسال کد» (a resend) instead of the boxes.
+      expect(state).toMatchObject({ step: 'code', otpSent: null, otpCode: '', token: 't1' })
+      expect(state.notice?.code).toBe('auth_otp_not_found')
+    },
+  )
 })
