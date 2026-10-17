@@ -167,7 +167,8 @@ export function SummaryCards() {
   const loading = isLoadingSection(query)
   const grid = cn('grid grid-cols-2 gap-3 md:gap-4', withWallet && 'md:grid-cols-4')
 
-  if (!loading && query.isError) {
+  // Only without data: a later read that fails leaves the cards as they were.
+  if (!loading && !query.data) {
     return (
       <SectionError
         message={'خلاصه\u{0654} حساب بارگذاری نشد.'}
@@ -179,7 +180,7 @@ export function SummaryCards() {
   }
   return (
     <div data-testid="summary-cards" aria-busy={loading || undefined} className={grid}>
-      {loading || !query.data ? (
+      {!query.data ? (
         <>
           {withWallet && <CardSkeleton shape="wide" />}
           <CardSkeleton shape="narrow" />

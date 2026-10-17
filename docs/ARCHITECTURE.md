@@ -228,11 +228,15 @@ navigations alike. The account layout checks the refresh cookie again for the re
 proxy's matcher skips (router prefetches; Next 16 prefetches of a dynamic route only fetch its
 route tree), with the dashboard as `next`. A redirect during a client navigation lands on login
 without the root layout rendering again, so the tab would still think it is signed in: the auth
-layout passes the request's `ff_auth` to `SessionCheck` (`lib/session/session-check.tsx`), which
-ends that stale session as `useSessionExpired` does (no navigation). Account pages are
-`force-dynamic` and `noindex`; their data is read in the browser through the BFF
-(`useAccountQuery`: `enabled: hasSession`, a 401 ends the session as above, the section keeps its
-skeleton meanwhile).
+layout mounts `SessionCheck` (`lib/session/session-check.tsx`), which ends that stale session as
+`useSessionExpired` does (no navigation) when the `ff_auth` cookie is gone. It reads the cookie
+itself: the layout's own value of it may be old, since a back/forward visit replays an earlier
+render (a guest's login page after the login). Account pages are `force-dynamic` and `noindex`;
+their data is read in the browser through the BFF (`useAccountQuery`: `enabled: hasSession`, a
+401 ends the session as above, the section keeps its skeleton meanwhile). The dashboard's public
+banners are read on the server and streamed in an in-page `<Suspense>` (the page never waits for
+them). A write that changes one of the summary's counters invalidates `SUMMARY_KEY` (a wishlist
+toggle, a comment or question sent).
 
 Signing in (`/login/`, `src/app/(auth)/`: a minimal layout without the shop chrome, `noindex`,
 never cached) is a pure state machine (`features/auth/components/login-state.ts`: identifier →

@@ -217,6 +217,20 @@ describe('loading and failing', () => {
     expect(mocks.summary).toHaveBeenCalledTimes(4)
   })
 
+  it('keeps the cards on screen when a later read of the summary fails', async () => {
+    const client = createQueryClient()
+    client.setQueryDefaults(SUMMARY_KEY, { retryDelay: 0 })
+    renderSections({}, client)
+    expect(await screen.findByRole('link', { name: /^کیف پول/ })).toBeVisible()
+    mocks.summary.mockRejectedValue(new ApiError({ status: 500, code: 'server_error' }))
+    await act(() => client.refetchQueries({ queryKey: SUMMARY_KEY }))
+    expect(client.getQueryState(SUMMARY_KEY)?.status).toBe('error')
+    // TanStack tells its observers on a timer: let the failed read reach the screen.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)))
+    expect(screen.getByRole('link', { name: /^کیف پول/ })).toHaveTextContent('۳٬۰۳۱٬۰۰۰')
+    expect(screen.queryByRole('button', { name: 'تلاش دوباره' })).toBeNull()
+  })
+
   it('greets without a name when the profile has none', async () => {
     mocks.profile.mockResolvedValue({ ...SARA, first_name: '', last_name: '', full_name: '' })
     renderSections()

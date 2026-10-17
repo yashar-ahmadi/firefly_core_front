@@ -23,16 +23,14 @@ const RSC_PARAM = '_rsc'
 
 /**
  * `/login/?next=<the page and its query>` (`loginHref`) for an account URL. The query is kept byte
- * for byte, without Next's `_rsc`.
+ * for byte: only Next's `_rsc` pair is cut out of the raw string (re-serialising it would change
+ * `%20`, `+` and other spellings).
  */
-export function accountLoginPath(url: Pick<URL, 'pathname' | 'search' | 'searchParams'>): string {
-  let { search } = url
-  if (url.searchParams.has(RSC_PARAM)) {
-    const params = new URLSearchParams(url.searchParams)
-    params.delete(RSC_PARAM)
-    const rest = params.toString()
-    search = rest ? `?${rest}` : ''
-  }
+export function accountLoginPath(url: Pick<URL, 'pathname' | 'search'>): string {
+  const pairs = url.search.replace(/^\?/, '').split('&')
+  const kept = pairs.filter((pair) => pair.split('=', 1)[0] !== RSC_PARAM)
+  let search = url.search
+  if (kept.length !== pairs.length) search = kept.some(Boolean) ? `?${kept.join('&')}` : ''
   return loginHref(`${url.pathname}${search}`)
 }
 

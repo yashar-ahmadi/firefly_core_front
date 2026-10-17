@@ -75,6 +75,17 @@ describe('the account guard in the proxy', () => {
     )
   })
 
+  it.each([
+    ['/account/orders/?q=a%20b+c&_rsc=1x&x=%D8%B3', '?q=a%20b+c&x=%D8%B3'],
+    ['/account/orders/?_rsc=1x&q=a+b%2Bc', '?q=a+b%2Bc'],
+    ['/account/orders/?_rsc=1x', ''],
+  ])('cuts only the _rsc pair out of %s, the rest byte for byte', async (path, kept) => {
+    const proxy = await loadProxy()
+    const res = await proxy(request(path))
+    const next = new URL(res.headers.get('location')!).searchParams.get('next')
+    expect(next).toBe(`/account/orders/${kept}`)
+  })
+
   it('clears a session flag left without its refresh cookie, so login shows the form', async () => {
     const proxy = await loadProxy()
     const res = await proxy(request('/account/', { ff_auth: '1', ff_at: jwtExpiringIn(600) }))

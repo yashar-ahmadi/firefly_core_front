@@ -15,7 +15,7 @@ import { loginHref } from '@/lib/links/login'
 import { runMutation } from '@/lib/query/run-mutation'
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired, type SessionExpired } from '@/lib/session/use-session-expired'
-import { isSessionExpiredError } from '@/lib/session/viewer-queries'
+import { isSessionExpiredError, SUMMARY_KEY } from '@/lib/session/viewer-queries'
 
 // The signed-in visitor's saved products, as a set of product ids for the hearts on cards.
 // Pages are cached for everyone without a token, so the hearts are filled in on the client.
@@ -113,8 +113,8 @@ type ToggleResult = Awaited<ReturnType<typeof bffFetch<{ is_in_wishlist: boolean
 /**
  * The optimistic toggle as mutation options. The heart flips at once; a failure flips it back
  * and shows the API's message, and a 401 because the session is gone ends it and goes to login
- * (`expire`). After the last toggle settles the ids are read again, so the cache ends up
- * matching the server.
+ * (`expire`). After the last toggle settles the ids (and the account summary, which counts
+ * them) are read again, so the cache ends up matching the server.
  */
 function toggleOptions(
   client: QueryClient,
@@ -141,9 +141,11 @@ function toggleOptions(
       else notify.error(error instanceof ApiError ? error.detail : GENERIC_ERROR_DETAIL)
     },
     onSettled: () => {
-      // Only after the last of several quick toggles, so a read never lands between them.
+      // Only after the last of several quick toggles, so a read never lands between them. The
+      // account summary counts the wishlist (`wishlist_count`): it is read again too.
       if (client.isMutating({ mutationKey: TOGGLE_KEY }) === 1) {
         void client.invalidateQueries({ queryKey: WISHLIST_IDS_KEY })
+        void client.invalidateQueries({ queryKey: SUMMARY_KEY })
       }
     },
   }

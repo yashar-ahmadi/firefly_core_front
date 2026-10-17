@@ -31,7 +31,8 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
   return (
     <div className="flex min-h-dvh flex-col bg-ink-50">
       {/* Entered by a client navigation the account guard redirected, the tab may still think it
-          is signed in: the server's view of the session wins (SessionCheck). */}
+          is signed in: SessionCheck ends that session when the flag cookie is gone (this
+          render's value only triggers the check; a back/forward visit replays an old one). */}
       <SessionCheck hasSession={cookieStore.has(COOKIE.flag)} />
       <header className="mx-auto flex h-16 w-full max-w-md items-center justify-between gap-3 px-4">
         <StoreLogo src={settings?.logo ?? null} name={name} />

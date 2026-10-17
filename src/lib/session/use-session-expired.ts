@@ -3,6 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback } from 'react'
+import { isAccountPath } from '@/lib/edge/account-guard'
 import { loginHref } from '@/lib/links/login'
 import { useSession } from './session-context'
 import { clearViewerQueries, ME_KEY } from './viewer-queries'
@@ -14,9 +15,6 @@ export interface SessionExpiredOptions {
 
 /** Call it when a session-only call answered `isSessionExpiredError`. */
 export type SessionExpired = (options?: SessionExpiredOptions) => void
-
-/** Pages that are nothing without a session: the account area (ruling P3-R1). */
-const SESSION_PAGE = /^\/account(?:\/|$)/
 
 /**
  * What a session-only call does when it answers 401 because the session is gone (it expired,
@@ -51,7 +49,7 @@ export function useSessionExpired(): SessionExpired {
       const login = loginHref(`${pathname}${search}`)
       // A background read that finds the session over already says nothing new; an action that
       // needs one does, even then (the flag cookie and the session cookie can disagree).
-      if (SESSION_PAGE.test(pathname)) {
+      if (isAccountPath(pathname)) {
         if (first || toLogin) router.replace(login)
       } else if (toLogin) router.push(login)
     },

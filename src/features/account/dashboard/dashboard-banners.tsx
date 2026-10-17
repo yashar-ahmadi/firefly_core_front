@@ -1,7 +1,9 @@
 import { Carousel } from '@/components/ui/carousel'
+import { cn } from '@/components/ui/cn'
 import { PromoTile } from '@/features/home/promo-tile'
 import type { HomeItem } from '@/lib/api/types/catalog'
 import type { DashboardBanner } from '@/lib/api/types/dashboard'
+import { BANNER_RATIO } from './banner-frame'
 
 const LABEL = 'پیشنهادهای ویژه'
 
@@ -9,10 +11,11 @@ const LABEL = 'پیشنهادهای ویژه'
 const AUTOPLAY_MS = 6000
 
 /**
- * 2:1 on phones (the mobile picture), 4:1 from md. Pictures are cropped to fill the frame, so
- * operators should upload about 1600×400 and 800×400 (or keep text away from the edges).
+ * `BANNER_RATIO`: 2:1 on phones (the mobile picture), 4:1 from md. Pictures are cropped to fill
+ * the frame, so operators should upload about 1600×400 and 800×400 (or keep text away from the
+ * edges).
  */
-const FRAME = 'aspect-[2/1] bg-linear-to-l from-brand-700 to-brand-500 md:aspect-[4/1]'
+const FRAME = cn(BANNER_RATIO, 'bg-linear-to-l from-brand-700 to-brand-500')
 
 /** The account column: the page less the gutters, less the side column from lg. */
 const SIZES =
@@ -34,8 +37,8 @@ function promoItem(banner: DashboardBanner): HomeItem {
 }
 
 /**
- * The dashboard's promo banners (`getDashboardBanners`, read on the server: they are in the
- * page's HTML, so nothing shifts) as a carousel of the homepage's promo tiles: the picture in a
+ * The dashboard's promo banners (`getDashboardBanners`, read on the server and streamed in with
+ * the page by `LiveBanners`) as a carousel of the homepage's promo tiles: the picture in a
  * fixed-ratio frame (the mobile picture on phones), the title, subtitle and button over it, the
  * whole tile a link to `link`. Nothing at all without a live banner.
  */

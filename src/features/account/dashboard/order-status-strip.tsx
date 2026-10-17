@@ -35,6 +35,19 @@ const GROUP_BOX =
   'flex min-h-32 flex-col items-center gap-1 rounded-control px-1 pt-1 pb-2 text-center'
 const SKELETON_COUNT = 5
 
+/**
+ * Phones: one row that scrolls sideways (snapping to the tiles, the next one peeking in), with
+ * tiles wide enough for every API label on two lines; five equal columns would cut «تحویل داده
+ * شده». From sm, a grid of equal columns (their number set by the groups).
+ */
+const LIST = cn(
+  // `relative`: the tiles' sr-only words (absolutely placed) stay inside the scroller instead of
+  // widening the page past its edge.
+  'relative -mx-4 flex snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none]',
+  'sm:mx-0 sm:grid sm:gap-2 sm:overflow-visible sm:px-0',
+)
+const ITEM = 'w-[5.75rem] shrink-0 snap-start sm:w-auto'
+
 const LINK = cn(
   'inline-flex min-h-11 shrink-0 items-center gap-0.5 rounded-control px-1 text-sm font-medium text-brand-700 transition-colors hover:text-brand-800',
 )
@@ -46,7 +59,7 @@ export function ordersHref(key: string): string {
 function GroupLink({ group }: { group: OrderStatusGroup }) {
   const { icon: Icon, tone } = GROUP_LOOK[group.key] ?? OTHER_GROUP
   return (
-    <li>
+    <li className={ITEM}>
       <Link
         href={ordersHref(group.key)}
         className={cn(GROUP_BOX, 'group transition-colors hover:bg-ink-50')}
@@ -80,7 +93,7 @@ function GroupLink({ group }: { group: OrderStatusGroup }) {
 
 function GroupSkeleton() {
   return (
-    <li data-testid="group-skeleton" aria-hidden className={GROUP_BOX}>
+    <li data-testid="group-skeleton" aria-hidden className={cn(ITEM, GROUP_BOX)}>
       <Skeleton className="size-12 rounded-full" />
       <span className="flex h-7 items-center">
         <Skeleton className="h-4 w-5" />
@@ -94,8 +107,9 @@ function GroupSkeleton() {
  * «سفارش‌های من»: one tile per order group of the summary (`orders.groups`), all of them, in the
  * API's order, each with its icon, the API's label as it is and the count, linking to that tab
  * of the orders page (`?group=<key>`). With no order yet every tile shows «۰», and a line under
- * them says so and offers «شروع خرید» (no «همه‌ی سفارش‌ها»). Skeleton tiles of the same size
- * while the summary loads; a failed read offers «تلاش دوباره» in their place.
+ * them says so and offers «شروع خرید» (no «همه‌ی سفارش‌ها»). On phones the row scrolls (`LIST`).
+ * Skeleton tiles of the same size while the summary loads; a failed read offers «تلاش دوباره» in
+ * their place.
  */
 export function OrderStatusStrip() {
   const id = useId()
@@ -107,7 +121,7 @@ export function OrderStatusStrip() {
   let body
   if (loading) {
     body = (
-      <ul aria-busy="true" className="grid grid-cols-5 gap-1 sm:gap-2">
+      <ul aria-busy="true" className={cn(LIST, 'sm:grid-cols-5')}>
         {Array.from({ length: SKELETON_COUNT }, (_, index) => (
           <GroupSkeleton key={index} />
         ))}
@@ -125,8 +139,13 @@ export function OrderStatusStrip() {
   } else {
     body = (
       <ul
-        className="grid gap-1 sm:gap-2"
-        style={{ gridTemplateColumns: `repeat(${orders.groups.length}, minmax(0, 1fr))` }}
+        className={LIST}
+        style={
+          // Never `repeat(0, …)`: without groups (the API always sends five) the list is empty.
+          orders.groups.length > 0
+            ? { gridTemplateColumns: `repeat(${orders.groups.length}, minmax(0, 1fr))` }
+            : undefined
+        }
       >
         {orders.groups.map((group) => (
           <GroupLink key={group.key} group={group} />

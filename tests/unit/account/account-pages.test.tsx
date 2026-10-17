@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import type { Metadata } from 'next'
-import type { ReactNode } from 'react'
+import { isValidElement, Suspense, type ReactElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AccountShell } from '@/features/account/layout/account-shell'
 import { SARA } from '../auth/fixtures'
@@ -43,6 +43,23 @@ async function renderInShell(node: ReactNode) {
   })
 }
 
+/** The first element of a (server) tree that `match` accepts, children first-depth order. */
+function findElement(
+  node: unknown,
+  match: (element: ReactElement) => boolean,
+): ReactElement | undefined {
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findElement(child, match)
+      if (found) return found
+    }
+    return undefined
+  }
+  if (!isValidElement(node)) return undefined
+  if (match(node)) return node
+  return findElement((node.props as { children?: unknown }).children, match)
+}
+
 /** The element holding `node`'s nav, with the breakpoint classes that show or hide it. */
 const holder = (nav: HTMLElement) => nav.closest('.lg\\:hidden, .lg\\:block')
 
@@ -68,7 +85,7 @@ describe('the account shell', () => {
 describe('the dashboard', () => {
   async function renderDashboard() {
     const { default: DashboardPage } = await import('@/app/(shop)/account/page')
-    await renderInShell(<DashboardPage />)
+    await renderInShell(DashboardPage())
   }
 
   it('greets her and keeps the headings in order', async () => {
@@ -99,15 +116,32 @@ describe('the dashboard', () => {
     expect(await within(holder(hub) as HTMLElement).findByText('سارا احمدی')).toBeInTheDocument()
   })
 
-  it('shows the live banners above the latest purchases, and none without', async () => {
+  it('shows the live banners after the latest purchases', async () => {
     mocks.banners.mockResolvedValue([banner()])
     await renderDashboard()
     // Loaded on demand (next/dynamic), and only because there is a banner.
     const carousel = await screen.findByRole('region', { name: 'پیشنهادهای ویژه' })
     const purchases = screen.getByRole('region', { name: 'آخرین خریدها' })
     expect(
-      carousel.compareDocumentPosition(purchases) & Node.DOCUMENT_POSITION_FOLLOWING,
+      purchases.compareDocumentPosition(carousel) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
+  })
+
+  it('never waits for the banners: they stream, a skeleton of their frame in their place', async () => {
+    mocks.banners.mockReturnValue(new Promise(() => {}))
+    const { default: DashboardPage } = await import('@/app/(shop)/account/page')
+    const page: unknown = await Promise.race([
+      Promise.resolve(DashboardPage()),
+      new Promise((resolve) => setTimeout(() => resolve('waited'), 200)),
+    ])
+    expect(page).not.toBe('waited')
+    const boundary = findElement(page, (element) => element.type === Suspense)
+    expect(boundary).toBeDefined()
+    const { container } = render(<>{(boundary!.props as { fallback: ReactNode }).fallback}</>)
+    const skeleton = container.querySelector('[data-banner-skeleton]')!
+    expect(skeleton).toHaveAttribute('aria-hidden', 'true')
+    expect(skeleton.className).toContain('aspect-[2/1]')
+    expect(skeleton.className).toContain('md:aspect-[4/1]')
   })
 
   it('has no banner region when none is live', async () => {

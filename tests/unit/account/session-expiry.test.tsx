@@ -54,7 +54,7 @@ const reads = () => mocks.bffFetch.mock.calls.map(([path]) => path as string)
 describe('a session that ends on an account page', () => {
   it('the dashboard: the profile, summary and purchases all answer 401 → one replace to login', async () => {
     const { default: DashboardPage } = await import('@/app/(shop)/account/page')
-    const client = await openPage('/account/', <DashboardPage />)
+    const client = await openPage('/account/', DashboardPage())
     await waitFor(() => expect(mocks.replace).toHaveBeenCalled())
     // Let every failing read settle: still one navigation, the page itself as next.
     await waitFor(() =>

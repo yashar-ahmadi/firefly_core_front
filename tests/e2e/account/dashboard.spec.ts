@@ -35,6 +35,12 @@ signedInTest('greets sara, shows her order groups and the account pages', async 
   await expect(groups).toHaveCount(5)
   await expect(groups.first()).toHaveAttribute('href', '/account/orders/?group=awaiting_payment')
   await expect(groups.first()).toContainText('در انتظار پرداخت')
+  // Every label whole, and no sideways page scroll (on phones the strip scrolls inside itself).
+  for (const label of await groups.locator('[data-group-label]').all()) {
+    expect(await label.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true)
+  }
+  const width = page.viewportSize()?.width ?? 0
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
 
   // One account navigation on screen: the side column from lg, the dashboard's hub below.
   const nav = page.getByRole('navigation', { name: ACCOUNT_NAV })
