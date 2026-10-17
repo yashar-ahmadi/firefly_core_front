@@ -1,6 +1,14 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, type ClipboardEvent, type KeyboardEvent } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type FocusEvent,
+  type KeyboardEvent,
+} from 'react'
 import { toLatinDigits, toPersianDigits } from '@/lib/format'
 import { cn } from './cn'
 import { controlClasses } from './control-styles'
@@ -47,10 +55,13 @@ export function OtpInput({
   const pendingFocus = useRef<number | null>(null)
   // Set by pointerdown, so onFocus can tell a click or tap from keyboard focus.
   const pointerDown = useRef(false)
+  // The box holding the focus, while one does (null once the focus leaves the group).
+  const [focused, setFocused] = useState<number | null>(null)
   const code = digitsOf(value).slice(0, length)
-  // Roving tab stop: only the first empty box (or the last one when full) is in the tab order,
-  // so Tab enters the group once and the next Tab leaves it.
-  const active = Math.min(code.length, length - 1)
+  // Roving tab stop: only one box is in the tab order, so Tab enters the group once and the next
+  // Tab leaves it. From outside, that is the first empty box (or the last one when full); while
+  // the focus is inside (the arrows may have moved it back), it is the focused box.
+  const active = focused ?? Math.min(code.length, length - 1)
 
   function focusBox(index: number) {
     boxes.current[Math.max(0, Math.min(index, length - 1))]?.focus()
@@ -114,6 +125,11 @@ export function OtpInput({
     }
   }
 
+  function handleBlur(event: FocusEvent<HTMLDivElement>) {
+    const next = event.relatedTarget
+    if (!(next instanceof Node) || !event.currentTarget.contains(next)) setFocused(null)
+  }
+
   function handlePaste(index: number, event: ClipboardEvent<HTMLInputElement>) {
     event.preventDefault()
     const pasted = digitsOf(event.clipboardData.getData('text')).slice(0, length)
@@ -129,6 +145,7 @@ export function OtpInput({
         dir="ltr"
         aria-label={ariaLabel}
         aria-describedby={describedBy}
+        onBlur={handleBlur}
         className="inline-flex min-w-0 gap-2 sm:gap-3"
       >
         {Array.from({ length }, (_, index) => (
@@ -152,8 +169,9 @@ export function OtpInput({
             onFocus={(event) => {
               const fromPointer = pointerDown.current
               pointerDown.current = false
-              if (fromPointer && index > code.length) focusBox(code.length)
-              else event.currentTarget.select()
+              if (fromPointer && index > code.length) return focusBox(code.length)
+              setFocused(index)
+              event.currentTarget.select()
             }}
             onChange={(event) => handleChange(index, event.currentTarget.value)}
             onKeyDown={(event) => handleKeyDown(index, event)}

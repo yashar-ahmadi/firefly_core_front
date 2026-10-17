@@ -66,6 +66,29 @@ describe('OtpInput', () => {
     expect(boxes[0]).toHaveFocus()
   })
 
+  it('keeps the tab stop on the box the arrows moved to, so Tab leaves the group at once', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <Harness />
+        <button type="button">تأیید</button>
+      </>,
+    )
+    await user.click(screen.getByLabelText('رقم ۱'))
+    await user.keyboard('123')
+    expect(screen.getByLabelText('رقم ۴')).toHaveFocus()
+    await user.keyboard('{ArrowLeft}{ArrowLeft}')
+    expect(screen.getByLabelText('رقم ۲')).toHaveFocus()
+    expect(screen.getByLabelText('رقم ۲')).toHaveAttribute('tabindex', '0')
+    expect(screen.getByLabelText('رقم ۴')).toHaveAttribute('tabindex', '-1')
+    // No second stop at the first empty box on the way out.
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'تأیید' })).toHaveFocus()
+    // Back in: the group's stop is the first empty box again.
+    await user.tab({ shift: true })
+    expect(screen.getByLabelText('رقم ۴')).toHaveFocus()
+  })
+
   it('moves the tab stop to the first empty box and redirects a click on a later box there', async () => {
     const user = userEvent.setup()
     render(<Harness />)

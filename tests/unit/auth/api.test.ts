@@ -1,27 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authApi } from '@/features/auth/api'
 import { ApiError } from '@/lib/api/errors'
-import type { UserProfile } from '@/lib/api/types/account'
+import { SARA } from './fixtures'
 
 const bff = vi.hoisted(() => ({ fetch: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: bff.fetch }))
-
-/** `GET account/profile/me/` for sara, as the live API answers it. */
-const SARA: UserProfile = {
-  uuid: 'a39a75e3-9c58-43f7-8a2c-3dce983629f8',
-  username: 'sara.ahmadi',
-  first_name: 'سارا',
-  last_name: 'احمدی',
-  full_name: 'سارا احمدی',
-  email: 'sara.ahmadi@example.com',
-  phone_number: '+989121234501',
-  is_email_verified: true,
-  is_phone_verified: true,
-  avatar_picture: null,
-  created: '2025-09-18T15:00:00+03:30',
-  is_totp_enabled: false,
-  has_usable_password: true,
-}
 
 const OTP_SENT = { otp_method: 'email', expires_in: 300, resend_after: 120 } as const
 const SIGNED_IN = { user: SARA, requires_totp: false, remember_me: true }
@@ -29,6 +12,33 @@ const SIGNED_IN = { user: SARA, requires_totp: false, remember_me: true }
 beforeEach(() => {
   bff.fetch.mockReset()
 })
+
+/** auth-settings.md §4.1–4.19 (and the §12 index), written out by hand from the digest. */
+const SECTION_4_ENDPOINTS = [
+  'POST account/auth/register/start/',
+  'POST account/auth/register/verify/',
+  'POST account/auth/register/resend-otp/',
+  'POST account/auth/register/complete/',
+  'POST account/auth/login/',
+  'POST account/auth/login/otp/request/',
+  'POST account/auth/login/otp/verify/',
+  'POST account/auth/google/',
+  'POST account/auth/token/refresh/',
+  'POST account/auth/logout/',
+  'POST account/auth/logout-all/',
+  'POST account/auth/password-reset/request/',
+  'POST account/auth/password-reset/verify-otp/',
+  'POST account/auth/password-reset/confirm/',
+  'POST account/profile/password/change/',
+  'GET account/profile/me/',
+  'PATCH account/profile/me/',
+  'POST account/profile/contact/request/',
+  'POST account/profile/contact/verify/',
+  'GET account/profile/totp/status/',
+  'POST account/profile/totp/setup/',
+  'POST account/profile/totp/enable/',
+  'POST account/profile/totp/disable/',
+] as const
 
 /** Every endpoint of auth-settings.md §4: the call, and what it must send through the BFF. */
 const CALLS: [name: string, call: () => Promise<unknown>, path: string, init: object][] = [
@@ -231,9 +241,15 @@ describe('authApi', () => {
     expect(sentInit).toEqual(init)
   })
 
-  it('covers every endpoint of the auth reference once', () => {
-    const names = new Set(CALLS.map(([name]) => name.split(' ')[0]))
-    expect([...names].sort()).toEqual(Object.keys(authApi).sort())
+  it('reaches every endpoint of the auth reference (§4.1–4.19), and nothing else', async () => {
+    bff.fetch.mockResolvedValue({ data: {}, msg: '', status: 200 })
+    for (const [, call] of CALLS) await call()
+    type Sent = [path: string, init: { method?: string; body?: unknown; formData?: unknown }]
+    const reached = (bff.fetch.mock.calls as Sent[]).map(
+      ([path, init]) =>
+        `${init.method ?? (init.body === undefined && !init.formData ? 'GET' : 'POST')} ${path}`,
+    )
+    expect([...new Set(reached)].sort()).toEqual([...SECTION_4_ENDPOINTS].sort())
   })
 
   it('resolves with the data, not the envelope', async () => {

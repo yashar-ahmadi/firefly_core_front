@@ -50,22 +50,25 @@ export function useCountdown(seconds: number | null): Countdown {
     if (deadline === null) return
     const end = deadline
     let timer: ReturnType<typeof setTimeout> | undefined
+    const stop = () => {
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', tick)
+    }
     const tick = () => {
       const now = Date.now()
       setClock({ deadline: end, now })
       schedule(now)
     }
-    // Wake when the shown second changes (not on a fixed beat that drifts), until the end.
+    // Wake when the shown second changes (not on a fixed beat that drifts); at the end, stop
+    // the timer and the visibility listener too (a restart sets a new deadline: a new effect).
     const schedule = (now: number) => {
       clearTimeout(timer)
       if (now < end) timer = setTimeout(tick, (end - now) % 1000 || 1000)
+      else stop()
     }
-    schedule(Date.now())
     document.addEventListener('visibilitychange', tick)
-    return () => {
-      clearTimeout(timer)
-      document.removeEventListener('visibilitychange', tick)
-    }
+    schedule(Date.now())
+    return stop
   }, [deadline])
 
   const remaining = remainingOf(clock)

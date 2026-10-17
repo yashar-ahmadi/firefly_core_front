@@ -31,22 +31,27 @@ const SESSION_PAGE = /^\/account(?:\/|$)/
  *   public page (the hearts' wishlist ids, the header's name) only turns the page into its guest
  *   version: nobody asked to log in.
  *
- * Stable across renders. Calling it again (several calls failing at once) does no harm.
+ * Stable across renders. Only the first call for a session does the above (`endSession`): when
+ * several session calls fail at once, each calls this before React re-renders, and a second run
+ * would read the page again and replace it twice. A later call for an action still pushes login.
  */
 export function useSessionExpired(): SessionExpired {
-  const { setHasSession } = useSession()
+  const { endSession } = useSession()
   const client = useQueryClient()
   const router = useRouter()
   return useCallback(
     ({ toLogin = false } = {}) => {
-      setHasSession(false)
-      void clearViewerQueries(client)
-      client.setQueryData(ME_KEY, null)
+      const first = endSession()
+      if (first) {
+        void clearViewerQueries(client)
+        client.setQueryData(ME_KEY, null)
+      }
       const { pathname, search } = window.location
       const login = loginHref(`${pathname}${search}`)
-      if (SESSION_PAGE.test(pathname)) router.replace(login)
-      else if (toLogin) router.push(login)
+      if (SESSION_PAGE.test(pathname)) {
+        if (first) router.replace(login)
+      } else if (toLogin) router.push(login)
     },
-    [client, router, setHasSession],
+    [client, router, endSession],
   )
 }

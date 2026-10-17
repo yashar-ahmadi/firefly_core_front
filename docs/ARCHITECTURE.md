@@ -214,6 +214,9 @@ the session-only queries (`['me']`, `['summary']`, `['wishlist', …]`) and rese
 read too whose answers depend on the viewer (`['cart']`, and under `['product', …]` the payload's
 `is_in_wishlist` and the comment lists' `is_current_user`), so nobody sees the previous visitor's
 data, not even within a stale time. A new viewer-dependent query key belongs in that list.
+When several session calls answer 401 at once (an account page's queries), only the first one
+ends the session: `endSession()` (`useSession`) reads a ref that changes at once, before React
+re-renders, so the page is replaced by login once and the cart is read again once.
 
 ## Caching
 

@@ -1,6 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useMe } from '@/features/auth/use-me'
 import { useCart } from '@/features/cart/hooks'
+import { useWishlistIds } from '@/features/wishlist/hooks'
 import { ApiError } from '@/lib/api/errors'
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
@@ -160,5 +162,55 @@ describe('useSessionExpired', () => {
     const first = result.current.expire
     rerender()
     expect(result.current.expire).toBe(first)
+  })
+
+  it('ends the session once when two session queries fail together on an account page', async () => {
+    window.history.replaceState(null, '', '/account/')
+    const providers = clientProviders({ hasSession: true })
+    const gone = new ApiError({ status: 401, code: 'token_not_valid' })
+    const failures: Array<() => void> = []
+    mocks.bffFetch.mockImplementation((path: string) => {
+      if (path === 'cart/') return Promise.resolve(result(cart()))
+      // The profile and the wishlist ids: both answer 401 at the same moment, below.
+      return new Promise((_resolve, reject) => failures.push(() => reject(gone)))
+    })
+    const cartReads = () => mocks.bffFetch.mock.calls.filter(([path]) => path === 'cart/').length
+    const { result: hook } = renderHook(
+      () => ({ me: useMe(), ids: useWishlistIds(), cart: useCart(), session: useSession() }),
+      { wrapper: providers.wrapper },
+    )
+    await waitFor(() => expect(failures).toHaveLength(2))
+    await waitFor(() => expect(hook.current.cart.data).toBeDefined())
+    expect(cartReads()).toBe(1)
+
+    await act(async () => {
+      for (const fail of failures) fail()
+    })
+    await waitFor(() => expect(hook.current.session.hasSession).toBe(false))
+    await waitFor(() => expect(cartReads()).toBe(2))
+    // Let any second (duplicate) run show itself before counting.
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 20)))
+    expect(mocks.replace).toHaveBeenCalledTimes(1)
+    expect(mocks.replace).toHaveBeenCalledWith('/login/?next=/account/')
+    expect(cartReads()).toBe(2)
+    expect(hook.current.me.data).toBeNull()
+  })
+
+  it('after the session ended, an action that needs it still goes to login', () => {
+    window.history.replaceState(null, '', '/brand/samsung/')
+    const { result } = renderExpiry()
+    act(() => result.current.expire())
+    act(() => result.current.expire({ toLogin: true }))
+    expect(mocks.push).toHaveBeenCalledTimes(1)
+    expect(mocks.push).toHaveBeenCalledWith('/login/?next=/brand/samsung/')
+  })
+
+  it('works again for a session that starts after the last one ended', () => {
+    window.history.replaceState(null, '', '/account/')
+    const { result } = renderExpiry()
+    act(() => result.current.expire())
+    act(() => result.current.session.setHasSession(true))
+    act(() => result.current.expire())
+    expect(mocks.replace).toHaveBeenCalledTimes(2)
   })
 })

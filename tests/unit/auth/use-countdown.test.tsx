@@ -85,6 +85,32 @@ describe('useCountdown', () => {
     expect(result.current.done).toBe(true)
   })
 
+  it('stops listening for a visible tab once done, and listens again on a restart', () => {
+    const added = vi.spyOn(document, 'addEventListener')
+    const removed = vi.spyOn(document, 'removeEventListener')
+    const { result } = renderHook(() => useCountdown(2))
+    const listener = added.mock.calls.find(([type]) => type === 'visibilitychange')?.[1]
+    expect(listener).toBeTypeOf('function')
+    act(() => vi.advanceTimersByTime(2000))
+    expect(result.current.done).toBe(true)
+    expect(removed).toHaveBeenCalledWith('visibilitychange', listener)
+    expect(vi.getTimerCount()).toBe(0)
+    added.mockClear()
+    act(() => result.current.restart(3))
+    expect(added).toHaveBeenCalledWith('visibilitychange', expect.any(Function))
+    added.mockRestore()
+    removed.mockRestore()
+  })
+
+  it('restarts on the same seconds as before (a resend that waits as long again)', () => {
+    const { result } = renderHook(() => useCountdown(null))
+    act(() => result.current.restart(120))
+    act(() => vi.advanceTimersByTime(30_000))
+    expect(result.current.remaining).toBe(90)
+    act(() => result.current.restart(120))
+    expect(result.current.remaining).toBe(120)
+  })
+
   it('leaves no timer or listener behind once unmounted', () => {
     const removed = vi.spyOn(document, 'removeEventListener')
     const { unmount } = renderHook(() => useCountdown(30))
