@@ -1,16 +1,9 @@
 'use client'
 
 import { useEffect, useEffectEvent } from 'react'
-import { COOKIE } from '@/lib/auth/cookies'
+import { flagCookieSet } from './flag-cookie'
 import { useSession } from './session-context'
 import { useSessionExpired } from './use-session-expired'
-
-const FLAG_COOKIE = new RegExp(`(?:^|;\\s*)${COOKIE.flag}=`)
-
-/** Whether the session flag cookie (`ff_auth`: script-readable, alive as long as `ff_rt`) is set. */
-function flagCookieSet(): boolean {
-  return FLAG_COOKIE.test(document.cookie)
-}
 
 /**
  * Ends a session this tab still believes in after it is gone, on the pages a server redirect

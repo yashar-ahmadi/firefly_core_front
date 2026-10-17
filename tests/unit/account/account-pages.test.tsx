@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import type { Metadata } from 'next'
 import { isValidElement, Suspense, type ReactElement, type ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AccountShell } from '@/features/account/layout/account-shell'
 import { SARA } from '../auth/fixtures'
 import { authProviders } from '../support/auth-providers'
@@ -34,6 +34,12 @@ beforeEach(() => {
   stubBrowserApis()
   mocks.pathname = '/account/'
   mocks.banners.mockResolvedValue([])
+  // Signed in as the server saw it: the session flag cookie is there (AccountSessionWatch).
+  document.cookie = 'ff_auth=1; path=/'
+})
+
+afterEach(() => {
+  document.cookie = 'ff_auth=; max-age=0; path=/'
 })
 
 async function renderInShell(node: ReactNode) {

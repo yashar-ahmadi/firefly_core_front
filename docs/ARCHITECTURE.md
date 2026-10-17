@@ -231,7 +231,16 @@ without the root layout rendering again, so the tab would still think it is sign
 layout mounts `SessionCheck` (`lib/session/session-check.tsx`), which ends that stale session as
 `useSessionExpired` does (no navigation) when the `ff_auth` cookie is gone. It reads the cookie
 itself: the layout's own value of it may be old, since a back/forward visit replays an earlier
-render (a guest's login page after the login). Account pages are `force-dynamic` and `noindex`;
+render (a guest's login page after the login). An account page can also come back with its
+session gone and no server on the way: Back restores the page Next cached, and a tab left open
+asks nobody. `AccountShell` mounts `AccountSessionWatch`, which checks the `ff_auth` cookie on
+mount, when the tab is shown again or focused, and on a `pageshow` from the browser's cache: no
+session in the tab and no cookie → login replaces the page (with it as `next`); no session but
+the cookie (a login in another tab) → `router.refresh()`; a session but no cookie (ended
+elsewhere) → it ends as on a 401 and login replaces the page, its data dropped first. A logout
+that never reached the BFF (no connection: `status` 0 with the cookie still set) keeps the
+session and says so (`useLogout`); one that reached it signs the tab out whatever the API said
+(F6). Account pages are `force-dynamic` and `noindex`;
 their data is read in the browser through the BFF (`useAccountQuery`: `enabled: hasSession`, a
 401 ends the session as above, the section keeps its skeleton meanwhile). The dashboard's public
 banners are read on the server and streamed in an in-page `<Suspense>` (the page never waits for

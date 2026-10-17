@@ -94,8 +94,10 @@ describe('useLogout', () => {
     expectSignedOut(rendered)
   })
 
+  // The BFF was reached: it has dropped the session cookies, whatever the API answered (a lost
+  // connection before the BFF: use-logout-offline.test.tsx).
   it.each([
-    ['a network error', ApiError.network(new TypeError('Failed to fetch'))],
+    ['the API out of reach', new ApiError({ status: 502, code: 'network_error' })],
     ['a rejected token', new ApiError({ status: 400, code: 'auth_token_invalid' })],
   ])('still signs this tab out after %s', async (_, error) => {
     mocks.logout.mockRejectedValue(error)

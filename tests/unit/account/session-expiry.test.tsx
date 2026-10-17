@@ -32,10 +32,13 @@ beforeEach(() => {
   stubBrowserApis()
   vi.clearAllMocks()
   mocks.bffFetch.mockImplementation(expired)
+  // Signed in as the server saw it: the session flag cookie is there (AccountSessionWatch).
+  document.cookie = 'ff_auth=1; path=/'
 })
 
 afterEach(() => {
   window.history.replaceState(null, '', '/')
+  document.cookie = 'ff_auth=; max-age=0; path=/'
 })
 
 async function openPage(url: string, node: ReactNode) {

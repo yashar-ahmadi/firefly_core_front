@@ -5,9 +5,9 @@ import { watchErrors } from '../support/watch-errors'
 
 // Logout (auth digest F6) against the dev backend. This spec ends its session, so it logs in on
 // its own (`logIn`, once per project; see support/session.ts), then logs out from where the
-// screen offers it: the header's account menu from md; on a phone (no header menu, and the
-// bottom bar's account page comes with Task 5) the login page's signed-in panel. Both use
-// `useLogout`.
+// screen offers it: the header's account menu from md, on an account page; on a phone the login
+// page's signed-in panel. Both use `useLogout`. From md, Back then returns to the account page
+// Next cached (no server request): login takes its place (AccountSessionWatch).
 
 const GUEST_LOGIN = /^ورود/
 const API_URL = process.env.FIREFLY_API_URL ?? 'http://localhost:8000'
@@ -49,14 +49,21 @@ test('logs out: the guest header is back, the session cookies are gone', async (
     await expect(page).toHaveURL(`${origin}/`)
     await expect(accountTab(page)).toHaveAttribute('href', '/login/?next=/account/')
   } else {
-    await page.goto('/')
+    // The dashboard, then a link to another account page: Back will return to the dashboard.
+    await page.goto('/account/')
     await shellHydrated(page)
+    await page
+      .getByRole('navigation', { name: 'حساب کاربری' })
+      .getByRole('link', { name: /^اطلاعات حساب/ })
+      .click()
+    await expect(page).toHaveURL(`${origin}/account/profile/`)
     const button = banner.getByRole('button', { name: `حساب کاربری: ${SARA.fullName}` })
     await button.click()
     const menu = page.getByRole('menu')
     await expect(menu.getByText(SARA.fullName)).toBeVisible()
     await expect(menu.getByText(SARA.email)).toBeVisible()
     await menu.getByRole('menuitem', { name: 'خروج' }).click()
+    await expect(page).toHaveURL(`${origin}/`)
     const login = banner.getByRole('link', { name: GUEST_LOGIN })
     await expect(login).toBeVisible()
     // The login link took the account button's place, and the focus with it.
@@ -74,6 +81,23 @@ test('logs out: the guest header is back, the session cookies are gone', async (
   await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'شما وارد شده‌اید' })).toHaveCount(0)
   expect(await page.evaluate(() => document.body.style.pointerEvents)).toBe('')
+
+  if (!phone) {
+    // Back, twice: home, then the dashboard as Next cached it (no proxy, no layout on the way).
+    // The session is gone: login replaces it, with it as `next`, never her data or a skeleton.
+    await page.goBack()
+    await expect(page).toHaveURL(`${origin}/`)
+    const asked: string[] = []
+    page.on('request', (request) => {
+      if (new URL(request.url()).pathname.startsWith('/account/')) asked.push(request.url())
+    })
+    await page.goBack()
+    await expect(page).toHaveURL(`${origin}/login/?next=/account/`)
+    // From Next's cache: the server was not asked for the account page on the way.
+    expect(asked).toEqual([])
+    await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
+    await expect(page.getByText(SARA.fullName)).toHaveCount(0)
+  }
 
   // The server sees a guest too: a fresh load of the home page has the guest header.
   await page.goto('/')

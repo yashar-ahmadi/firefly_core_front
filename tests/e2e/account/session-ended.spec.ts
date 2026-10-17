@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test'
 import { shellHydrated } from '../support/hydrated'
-import { SESSION_COOKIES, signedInTest } from '../support/session'
+import { SARA, SESSION_COOKIES, signedInTest } from '../support/session'
 import { watchErrors } from '../support/watch-errors'
 
 // A session that ended in another tab (a logout there, or its refresh cookie expired), then a
@@ -8,7 +8,8 @@ import { watchErrors } from '../support/watch-errors'
 // still thinks it is signed in, the server does not, and a client-side navigation lands on
 // login with the page as `next`, as a guest's (never «شما وارد شده‌اید» with the old profile).
 // The other tab is played by dropping this context's session cookies: the shared session itself
-// is left alone at the API (no logout, no login).
+// is left alone at the API (no logout, no login). Then the same with no navigation at all: the
+// account tab gets the focus back (AccountSessionWatch), its data must go with the page.
 
 signedInTest(
   'a session ended in another tab: the next account page is login, with it as next',
@@ -35,6 +36,33 @@ signedInTest(
     await expect(page.getByRole('heading', { name: 'شما وارد شده‌اید' })).toHaveCount(0)
     // In the page: no document was loaded on the way.
     expect(documents).toEqual([])
+    expect(errors).toEqual([])
+  },
+)
+
+signedInTest(
+  'a session ended in another tab: back to this one, its account page goes, data and all',
+  async ({ page, context }) => {
+    const errors = watchErrors(page)
+    await page.goto('/account/profile/')
+    const email = page.getByRole('group', { name: 'ایمیل', exact: true })
+    await expect(email).toContainText(SARA.email)
+    await shellHydrated(page)
+
+    // Another tab, where the session ends (its logout drops the cookies both tabs share).
+    const other = await context.newPage()
+    await other.goto('/')
+    for (const name of SESSION_COOKIES) await context.clearCookies({ name })
+    // Back to the account tab: it ends the session there too, and login takes the page's place.
+    // (Headless pages never lose the focus, so the event a browser sends then is played here.)
+    await page.bringToFront()
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    await expect(page).toHaveURL(
+      (url) => url.pathname === '/login/' && url.searchParams.get('next') === '/account/profile/',
+    )
+    await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
+    await expect(page.getByText(SARA.email)).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'شما وارد شده‌اید' })).toHaveCount(0)
     expect(errors).toEqual([])
   },
 )

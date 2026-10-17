@@ -12,7 +12,9 @@ import {
   readPushState,
   settlePushWork,
 } from '@/features/push/push-storage'
+import { ApiError } from '@/lib/api/errors'
 import { sweepAfterNavigation } from '@/lib/session/after-logout'
+import { flagCookieSet } from '@/lib/session/flag-cookie'
 import { useSession } from '@/lib/session/session-context'
 import { clearViewerQueries } from '@/lib/session/viewer-queries'
 import { authApi } from './api'
@@ -31,6 +33,7 @@ export interface Logout {
 }
 
 export const LOGGED_OUT = 'از حساب خارج شدید'
+export const LOGOUT_OFFLINE = 'خروج انجام نشد؛ اتصال اینترنت را بررسی کنید و دوباره تلاش کنید'
 
 // The logout in flight, for the whole tab: the header menu and a page's «خروج» share it.
 let running: Promise<void> | null = null
@@ -50,6 +53,21 @@ function subscribe(listener: () => void): () => void {
 
 const isRunning = () => running !== null
 const notRunning = () => false
+
+/**
+ * Whether the logout request failed before the BFF could drop the session cookies: no answer at
+ * all (`status` 0), and the session flag cookie (alive as long as the httpOnly ones) still set.
+ * An answer lost after the BFF had replied (the cookies gone) is a logout all the same.
+ */
+function sessionSurvived(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 0 && flagCookieSet()
+}
+
+/** Says something the visitor must hear, in a toast (and the live region before the toaster). */
+function tell(kind: 'success' | 'error', message: string): void {
+  notify[kind](message)
+  if (!toastRegionReady()) announce(message)
+}
 
 /**
  * Forgets the visitor in this tab, in this order:
@@ -82,9 +100,14 @@ function forgetVisitor(client: QueryClient, setHasSession: (value: boolean) => v
  *    web push is on (`registration_id`: the API deactivates the device, digest §4.3), or
  *    `logout-all/` (which deactivates every device itself). The BFF clears the session cookies
  *    whatever the API answers, even when it cannot be reached.
- * 3. Whatever the answer (F6: never blocked by the server), the browser forgets its push
+ * 3. Whatever the API answered (F6: never blocked by the server), the browser forgets its push
  *    registration, the tab forgets the visitor (`forgetVisitor`), goes home
  *    (`router.replace('/')`) and says so in a toast.
+ *
+ * Except when the request never reached the BFF (no connection: `sessionSurvived`): the cookies
+ * are still there, so the next page load would be signed in again. Then nothing changes here
+ * (the session, its data and web push stay), a toast says the logout did not happen, and
+ * «خروج» can be pressed again.
  */
 export function useLogout(): Logout {
   const client = useQueryClient()
@@ -105,14 +128,14 @@ export function useLogout(): Logout {
         try {
           if (all) await authApi.logoutAll()
           else await (push ? authApi.logout({ registration_id: push.token }) : authApi.logout())
-        } catch {
+        } catch (error) {
+          if (sessionSurvived(error)) return tell('error', LOGOUT_OFFLINE)
           // Signed out on this device anyway (F6): the BFF has dropped the session cookies.
         }
         clearPushState()
         const cleared = forgetVisitor(client, setHasSession)
         router.replace('/')
-        notify.success(LOGGED_OUT)
-        if (!toastRegionReady()) announce(LOGGED_OUT)
+        tell('success', LOGGED_OUT)
         await cleared
       }
       const promise = run().finally(() => setRunning(null))
