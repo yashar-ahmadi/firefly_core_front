@@ -1,0 +1,54 @@
+'use client'
+
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { useSession } from '@/lib/session/session-context'
+import { signInOpen } from '../login-methods'
+import { useAuthSettings } from '../use-auth-settings'
+import { AuthCard } from './auth-card'
+import { LoginFlow } from './login-flow'
+import { SignedInPanel } from './signed-in-panel'
+
+export interface LoginScreenProps {
+  /** The raw `?next=`. */
+  next: string
+  /** The raw `?identifier=`. */
+  initialIdentifier: string
+}
+
+/** Without settings (`disabledAuth()`), no method can be offered: said plainly. */
+function SignInClosed() {
+  return (
+    <AuthCard title="ورود به حساب کاربری">
+      <p className="text-base leading-7 text-ink-700">
+        ورود به حساب در حال حاضر ممکن نیست. لطفاً چند دقیقه دیگر دوباره امتحان کنید.
+      </p>
+      <Button size="lg" fullWidth onClick={() => window.location.reload()}>
+        تلاش دوباره
+      </Button>
+    </AuthCard>
+  )
+}
+
+/**
+ * `/login/`: the login steps, or, for a visitor signed in already, a note saying so (never a
+ * redirect: see SignedInPanel). Once a login succeeds, the steps stay on screen until the page
+ * changes, although the session flag turns on meanwhile.
+ */
+export function LoginScreen({ next, initialIdentifier }: LoginScreenProps) {
+  const auth = useAuthSettings()
+  const { hasSession } = useSession()
+  const [arrivedSignedIn] = useState(hasSession)
+  const [signingIn, setSigningIn] = useState(false)
+
+  if (hasSession && !signingIn) return <SignedInPanel next={next} />
+  if (!signInOpen(auth)) return <SignInClosed />
+  return (
+    <LoginFlow
+      next={next}
+      initialIdentifier={initialIdentifier}
+      autoFocus={arrivedSignedIn}
+      onSignedIn={() => setSigningIn(true)}
+    />
+  )
+}

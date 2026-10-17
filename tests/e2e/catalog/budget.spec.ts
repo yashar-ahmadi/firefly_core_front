@@ -29,6 +29,8 @@ const ROUTES: { name: string; path: string }[] = [
   { name: 'compare', path: '/compare/' },
   { name: 'brand', path: '/brand/samsung/' },
   { name: 'brands', path: '/brand/' },
+  // Plan 3: the sign-in code lives on this route alone (none of it on the catalog's).
+  { name: 'login', path: '/login/' },
 ]
 
 const STATIC = /\/_next\/static\//

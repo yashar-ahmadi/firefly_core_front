@@ -32,4 +32,11 @@ export const cartApi = {
 
   /** `DELETE cart/clear/`: drops the lines, the coupon and the shipping choice. */
   clear: (): Promise<CartResult> => bffFetch<Cart>('cart/clear/', { method: 'DELETE' }),
+
+  /**
+   * `POST cart/merge/`, once, right after a login: the BFF sends the guest cart token with this
+   * call only (then drops it), and the answer is the user's cart with its one-time
+   * `adjustments` (cart digest §3.11).
+   */
+  merge: (): Promise<CartResult> => bffFetch<Cart>('cart/merge/', { method: 'POST' }),
 }

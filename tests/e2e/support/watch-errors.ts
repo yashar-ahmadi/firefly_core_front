@@ -4,12 +4,12 @@ import type { Page } from '@playwright/test'
 const MEDIA_PATH = /^\/(?:media|static)\//
 
 /**
- * Routes later plans build, which the shell already links to (cart and login; homepage posts,
- * search results): a visit or a router prefetch there answers 404 until the route exists.
- * Remove each one as its route lands (auth and account: Plan 3; cart and checkout: Plan 4; blog
- * and content pages: the content plan).
+ * Routes later plans build, which the shell already links to (cart and account; homepage posts,
+ * the login page's register link): a visit or a router prefetch there answers 404 until the
+ * route exists. Remove each one as its route lands (login is built; the rest of auth and
+ * account: Plan 3; cart and checkout: Plan 4; blog and content pages: the content plan).
  */
-const NOT_YET_BUILT = /^\/(?:login|register|forgot-password|account|cart|checkout|blog|page)\//
+const NOT_YET_BUILT = /^\/(?:register|forgot-password|account|cart|checkout|blog|page)\//
 
 const NOT_FOUND = /^Failed to load resource: the server responded with a status of 404\b/
 

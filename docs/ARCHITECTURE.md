@@ -218,6 +218,21 @@ When several session calls answer 401 at once (an account page's queries), only 
 ends the session: `endSession()` (`useSession`) reads a ref that changes at once, before React
 re-renders, so the page is replaced by login once and the cart is read again once.
 
+Signing in (`/login/`, `src/app/(auth)/`: a minimal layout without the shop chrome, `noindex`,
+never cached) is a pure state machine (`features/auth/components/login-state.ts`: identifier →
+password or one-time code → TOTP when the API asks → done) whose steps are built only from the
+settings' `auth` block (`login-methods.ts`: no SMS, Telegram or Google unless it says so, and
+nothing at all under `disabledAuth()`). A `requires_totp` answer keeps the first request and sends
+it again with `totp_code`. Code timers are deadlines from the API's seconds (`expires_in`,
+`resend_after`, a 429's `retry_after`), so they survive a step change. Every successful login runs
+`completeLogin` (`useCompleteLogin`, `post-login.ts`): `POST cart/merge/` once (its adjustments in
+one toast; a failure is logged and never blocks), `clearViewerQueries`, `setHasSession(true)`, the
+profile and the merged cart stored and invalidated with `['summary']`, then
+`router.replace(safeNext(next))`. Google Identity Services is loaded by the Google button alone
+(`next/script`), only on the login page and only while Google login is on; a script that fails
+takes the button and its «یا» away. A visitor who is signed in already sees so on `/login/`; the
+page never redirects on the cookie or the flag alone (a session the API refuses would loop).
+
 ## Caching
 
 Pages are rendered per request (the root layout is `force-dynamic`, see R5). Shared data inside a
