@@ -2,10 +2,8 @@
 
 import Link from 'next/link'
 import type { ReactNode, Ref } from 'react'
-import { Field } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { AuthCard } from './auth-card'
-import { SubmitButton, TEXT_LINK } from './login-fields'
+import { IdentifierField, SubmitButton, TEXT_LINK } from './login-fields'
 
 export interface IdentifierStepProps {
   identifier: string
@@ -50,25 +48,12 @@ export function IdentifierStep({
           if (!busy) onContinue()
         }}
       >
-        <Field
-          label="ایمیل یا شماره موبایل"
-          hint="مثلاً name@example.com یا ۰۹۱۲۳۴۵۶۷۸۹"
+        <IdentifierField
+          value={identifier}
           error={error}
-        >
-          <Input
-            data-autofocus=""
-            dir="ltr"
-            name="username"
-            autoComplete="username"
-            inputMode="email"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            enterKeyHint="next"
-            value={identifier}
-            onChange={(event) => onIdentifier(event.currentTarget.value)}
-          />
-        </Field>
+          enterKeyHint="next"
+          onChange={onIdentifier}
+        />
         <SubmitButton busy={busy}>ادامه</SubmitButton>
       </form>
       {registerHref && (

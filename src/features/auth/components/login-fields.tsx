@@ -6,6 +6,8 @@ import { buttonClasses } from '@/components/ui/button-styles'
 import { Button, type ButtonProps } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/components/ui/cn'
+import { Field } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { VisuallyHidden } from '@/components/ui/visually-hidden'
 import type { ContactType } from '@/lib/api/types/account'
@@ -16,7 +18,7 @@ import { FormAlert } from './auth-card'
 import type { SubmitLock } from './code-timers'
 import type { LoginNotice } from './login-types'
 
-// Small parts the login steps share.
+// Small parts the auth steps share (login, registration, password recovery).
 
 /**
  * How long a login lasts on this device (auth digest §2.4: the refresh token's lifetime, a
@@ -30,6 +32,40 @@ export const TEXT_LINK = cn(buttonClasses({ variant: 'link' }), 'text-base')
 /** The identifier as typed, shown back: a mobile number spaced in Persian digits. */
 function shownIdentifier(identifier: string, type: ContactType | null): string {
   return type === 'phone' ? formatIranMobile(identifier) : normalizeIdentifier(identifier)
+}
+
+/**
+ * «ایمیل یا شماره موبایل»: one field for either (login, recovery); its type is found from what
+ * is typed (`identifierType`). The step's first field.
+ */
+export function IdentifierField({
+  value,
+  error,
+  enterKeyHint,
+  onChange,
+}: {
+  value: string
+  error?: string
+  enterKeyHint: 'next' | 'send'
+  onChange: (value: string) => void
+}) {
+  return (
+    <Field label="ایمیل یا شماره موبایل" hint="مثلاً name@example.com یا ۰۹۱۲۳۴۵۶۷۸۹" error={error}>
+      <Input
+        data-autofocus=""
+        dir="ltr"
+        name="username"
+        autoComplete="username"
+        inputMode="email"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        enterKeyHint={enterKeyHint}
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      />
+    </Field>
+  )
 }
 
 /** «sara@example.com — تغییر»: the identifier of the next steps, and the way back to it. */

@@ -29,8 +29,10 @@ const ROUTES: { name: string; path: string }[] = [
   { name: 'compare', path: '/compare/' },
   { name: 'brand', path: '/brand/samsung/' },
   { name: 'brands', path: '/brand/' },
-  // Plan 3: the sign-in code lives on this route alone (none of it on the catalog's).
+  // Plan 3: the auth code lives on these routes alone (none of it on the catalog's).
   { name: 'login', path: '/login/' },
+  { name: 'register', path: '/register/' },
+  { name: 'forgot-password', path: '/forgot-password/' },
 ]
 
 const STATIC = /\/_next\/static\//

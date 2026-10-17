@@ -1,30 +1,24 @@
 'use client'
 
-import { useEffect, useReducer, useRef, type RefObject } from 'react'
-import { Spinner } from '@/components/ui/spinner'
+import { useReducer, useRef } from 'react'
 import { useFeature } from '@/features/settings/feature-context'
 import { forgotPasswordHref, registerHref } from '../auth-links'
 import { identifierType, normalizeIdentifier } from '../identifier'
-import { googleClientId, loginMethods, type LoginMethods } from '../login-methods'
+import { chosenChannel, googleClientId, loginMethods, type LoginMethods } from '../login-methods'
 import { useAuthSettings } from '../use-auth-settings'
-import { AuthCard } from './auth-card'
+import { TransitionCard } from './auth-card'
 import { GoogleButton } from './google-button'
 import { IdentifierStep } from './identifier-step'
 import { LoginNoticeAlert } from './login-fields'
 import { initialLoginState, loginReducer } from './login-state'
-import type { LoginState, LoginStep, Wait } from './login-types'
 import { OtpStep } from './otp-step'
 import { PasswordStep } from './password-step'
 import { TotpStep } from './totp-step'
 import { useLoginActions } from './use-login-actions'
+import { useStepFocus } from './use-step-focus'
+import { stepWait } from './waits'
 
 const NO_METHODS: LoginMethods = { password: false, otpChannels: [], defaultOtpChannel: null }
-const NO_WAIT: Wait = { until: 0, seq: -1 }
-
-/** The 429 wait of the step on screen, if the last one was for it. */
-function stepWait({ submitWait, step }: LoginState): Wait {
-  return submitWait.step === step ? submitWait : NO_WAIT
-}
 
 export interface LoginFlowProps {
   /** The raw `?next=`: `completeLogin` sends it through `safeNext`. */
@@ -35,37 +29,6 @@ export interface LoginFlowProps {
   autoFocus?: boolean
   /** Called as the page is signed in, before `completeLogin` runs. */
   onSignedIn?: () => void
-}
-
-/**
- * Focus on a step change: the new step's first field (`data-autofocus`), else its title; unless
- * a field of the step took it already (the code boxes do). After a failure: the field in error,
- * whose message is its description; else it stays on the control that was pressed, and if that
- * went away with its form (a code that is void), the step's main control or title takes it.
- */
-function useStepFocus(
-  container: RefObject<HTMLDivElement | null>,
-  title: RefObject<HTMLHeadingElement | null>,
-  { step, attempt }: { step: LoginStep; attempt: number },
-  autoFocus: boolean,
-) {
-  const shown = useRef<LoginStep | null>(autoFocus ? null : step)
-  useEffect(() => {
-    if (shown.current === step) return
-    shown.current = step
-    const root = container.current
-    if (!root || (document.activeElement && root.contains(document.activeElement))) return
-    const target = root.querySelector<HTMLElement>('[data-autofocus]') ?? title.current
-    target?.focus()
-  }, [container, title, step])
-  useEffect(() => {
-    const root = container.current
-    if (attempt === 0 || !root) return
-    const invalid = root.querySelector<HTMLElement>('[aria-invalid="true"]')
-    if (invalid) return invalid.focus()
-    if (document.activeElement && root.contains(document.activeElement)) return
-    ;(root.querySelector<HTMLElement>('[data-primary]') ?? title.current)?.focus()
-  }, [container, title, attempt])
 }
 
 /**
@@ -88,9 +51,7 @@ export function LoginFlow({
 
   const type = identifierType(state.identifier)
   const methods = type ? loginMethods(auth, type) : NO_METHODS
-  const chosen = state.otpChannel
-  const channel =
-    chosen && methods.otpChannels.includes(chosen) ? chosen : methods.defaultOtpChannel
+  const channel = chosenChannel(methods, state.otpChannel)
   const loginIdentifier = normalizeIdentifier(state.identifier)
   const actions = useLoginActions({
     state,
@@ -156,7 +117,7 @@ export function LoginFlow({
           rememberMe={state.rememberMe}
           error={errors.password}
           canUseCode={methods.otpChannels.length > 0}
-          forgotHref={forgotPasswordHref(loginIdentifier)}
+          forgotHref={forgotPasswordHref(loginIdentifier, next)}
           onPassword={(value) => dispatch({ type: 'edit', field: 'password', value })}
           onRemember={remember}
           onSubmit={actions.submitPassword}
@@ -199,14 +160,7 @@ export function LoginFlow({
           onBack={back}
         />
       )}
-      {state.step === 'done' && (
-        <AuthCard title="ورود انجام شد" titleRef={titleRef}>
-          <p role="status" className="flex items-center gap-2 text-base text-ink-700">
-            <Spinner />
-            در حال انتقال…
-          </p>
-        </AuthCard>
-      )}
+      {state.step === 'done' && <TransitionCard title="ورود انجام شد" titleRef={titleRef} />}
     </div>
   )
 }

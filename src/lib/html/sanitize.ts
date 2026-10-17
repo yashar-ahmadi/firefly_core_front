@@ -15,7 +15,8 @@ import sanitizeHtml from 'sanitize-html'
  *   `data:`, however they are encoded.
  * And rewritten:
  * - `/media/...` and `/static/...` links and images point at the API origin;
- * - links that leave the shop open in a new tab with `rel="noopener noreferrer"`;
+ * - links that leave the shop (or, with `linksInNewTab`, every web link) open in a new tab with
+ *   `rel="noopener noreferrer"`;
  * - images load lazily and get `alt=""` when the operator gave none; images without a usable
  *   source are dropped;
  * - each table is wrapped in a focusable, labelled scroll region (`.table-wrap`).
@@ -24,6 +25,11 @@ import sanitizeHtml from 'sanitize-html'
 export interface SanitizeOptions {
   /** The storefront's own origin: absolute links to it stay in the same tab. */
   siteUrl?: string
+  /**
+   * Every web link opens in a new tab (`mailto:` and `tel:` aside), for text shown beside a form
+   * that following a link would lose (the terms under the registration button).
+   */
+  linksInNewTab?: boolean
 }
 
 /** Tags kept (others are dropped, their text kept unless listed in NON_TEXT_TAGS). */
@@ -63,6 +69,7 @@ const ATTRIBUTE_VALUES: Record<string, readonly string[]> = {
 /** Link relations an operator may set; `noopener noreferrer` is added to every new-tab link. */
 const REL_TOKENS = new Set(['nofollow', 'sponsored', 'ugc'])
 const MEDIA_PATH = /^\/(?:media|static)\//
+const MAIL_OR_PHONE = /^(?:mailto|tel):/i
 const ABSOLUTE = /^(?:[a-z][a-z\d+.-]*:)?\/\//i
 /** Leading and trailing C0 controls and spaces: the URL parser ignores them. */
 const URL_EDGE_JUNK = /^[\u{0}- ]+|[\u{0}- ]+$/gu
@@ -123,6 +130,7 @@ function linkAttributes(
   attribs: sanitizeHtml.Attributes,
   apiOrigin: string | null,
   siteOrigin: string | null,
+  allInNewTab: boolean,
 ): sanitizeHtml.Attributes {
   const { target, rel, ...rest } = attribs
   const href = absolutize(attribs.href, apiOrigin)
@@ -133,7 +141,9 @@ function linkAttributes(
     .split(/\s+/)
     .filter((token) => REL_TOKENS.has(token))
   const newTab =
-    target?.trim().toLowerCase() === '_blank' || (href ? isExternal(href, siteOrigin) : false)
+    target?.trim().toLowerCase() === '_blank' ||
+    (href ? isExternal(href, siteOrigin) : false) ||
+    (allInNewTab && href !== undefined && !MAIL_OR_PHONE.test(asParsed(href)))
   if (newTab) {
     result.target = '_blank'
     tokens.push('noopener', 'noreferrer')
@@ -187,7 +197,7 @@ export function sanitizeOperatorHtml(
       h1: 'h2',
       a: (tagName, attribs) => ({
         tagName,
-        attribs: linkAttributes(attribs, apiOrigin, siteOrigin),
+        attribs: linkAttributes(attribs, apiOrigin, siteOrigin, options.linksInNewTab ?? false),
       }),
       img: (tagName, attribs) => ({ tagName, attribs: imageAttributes(attribs, apiOrigin) }),
       // Runs after the tag's own transform.

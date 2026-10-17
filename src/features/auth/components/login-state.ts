@@ -1,11 +1,5 @@
-import type {
-  LoginAction,
-  LoginFailure,
-  LoginField,
-  LoginState,
-  LoginStep,
-  Wait,
-} from './login-types'
+import type { LoginAction, LoginFailure, LoginField, LoginState, LoginStep } from './login-types'
+import { failureWaits, NO_WAIT, restartWait } from './waits'
 
 // The login page's state machine: identifier → (password | otp) → totp? → done. Pure: the
 // component sends the requests and dispatches what they answered. Going back keeps every value
@@ -37,8 +31,6 @@ const FIELD_OF_EDIT = {
   totpCode: 'totp',
 } as const
 
-const NO_WAIT: Wait = { until: 0, seq: 0 }
-
 export function initialLoginState(identifier = ''): LoginState {
   return {
     step: 'identifier',
@@ -63,11 +55,6 @@ export function initialLoginState(identifier = ''): LoginState {
   }
 }
 
-/** A new wait of `seconds` from `now`; 0 seconds ends the previous one. */
-function restartWait(previous: Wait, now: number, seconds: number): Wait {
-  return { until: seconds > 0 ? now + seconds * 1000 : 0, seq: previous.seq + 1 }
-}
-
 function withoutError(errors: LoginState['fieldErrors'], field: LoginField) {
   if (!(field in errors)) return errors
   const rest = { ...errors }
@@ -77,7 +64,7 @@ function withoutError(errors: LoginState['fieldErrors'], field: LoginField) {
 
 /** The step a failure lands on, and what it changes there. */
 function failed(state: LoginState, failure: LoginFailure, now: number): LoginState {
-  const { field, detail, code, retryAfter, forgetCode, restart, sendSide } = failure
+  const { field, detail, code, forgetCode, restart } = failure
   const step = field
     ? STEP_OF[field]
     : state.step === 'totp' && restart
@@ -100,11 +87,7 @@ function failed(state: LoginState, failure: LoginFailure, now: number): LoginSta
     next.otpSent = null
     next.otpCode = ''
   }
-  if (retryAfter && retryAfter > 0) {
-    if (state.sending || sendSide) next.sendWait = restartWait(state.sendWait, now, retryAfter)
-    else next.submitWait = { ...restartWait(state.submitWait, now, retryAfter), step }
-  }
-  return next
+  return { ...next, ...failureWaits(state, failure, step, now) }
 }
 
 export function loginReducer(state: LoginState, action: LoginAction): LoginState {

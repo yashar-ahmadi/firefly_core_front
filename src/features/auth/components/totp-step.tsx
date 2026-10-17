@@ -6,7 +6,7 @@ import { OtpInput } from '@/components/ui/otp-input'
 import { AuthCard } from './auth-card'
 import { useSubmitWait } from './code-timers'
 import { SubmitButton } from './login-fields'
-import type { Wait } from './login-types'
+import type { Wait } from './waits'
 
 export interface TotpStepProps {
   code: string

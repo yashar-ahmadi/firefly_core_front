@@ -1,6 +1,7 @@
 import { CircleAlert } from 'lucide-react'
 import { useId, type ReactNode, type Ref } from 'react'
 import { cn } from '@/components/ui/cn'
+import { Spinner } from '@/components/ui/spinner'
 
 // The one card every auth page shows (login, register, forgot password): a step title, an
 // optional line under it, and the step's content.
@@ -59,5 +60,41 @@ export function OrDivider() {
       <span>یا</span>
       <span aria-hidden className="h-px flex-1 bg-ink-200" />
     </div>
+  )
+}
+
+/** The last step of a flow, while the page changes: «… انجام شد», «در حال انتقال…». */
+export function TransitionCard({
+  title,
+  titleRef,
+}: {
+  title: ReactNode
+  titleRef?: Ref<HTMLHeadingElement>
+}) {
+  return (
+    <AuthCard title={title} titleRef={titleRef}>
+      <p role="status" className="flex items-center gap-2 text-base text-ink-700">
+        <Spinner />
+        در حال انتقال…
+      </p>
+    </AuthCard>
+  )
+}
+
+/** A page that cannot offer its form now (no settings, or closed by the operator): why, and on. */
+export function AuthUnavailable({
+  title,
+  message,
+  action,
+}: {
+  title: ReactNode
+  message: ReactNode
+  action: ReactNode
+}) {
+  return (
+    <AuthCard title={title}>
+      <p className="text-base leading-7 text-ink-700">{message}</p>
+      {action}
+    </AuthCard>
   )
 }

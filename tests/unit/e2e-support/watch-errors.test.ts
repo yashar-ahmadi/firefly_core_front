@@ -51,10 +51,12 @@ describe('isExpectedFailure', () => {
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/search/?_rsc=abc')).toBe(false)
   })
 
-  it('reports a 404 from the login page (Plan 3), while register is still to come', () => {
+  it('reports a 404 from the auth pages (Plan 3), while the account is still to come', () => {
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/login/?_rsc=abc')).toBe(false)
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/login/?next=/cart/')).toBe(false)
-    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/register/?_rsc=abc')).toBe(true)
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/register/?_rsc=abc')).toBe(false)
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/forgot-password/')).toBe(false)
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/account/?_rsc=abc')).toBe(true)
   })
 
   it('reports every other message', () => {

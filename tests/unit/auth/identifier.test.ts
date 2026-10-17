@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { identifierType, normalizeIdentifier } from '@/features/auth/identifier'
+import {
+  identifierType,
+  normalizeIdentifier,
+  prefilledIdentifier,
+} from '@/features/auth/identifier'
 
 describe('identifierType', () => {
   it.each([
@@ -61,4 +65,18 @@ describe('normalizeIdentifier', () => {
   it('gives anything else trimmed, with Latin digits, for the API to judge', () => {
     expect(normalizeIdentifier(' sara\u{06F1} ')).toBe('sara1')
   })
+})
+
+describe('prefilledIdentifier', () => {
+  it('takes an email address or a mobile number from a link, normalised', () => {
+    expect(prefilledIdentifier(' sara.ahmadi@example.com ')).toBe('sara.ahmadi@example.com')
+    expect(prefilledIdentifier('+98 912 123 4501')).toBe('09121234501')
+  })
+
+  it.each(['', 'sara', '02191000000', '<script>', 'a'.repeat(400) + '@example.com'])(
+    'drops %j',
+    (value) => {
+      expect(prefilledIdentifier(value)).toBe('')
+    },
+  )
 })

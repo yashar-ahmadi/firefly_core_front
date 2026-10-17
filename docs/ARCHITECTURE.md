@@ -240,6 +240,26 @@ profile and the merged cart stored and invalidated with `['summary']`, then
 takes the button and its «یا» away. A visitor who is signed in already sees so on `/login/`; the
 page never redirects on the cookie or the flag alone (a session the API refuses would loop).
 
+Registration (`/register/`) and password recovery (`/forgot-password/`) share one pure state
+machine (`code-flow-state.ts`: entry → code → password → done) and every part of login that is
+not login's own: the request runner (one request at a time), the waits (`waits.ts`: a send's 429
+holds the next send, any other 429 its step's button), the failure mapping (`auth-failure.ts`,
+with each page's field rules in `code-flow-errors.ts`), the focus rules (`use-step-focus.ts`),
+the code step (`OtpStep`, with the channel switch among the channels the identifier can take)
+and the timers. Registration keeps the start's `registration_token` in state for verify, resend
+and complete, then signs in through `completeLogin`; the same first step again goes back to the
+code already sent instead of asking for another. Its method tabs and channels come from
+`registration_methods` and `auth` alone, and while the `registration` feature is off (or no
+method is listed) the page shows the operator's reason and the way to login, with no form. An
+identifier taken (`auth_email_already_exists`, `auth_phone_already_exists`) is shown under its
+field with «ورود» for it. The operator's terms (`accept_terms_text`) are sanitised on the server
+(`features/auth/terms.ts`, every web link in a new tab so the form is not lost) and passed to the
+page as a prop. Recovery checks the code by the channel it went by, keeps the reset token for
+another try after `auth_password_weak` or `auth_password_unchanged`, and ends with a toast on
+`/login/?identifier=…` (no tokens come back). An unknown identifier gets the API's own
+`404 auth_user_not_found` detail, which the API reveals on purpose (§4.12). The new-password
+strength hint is client-side guidance only and steps aside while the API's reasons are shown.
+
 ## Caching
 
 Pages are rendered per request (the root layout is `force-dynamic`, see R5). Shared data inside a

@@ -34,3 +34,15 @@ export function normalizeIdentifier(value: string): string {
   if (EMAIL.test(text)) return text
   return normalizeIranMobile(text) ?? text
 }
+
+/** An email address is at most 254 characters long (RFC 5321); nothing longer is prefilled. */
+const PREFILL_MAX = 254
+
+/**
+ * The `?identifier=` of a link to an auth page, normalised, when it is an email address or a
+ * mobile number; anything else gives '' (the field starts empty).
+ */
+export function prefilledIdentifier(value: string): string {
+  if (value.length > PREFILL_MAX || identifierType(value) === null) return ''
+  return normalizeIdentifier(value)
+}

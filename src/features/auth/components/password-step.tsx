@@ -9,7 +9,7 @@ import { normalizeIdentifier } from '../identifier'
 import { AuthCard, OrDivider } from './auth-card'
 import { useSubmitWait } from './code-timers'
 import { IdentifierSummary, RememberMe, SubmitButton, TEXT_LINK } from './login-fields'
-import type { Wait } from './login-types'
+import type { Wait } from './waits'
 import { PasswordInput } from './password-input'
 
 export interface PasswordStepProps {

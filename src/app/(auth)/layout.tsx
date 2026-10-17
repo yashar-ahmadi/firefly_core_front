@@ -4,12 +4,13 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { storeName } from '@/app/_shell/metadata'
 import { StoreLogo } from '@/components/layout/store-logo'
+import { LiveAnnouncer } from '@/components/ui/live-announcer'
 import { getStoreConfig } from '@/config/store-config'
 import { getSiteSettings } from '@/features/settings/api'
 import { SnippetHtmlZone } from '@/features/settings/snippets'
 
-// The auth pages (login; register and password recovery come next) are per visitor: never
-// cached, never indexed (ruling P3-R3). No loading.tsx (R9).
+// The auth pages (login, register, password recovery) are per visitor: never cached, never
+// indexed (ruling P3-R3). No loading.tsx (R9).
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = { robots: { index: false, follow: true } }
@@ -18,7 +19,8 @@ export const metadata: Metadata = { robots: { index: false, follow: true } }
  * A quiet frame for signing in: the shop's logo (home) and a way back, the page's card, and no
  * shop header, footer or bottom navigation. Inside the root Providers like every page. The card
  * hangs from a fixed distance below the top, never centred: a step that grows (a message, the
- * code boxes) or an on-screen keyboard then moves nothing above it.
+ * code boxes) or an on-screen keyboard then moves nothing above it. The polite live region
+ * (`announce`) stays across the auth pages: «رمز عبور تغییر کرد…» is said on the way to login.
  */
 export default async function AuthLayout({ children }: { children: ReactNode }) {
   const settings = await getSiteSettings()
@@ -43,6 +45,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
         {children}
       </main>
       <SnippetHtmlZone position="bottom" />
+      <LiveAnnouncer />
     </div>
   )
 }

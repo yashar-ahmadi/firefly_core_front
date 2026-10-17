@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { useSession } from '@/lib/session/session-context'
 import { signInOpen } from '../login-methods'
 import { useAuthSettings } from '../use-auth-settings'
-import { AuthCard } from './auth-card'
+import { AuthUnavailable } from './auth-card'
 import { LoginFlow } from './login-flow'
+import { ReloadButton } from './reload-button'
 import { SignedInPanel } from './signed-in-panel'
 
 export interface LoginScreenProps {
@@ -19,14 +19,11 @@ export interface LoginScreenProps {
 /** Without settings (`disabledAuth()`), no method can be offered: said plainly. */
 function SignInClosed() {
   return (
-    <AuthCard title="ورود به حساب کاربری">
-      <p className="text-base leading-7 text-ink-700">
-        ورود به حساب در حال حاضر ممکن نیست. لطفاً چند دقیقه دیگر دوباره امتحان کنید.
-      </p>
-      <Button size="lg" fullWidth onClick={() => window.location.reload()}>
-        تلاش دوباره
-      </Button>
-    </AuthCard>
+    <AuthUnavailable
+      title="ورود به حساب کاربری"
+      message="ورود به حساب در حال حاضر ممکن نیست. لطفاً چند دقیقه دیگر دوباره امتحان کنید."
+      action={<ReloadButton />}
+    />
   )
 }
 

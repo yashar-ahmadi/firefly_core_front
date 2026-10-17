@@ -1,6 +1,6 @@
 import { cn } from '@/components/ui/cn'
 import { getStoreConfig } from '@/config/store-config'
-import { sanitizeOperatorHtml } from '@/lib/html/sanitize'
+import { sanitizeOperatorHtml, type SanitizeOptions } from '@/lib/html/sanitize'
 import { htmlToText } from '@/lib/html/to-text'
 import { RichContentBody } from './rich-content-body'
 
@@ -15,9 +15,12 @@ export interface RichContentProps {
  * leaving the shop opened in a new tab), or null when nothing visible is left: only `&nbsp;`,
  * only a script. Server only. For callers that must know before rendering a frame around it.
  */
-export function richContentHtml(html: string): string | null {
+export function richContentHtml(
+  html: string,
+  options: Pick<SanitizeOptions, 'linksInNewTab'> = {},
+): string | null {
   const config = getStoreConfig()
-  const clean = sanitizeOperatorHtml(html, config.apiUrl, { siteUrl: config.siteUrl })
+  const clean = sanitizeOperatorHtml(html, config.apiUrl, { ...options, siteUrl: config.siteUrl })
   return htmlToText(clean) !== '' || clean.includes('<img') ? clean : null
 }
 

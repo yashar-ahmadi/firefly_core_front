@@ -1,6 +1,10 @@
 import type { LoginBody, LoginOtpVerifyBody, OtpMethod, OtpSent } from '@/lib/api/types/account'
+import type { AuthFailure } from './auth-failure'
+import type { StepWait as StepWaitOf, Wait } from './waits'
 
 // The login state machine's types (see login-state.ts).
+
+export type { Wait }
 
 export type LoginStep = 'identifier' | 'password' | 'otp' | 'totp' | 'done'
 /** A field a message can be shown under; each belongs to one step. */
@@ -19,35 +23,14 @@ export interface LoginNotice {
   code: string
 }
 
-/** What a failed request means for the form (see `loginFailure`). */
-export interface LoginFailure {
-  /** Shown under this field, on its step; without one, a notice on the current step. */
-  field?: LoginField
-  detail: string
-  code: string
-  /** A 429's `retry_after`: the wait before the step's main action, or before the next send. */
-  retryAfter?: number | null
-  /** The wait is for a new code (a send was refused, or the code is spent), not the step. */
-  sendSide?: boolean
-  /** The code sent is void (or there is none): a new one must be asked for. */
-  forgetCode?: boolean
-  /** On the TOTP step: the first request cannot succeed any more; go back to its step. */
-  restart?: boolean
-}
-
 /**
- * A wait that ends at `until` (epoch ms; 0: no wait). An absolute time, so a timer shown again
- * later (back on the step, another phase) shows what is left; `seq` tells each new wait apart.
+ * What a failed request means for the form (see `loginFailure`). On the TOTP step, `restart`
+ * means the first request cannot succeed any more: back to its step.
  */
-export interface Wait {
-  until: number
-  seq: number
-}
+export type LoginFailure = AuthFailure<LoginField>
 
-/** A wait that blocks one step's main action (a 429 on it). */
-export interface StepWait extends Wait {
-  step: LoginStep
-}
+/** A wait that blocks one login step's main action (a 429 on it). */
+export type StepWait = StepWaitOf<LoginStep>
 
 export interface LoginState {
   step: LoginStep
