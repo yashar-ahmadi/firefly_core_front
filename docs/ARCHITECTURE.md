@@ -577,7 +577,11 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   its teardown, with a request context of its own, however the test ends (a timeout included). It
   keeps that snapshot in `tests/e2e/.state/` (gitignored, outside the output folder) until the
   restore is verified, so a run that crashed is put right by the next one, which also takes out
-  the journeys' markers (`MARKERS` in `tests/e2e/support/sara-data.ts`) before it starts. A
+  the journeys' markers (`MARKERS` in `tests/e2e/support/sara-data.ts`) before it starts. The
+  restore runs even when the wait for her data to settle gives up. A snapshot that cannot be put
+  back (her data changed since in a way the restore cannot undo) stops the run with an error naming
+  `tests/e2e/.state/sara-<project>.json`: check her address book, wishlist and cart, then delete
+  that file and run again. A
   spec that ends or changes its session logs in on its own, once per project, with `logIn` (as
   `tests/e2e/account/logout.spec.ts` does) or the form (`logInWithForm`), and logs out.
 - **CI** (`.github/workflows/ci.yml`, push and PR to `main`): install, `typecheck`, `lint`,
