@@ -256,10 +256,12 @@ signed-in header to another.
   entity and call `notFound()` before any `<Suspense>`; only secondary sections stream, via in-page
   `<Suspense>`. Pages that can 404 also return a not-found title from `generateMetadata`. Without
   `loading.tsx`, the feedback for a client navigation is `NavigationProgress`
-  (`components/layout/navigation-progress.tsx`, in `ShopShell`): a 3 px top bar that starts on an
-  unmodified same-origin link click or the router's start signal (`onRouterTransitionStart` in
-  `instrumentation-client.ts`), completes when the path or query on screen changes, gives up after
-  10 s, sets `aria-busy` on `<main>` meanwhile, and is a static bar under reduced motion.
+  (`components/layout/navigation-progress.tsx`, in `ShopShell`): a 3 px top bar that starts on the
+  router's start signal (`onRouterTransitionStart` in `instrumentation-client.ts`) or an unmodified
+  same-origin link click that no handler cancelled (`onLeavingClick`, read after the click's own
+  handlers; links that open a dialog instead also carry `data-opens-dialog`), completes when the
+  path or query on screen changes, gives up after 10 s, sets `aria-busy` on `<main>` meanwhile, and
+  is a static bar under reduced motion.
 - **Metadata.** The root `title.template` is `'%s | <store>'`; it applies to child segments only, so
   the home page and pages with a backend `page_title` use `title.absolute`. Open Graph and Twitter
   titles are set explicitly. `metadataBase` is `SITE_URL`.

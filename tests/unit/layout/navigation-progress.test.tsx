@@ -17,6 +17,20 @@ const LINKS = [
   '<a href="/">خانه</a>',
 ].join('')
 
+/**
+ * A click as the browser dispatches it, with jsdom kept from following the link: the stop runs
+ * on window, after every listener on document has seen the click as it was.
+ */
+function click(element: Element, init?: MouseEventInit) {
+  const stop = (event: Event) => event.preventDefault()
+  window.addEventListener('click', stop)
+  try {
+    fireEvent.click(element, init)
+  } finally {
+    window.removeEventListener('click', stop)
+  }
+}
+
 function setup() {
   const view = render(
     <>
@@ -71,8 +85,32 @@ describe('NavigationProgress', () => {
 
   it('starts on an unmodified click on a same-origin link, before the router', () => {
     const { bar, getByText } = setup()
-    fireEvent.click(getByText('اپل'))
+    click(getByText('اپل'))
     expect(bar()).toHaveAttribute('data-phase', 'loading')
+  })
+
+  it('does not start on a click that a handler of the link cancels (it opens something instead)', () => {
+    const view = render(
+      <>
+        <NavigationProgress />
+        <main id="main">
+          <a href="/cart/" onClick={(event) => event.preventDefault()}>
+            سبد خرید
+          </a>
+          <a href="/checkout/">تسویه</a>
+        </main>
+      </>,
+    )
+    const bar = () => view.container.querySelector('[data-phase]')
+    click(view.getByText('سبد خرید'))
+    expect(bar()).toBeNull()
+    expect(view.container.querySelector('main')).not.toHaveAttribute('aria-busy')
+
+    // A native handler on the link counts the same.
+    const checkout = view.getByText('تسویه')
+    checkout.addEventListener('click', (event) => event.preventDefault())
+    click(checkout)
+    expect(bar()).toBeNull()
   })
 
   it.each([
@@ -83,15 +121,13 @@ describe('NavigationProgress', () => {
     ['a link to this page', 'خانه', {}],
   ])('does not start on %s', (_label, text, init) => {
     const { bar, getByText } = setup()
-    const link = getByText(text)
-    link.addEventListener('click', (event) => event.preventDefault())
-    fireEvent.click(link, init)
+    click(getByText(text), init)
     expect(bar()).toBeNull()
   })
 
   it('counts a click and the router signal of the same navigation once', () => {
     const { bar, getByText } = setup()
-    fireEvent.click(getByText('اپل'))
+    click(getByText('اپل'))
     const first = bar()
     act(() => announceRouterNavigation('/brand/apple/'))
     expect(bar()).toBe(first)

@@ -71,6 +71,32 @@ describe('useLeavingPage', () => {
     route.search = 'page=2'
     expect(leavingAfter('/product/list/?page=3').pending).toBe(true)
   })
+
+  it('calls onLeave for a click that follows a link, not for one a handler cancels', () => {
+    const link = document.createElement('a')
+    link.href = '/cart/'
+    document.body.append(link)
+    const onLeave = vi.fn()
+    const { result } = renderHook(() => useLeavingPage(onLeave))
+    // jsdom cannot navigate: stop the link on window, after the listeners on document.
+    const stop = (event: Event) => event.preventDefault()
+    window.addEventListener('click', stop)
+    try {
+      const cancel = (event: Event) => event.preventDefault()
+      link.addEventListener('click', cancel)
+      fireEvent.click(link)
+      expect(onLeave).not.toHaveBeenCalled()
+
+      link.removeEventListener('click', cancel)
+      fireEvent.click(link)
+      expect(onLeave).toHaveBeenCalledTimes(1)
+      // A click is no router navigation: nothing is held back.
+      expect(result.current).toBe(false)
+    } finally {
+      window.removeEventListener('click', stop)
+      link.remove()
+    }
+  })
 })
 
 describe('isSameOriginLinkClick', () => {

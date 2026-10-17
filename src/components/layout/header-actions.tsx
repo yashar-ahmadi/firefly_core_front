@@ -94,6 +94,8 @@ function CartEntry() {
         aria-label={label}
         aria-haspopup={wide ? 'dialog' : undefined}
         aria-expanded={wide ? open : undefined}
+        // From md a click opens the mini-cart: no navigation starts (NavigationProgress).
+        data-opens-dialog={wide ? '' : undefined}
         onPointerEnter={wide ? preloadMiniCart : undefined}
         onFocus={wide ? preloadMiniCart : undefined}
         onClick={(event) => {

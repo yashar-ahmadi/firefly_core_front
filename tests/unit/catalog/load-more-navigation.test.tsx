@@ -70,10 +70,11 @@ describe('LoadMore yields to a navigation', () => {
 })
 
 describe('LoadMore and the page links', () => {
-  // Keep jsdom from following the link; the abort runs in the capture phase before that.
+  // Keep jsdom from following the link: on window, after the listeners on document have seen
+  // the click as not cancelled (a cancelled click does not leave the page).
   const stopNavigation = (event: Event) => event.preventDefault()
-  beforeEach(() => document.addEventListener('click', stopNavigation, true))
-  afterEach(() => document.removeEventListener('click', stopNavigation, true))
+  beforeEach(() => window.addEventListener('click', stopNavigation))
+  afterEach(() => window.removeEventListener('click', stopNavigation))
 
   /** A link elsewhere on the page (the header, a card), outside the listing. */
   function linkTo(href: string, attributes: Record<string, string> = {}) {

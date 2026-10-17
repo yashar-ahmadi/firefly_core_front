@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 import { htmlToText } from '@/lib/html/to-text'
+import { shellHydrated } from './support/hydrated'
 
 // The shop shell against the dev backend (sample data): logo, mega-menu (lg+), categories drawer
 // (md to lg), bottom navigation and category browser (phones) and the announcement bar.
@@ -113,6 +114,23 @@ test.describe('shell', () => {
     await expect(
       page.getByRole('tabpanel').getByRole('link', { name: 'یخچال و فریزر' }),
     ).toBeVisible()
+  })
+
+  test('desktop: opening the mini-cart is no navigation, so no progress bar starts', async ({
+    page,
+  }) => {
+    test.skip(width(page) !== 1440, 'measured at 1440 px')
+    await page.goto('/')
+    await shellHydrated(page)
+    await page
+      .getByRole('banner')
+      .getByRole('link', { name: /^سبد خرید/ })
+      .click()
+    await expect(page.getByRole('dialog', { name: 'سبد خرید' })).toBeVisible()
+    await expect(page).toHaveURL((url) => url.pathname === '/')
+    // A wrong start would show the bar (and mark main busy) for 10 s.
+    await expect(page.locator('[data-navigation-progress] [data-phase]')).toHaveCount(0)
+    await expect(page.locator('main#main')).not.toHaveAttribute('aria-busy', 'true')
   })
 
   test('wider screens: no bottom navigation', async ({ page }) => {

@@ -4,12 +4,16 @@ import { Direction } from 'radix-ui'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MegaMenu } from '@/components/layout/mega-menu'
+import { NavigationProgress } from '@/components/layout/navigation-progress'
 import { navItems } from '@/components/layout/menu-tree'
 import { focusedElement, stubBrowserApis } from '../support/dom-stubs'
 import { categoryNode, menuNode, sampleTree } from './support'
 
 const nav = vi.hoisted(() => ({ pathname: '/' }))
-vi.mock('next/navigation', () => ({ usePathname: () => nav.pathname }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => nav.pathname,
+  useSearchParams: () => new URLSearchParams(),
+}))
 
 stubBrowserApis()
 
@@ -162,9 +166,18 @@ describe('MegaMenu', () => {
     tree[1].children = [
       categoryNode({ id: 10009, name: 'یخچال و فریزر', path: 'home-appliance/refrigerator' }),
     ]
-    render(rtl(<MegaMenu items={navItems([], tree)} />))
+    const { container } = render(
+      rtl(
+        <>
+          <NavigationProgress />
+          <MegaMenu items={navItems([], tree)} />
+        </>,
+      ),
+    )
     await user.click(screen.getByRole('button', { name: TRIGGER }))
     const item = screen.getByRole('link', { name: 'لوازم خانگی' })
+    // The first tap may only open the submenu: no navigation is announced for the click.
+    expect(item).toHaveAttribute('data-opens-dialog')
 
     // Record whether React cancelled each visit, then stop jsdom from navigating.
     const visits: boolean[] = []
@@ -176,6 +189,7 @@ describe('MegaMenu', () => {
     // A real tap: pointerdown, pointerup, then mousedown (which focuses the link) and click.
     await user.pointer({ keys: '[TouchA]', target: item })
     expect(visits).toEqual([false])
+    expect(container.querySelector('[data-navigation-progress] [data-phase]')).toBeNull()
     expect(screen.getByRole('button', { name: TRIGGER })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('link', { name: 'یخچال و فریزر' })).toBeInTheDocument()
 

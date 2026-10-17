@@ -154,6 +154,8 @@ export function MegaMenuPanel({
                       prefetch={false}
                       onNavigate={onClose}
                       onClick={(event) => onItemClick(event, index)}
+                      // A first tap may only open the children: the click is no page change.
+                      data-opens-dialog={item.children.length > 0 ? '' : undefined}
                       {...props}
                     >
                       {label}

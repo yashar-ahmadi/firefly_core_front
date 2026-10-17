@@ -7,7 +7,7 @@ import {
   PENDING_LIMIT_MS,
   ROUTER_NAVIGATION_START,
   locationKey,
-  sameOriginLinkTarget,
+  onLeavingClick,
 } from '@/lib/navigation/router-navigation'
 
 type Phase = 'idle' | 'loading' | 'done'
@@ -25,9 +25,11 @@ const DONE_MS = 300
 
 /**
  * A thin bar along the top of the window while a client navigation is on its way (the shop has
- * no `loading.tsx`, R9, so nothing else shows that a click was taken). It starts on an unmodified
- * click on a same-origin link and on every App Router navigation (`ROUTER_NAVIGATION_START`, from
- * src/instrumentation-client.ts), and completes when the URL on screen (path or query) changes.
+ * no `loading.tsx`, R9, so nothing else shows that a click was taken). It starts on every App
+ * Router navigation (`ROUTER_NAVIGATION_START`, from src/instrumentation-client.ts) and on an
+ * unmodified click on a same-origin link that no handler cancelled (`onLeavingClick`: a link that
+ * opens a dialog instead never starts it), and completes when the URL on screen (path or query)
+ * changes.
  * A navigation that never lands (a redirect back here, an error) hides it after 10 s.
  *
  * Decorative (`aria-hidden`); while it runs, `<main>` carries `aria-busy="true"`. With reduced
@@ -54,10 +56,7 @@ export function NavigationProgress({ mainId = 'main' }: { mainId?: string }) {
   const reset = useEffectEvent(() => setProgress((current) => ({ ...current, phase: 'idle' })))
 
   useEffect(() => {
-    const onClick = (event: MouseEvent) => {
-      const target = sameOriginLinkTarget(event)
-      if (target) start(target)
-    }
+    const stopClicks = onLeavingClick((target) => start(target))
     const onNavigation = (event: Event) => {
       const url = (event as CustomEvent<unknown>).detail
       if (typeof url === 'string') start(new URL(url, window.location.href))
@@ -66,11 +65,10 @@ export function NavigationProgress({ mainId = 'main' }: { mainId?: string }) {
     const onPageShow = (event: PageTransitionEvent) => {
       if (event.persisted) reset()
     }
-    document.addEventListener('click', onClick, true)
     window.addEventListener(ROUTER_NAVIGATION_START, onNavigation)
     window.addEventListener('pageshow', onPageShow)
     return () => {
-      document.removeEventListener('click', onClick, true)
+      stopClicks()
       window.removeEventListener(ROUTER_NAVIGATION_START, onNavigation)
       window.removeEventListener('pageshow', onPageShow)
     }

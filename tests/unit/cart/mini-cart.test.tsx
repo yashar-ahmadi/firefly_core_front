@@ -5,6 +5,7 @@ import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HeaderActions } from '@/components/layout/header-actions'
+import { NavigationProgress } from '@/components/layout/navigation-progress'
 import { CartBadge } from '@/features/cart/components/cart-badge'
 import { MiniCart } from '@/features/cart/components/mini-cart'
 import { CART_KEY } from '@/features/cart/hooks'
@@ -18,7 +19,10 @@ import { cart, cartLine, deferred, MSG_REMOVED, result } from './support'
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), error: vi.fn(), success: vi.fn() }))
 
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
-vi.mock('next/navigation', () => ({ usePathname: () => '/' }))
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+}))
 vi.mock('@/components/ui/toaster', () => ({
   notify: { error: mocks.error, success: mocks.success, info: vi.fn(), dismiss: vi.fn() },
 }))
@@ -126,6 +130,24 @@ describe('HeaderActions cart', () => {
     expect(link).toHaveAttribute('aria-expanded', 'true')
     await waitFor(() => expect(mocks.bffFetch).toHaveBeenCalledWith('cart/', expect.anything()))
     expect(within(sheet).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('from md opening the mini-cart is no navigation: the progress bar stays idle', async () => {
+    media.set(minWidth(48))
+    serve(TWO_LINES)
+    const { container } = renderWith(
+      <>
+        <NavigationProgress />
+        <HeaderActions />
+      </>,
+    )
+    const link = await screen.findByRole('link', { name: 'سبد خرید، ۳ کالا' })
+    await waitFor(() => expect(link).toHaveAttribute('aria-haspopup', 'dialog'))
+    expect(link).toHaveAttribute('data-opens-dialog')
+
+    await userEvent.click(link)
+    await screen.findByRole('dialog', { name: 'سبد خرید' })
+    expect(container.querySelector('[data-navigation-progress] [data-phase]')).toBeNull()
   })
 })
 
