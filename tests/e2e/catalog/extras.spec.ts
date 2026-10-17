@@ -155,6 +155,8 @@ test.describe('compare table on a phone', () => {
     await page.goto('/compare/')
     const table = page.getByRole('table', { name: 'مقایسه کالاها' })
     await expect(table.getByRole('link', { name: S25.name })).toBeVisible()
+    // A product joins the table when its details arrive: wait for all three (and the names).
+    await expect(table.locator('thead th')).toHaveCount(4)
     const { box, columns } = await table.evaluate((element) => {
       const scroller = element.parentElement!.getBoundingClientRect()
       const heads = [...element.querySelectorAll('thead th')]

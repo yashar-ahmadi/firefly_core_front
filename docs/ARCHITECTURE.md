@@ -401,14 +401,14 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   (`http://localhost:8000`). Three projects: `mobile` (Pixel 7), `tablet` (iPad landscape, Chromium)
   and `desktop` (1440×900). Specs that hit counted endpoints or check viewport-independent behaviour
   (edge, snippets) run in one project only. An already running server on the base URL is reused;
-  `E2E_BASE_URL` points elsewhere. One full run makes about 400 anonymous API requests, all from
-  one address, and the sample backend allows 2000 an hour per address (`THROTTLE_ANON`, a sliding
-  hour): about four runs an hour, fewer with local browsing. Past that the backend answers 429
+  `E2E_BASE_URL` points elsewhere. One full run makes about 220 anonymous API requests (about 400
+  before the BFF served a guest's empty cart from a shared copy), all from one address, and the
+  sample backend allows 2000 an hour per address (`THROTTLE_ANON`, a sliding hour): about eight
+  runs an hour, fewer with local browsing. Past that the backend answers 429
   `throttled` (`retryAfter` in the server log) and many specs fail at once. For back-to-back runs,
   start the backend with a larger budget, e.g. `THROTTLE_ANON=20000/hour`. A global setup
   (`tests/e2e/global-setup.ts`) probes the backend once before the run and stops it with that
-  advice when the answer is already 429. Since the BFF serves a guest's empty cart from a shared
-  copy, a run makes far fewer calls than the about 400 measured before.
+  advice when the answer is already 429.
 - **CI** (`.github/workflows/ci.yml`, push and PR to `main`): install, `typecheck`, `lint`,
   `format:check`, `test`, `build`. End-to-end tests are not run in CI (they need the backend, a
   separate repository); run them locally before pushing.
