@@ -111,7 +111,7 @@ export function CommentsPage({ title }: { title: string }) {
       <EmptyState
         icon={<MessagesSquare />}
         title="هنوز دیدگاهی ثبت نکرده‌اید"
-        description="دیدگاه‌ها و پرسش‌هایی که درباره‌ی کالاها و مطالب می‌نویسید این‌جا می‌آیند."
+        description="دیدگاه‌ها و پرسش‌هایی که دربارهٔ کالاها و مطالب می‌نویسید این‌جا می‌آیند."
         className={EMPTY}
       />
     )

@@ -100,7 +100,7 @@ export function checkAddress(values: AddressValues): FieldErrors {
   required('title', values.title, 'عنوان آدرس را وارد کنید.', LIMITS.title, 'عنوان آدرس')
   if (values.province === null) add('province', 'استان را انتخاب کنید.')
   if (values.city === null) add('city', 'شهر را انتخاب کنید.')
-  if (values.address.trim() === '') add('address', 'نشانی کامل را وارد کنید.')
+  if (values.address.trim() === '') add('address', 'آدرس کامل را وارد کنید.')
   add('plaque', lengthError(values.plaque.trim(), LIMITS.short, 'پلاک'))
   add('unit', lengthError(values.unit.trim(), LIMITS.short, 'واحد'))
   const postal = postalDigits(values.postalCode)

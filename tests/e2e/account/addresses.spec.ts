@@ -88,7 +88,7 @@ signedInTest(
       await expect(
         page
           .getByRole('navigation', { name: 'حساب کاربری' })
-          .getByRole('link', { name: 'نشانی‌ها' }),
+          .getByRole('link', { name: 'آدرس‌ها' }),
       ).toHaveAttribute('aria-current', 'page')
     }
     // No sideways page scroll; every button of the page a target at least 44px tall. The cards'

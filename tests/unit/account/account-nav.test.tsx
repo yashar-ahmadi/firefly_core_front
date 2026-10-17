@@ -85,7 +85,7 @@ describe('AccountNav', () => {
       'علاقه‌مندی‌ها',
       'لیست مطالعه',
       'دیدگاه‌های من',
-      'نشانی‌ها',
+      'آدرس‌ها',
       'کیف پول',
       'اعلان‌ها',
       'اطلاعات حساب',
@@ -106,7 +106,7 @@ describe('AccountNav', () => {
     const wallet = await link('کیف پول، موجودی ۳٬۰۳۱٬۰۰۰ تومان')
     expect(within(wallet).getByText('۳٬۰۳۱٬۰۰۰ تومان')).toHaveAttribute('aria-hidden', 'true')
     // No counter for these (and no unread count before the inbox has counted).
-    for (const name of ['پیشخوان', 'نشانی‌ها', 'اعلان‌ها', 'اطلاعات حساب']) {
+    for (const name of ['پیشخوان', 'آدرس‌ها', 'اعلان‌ها', 'اطلاعات حساب']) {
       expect(await link(name)).toBeVisible()
     }
   })
@@ -141,7 +141,7 @@ describe('AccountNav', () => {
     ['/account/', 'پیشخوان'],
     ['/account/orders/', 'سفارش‌ها، ۷ سفارش'],
     ['/account/wallet/', 'کیف پول، موجودی ۳٬۰۳۱٬۰۰۰ تومان'],
-    ['/account/addresses/', 'نشانی‌ها'],
+    ['/account/addresses/', 'آدرس‌ها'],
   ])('marks %s as the current page', async (pathname, name) => {
     mocks.pathname = pathname
     renderNav()

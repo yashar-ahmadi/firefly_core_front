@@ -85,7 +85,7 @@ test('address: one added (Tehran, a city, a mobile, a postal code), made the def
   const city = sheet.getByRole('combobox', { name: /^شهر/ })
   await expect(city).toBeEnabled()
   await city.selectOption({ label: 'تهران' })
-  await sheet.getByRole('textbox', { name: /^نشانی کامل/ }).fill('خیابان آزمون، کوچهٔ یکم')
+  await sheet.getByRole('textbox', { name: /^آدرس کامل/ }).fill('خیابان آزمون، کوچهٔ یکم')
   await sheet.getByRole('textbox', { name: /^کد پستی/ }).fill('۱۲۳۴۵۶۷۸۹۰')
   // Someone else receives it (the profile's own names are not used).
   const me = sheet.getByRole('checkbox', { name: 'گیرنده خودم هستم' })

@@ -108,7 +108,7 @@ function GroupSkeleton() {
  * «سفارش‌های من»: one tile per order group of the summary (`orders.groups`), all of them, in the
  * API's order, each with its icon, the API's label as it is and the count, linking to that tab
  * of the orders page (`?group=<key>`). With no order yet every tile shows «۰», and a line under
- * them says so and offers «شروع خرید» (no «همه‌ی سفارش‌ها»). On phones the row scrolls (`LIST`).
+ * them says so and offers «شروع خرید» (no «همهٔ سفارش‌ها»). On phones the row scrolls (`LIST`).
  * Skeleton tiles of the same size while the summary loads; a failed read offers «تلاش دوباره» in
  * their place.
  */

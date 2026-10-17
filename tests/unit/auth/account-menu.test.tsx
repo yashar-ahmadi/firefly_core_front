@@ -99,7 +99,7 @@ describe('the header account entry', () => {
       ['پیشخوان', '/account/'],
       ['سفارش\u{200C}ها', '/account/orders/'],
       ['علاقه\u{200C}مندی\u{200C}ها', '/account/wishlist/'],
-      ['نشانی\u{200C}ها', '/account/addresses/'],
+      ['آدرس\u{200C}ها', '/account/addresses/'],
       ['اعلان\u{200C}ها', '/account/notifications/'],
       ['خروج', null],
     ])

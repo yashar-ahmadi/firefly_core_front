@@ -43,7 +43,7 @@ export const fa: Record<string, string> = {
   account_dashboard: 'پیشخوان',
   account_orders: 'سفارش\u{200C}ها',
   account_wishlist: 'علاقه\u{200C}مندی\u{200C}ها',
-  account_addresses: 'نشانی\u{200C}ها',
+  account_addresses: 'آدرس\u{200C}ها',
   account_notifications: 'اعلان\u{200C}ها',
   account_area: 'حساب کاربری',
   account_reviews: 'در انتظار دیدگاه',

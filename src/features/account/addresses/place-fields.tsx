@@ -15,14 +15,14 @@ export interface PlaceFieldsProps {
 }
 
 /**
- * Where the door is: «نشانی کامل», «پلاک» and «واحد» (as typed: «۱۲ب», «12/1»), and the optional
+ * Where the door is: «آدرس کامل», «پلاک» and «واحد» (as typed: «۱۲ب», «12/1»), and the optional
  * «کد پستی» (its digits normalised when sent).
  */
 export function PlaceFields({ values, onChange, errors }: PlaceFieldsProps) {
   return (
     <>
       <Field
-        label="نشانی کامل"
+        label="آدرس کامل"
         required
         hint="خیابان، کوچه، نام ساختمان و نشانه‌ای که پیدا کردن را آسان کند."
         error={messagesOf(errors.address)}
