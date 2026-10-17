@@ -24,10 +24,11 @@ signedInTest.describe('JavaScript budget, signed in (production build)', () => {
       async ({ page, browser, saraState }, info) => {
         signedInTest.skip(info.project.name !== 'desktop', 'measures both viewports itself')
         signedInTest.setTimeout(90_000)
-        const desktop = await measure(page, route, 'desktop, signed in')
+        const desktop = await measure(page, route, 'desktop, signed in', { signedIn: true })
         const phone = await measurePhone(browser, route, {
           storageState: saraState,
           device: 'phone, signed in',
+          signedIn: true,
         })
         enforce(info, desktop, phone)
       },

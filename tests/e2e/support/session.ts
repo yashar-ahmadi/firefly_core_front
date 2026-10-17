@@ -17,17 +17,20 @@ import path from 'node:path'
 //   its `page` is signed in as sara through a session shared by every spec and worker of the
 //   project, logged in once per project per run, the first time a test asks for it. That
 //   session must stay as it is: never log it out, revoke it (logout everywhere) or change the
-//   password with it, and restore any account data a test changes (support/sara-data.ts).
+//   password with it, and restore any account data a test changes (the `sara` guard of
+//   support/sara-guard.ts).
 // - A spec that ends or changes its session (logout, password change) logs in on its own, once
 //   per project, with `logIn` (or the form), as `account/logout.spec.ts` does, and ends it.
 //
 // The attempts of a full run: the shared session of each project (mobile, tablet, desktop,
 // journeys: 4); logout.spec (a login and a logout per project but journeys: 6);
 // session-restore.spec (a form login and a logout, idem: 6); auth.spec (journeys only: a wrong
-// password, a form login and its logout: 3). 19 in all, and never many at once: Playwright runs
-// the projects one after the other (mobile, tablet, desktop, then journeys, which waits for the
-// others), each project's account specs first, so a minute holds at most one project's 3–5. No
-// spacing is needed; a spec that adds attempts adds its count here.
+// password, a form login and its logout: 3). 19 in all. They come apart because Playwright, as
+// configured, runs the projects one after the other (mobile, tablet, desktop, then journeys, which
+// waits for the others), each project's account specs first: measured from the backend's log
+// (Task 10), at most 5 in any minute of a run and 9 across two runs back to back. That is an
+// observation of the scheduler, not a guarantee (more workers or a filtered run can bunch them):
+// keep a run's total low, and a spec that adds attempts adds its count here.
 
 /** The dev backend's demo customer. */
 export const SARA = {
@@ -62,13 +65,12 @@ export async function logIn(context: BrowserContext, baseURL: string): Promise<v
  * «ورود» is pressed: the caller waits for what should follow.
  */
 export async function logInWithForm(page: Page, password: string = SARA.password): Promise<void> {
-  // Hydrated first: a value typed into the server's HTML could be lost to hydration.
-  await page.waitForFunction(() => {
-    const form = document.querySelector('main form')
-    return form !== null && Object.keys(form).some((key) => key.startsWith('__reactProps'))
-  })
+  // Hydrated first (a value typed into the server's HTML could be lost to hydration): the auth
+  // forms' submit button is disabled until the page has hydrated.
+  const next = page.getByRole('button', { name: 'ادامه' })
+  await expect(next).toBeEnabled()
   await page.getByLabel('ایمیل یا شماره موبایل').fill(SARA.email)
-  await page.getByRole('button', { name: 'ادامه' }).click()
+  await next.click()
   await page.getByLabel('رمز عبور', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'ورود', exact: true }).click()
 }

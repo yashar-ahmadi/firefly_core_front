@@ -12,6 +12,8 @@ coverage/
 playwright-report/
 test-results/
 blob-report/
+# e2e: sara's data before a write journey, kept until it is restored (support/sara-guard.ts)
+tests/e2e/.state/
 
 # env
 .env

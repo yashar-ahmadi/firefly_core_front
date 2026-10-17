@@ -8,6 +8,7 @@ import {
 } from '@playwright/test'
 import { gzipSync } from 'node:zlib'
 import { SAMPLE, seedCompare } from './compare-seed'
+import { SESSION_COOKIES } from './session'
 
 // The JavaScript budget's measure (ruling P2-R4; docs/ARCHITECTURE.md, Performance): at most
 // 250 KB gzip per route, measured as the browser loads the production build, with no
@@ -17,6 +18,9 @@ import { SAMPLE, seedCompare } from './compare-seed'
 // `noModule` polyfills are never requested by a modern browser, so they do not count; code
 // that loads on first use (a panel, a menu, a toast, the phone search overlay) does not either.
 // Used by catalog/budget.spec.ts (a guest) and catalog/budget-signed-in.spec.ts (sara).
+
+/** The session's flag cookie (`ff_auth`): there while the session lives. */
+const FLAG_COOKIE = SESSION_COOKIES[2]
 
 export interface BudgetRoute {
   name: string
@@ -76,13 +80,33 @@ interface Measure {
   line: string
 }
 
-/** Loads `route` in `page` and sums its scripts, gzipped, once /_next/static has gone quiet. */
-export async function measure(page: Page, route: BudgetRoute, device: string): Promise<Measure> {
+/**
+ * Loads `route` in `page` and sums its scripts, gzipped, once /_next/static has gone quiet. The
+ * page measured must be the route itself (not a redirect to login), and with `signedIn` the
+ * session must have held (the flag cookie still there), so a lost session never measures the
+ * guest's page instead.
+ */
+export async function measure(
+  page: Page,
+  route: BudgetRoute,
+  device: string,
+  { signedIn = false }: { signedIn?: boolean } = {},
+): Promise<Measure> {
   if (route.name === 'compare') await seedCompare(page, [SAMPLE.S25, SAMPLE.A56])
   const scripts = recordScripts(page)
 
   const response = await page.goto(route.path, { waitUntil: 'load' })
   expect(response?.status(), `${device} ${route.path}`).toBe(200)
+  expect(new URL(page.url()).pathname, `${device}: the page measured`).toBe(
+    new URL(route.path, page.url()).pathname,
+  )
+  if (signedIn) {
+    const cookies = await page.context().cookies()
+    expect(
+      cookies.map(({ name }) => name),
+      `${device}: still signed in`,
+    ).toContain(FLAG_COOKIE)
+  }
   await expect
     .poll(scripts.settled, {
       message: `${device}: /_next/static never went quiet for ${QUIET_MS} ms after load`,
@@ -111,11 +135,15 @@ export async function measure(page: Page, route: BudgetRoute, device: string): P
 export async function measurePhone(
   browser: Browser,
   route: BudgetRoute,
-  { device = 'phone', ...options }: BrowserContextOptions & { device?: string } = {},
+  {
+    device = 'phone',
+    signedIn = false,
+    ...options
+  }: BrowserContextOptions & { device?: string; signedIn?: boolean } = {},
 ) {
   const context = await browser.newContext({ ...PHONE, ...options })
   try {
-    return await measure(await context.newPage(), route, device)
+    return await measure(await context.newPage(), route, device, { signedIn })
   } finally {
     await context.close()
   }

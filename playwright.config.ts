@@ -38,12 +38,15 @@ export default defineConfig({
       // The journeys that log in through the form or write sara's data (tests/e2e/account/
       // auth.spec.ts, account.spec.ts): on a desktop, one at a time, after every other project
       // (no read-only spec is looking at her address book, wishlist or cart while they change, and
-      // their logins come apart from the others'). Skipped when a project before them failed.
+      // their logins come apart from the others'). Skipped when a project before them failed;
+      // `pnpm test:e2e:journeys` runs them alone. A control that is not there fails in 10 s, as
+      // an assertion would, long before the test's own timeout (the `sara` guard restores her data
+      // either way).
       name: 'journeys',
       testMatch: JOURNEYS,
       dependencies: ['mobile', 'tablet', 'desktop'],
       workers: 1,
-      use: DESKTOP,
+      use: { ...DESKTOP, actionTimeout: 10_000, navigationTimeout: 20_000 },
     },
   ],
   // The production artifact, as the Docker image runs it: the standalone server.js with

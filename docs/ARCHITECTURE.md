@@ -508,10 +508,12 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   next to it, exactly like the Docker image — against the local backend with sample data
   (`http://localhost:8000`). Three projects: `mobile` (Pixel 7), `tablet` (iPad landscape, Chromium)
   and `desktop` (1440×900). Specs that hit counted endpoints or check viewport-independent behaviour
-  (edge, snippets) run in one project only. A fourth, `journeys` (1440×900, one worker), runs after
-  the other three: the specs that log in through the form or write sara's data
-  (`tests/e2e/account/auth.spec.ts`, `account.spec.ts`), so no read-only spec sees that data change;
-  it is skipped when a project before it failed (`--no-deps` runs it alone). An already running server on the base URL is reused;
+  (edge, snippets) run in one project only. A fourth, `journeys` (1440×900, one worker, 10 s action
+  timeout), runs after the other three: the specs that log in through the form or write sara's
+  data (`tests/e2e/account/auth.spec.ts`, `account.spec.ts`), so no read-only spec sees that data
+  change. Playwright skips it when a project before it failed, and a filter on the command line
+  does not drop its dependencies (one journey file still runs the three device suites first):
+  `pnpm test:e2e:journeys` (`--project=journeys --no-deps`) runs the journeys alone. An already running server on the base URL is reused;
   `E2E_BASE_URL` points elsewhere. One full run makes about 220 anonymous API requests (about 400
   before the BFF served a guest's empty cart from a shared copy), all from one address, and the
   sample backend allows 2000 an hour per address (`THROTTLE_ANON`, a sliding hour): about eight
@@ -523,13 +525,19 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
 - **Signed-in specs** (Plan 3). Every login, and every logout, is one `auth_attempt` at the
   backend, 20 a minute per address for the whole run (the BFF forwards the visitor's address), so
   specs never log in per test or in a loop (`tests/e2e/support/session.ts`, which counts a full
-  run's attempts: 19, at most about 5 in a minute, the projects running one after the other). A spec that only reads with a session uses
+  run's attempts: 19). Measured from the backend's log, Playwright's project-by-project order kept
+  them to at most 5 in any minute of a run and 9 across two runs back to back; that is the
+  scheduler's behaviour as configured, not a guarantee, so keep the total low. A spec that only reads with a session uses
   `signedInTest` from there: its `page` shares one login per project per run (a storage-state file
   in the output folder, written by the first worker that asks for it while the others wait; if
   that login fails, the waiting workers fail at once with its reason, without logging in). Never
   log that session out, revoke it or change its password with it, and restore any account data a
-  test changes: `tests/e2e/support/sara-data.ts` reads sara's address book (with its default),
-  wishlist and cart lines before a write journey and puts them back exactly in its `finally`. A
+  test changes: the `sara` fixture (`tests/e2e/support/sara-guard.ts`) reads sara's address book
+  (with its default), wishlist and cart lines before a write journey and puts them back exactly in
+  its teardown, with a request context of its own, however the test ends (a timeout included). It
+  keeps that snapshot in `tests/e2e/.state/` (gitignored, outside the output folder) until the
+  restore is verified, so a run that crashed is put right by the next one, which also takes out
+  the journeys' markers (`MARKERS` in `tests/e2e/support/sara-data.ts`) before it starts. A
   spec that ends or changes its session logs in on its own, once per project, with `logIn` (as
   `tests/e2e/account/logout.spec.ts` does) or the form (`logInWithForm`), and logs out.
 - **CI** (`.github/workflows/ci.yml`, push and PR to `main`): install, `typecheck`, `lint`,

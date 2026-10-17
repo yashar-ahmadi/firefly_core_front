@@ -5,11 +5,21 @@ import type { WishlistProductCard } from '@/lib/api/types/catalog'
 import type { Paginated } from '@/lib/api/types/common'
 
 // What the write journeys change in sara's account (the shared dev backend), read before they
-// start and put back exactly afterwards: her address book (which one is the default included),
-// her wishlist and her cart's lines with their quantities. Everything goes through the BFF with
-// the session of `request` (a signed-in page's `page.request`, or a context made from the
+// start and put back exactly afterwards (support/sara-guard.ts does both): her address book
+// (which one is the default included), her wishlist and her cart's lines with their quantities.
+// Everything goes through the BFF with the session of `request` (a request context made from the
 // project's shared session). Never her password, contact, two-step login, comments or
 // notifications' read state: no journey touches them.
+
+/**
+ * What the journeys add, and nothing real has: an address by this title, this product in the
+ * wishlist, a cart line of this product (the guest's line the login merges).
+ */
+export const MARKERS = {
+  addressTitle: 'آزمون خودکار e2e',
+  wishlist: { slug: 'apple-iphone-15', name: 'گوشی موبایل اپل آیفون ۱۵' },
+  cartProduct: 'samsung-galaxy-a56',
+} as const
 
 const HEADERS = { 'X-Requested-With': 'ff' }
 
@@ -117,4 +127,37 @@ export async function restoreCart(
       await bffWrite(request, 'POST', 'cart/item/add/', { variant, quantity })
   }
   expect(await readCart(request), 'sara’s cart as it was').toEqual(before)
+}
+
+/**
+ * Takes out what a journey of an earlier run left behind (it stopped before its restore, or its
+ * snapshot is gone): the marker address, the marker product in the wishlist, its cart line.
+ */
+export async function removeMarkers(request: APIRequestContext): Promise<void> {
+  for (const { id, title } of await readAddresses(request)) {
+    if (title === MARKERS.addressTitle)
+      await bffWrite(request, 'DELETE', `account/address/${id}/delete/`)
+  }
+  if ((await readWishlist(request)).some(({ slug }) => slug === MARKERS.wishlist.slug))
+    await bffWrite(request, 'DELETE', `product/detail/${MARKERS.wishlist.slug}/wishlist/`)
+  for (const { variant_id, product_slug } of (await bffGet<Cart>(request, 'cart/')).lines) {
+    if (product_slug === MARKERS.cartProduct)
+      await bffWrite(request, 'DELETE', `cart/item/${variant_id}/remove/`)
+  }
+}
+
+/** All of sara's data as `before`: each part restored even when another fails (then rethrown). */
+export async function restoreSara(request: APIRequestContext, before: SaraData): Promise<void> {
+  const failures: unknown[] = []
+  for (const restore of [
+    () => restoreAddresses(request, before.addresses),
+    () => restoreWishlist(request, before.wishlist),
+    () => restoreCart(request, before.cart),
+  ]) {
+    await restore().catch((error: unknown) => failures.push(error))
+  }
+  if (failures.length > 0) {
+    const messages = failures.map((error) => (error instanceof Error ? error.message : `${error}`))
+    throw new Error(`sara's data could not be put back:\n${messages.join('\n\n')}`)
+  }
 }
