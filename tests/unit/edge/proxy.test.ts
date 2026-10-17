@@ -271,12 +271,41 @@ describe('session refresh', () => {
     expect(cookies.ff_at?.value).toBe(fresh)
     expect(cookies.ff_at?.attrs.httponly).toBe(true)
     expect(Number(cookies.ff_at?.attrs['max-age'])).toBeGreaterThan(890)
-    expect(cookies.ff_auth?.value).toBe('1')
+    // No flag cookie came with it: a new session marker, for the browser and for this render.
+    const marker = cookies.ff_auth?.value ?? ''
+    expect(marker).toMatch(/^[A-Za-z0-9_-]{16,64}$/)
     expect(cookies.ff_auth?.attrs.httponly).toBeUndefined()
+    expect(cookies.ff_auth?.attrs['max-age']).toBe(cookies.ff_rt?.attrs['max-age'])
     const forwarded = forwardedCookies(res)
     expect(forwarded).toContain(`ff_at=${fresh}`)
     expect(forwarded).toContain(`ff_rt=${refresh}`)
+    expect(forwarded).toContain(`ff_auth=${marker}`)
     expect(forwarded).toContain('theme=a')
+  })
+
+  it.each([
+    ['a session marker', 'kept-marker-0123456789'],
+    ['the flag of a session from before markers', '1'],
+  ])('keeps %s across the refresh (the same login)', async (_, marker) => {
+    refreshAccess.mockResolvedValue({ access: jwtExpiringIn(900) })
+    const { proxy } = await load()
+    const res = await proxy(
+      request('/product/x/', { cookies: { ff_rt: refresh, ff_auth: marker } }),
+    )
+    expect(setCookies(res).ff_auth?.value).toBe(marker)
+    expect(forwardedCookies(res)).toContain(`ff_auth=${marker}`)
+  })
+
+  it('replaces a flag cookie that is no marker (tampered) with a new one', async () => {
+    refreshAccess.mockResolvedValue({ access: jwtExpiringIn(900) })
+    const { proxy } = await load()
+    const tampered = 'x'.repeat(65)
+    const res = await proxy(
+      request('/product/x/', { cookies: { ff_rt: refresh, ff_auth: tampered } }),
+    )
+    const marker = setCookies(res).ff_auth?.value
+    expect(marker).toMatch(/^[A-Za-z0-9_-]{16,64}$/)
+    expect(forwardedCookies(res)).not.toContain(tampered)
   })
 
   it('refreshes a missing access token', async () => {

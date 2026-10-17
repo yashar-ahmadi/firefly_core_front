@@ -50,7 +50,8 @@ describe('(a) login tokens', () => {
     const cookies = setCookies(res)
     expect(cookies.ff_at?.value).toBe(access)
     expect(cookies.ff_rt?.value).toBe(refresh)
-    expect(cookies.ff_auth?.value).toBe('1')
+    // The session marker (session-marker.test.ts): opaque, never '1' any more.
+    expect(cookies.ff_auth?.value).toMatch(/^[A-Za-z0-9_-]{16,64}$/)
     for (const name of ['ff_at', 'ff_rt']) {
       expect(cookies[name]?.attrs.httponly, name).toBe(true)
       expect(cookies[name]?.attrs.secure, name).toBe(true)

@@ -215,7 +215,8 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
   } else {
     const { result, sentAccess, sentCart } = attempt
     const json = result.kind === 'json' ? result.body : null
-    captureSession({ path, status: result.status, body: json, sentAccess, sentCart }, jar)
+    const { status } = result
+    captureSession({ path, status, body: json, sentAccess, sentCart, marker: cookies.marker }, jar)
     response = toResponse(result)
   }
   return answer(response)

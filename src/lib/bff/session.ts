@@ -3,11 +3,14 @@ import {
   CART_MAX_AGE,
   COOKIE,
   cookieOptions,
+  isSessionMarker,
   tokenMaxAge,
   type CookieKey,
 } from '@/lib/auth/cookies'
 
 export const REFRESH_PATH = 'account/auth/token/refresh/'
+/** A new token pair for the same session: its marker stays. */
+export const PASSWORD_CHANGE_PATH = 'account/profile/password/change/'
 export const LOGOUT_PATH = 'account/auth/logout/'
 export const LOGOUT_ALL_PATH = 'account/auth/logout-all/'
 export const MERGE_PATH = 'cart/merge/'
@@ -33,6 +36,13 @@ export interface SessionCookies {
   access: string | null
   refresh: string | null
   cart: string | null
+  /** The session marker the flag cookie holds (`isSessionMarker`). */
+  marker: string | null
+}
+
+/** A marker for a new login: random, opaque (see `isSessionMarker`). */
+export function newSessionMarker(): string {
+  return crypto.randomUUID()
 }
 
 /**
@@ -44,10 +54,12 @@ export function readSession(req: NextRequest): SessionCookies {
   const access = read('access')
   const refresh = read('refresh')
   const cart = read('cart')
+  const marker = read('flag')
   return {
     access: isJwt(access) ? access : null,
     refresh: isJwt(refresh) ? refresh : null,
     cart: isCartToken(cart) ? cart : null,
+    marker: isSessionMarker(marker) ? marker : null,
   }
 }
 
@@ -61,12 +73,16 @@ export class CookieJar {
     this.changes.set('access', { value: access, maxAge: tokenMaxAge(access, this.now) })
   }
 
-  /** A new token pair: `ff_auth=1` lives exactly as long as the refresh cookie. */
-  setSession(access: string, refresh: string): void {
+  /**
+   * A token pair: the flag cookie, holding the session's `marker` (a new login's when none is
+   * given), lives exactly as long as the refresh cookie. Returns the marker set.
+   */
+  setSession(access: string, refresh: string, marker: string = newSessionMarker()): string {
     const refreshAge = tokenMaxAge(refresh, this.now)
     this.setAccess(access)
     this.changes.set('refresh', { value: refresh, maxAge: refreshAge })
-    this.changes.set('flag', { value: '1', maxAge: refreshAge })
+    this.changes.set('flag', { value: marker, maxAge: refreshAge })
+    return marker
   }
 
   clearSession(): void {
@@ -104,6 +120,8 @@ export interface Exchange {
   /** Whether the final attempt carried a bearer / a cart token. */
   sentAccess: boolean
   sentCart: boolean
+  /** The request's session marker (`SessionCookies.marker`). */
+  marker: string | null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -127,11 +145,13 @@ export function captureSession(exchange: Exchange, jar: CookieJar): void {
   const data = isRecord(exchange.body?.data) ? exchange.body.data : null
   const codes = errorCodes(data)
 
-  // Login, OTP login, Google, registration complete, password change: a fresh pair.
+  // Login, OTP login, Google, registration complete: a fresh pair, a new session marker. A
+  // password change: a fresh pair for the same session, which keeps its marker.
   if (data && 'tokens' in data) {
     const tokens = data.tokens
     if (ok && isRecord(tokens) && isJwt(tokens.access) && isJwt(tokens.refresh)) {
-      jar.setSession(tokens.access, tokens.refresh)
+      const kept = path === PASSWORD_CHANGE_PATH ? exchange.marker : null
+      jar.setSession(tokens.access, tokens.refresh, kept ?? undefined)
     }
     delete data.tokens
   }

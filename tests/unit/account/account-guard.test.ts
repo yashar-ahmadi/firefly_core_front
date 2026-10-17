@@ -125,9 +125,11 @@ describe('the account guard in the proxy', () => {
     expect(fresh.headers.get('location')).toBeNull()
 
     refreshAccess.mockResolvedValue({ access: jwtExpiringIn(900) })
-    const refreshed = await proxy(request('/account/', { ff_rt: REFRESH }))
+    const refreshed = await proxy(
+      request('/account/', { ff_rt: REFRESH, ff_auth: 'marker-0123456789ab' }),
+    )
     expect(refreshed.headers.get('x-middleware-next')).toBe('1')
-    expect(setCookies(refreshed).ff_auth?.value).toBe('1')
+    expect(setCookies(refreshed).ff_auth?.value).toBe('marker-0123456789ab')
   })
 
   it('renders the page when the API cannot be reached: the session may well be alive', async () => {

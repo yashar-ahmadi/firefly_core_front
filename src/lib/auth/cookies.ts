@@ -3,7 +3,8 @@ import { decodeJwtExp } from '@/lib/auth/jwt'
 
 /**
  * Session cookie names. `ff_at`, `ff_rt` and `ff_cart` hold credentials and are httpOnly;
- * `ff_auth=1` is a script-readable hint that a session exists (it lives as long as `ff_rt`).
+ * `ff_auth` is a script-readable hint that a session exists (it lives as long as `ff_rt`). Its
+ * value is the session's marker (`isSessionMarker`): present means signed in, whatever it holds.
  */
 export const COOKIE = {
   access: 'ff_at',
@@ -45,4 +46,17 @@ export function tokenMaxAge(token: string, now = Date.now()): number {
   const exp = decodeJwtExp(token)
   if (exp === null) return 0
   return Math.max(0, Math.floor(exp - now / 1000))
+}
+
+/**
+ * The value of `ff_auth`: an opaque marker of the login the session began with, random for every
+ * login (never a user id, never derived from a token), kept while that session lives (access
+ * token refreshes, a password change). A tab that sees another one than it loaded with knows
+ * that another login happened elsewhere. Sessions from before markers hold `1`, which passes.
+ */
+const SESSION_MARKER = /^[A-Za-z0-9_-]{1,64}$/
+
+/** Whether `value` can be a session marker (also what is safe to copy into a cookie header). */
+export function isSessionMarker(value: unknown): value is string {
+  return typeof value === 'string' && SESSION_MARKER.test(value)
 }

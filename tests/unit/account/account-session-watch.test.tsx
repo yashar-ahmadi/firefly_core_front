@@ -67,9 +67,12 @@ describe('AccountSessionWatch', () => {
     expect(mocks.refresh).not.toHaveBeenCalled()
   })
 
-  it('no session in this tab but the cookie is back (a login elsewhere): the server is asked again', () => {
+  it('no session in this tab but the cookie is back (a login elsewhere): it takes the session', () => {
     flagCookie(true)
     renderWatch(false)
+    // Signed in here at once (the server's own flag may never change), and the server asked
+    // once to render its part again (account-session-switch.test.tsx: never more than once).
+    expect(flag()).toHaveTextContent('true')
     expect(mocks.refresh).toHaveBeenCalledTimes(1)
     expect(mocks.replace).not.toHaveBeenCalled()
   })

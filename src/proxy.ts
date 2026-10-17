@@ -142,7 +142,7 @@ async function withSession(
   env: ServerEnv,
   forwardedFor: string | null,
 ): Promise<NextResponse> {
-  const { access, refresh } = readSession(request)
+  const { access, refresh, marker } = readSession(request)
   const guarded = isGuarded(request)
   if (refresh === null) {
     if (!guarded) return NextResponse.next()
@@ -163,9 +163,10 @@ async function withSession(
   const jar = new CookieJar()
   let cookie: string
   if ('access' in result) {
-    // Re-setting the pair keeps `ff_auth=1` alive exactly as long as `ff_rt`.
-    jar.setSession(result.access, refresh)
-    const add = { [COOKIE.access]: result.access, [COOKIE.flag]: '1' }
+    // Re-setting the pair keeps the flag alive exactly as long as `ff_rt`, with the session's
+    // marker (the same login); a new one when the flag cookie was missing or no marker.
+    const kept = jar.setSession(result.access, refresh, marker ?? undefined)
+    const add = { [COOKIE.access]: result.access, [COOKIE.flag]: kept }
     cookie = cookieHeader(request.headers.get('cookie'), [], add)
   } else {
     jar.clearSession()

@@ -3,14 +3,16 @@ import type { ProductDetail } from '@/lib/api/types/catalog'
 import { shellHydrated } from '../support/hydrated'
 import { MARKERS, readCart } from '../support/sara-data'
 import { guardedTest } from '../support/sara-guard'
-import { logInWithForm, logOut, SESSION_COOKIES } from '../support/session'
+import { KAMRAN, logIn, logInWithForm, logOut, SARA, SESSION_COOKIES } from '../support/session'
 import { watchErrors } from '../support/watch-errors'
 
 // Logging in through the form against the dev backend (Plan 3 Task 10), in the `journeys`
 // project only (playwright.config.ts): a desktop, one test at a time, after the other projects.
 // Each login here is one `auth_attempt` (support/session.ts counts them). The guest's cart line
 // that the login merges into sara's cart is taken out again by the `sara` guard (support/
-// sara-guard.ts), her lines left as they were, however the test ends.
+// sara-guard.ts), her lines left as they were, however the test ends. The same login then
+// meets another visitor's login in another tab (Plan 4 Task 1, the Plan 3 residual): sara logs
+// out there and kamran signs in; back in her tab, nothing of hers may stay on screen.
 
 test.describe.configure({ mode: 'serial' })
 
@@ -88,10 +90,36 @@ guardedTest(
       const count = sara.before.cart.reduce((sum, line) => sum + line.quantity, 1)
       await expect(cartLink(page)).toHaveAccessibleName(`سبد خرید، ${digits(count)} کالا`)
       expect(await readCart(sara.request)).toContainEqual({ variant, quantity: 1 })
+
+      // Another tab of this browser (its requests share the cookies): sara logs out there, and
+      // kamran logs in. The flag cookie now holds another login's marker: back in this tab, its
+      // data goes and the page loads again, as kamran's. (Headless pages never lose the focus,
+      // so the event a browser sends then is played here.)
+      const other = await page.context().newPage()
+      await other.goto('/')
+      await logOut(other.context(), origin)
+      await logIn(other.context(), origin, KAMRAN)
+      const reload = page.waitForRequest(
+        (request) =>
+          request.isNavigationRequest() && new URL(request.url()).pathname === '/account/',
+      )
+      await page.bringToFront()
+      // (Showing the tab may already have started the reload: the page is then going away.)
+      await page
+        .evaluate(() => setTimeout(() => window.dispatchEvent(new Event('focus'))))
+        .catch(() => undefined)
+      await reload
+      await expect(page.getByRole('heading', { level: 1, name: 'سلام کامران' })).toBeVisible()
+      await expect(
+        page.getByRole('banner').getByRole('button', { name: `حساب کاربری: ${KAMRAN.fullName}` }),
+      ).toBeVisible()
+      await expect(page.getByText(SARA.fullName)).toHaveCount(0)
+      await expect(page.getByRole('heading', { name: 'سلام سارا' })).toHaveCount(0)
       expect(errors).toEqual([])
     } finally {
-      // Each on its own (sara's cart itself is the guard's): this page's session is logged out;
-      // never signed in, the guest's line gives its stock hold back.
+      // Each on its own (sara's cart itself is the guard's): this page's session (sara's, or
+      // kamran's after the other tab) is logged out; never signed in, the guest's line gives its
+      // stock hold back.
       const live = await signedIn(page).catch(() => false)
       if (live) await logOut(page.context(), origin).catch(warn('logout'))
       else

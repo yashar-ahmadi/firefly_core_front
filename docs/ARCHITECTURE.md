@@ -197,7 +197,14 @@ visible in the `x-middleware-rewrite` response header.
 | `ff_at` | JWT access token | yes | until the token's `exp` (15 min) |
 | `ff_rt` | JWT refresh token (does not rotate) | yes | until its `exp`: 7 days, or 30 with "remember me" |
 | `ff_cart` | guest cart token | yes | 30 days (the API keeps a guest cart 30 days after its last write) |
-| `ff_auth` | `1` while `ff_rt` exists: lets the UI know instantly that a session exists | no | same as `ff_rt` |
+| `ff_auth` | the session's marker while `ff_rt` exists: lets the UI know instantly that a session exists (present = signed in), and which login it is | no | same as `ff_rt` |
+
+The marker in `ff_auth` is opaque: a random value (`crypto.randomUUID()`) the BFF mints for every
+login (password, code, Google, registration complete), never a user id and never derived from a
+token. It is kept while that session lives: the BFF's own refresh leaves the cookie alone, the
+proxy's refresh re-sets it with the same value (a new one only when the cookie was missing or
+not shaped like a marker, `isSessionMarker`), and a password change keeps it. A logout or a dead
+refresh token clears it with the tokens. Sessions from before markers hold `1`, which passes.
 
 All are `Path=/`, `SameSite=Lax`, and `Secure` when `SITE_URL` is https. Helpers:
 `COOKIE`/`cookieOptions` (`lib/auth/cookies.ts`); delete with `cookieOptions(key, 0, secure)`.
@@ -241,8 +248,15 @@ session gone and no server on the way: Back restores the page Next cached, and a
 asks nobody. `AccountShell` mounts `AccountSessionWatch`, which checks the `ff_auth` cookie on
 mount, when the tab is shown again or focused, and on a `pageshow` from the browser's cache: no
 session in the tab and no cookie → login replaces the page (with it as `next`); no session but
-the cookie (a login in another tab) → `router.refresh()`; a session but no cookie (ended
-elsewhere) → it ends as on a 401 and login replaces the page, its data dropped first. A logout
+the cookie (a login in another tab) → the tab takes the session itself (`setHasSession(true)`,
+the guest's viewer queries reset, so the session's reads start) and asks the server once
+(`router.refresh()`): the server's flag may never change (a tab first loaded signed in); a
+session but no cookie (ended elsewhere) → it ends as on a 401 and login replaces the page, its
+data dropped first; a session and the cookie, but with another login's marker than this tab's
+(`useSession().sessionReplaced()`: the marker it loaded with, or signed in with since) → another
+visitor signed in elsewhere: the viewer queries go, the tab's web push steps stop, and the page
+loads again (`location.reload()`). A check that finds the cookie as the previous one did does
+nothing, so `visibilitychange` and `focus` of one return to the tab check once. A logout
 that never reached the BFF (no connection: `status` 0 with the cookie still set) keeps the
 session and says so (`useLogout`); one that reached it signs the tab out whatever the API said
 (F6). Account pages are `force-dynamic` and `noindex`;

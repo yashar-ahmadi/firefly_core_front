@@ -68,7 +68,7 @@ async function fill(apiUrl: string, apiKey: string): Promise<Copy | null> {
   const body = result.body
   const jar = new CookieJar()
   captureSession(
-    { path: GUEST_CART_PATH, status: 200, body, sentAccess: false, sentCart: false },
+    { path: GUEST_CART_PATH, status: 200, body, sentAccess: false, sentCart: false, marker: null },
     jar,
   )
   return { text: JSON.stringify(body), at: Date.now() }

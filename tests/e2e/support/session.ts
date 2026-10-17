@@ -25,7 +25,8 @@ import path from 'node:path'
 // The attempts of a full run: the shared session of each project (mobile, tablet, desktop,
 // journeys: 4; budget-push reads through the desktop's); logout.spec (a login and a logout per project but journeys: 6);
 // session-restore.spec (a form login and a logout, idem: 6); auth.spec (journeys only: a wrong
-// password, a form login and its logout: 3). 19 in all. They come apart because Playwright, as
+// password, a form login, its logout in another tab, kamran's login there and its logout: 5).
+// 21 in all. They come apart because Playwright, as
 // configured, runs the projects one after the other (mobile, tablet, desktop, then journeys, which
 // waits for the others), each project's account specs first: measured from the backend's log
 // (Task 10), at most 5 in any minute of a run and 9 across two runs back to back. That is an
@@ -39,20 +40,38 @@ export const SARA = {
   fullName: 'سارا احمدی',
 } as const
 
+/**
+ * Another demo customer (k.yazdi; ruling P4-R4: never sara for order journeys): the visitor who
+ * signs in after sara in another tab (auth.spec). Read only here.
+ */
+export const KAMRAN = {
+  email: 'k.yazdi@example.com',
+  password: 'Firefly@1234',
+  fullName: 'کامران یزدی',
+} as const
+
+/** A demo account `logIn` can sign in. */
+export type DemoAccount = { readonly email: string; readonly password: string }
+
 /** The cookies a session lives in: the tokens (httpOnly) and the `ff_auth` flag. */
 export const SESSION_COOKIES = ['ff_at', 'ff_rt', 'ff_auth'] as const
 
 /**
- * Signs `context` in as sara the way the login form does: one POST through the BFF, which keeps
- * the tokens in the context's cookies (its pages share them). One `auth_attempt`.
+ * Signs `context` in as sara (or `account`) the way the login form does: one POST through the
+ * BFF, which keeps the tokens in the context's cookies (its pages share them). One
+ * `auth_attempt`.
  */
-export async function logIn(context: BrowserContext, baseURL: string): Promise<void> {
+export async function logIn(
+  context: BrowserContext,
+  baseURL: string,
+  account: DemoAccount = SARA,
+): Promise<void> {
   const response = await context.request.post(`${baseURL}/api/bff/account/auth/login/`, {
     headers: { 'X-Requested-With': 'ff', Origin: baseURL },
     data: {
       login_method: 'email',
-      login_identifier: SARA.email,
-      password: SARA.password,
+      login_identifier: account.email,
+      password: account.password,
       remember_me: false,
     },
   })
