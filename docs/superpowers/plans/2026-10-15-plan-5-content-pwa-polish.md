@@ -19,6 +19,8 @@ Then run the release audits (SEO, accessibility, performance and full regression
 
 Everything in Plans 1–4's Global Constraints, plus:
 
+- Account pages live under `src/app/(shop)/account/…` (Plan 3 ruling P3-R1); the reading list replaces the «به‌زودی» placeholder at `src/app/(shop)/account/reading-list/`. Every new per-visitor query key (the reading list, blog comment lists marked `is_current_user`…) is registered in `SESSION_QUERIES` or `VIEWER_AWARE_QUERIES` (`src/lib/session/viewer-queries.ts`) and listed in `tests/unit/session/session-query-keys.test.tsx`, as Plan 4 states.
+
 - Blog routes respect the `blog` feature. When it is off, blog routes render a friendly «وبلاگ موقتاً در دسترس نیست» page with HTTP 503, and blog links in storefront-owned UI are hidden.
 - Comment forms (blog, pages) use the honeypot `website` field, omit empty optionals, never insert optimistically, and show the 201 `msg`.
 - Blog category URLs are canonicalised to `data.path` with a 308, as for product categories.
@@ -53,7 +55,7 @@ Everything in Plans 1–4's Global Constraints, plus:
 ### Task 2: Blog post page, comments and reading list account page
 
 **Files:**
-- Create: `src/app/(shop)/blog/[slug]/page.tsx`, and in `src/features/blog/components/`: `post-article.tsx`, `post-toc.tsx` (built from the `h2`/`h3` in content; sticky on desktop, collapsible on mobile), `reading-progress.tsx`, `post-comments.tsx` (reuses the comment-thread pattern from Plan 2, adapted to the blog contract), `related-posts.tsx`; plus `src/app/account/reading-list/page.tsx` and `src/features/account/reading-list/reading-list-page.tsx`
+- Create: `src/app/(shop)/blog/[slug]/page.tsx`, and in `src/features/blog/components/`: `post-article.tsx`, `post-toc.tsx` (built from the `h2`/`h3` in content; sticky on desktop, collapsible on mobile), `reading-progress.tsx`, `post-comments.tsx` (reuses the comment-thread pattern from Plan 2, adapted to the blog contract), `related-posts.tsx`; plus `src/app/(shop)/account/reading-list/page.tsx` (replaces the placeholder) and `src/features/account/reading-list/reading-list-page.tsx`
 - Modify: remove the reading-list placeholder.
 - Test: `tests/unit/blog/post-page.test.ts` (loader called once), `tests/unit/blog/post-toc.test.tsx`
 

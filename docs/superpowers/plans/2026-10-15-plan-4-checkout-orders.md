@@ -22,6 +22,11 @@
 
 Everything in Plans 1–3's Global Constraints, plus:
 
+- Account pages live under `src/app/(shop)/account/…` (Plan 3 ruling P3-R1: inside the shop layout; the account layout adds the session guard and `AccountShell`). Orders, reviews and the wallet replace the «به‌زودی» placeholders already at `src/app/(shop)/account/orders/`, `reviews/` and `wallet/`. Never create `src/app/account/…`.
+- Every new per-visitor query key (orders, an order's detail, awaiting reviews, the wallet and its lists, payment history…) is registered in `SESSION_QUERIES` (`src/lib/session/viewer-queries.ts`), or sits under a prefix already there, so login and logout remove it. Read it with `useAccountQuery` (which refuses an unregistered key outside production) or, for another session-only hook, `withSessionExpiry` with `enabled: hasSession`, and add its key to `tests/unit/session/session-query-keys.test.tsx`. A key read by guests too whose answer depends on the viewer goes in `VIEWER_AWARE_QUERIES`.
+- Forms use the shared parts: `AuthForm`, `SubmitButton`, `FormAlert`, `useFormFocus` and the code timers in `src/components/form/`, the waits and `useCountdown` in `src/lib/forms/`; a list or section that cannot be read shows `ListError` (`src/features/account/lists/list-error.tsx`, `frame="inline"` inside a card), which honours a 429's `retry_after`.
+- Address wording is «آدرس» (never «نشانی»): «آدرس‌های من», «افزودن آدرس جدید», «آدرس کامل».
+
 - Money shown in cart, checkout and orders comes **only** from API fields. Never add amounts in the client.
 - Placement sends `expected_total` = the cart's `total` and an `Idempotency-Key` created when the review section is reached. The key is kept until a 2xx arrives and is new for the next purchase.
 - Every payment intent and wallet top-up gets a **new** `Idempotency-Key` per user click, reused only for automatic retries of that same click (for example `payment_attempt_starting`).
@@ -82,7 +87,7 @@ Everything in Plans 1–3's Global Constraints, plus:
 
 **Interfaces:**
 - `useCheckout()` returns `{ cart, step: 'receiver' | 'shipping' | 'payment' | 'review', destinationReady: boolean, shippingReady: boolean, setDestinationByAddress(id), setDestinationByCity(provinceId, cityId), selectShipping(methodId, cashOnDelivery: boolean), receiver, setReceiver }`.
-- A signed-in user picks among saved addresses (default preselected; «افزودن نشانی جدید» opens the Plan 3 `AddressSheet`). Picking an address posts `cart/destination/ { address }`.
+- A signed-in user picks among saved addresses (default preselected; «افزودن آدرس جدید» opens the Plan 3 `AddressSheet`). Picking an address posts `cart/destination/ { address }`.
 - Guest: the receiver form (name, mobile, province, city, address, plaque, unit, postal code, which is required here) and an optional `customer_mobile`. The destination posts `{ province, city }`, and the receiver is kept for placement. If the `guest_checkout` feature is off, show «برای ادامه وارد شوید» with login and register buttons carrying `next=/checkout/`.
 - Shipping:
   - list `cart/shipping/option/list/`;
@@ -201,7 +206,7 @@ Everything in Plans 1–3's Global Constraints, plus:
 ### Task 8: Account orders and awaiting reviews
 
 **Files:**
-- Create: `src/app/account/orders/page.tsx`, `src/app/account/orders/[code]/page.tsx`, `src/app/account/reviews/page.tsx`, and in `src/features/orders/account/`: `orders-page.tsx`, `order-card.tsx`, `order-detail-page.tsx`, `order-actions.tsx`, `qr-dialog.tsx`, `cancel-dialog.tsx`, `src/features/orders/reviews/awaiting-reviews-page.tsx`, `src/features/orders/reviews/purchase-review-form.tsx`
+- Create: `src/app/(shop)/account/orders/page.tsx` (replaces the placeholder), `src/app/(shop)/account/orders/[code]/page.tsx`, `src/app/(shop)/account/reviews/page.tsx` (replaces the placeholder), and in `src/features/orders/account/`: `orders-page.tsx`, `order-card.tsx`, `order-detail-page.tsx`, `order-actions.tsx`, `qr-dialog.tsx`, `cancel-dialog.tsx`, `src/features/orders/reviews/awaiting-reviews-page.tsx`, `src/features/orders/reviews/purchase-review-form.tsx`
 - Modify: remove the «به‌زودی» placeholders for orders and reviews.
 - Test: `tests/unit/orders/order-actions.test.tsx`, `tests/unit/orders/purchase-review-form.test.tsx`
 
@@ -226,7 +231,7 @@ Everything in Plans 1–3's Global Constraints, plus:
 ### Task 9: Wallet
 
 **Files:**
-- Create: `src/app/account/wallet/page.tsx`, and in `src/features/wallet/`: `wallet-page.tsx`, `balance-card.tsx`, `top-up-form.tsx`, `transactions-list.tsx`, `withdrawals.tsx`, `withdrawal-form.tsx`, `payment-history.tsx`, `payment-history-detail.tsx`, `api.ts`
+- Create: `src/app/(shop)/account/wallet/page.tsx` (replaces the placeholder), and in `src/features/wallet/`: `wallet-page.tsx`, `balance-card.tsx`, `top-up-form.tsx`, `transactions-list.tsx`, `withdrawals.tsx`, `withdrawal-form.tsx`, `payment-history.tsx`, `payment-history-detail.tsx`, `api.ts`
 - Modify: remove the wallet placeholder.
 - Test: `tests/unit/wallet/top-up-form.test.tsx`, `tests/unit/wallet/withdrawal-form.test.tsx`
 
