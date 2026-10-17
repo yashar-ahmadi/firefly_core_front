@@ -11,7 +11,7 @@ import { ApiError } from '@/lib/api/errors'
 import type { AuthenticatedResponse } from '@/lib/api/types/account'
 import type { Cart } from '@/lib/api/types/cart'
 import { useSession } from '@/lib/session/session-context'
-import { clearViewerQueries, ME_KEY } from '@/lib/session/viewer-queries'
+import { clearViewerQueries, ME_KEY, SUMMARY_KEY } from '@/lib/session/viewer-queries'
 import { safeNext } from '../safe-next'
 
 /** Signs the page in after any successful login (`requires_totp` false); never rejects. */
@@ -54,7 +54,7 @@ export function useCompleteLogin(): CompleteLogin {
       setHasSession(true)
       if (res.user) client.setQueryData(ME_KEY, res.user)
       if (cart) client.setQueryData(CART_KEY, cart)
-      for (const queryKey of [CART_KEY, ME_KEY, ['summary']]) {
+      for (const queryKey of [CART_KEY, ME_KEY, SUMMARY_KEY]) {
         void client.invalidateQueries({ queryKey })
       }
       if (cart && cart.adjustments.length > 0) {

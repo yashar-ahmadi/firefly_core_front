@@ -218,6 +218,22 @@ When several session calls answer 401 at once (an account page's queries), only 
 ends the session: `endSession()` (`useSession`) reads a ref that changes at once, before React
 re-renders, so the page is replaced by login once and the cart is read again once.
 
+The account area (`/account/…`, `src/app/(shop)/account/`, inside the shop layout) is guarded on
+the server (`lib/edge/account-guard.ts`). A layout gets neither the pathname nor the query and is
+not rendered again on a navigation inside its segment, so `proxy.ts` does it: after its own token
+refresh, a read of an account page without a usable refresh cookie (none, not a JWT, or one the API
+has just rejected) answers 307 to `/login/?next=<the page and its query>` (Next's `_rsc` dropped),
+clearing leftover session cookies on the way. That covers document requests and client
+navigations alike. The account layout checks the refresh cookie again for the requests the
+proxy's matcher skips (router prefetches; Next 16 prefetches of a dynamic route only fetch its
+route tree), with the dashboard as `next`. A redirect during a client navigation lands on login
+without the root layout rendering again, so the tab would still think it is signed in: the auth
+layout passes the request's `ff_auth` to `SessionCheck` (`lib/session/session-check.tsx`), which
+ends that stale session as `useSessionExpired` does (no navigation). Account pages are
+`force-dynamic` and `noindex`; their data is read in the browser through the BFF
+(`useAccountQuery`: `enabled: hasSession`, a 401 ends the session as above, the section keeps its
+skeleton meanwhile).
+
 Signing in (`/login/`, `src/app/(auth)/`: a minimal layout without the shop chrome, `noindex`,
 never cached) is a pure state machine (`features/auth/components/login-state.ts`: identifier →
 password or one-time code → TOTP when the API asks → done) whose steps are built only from the

@@ -51,12 +51,24 @@ describe('isExpectedFailure', () => {
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/search/?_rsc=abc')).toBe(false)
   })
 
-  it('reports a 404 from the auth pages (Plan 3), while the account is still to come', () => {
+  it('reports a 404 from the auth pages (Plan 3)', () => {
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/login/?_rsc=abc')).toBe(false)
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/login/?next=/cart/')).toBe(false)
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/register/?_rsc=abc')).toBe(false)
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/forgot-password/')).toBe(false)
-    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/account/?_rsc=abc')).toBe(true)
+  })
+
+  it('reports a 404 from the account pages that exist (Task 5), not from those to come', () => {
+    for (const path of ['', 'orders/?group=delivered', 'reviews/', 'reading-list/', 'wallet/']) {
+      expect(isExpectedFailure(NOT_FOUND, `http://localhost:3000/account/${path}`), path).toBe(
+        false,
+      )
+    }
+    // Built by later tasks of Plan 3; the account navigation links (and prefetches) them.
+    for (const path of ['wishlist', 'comments', 'addresses', 'notifications', 'profile']) {
+      const url = `http://localhost:3000/account/${path}/?_rsc=abc`
+      expect(isExpectedFailure(NOT_FOUND, url), path).toBe(true)
+    }
   })
 
   it('reports every other message', () => {

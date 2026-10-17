@@ -11,7 +11,7 @@ import { minWidth, stubBrowserApis } from '../support/dom-stubs'
 import { SARA } from './fixtures'
 
 // The header's account entry (ruling P3-R2), from md: the login link for a guest; for a
-// signed-in visitor a menu button with her initials, whose menu (loaded on first use) names her,
+// signed-in visitor a menu button with her initial, whose menu (loaded on first use) names her,
 // links the account pages and logs out.
 
 const mocks = vi.hoisted(() => {
@@ -73,7 +73,7 @@ describe('the header account entry', () => {
     expect(screen.queryByRole('button', { name: /حساب/ })).toBeNull()
   })
 
-  it('signed in: a menu button with her initials, named after her once the profile is in', async () => {
+  it('signed in: a menu button with her initial, named after her once the profile is in', async () => {
     let answer: (profile: UserProfile) => void = () => {}
     mocks.profile.mockReturnValue(new Promise((resolve) => (answer = resolve)))
     renderActions(true)
@@ -84,7 +84,8 @@ describe('the header account entry', () => {
     answer(SARA)
     const button = await accountButton()
     expect(button).toBe(loading)
-    expect(button).toHaveTextContent('س\u{200C}ا')
+    // One letter, never two Persian letters joining into a word.
+    expect(button).toHaveTextContent(/^س$/)
     expect(button.querySelector('[class*="animate-shimmer"]')).toBeNull()
   })
 
@@ -199,7 +200,10 @@ describe('the header account entry', () => {
     await act(async () => answer(SARA))
     // The text that replaces them has those line heights.
     expect(await within(menu).findByText('سارا احمدی')).toHaveClass('leading-6')
-    expect(within(menu).getByText('sara.ahmadi@example.com').parentElement).toHaveClass('leading-5')
+    const contact = within(menu).getByText('sara.ahmadi@example.com')
+    expect(contact).toHaveClass('leading-5')
+    // Left to right as a whole, so a long email is cut at its end.
+    expect(contact).toHaveAttribute('dir', 'ltr')
     expect(menu.querySelector('[data-skeleton-line]')).toBeNull()
   })
 

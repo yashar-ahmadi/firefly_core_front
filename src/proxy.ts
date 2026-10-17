@@ -4,6 +4,7 @@ import { COOKIE } from '@/lib/auth/cookies'
 import { isExpiring } from '@/lib/auth/jwt'
 import { refreshAccess } from '@/lib/auth/refresh'
 import { CookieJar, readSession } from '@/lib/bff/session'
+import { accountLoginPath, isAccountPath } from '@/lib/edge/account-guard'
 import { knownSources, resolveRedirect, ruleSpelling } from '@/lib/edge/redirects'
 import { statusPage } from '@/lib/edge/status-page'
 import { getClientIp } from '@/lib/http/client-ip'
@@ -19,6 +20,9 @@ import { getClientIp } from '@/lib/http/client-ip'
  *    non-UTF-8 URL an operator redirects still works, and random garbage stays free.
  * 4. A path that cannot be percent-decoded answers 404 (Next would fail on it with a 500).
  * 5. An expiring or missing access token is refreshed, for the browser and for this render.
+ * 6. The account area's guard (ruling P3-R3, see `account-guard.ts`): a read of an account page
+ *    without a session (no refresh cookie, or one the API has just rejected) is sent to login,
+ *    with the page and its query as `next`; leftover session cookies are cleared on the way.
  */
 
 const GONE_TITLE = 'این صفحه حذف شده است'
@@ -114,17 +118,47 @@ function cookieHeader(raw: string | null, drop: string[], add: Record<string, st
   return kept.join('; ')
 }
 
+const isSecure = (env: ServerEnv) => new URL(env.SITE_URL).protocol === 'https:'
+
+/** A read of an account page: what the account guard answers (writes are left to the page). */
+function isGuarded(request: NextRequest): boolean {
+  const { method, nextUrl } = request
+  return (method === 'GET' || method === 'HEAD') && isAccountPath(nextUrl.pathname)
+}
+
+/** The account guard's answer: login, with the page as `next`; `clear` drops the session cookies. */
+function toLogin(request: NextRequest, env: ServerEnv, clear: boolean): NextResponse {
+  const response = NextResponse.redirect(new URL(accountLoginPath(request.nextUrl), request.url))
+  if (clear) {
+    const jar = new CookieJar()
+    jar.clearSession()
+    jar.applyTo(response, isSecure(env))
+  }
+  return response
+}
+
 async function withSession(
   request: NextRequest,
   env: ServerEnv,
   forwardedFor: string | null,
 ): Promise<NextResponse> {
   const { access, refresh } = readSession(request)
-  if (refresh === null || !isExpiring(access)) return NextResponse.next()
+  const guarded = isGuarded(request)
+  if (refresh === null) {
+    if (!guarded) return NextResponse.next()
+    // A flag or access cookie left behind would show login a session that is not there.
+    return toLogin(
+      request,
+      env,
+      SESSION_COOKIES.some((name) => request.cookies.has(name)),
+    )
+  }
+  if (!isExpiring(access)) return NextResponse.next()
 
   const result = await refreshAccess(refresh, forwardedFor)
   // No answer says nothing about the session: keep the cookies and render.
   if ('error' in result && result.error === 'network') return NextResponse.next()
+  if (!('access' in result) && guarded) return toLogin(request, env, true)
 
   const jar = new CookieJar()
   let cookie: string
@@ -143,7 +177,7 @@ async function withSession(
   if (cookie) headers.set('cookie', cookie)
   else headers.delete('cookie')
   const response = NextResponse.next({ request: { headers } })
-  jar.applyTo(response, new URL(env.SITE_URL).protocol === 'https:')
+  jar.applyTo(response, isSecure(env))
   return response
 }
 

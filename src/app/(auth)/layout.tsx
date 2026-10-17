@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { storeName } from '@/app/_shell/metadata'
@@ -8,6 +9,8 @@ import { LiveAnnouncer } from '@/components/ui/live-announcer'
 import { getStoreConfig } from '@/config/store-config'
 import { getSiteSettings } from '@/features/settings/api'
 import { SnippetHtmlZone } from '@/features/settings/snippets'
+import { COOKIE } from '@/lib/auth/cookies'
+import { SessionCheck } from '@/lib/session/session-check'
 
 // The auth pages (login, register, password recovery) are per visitor: never cached, never
 // indexed (ruling P3-R3). No loading.tsx (R9).
@@ -23,10 +26,13 @@ export const metadata: Metadata = { robots: { index: false, follow: true } }
  * (`announce`) stays across the auth pages: «رمز عبور تغییر کرد…» is said on the way to login.
  */
 export default async function AuthLayout({ children }: { children: ReactNode }) {
-  const settings = await getSiteSettings()
+  const [settings, cookieStore] = await Promise.all([getSiteSettings(), cookies()])
   const name = storeName(getStoreConfig(), settings)
   return (
     <div className="flex min-h-dvh flex-col bg-ink-50">
+      {/* Entered by a client navigation the account guard redirected, the tab may still think it
+          is signed in: the server's view of the session wins (SessionCheck). */}
+      <SessionCheck hasSession={cookieStore.has(COOKIE.flag)} />
       <header className="mx-auto flex h-16 w-full max-w-md items-center justify-between gap-3 px-4">
         <StoreLogo src={settings?.logo ?? null} name={name} />
         <Link

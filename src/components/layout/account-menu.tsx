@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import Link from 'next/link'
+import { Avatar } from '@/components/ui/avatar'
 import { useFirstItemFocus, type DeferredMenuProps } from '@/components/ui/deferred-menu'
 import {
   DropdownMenu,
@@ -22,12 +23,11 @@ import {
 import { cn } from '@/components/ui/cn'
 import { SKELETON } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
-import { profileContact, profileName } from '@/features/auth/profile-display'
+import { profileAvatar, profileContact, profileName } from '@/features/auth/profile-display'
 import { useLogout } from '@/features/auth/use-logout'
 import { useMe } from '@/features/auth/use-me'
 import { useHasUnreadNotifications } from '@/features/notifications/unread'
 import { useT } from '@/lib/i18n/i18n-context'
-import { AccountAvatar } from './account-avatar'
 
 interface AccountLink {
   href: string
@@ -55,7 +55,7 @@ function Who() {
   const contact = me ? profileContact(me) : null
   return (
     <DropdownMenuLabel className="flex items-center gap-3 px-3 py-2.5">
-      <AccountAvatar profile={me} loading={isPending} className="size-10" />
+      <Avatar {...profileAvatar(me)} loading={isPending} size="md" />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         {isPending ? (
           <>
@@ -68,8 +68,12 @@ function Who() {
               {me ? profileName(me) : null}
             </span>
             {contact && (
-              <span className="truncate text-sm leading-5 font-normal text-ink-500">
-                <span dir="ltr">{contact}</span>
+              // Left to right as a whole: a long email is cut at its end, never its start.
+              <span
+                dir="ltr"
+                className="truncate text-right text-sm leading-5 font-normal text-ink-500"
+              >
+                {contact}
               </span>
             )}
           </>

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { profileContact, profileInitials, profileName } from '@/features/auth/profile-display'
+import {
+  profileContact,
+  profileFirstName,
+  profileInitial,
+  profileName,
+} from '@/features/auth/profile-display'
 import type { UserProfile } from '@/lib/api/types/account'
 import { SARA } from './fixtures'
 
@@ -20,12 +25,18 @@ describe('profile display', () => {
     expect(profileContact({ ...nameless, email: null })).toBeNull()
   })
 
-  it('initials: the first letters of the first and last names, kept apart (no joining)', () => {
-    expect(profileInitials(SARA)).toBe('س\u{200C}ا')
-    expect(profileInitials({ ...SARA, first_name: 'Sara', last_name: 'Ahmadi' })).toBe('S\u{200C}A')
-    expect(profileInitials({ ...SARA, last_name: '' })).toBe('س')
-    // From the full name when the parts are empty; none without a name.
-    expect(profileInitials({ ...nameless, full_name: 'نیما رضایی' })).toBe('ن\u{200C}ر')
-    expect(profileInitials(nameless)).toBeNull()
+  it('initial: one letter, of the first name, else of the full name, else of the email', () => {
+    expect(profileInitial(SARA)).toBe('س')
+    expect(profileInitial({ ...SARA, first_name: 'sara' })).toBe('S')
+    expect(profileInitial({ ...nameless, full_name: 'نیما رضایی' })).toBe('ن')
+    expect(profileInitial(nameless)).toBe('S')
+    // A phone number's first digit is no initial: the avatar shows a person instead.
+    expect(profileInitial({ ...nameless, email: null })).toBeNull()
+  })
+
+  it('first name, for the greeting: first_name, else the full name’s first word', () => {
+    expect(profileFirstName(SARA)).toBe('سارا')
+    expect(profileFirstName({ ...nameless, full_name: ' نیما رضایی ' })).toBe('نیما')
+    expect(profileFirstName(nameless)).toBeNull()
   })
 })

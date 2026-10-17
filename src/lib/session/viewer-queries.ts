@@ -9,12 +9,24 @@ import { ApiError } from '@/lib/api/errors'
 export const ME_KEY = ['me'] as const
 
 /**
- * Read only with a session (each query is `enabled: hasSession`), so nothing of them is right
- * for anyone else: removed. The profile, the account summary (`useSummary`), everything under
- * `['wishlist']` (`WISHLIST_IDS_KEY`, the wishlist page) and under `['notifications']` (the
- * inbox and its unread count, `UNREAD_NOTIFICATIONS_KEY`).
+ * The account summary (`useSummary`): every badge of the account area. Invalidate it after any
+ * write that changes a counter (a wishlist toggle, a comment, a payment).
  */
-const SESSION_QUERIES: readonly QueryKey[] = [ME_KEY, ['summary'], ['wishlist'], ['notifications']]
+export const SUMMARY_KEY = ['summary'] as const
+
+/**
+ * Read only with a session (each query is `enabled: hasSession`), so nothing of them is right
+ * for anyone else: removed. The profile, the account summary, everything under `['dashboard']`
+ * (the dashboard's lists), under `['wishlist']` (`WISHLIST_IDS_KEY`, the wishlist page) and
+ * under `['notifications']` (the inbox and its unread count, `UNREAD_NOTIFICATIONS_KEY`).
+ */
+const SESSION_QUERIES: readonly QueryKey[] = [
+  ME_KEY,
+  SUMMARY_KEY,
+  ['dashboard'],
+  ['wishlist'],
+  ['notifications'],
+]
 
 /**
  * Read by guests too, but the answer depends on who asks: the cart (`CART_KEY`), and under
