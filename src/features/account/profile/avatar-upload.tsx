@@ -6,7 +6,6 @@ import { useEffect, useId, useReducer, useRef, useState } from 'react'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { announce } from '@/components/ui/live-announcer'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { authApi } from '@/features/auth/api'
 import { FormAlert } from '@/features/auth/components/auth-card'
@@ -15,6 +14,7 @@ import { profileInitial } from '@/features/auth/profile-display'
 import type { UserProfile } from '@/lib/api/types/account'
 import { ME_KEY } from '@/lib/session/viewer-queries'
 import { AVATAR_ACCEPT, avatarFileError } from './avatar-file'
+import { AvatarSkeleton } from './avatar-skeleton'
 import { formFailure, formReducer, initialFormState } from './form-state'
 import { ProfileSection, SavedNote } from './profile-section'
 import { useProfileRunner } from './use-profile-runner'
@@ -62,6 +62,8 @@ function AvatarForm({ me }: { me: UserProfile }) {
     'aria-describedby': lock.locked ? lock.noteId : undefined,
     iconStart: state.busy ? <Spinner /> : undefined,
   }
+  // «انصراف» waits for a write in flight: the write lands anyway, so what it would hide stays.
+  const holding = state.busy || undefined
 
   useEffect(() => (picked ? () => URL.revokeObjectURL(picked.url) : undefined), [picked])
   useEffect(() => {
@@ -131,7 +133,9 @@ function AvatarForm({ me }: { me: UserProfile }) {
               </Button>
               <Button
                 variant="ghost"
+                aria-disabled={holding}
                 onClick={() => {
+                  if (state.busy) return
                   // The API's word on this file goes with it.
                   dispatch({ type: 'edit', field: 'avatar' })
                   refocus.current = 'choose'
@@ -153,7 +157,9 @@ function AvatarForm({ me }: { me: UserProfile }) {
                 <Button
                   ref={keeper}
                   variant="outline"
+                  aria-disabled={holding}
                   onClick={() => {
+                    if (state.busy) return
                     refocus.current = 'remove'
                     setConfirming(false)
                   }}
@@ -223,24 +229,7 @@ function AvatarForm({ me }: { me: UserProfile }) {
 /** The profile picture (auth digest §4.16): checked, previewed, then sent as multipart. */
 export function AvatarUpload({ me }: { me: UserProfile | undefined }) {
   return (
-    <ProfileSection
-      title="تصویر پروفایل"
-      loading={!me}
-      skeleton={
-        <div
-          aria-hidden
-          className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6"
-        >
-          <Skeleton className="size-24 shrink-0 rounded-full" />
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-11 w-36" />
-            <span className="flex h-6 items-center">
-              <Skeleton className="h-3.5 w-48" />
-            </span>
-          </div>
-        </div>
-      }
-    >
+    <ProfileSection title="تصویر پروفایل" loading={!me} skeleton={<AvatarSkeleton />}>
       {me && <AvatarForm me={me} />}
     </ProfileSection>
   )

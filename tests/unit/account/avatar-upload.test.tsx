@@ -163,6 +163,37 @@ describe('AvatarUpload', () => {
     expect(await screen.findByText('تصویر پروفایل ذخیره شد.')).toBeInTheDocument()
   })
 
+  it('«انصراف» waits for an upload in flight: the preview stays until the answer', async () => {
+    let answer: (profile: ReturnType<typeof saraWith>) => void = () => {}
+    mocks.updateMe.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { container, user } = renderWithMe((me) => <AvatarUpload me={me} />)
+    pick(container, image('me.png', 'image/png'))
+    await user.click(await screen.findByRole('button', { name: 'ذخیرهٔ تصویر' }))
+    const cancel = screen.getByRole('button', { name: 'انصراف' })
+    await waitFor(() => expect(cancel).toHaveAttribute('aria-disabled', 'true'))
+    await user.click(cancel)
+    expect(screen.getByRole('img', { name: 'پیش‌نمایش تصویر انتخاب‌شده' })).toBeVisible()
+    await act(async () => answer(saraWith({ avatar_picture: PICTURE })))
+    expect(await screen.findByText('تصویر پروفایل ذخیره شد.')).toBeInTheDocument()
+  })
+
+  it('«انصراف» of the remove question waits for the removal in flight', async () => {
+    let answer: (profile: ReturnType<typeof saraWith>) => void = () => {}
+    mocks.updateMe.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { user } = renderWithMe((me) => <AvatarUpload me={me} />, {
+      me: saraWith({ avatar_picture: PICTURE }),
+    })
+    await user.click(screen.getByRole('button', { name: 'حذف تصویر' }))
+    const question = screen.getByRole('group', { name: 'تصویر حذف شود؟' })
+    await user.click(within(question).getByRole('button', { name: 'بله، حذف شود' }))
+    const cancel = within(question).getByRole('button', { name: 'انصراف' })
+    await waitFor(() => expect(cancel).toHaveAttribute('aria-disabled', 'true'))
+    await user.click(cancel)
+    expect(screen.getByRole('group', { name: 'تصویر حذف شود؟' })).toBeVisible()
+    await act(async () => answer(saraWith({ avatar_picture: null })))
+    expect(await screen.findByText('تصویر پروفایل حذف شد.')).toBeInTheDocument()
+  })
+
   it('«حذف تصویر» asks first, in place: «انصراف» keeps it, «بله، حذف شود» sends a null', async () => {
     mocks.updateMe.mockResolvedValue(saraWith({ avatar_picture: null }))
     const { user, client } = renderWithMe((me) => <AvatarUpload me={me} />, {
