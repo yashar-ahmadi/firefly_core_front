@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { UNREAD_NOTIFICATIONS_KEY } from '@/features/notifications/unread'
 import { renderInbox } from './render-inbox'
 import {
   apiError,
@@ -122,6 +123,26 @@ describe('opening a notification', () => {
     act(() => held.resolve(inboxPage([FESTIVAL])))
     await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(1))
     expect(mocks.notify.error).not.toHaveBeenCalled()
+  })
+
+  it('a 404 while the count is being read: the inbox and the count are read again once each', async () => {
+    api.read.mockRejectedValueOnce(apiError(404, 'not_found'))
+    const { user, client } = await inbox()
+    const scans = () => listReads(mocks.bffFetch).filter((url) => url.includes('limit=100'))
+    const pages = () => listReads(mocks.bffFetch).filter((url) => url.includes('limit=20'))
+    // The count's poll is on its way when the row is opened (it is stopped, then read again).
+    const poll = deferred<ReturnType<typeof inboxPage>>()
+    api.list = (query) => (query.limit === 100 ? poll.promise : inboxPage([FESTIVAL]))
+    act(() => void client.invalidateQueries({ queryKey: UNREAD_NOTIFICATIONS_KEY }))
+    await waitFor(() => expect(scans()).toHaveLength(2))
+    api.list = (query) => inboxPage([FESTIVAL], { size: Number(query.limit) })
+    const [scansBefore, pagesBefore] = [scans().length, pages().length]
+    await user.click(shipped())
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^سفارش شما/ })).toBeNull())
+    await waitFor(() => expect(screen.getByText('همهٔ اعلان‌ها خوانده شده است.')).toBeVisible())
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    expect(scans().length - scansBefore).toBe(1)
+    expect(pages().length - pagesBefore).toBe(1)
   })
 
   it('a session that is gone: login, with the page as next', async () => {

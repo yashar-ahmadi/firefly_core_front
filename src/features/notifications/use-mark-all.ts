@@ -68,6 +68,12 @@ export function useMarkAll(): { state: MarkAllState; start: () => void } {
     const ids = await fetchUnreadIds(signal)
     client.setQueryData(UNREAD_NOTIFICATIONS_KEY, ids.length)
     setState((current) => ({ ...current, total: ids.length }))
+    // Written again over «نمایش بیشتر»'s page if one lands later (it carries the rows from before).
+    const [marked, gone] = [new Set<number>(), new Set<number>()]
+    const redo = () => {
+      for (const id of marked) setRowRead(client, id, true)
+      for (const id of gone) dropRow(client, id)
+    }
     for (const [index, id] of ids.entries()) {
       // Opened (and so marked read) meanwhile: done, and counted out already.
       while (rowRead(client, id) !== true) {
@@ -75,13 +81,15 @@ export function useMarkAll(): { state: MarkAllState; start: () => void } {
         try {
           await markNotificationRead(id, signal)
           // Read again (`refreshInbox`) at the end: nothing stopped here needs a read of its own.
-          await holdInboxReads(client)
+          await holdInboxReads(client, redo)
           // Opened while its request was on its way: the count has gone down for it already.
           if (rowRead(client, id) !== true) shiftUnread(client, -1)
           setRowRead(client, id, true)
+          marked.add(id)
           break
         } catch (error) {
           if (isApiNotFound(error)) {
+            gone.add(id)
             dropRow(client, id)
             shiftUnread(client, -1)
             break

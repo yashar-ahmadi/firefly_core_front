@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { refreshToken } from '@/features/push/push-flow'
+import { PushAbandoned, refreshToken, subscribe } from '@/features/push/push-flow'
 import {
   abandonPushWork,
+  clearPushState,
   pushMark,
   readPushState,
   savePushState,
@@ -13,7 +14,12 @@ import { FIREBASE, OWNER, stubPushBrowser, unstubPushBrowser } from './support'
 // session's end that comes meanwhile must not be undone by it. It checks the registration before
 // every write, a token it posted for nothing is unregistered again, and a disable can wait for it.
 
-const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), loadMessaging: vi.fn(), getToken: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  bffFetch: vi.fn(),
+  loadMessaging: vi.fn(),
+  getToken: vi.fn(),
+  deleteToken: vi.fn(),
+}))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
 vi.mock('@/features/push/firebase', () => ({ loadMessaging: mocks.loadMessaging }))
 
@@ -40,7 +46,7 @@ beforeEach(() => {
   savePushState(STORED)
   mocks.loadMessaging.mockResolvedValue({
     getToken: mocks.getToken,
-    deleteToken: vi.fn(),
+    deleteToken: mocks.deleteToken.mockResolvedValue(undefined),
     onMessage: vi.fn(),
   })
   mocks.bffFetch.mockResolvedValue({ data: {}, msg: '', status: 200 })
@@ -108,6 +114,61 @@ describe('refreshToken', () => {
     token.resolve('stored-token')
     await waiting
     await check
+    expect(settled).toBe(true)
+  })
+})
+
+// Turning push on runs over the network too: a logout or the session's end meanwhile
+// (`clearPushState`) must not be followed by a registration stored or a device left on.
+describe('subscribe', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('stores the token with its owner once the device is posted', async () => {
+    mocks.getToken.mockResolvedValue('new-token')
+    await subscribe(FIREBASE, OWNER)
+    expect(devices()).toEqual([
+      expect.stringMatching(/^POST devices\/ \{"registration_id":"new-token"/),
+    ])
+    expect(readPushState()).toMatchObject({ token: 'new-token', owner: OWNER })
+  })
+
+  it('a logout while Firebase answers: nothing posted or stored, the token revoked', async () => {
+    const token = deferred<string>()
+    mocks.getToken.mockReturnValue(token.promise)
+    const enabling = subscribe(FIREBASE, OWNER)
+    await vi.waitFor(() => expect(mocks.getToken).toHaveBeenCalled())
+    clearPushState()
+    token.resolve('new-token')
+    await expect(enabling).rejects.toBeInstanceOf(PushAbandoned)
+    expect(devices()).toEqual([])
+    expect(readPushState()).toBeNull()
+    expect(mocks.deleteToken).toHaveBeenCalled()
+  })
+
+  it('a logout while the device is posted: unregistered after it (last), nothing stored', async () => {
+    mocks.getToken.mockResolvedValue('new-token')
+    const posted = deferred<unknown>()
+    mocks.bffFetch.mockImplementationOnce(() => posted.promise)
+    const enabling = subscribe(FIREBASE, OWNER)
+    await vi.waitFor(() => expect(mocks.bffFetch).toHaveBeenCalledTimes(1))
+    clearPushState()
+    posted.resolve({ data: {}, msg: '', status: 201 })
+    await expect(enabling).rejects.toBeInstanceOf(PushAbandoned)
+    expect(devices().at(-1)).toBe('DELETE devices/unregister/ {"registration_id":"new-token"}')
+    expect(readPushState()).toBeNull()
+  })
+
+  it('settlePushWork waits for it (a logout does not overtake it)', async () => {
+    const token = deferred<string>()
+    mocks.getToken.mockReturnValue(token.promise)
+    const enabling = subscribe(FIREBASE, OWNER)
+    let settled = false
+    const waiting = settlePushWork().then(() => (settled = true))
+    await vi.waitFor(() => expect(mocks.getToken).toHaveBeenCalled())
+    expect(settled).toBe(false)
+    token.resolve('new-token')
+    await enabling
+    await waiting
     expect(settled).toBe(true)
   })
 })

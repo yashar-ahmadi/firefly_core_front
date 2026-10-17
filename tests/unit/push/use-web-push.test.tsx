@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readPushState } from '@/features/push/push-storage'
+import { clearPushState, readPushState } from '@/features/push/push-storage'
 import { ENABLE_FAILED, useWebPush } from '@/features/push/use-web-push'
 import { ApiError } from '@/lib/api/errors'
 import { pushProviders, stubPushBrowser, unstubPushBrowser, type PushBrowser } from './support'
@@ -149,6 +149,20 @@ describe('useWebPush', () => {
     const { result } = push()
     act(() => result.current.enable())
     await waitFor(() => expect(mocks.router.push).toHaveBeenCalled())
+    expect(readPushState()).toBeNull()
+  })
+
+  it('a logout while it is being turned on: nothing posted or stored, and no error', async () => {
+    let answer: (token: string) => void = () => {}
+    mocks.getToken.mockImplementationOnce(() => new Promise((resolve) => (answer = resolve)))
+    const { result } = push()
+    act(() => result.current.enable())
+    await waitFor(() => expect(mocks.getToken).toHaveBeenCalled())
+    act(() => clearPushState())
+    act(() => answer(TOKEN))
+    await waitFor(() => expect(result.current.status).toBe('off'))
+    expect(result.current.error).toBeNull()
+    expect(browser.calls).not.toContain('POST devices/')
     expect(readPushState()).toBeNull()
   })
 })

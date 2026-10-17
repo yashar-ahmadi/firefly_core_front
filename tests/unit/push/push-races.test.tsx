@@ -100,6 +100,44 @@ describe('the re-register effect against a registration forgotten meanwhile', ()
     expect(posts()).toEqual([])
   })
 
+  it.each([
+    ['push turned off', () => abandonPushWork()],
+    ['a logout', () => clearPushState()],
+  ])(
+    '%s while the stored token is posted again: unregistered after it lands (the DELETE last)',
+    async (_label, end) => {
+      savePushState(STORED)
+      const posted = deferred<unknown>()
+      mocks.bffFetch.mockImplementationOnce(() => posted.promise)
+      render(<PushReregister />, { wrapper: pushProviders().wrapper })
+      await waitFor(() => expect(idle).toHaveLength(1))
+      act(() => idle[0]!())
+      await waitFor(() => expect(posts()).toHaveLength(1))
+      act(() => end())
+      posted.resolve({ data: {}, msg: '', status: 200 })
+      await waitFor(() => expect(mocks.bffFetch).toHaveBeenCalledTimes(2))
+      expect(mocks.bffFetch.mock.calls.at(-1)).toEqual([
+        'devices/unregister/',
+        { method: 'DELETE', body: { registration_id: 'stored-token' } },
+      ])
+    },
+  )
+
+  it('the fallback post of a failed daily check, overtaken by push going off: the DELETE last', async () => {
+    savePushState({ ...STORED, checkedAt: Date.now() - TOKEN_CHECK_MS - 1 })
+    mocks.getToken.mockRejectedValue(new Error('messaging/token-subscribe-failed'))
+    const posted = deferred<unknown>()
+    mocks.bffFetch.mockImplementationOnce(() => posted.promise)
+    render(<PushReregister />, { wrapper: pushProviders().wrapper })
+    await waitFor(() => expect(idle).toHaveLength(1))
+    act(() => idle[0]!())
+    await waitFor(() => expect(posts()).toHaveLength(1))
+    act(() => abandonPushWork())
+    posted.resolve({ data: {}, msg: '', status: 200 })
+    await waitFor(() => expect(mocks.bffFetch).toHaveBeenCalledTimes(2))
+    expect(mocks.bffFetch.mock.calls.at(-1)![0]).toBe('devices/unregister/')
+  })
+
   it('a daily check that was abandoned (push off meanwhile) posts nothing as a fallback', async () => {
     savePushState({ ...STORED, checkedAt: Date.now() - TOKEN_CHECK_MS - 1 })
     const token = deferred<string>()

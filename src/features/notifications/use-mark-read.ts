@@ -9,13 +9,7 @@ import type { NotificationItem } from '@/lib/api/types/notification'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { isSessionExpiredError } from '@/lib/session/viewer-queries'
 import { markNotificationRead } from './notifications-api'
-import {
-  dropRow,
-  holdInboxReads,
-  refreshInbox,
-  setRowRead,
-  shiftUnread,
-} from './notifications-cache'
+import { dropRow, holdInboxReads, setRowRead, shiftUnread } from './notifications-cache'
 
 /** Why a read could not be written: the API's words, or a calm one for a 429. */
 export function readFailure(error: unknown): string {
@@ -37,23 +31,32 @@ export function useMarkRead(): (item: NotificationItem) => void {
   const sending = useRef(new Set<number>())
 
   async function markRead({ id }: NotificationItem) {
-    const resume = await holdInboxReads(client)
+    // What the row is on screen now; written again over «نمایش بیشتر»'s page if one lands later.
+    let outcome: 'read' | 'unread' | 'gone' = 'read'
+    const resume = await holdInboxReads(client, () => {
+      if (outcome === 'read') setRowRead(client, id, true)
+      else if (outcome === 'gone') dropRow(client, id)
+    })
     setRowRead(client, id, true)
     shiftUnread(client, -1)
+    let refresh = false
     try {
       await markNotificationRead(id)
     } catch (error) {
       if (isSessionExpiredError(error)) return expire({ toLogin: true })
       if (isApiNotFound(error)) {
+        outcome = 'gone'
         dropRow(client, id)
-        void refreshInbox(client)
+        // The inbox and the count are read again (`resume`), once.
+        refresh = true
         return
       }
+      outcome = 'unread'
       setRowRead(client, id, false)
       shiftUnread(client, 1)
       notify.error(readFailure(error))
     } finally {
-      resume()
+      resume({ refresh })
     }
   }
 

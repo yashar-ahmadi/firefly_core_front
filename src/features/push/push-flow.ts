@@ -2,7 +2,13 @@ import type { FirebaseWebConfig } from '@/config/env-schema'
 import { deviceName } from './device-name'
 import { registerDevice, unregisterDevice } from './devices-api'
 import { loadMessaging, type Messaging } from './firebase'
-import { savePushState, stillCurrent, trackPushWork, type PushState } from './push-storage'
+import {
+  pushMark,
+  savePushState,
+  stillCurrent,
+  trackPushWork,
+  type PushState,
+} from './push-storage'
 
 // Web push's steps that need the service worker and Firebase (dashboard digest §4.3–4.4). No
 // React: the inbox's toggle runs them, and the re-register effect loads this module (and so
@@ -49,19 +55,40 @@ async function serviceWorker(): Promise<ServiceWorkerRegistration> {
   return existing?.active ? existing : registerServiceWorker()
 }
 
+async function enable(config: FirebaseWebConfig, owner: string, mark: number) {
+  const current = () => {
+    if (pushMark() !== mark) throw new PushAbandoned()
+  }
+  const registration = await registerServiceWorker()
+  const messaging = await loadMessaging(config)
+  current()
+  const token = await messaging.getToken(registration)
+  if (pushMark() !== mark) {
+    // The browser subscribed for a registration that is gone: revoked again.
+    await messaging.deleteToken().catch(() => undefined)
+    throw new PushAbandoned()
+  }
+  await registerDevice(token, deviceName(navigator.userAgent))
+  if (pushMark() !== mark) {
+    // Posted for a registration that is gone: unregistered again, last, and revoked.
+    await unregisterDevice(token).catch(() => undefined)
+    await messaging.deleteToken().catch(() => undefined)
+    throw new PushAbandoned()
+  }
+  savePushState({ token, owner, checkedAt: Date.now() })
+  return messaging
+}
+
 /**
  * Turning push on for `owner` (the account's uuid), once permission is granted, in this order:
  * the service worker, Firebase, the token (through that worker's push manager), then `POST
  * devices/` with this browser's label. Stores the token with its owner. Rejects at the first step
- * that fails.
+ * that fails. Like the token check, it is tracked (a logout waits for it) and stops at its next
+ * step once push work is abandoned meanwhile (a logout, the session's end): it then stores
+ * nothing, rejects with `PushAbandoned`, and a device it already posted is unregistered again.
  */
-export async function subscribe(config: FirebaseWebConfig, owner: string): Promise<Messaging> {
-  const registration = await registerServiceWorker()
-  const messaging = await loadMessaging(config)
-  const token = await messaging.getToken(registration)
-  await registerDevice(token, deviceName(navigator.userAgent))
-  savePushState({ token, owner, checkedAt: Date.now() })
-  return messaging
+export function subscribe(config: FirebaseWebConfig, owner: string): Promise<Messaging> {
+  return trackPushWork(enable(config, owner, pushMark()))
 }
 
 async function check(config: FirebaseWebConfig, stored: PushState, mark: number) {

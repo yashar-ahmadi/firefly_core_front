@@ -14,6 +14,7 @@ import {
   savePushState,
   stillCurrent,
   trackPushWork,
+  type PushState,
 } from './push-storage'
 
 /** How often Firebase is asked whether the token rotated, away from the inbox (and back-off). */
@@ -46,6 +47,19 @@ export function PushReregister() {
   return firebase && hasSession && stored ? <OwnedReregister firebase={firebase} /> : null
 }
 
+/**
+ * `POST devices/` with the stored token again. A disable or a logout can come while it is on its
+ * way (and outlast their wait for it): then, once it settled, the device is unregistered again, so
+ * the DELETE is always the last word and no late POST switches the device back on.
+ */
+async function repost(stored: PushState, mark: number): Promise<void> {
+  try {
+    await registerDevice(stored.token)
+  } finally {
+    if (!stillCurrent(stored, mark)) await unregisterDevice(stored.token).catch(() => undefined)
+  }
+}
+
 function OwnedReregister({ firebase }: { firebase: FirebaseWebConfig }) {
   const owner = useMe().data?.uuid
   useEffect(() => {
@@ -60,7 +74,7 @@ function OwnedReregister({ firebase }: { firebase: FirebaseWebConfig }) {
         return clearPushState()
       }
       if (Date.now() - stored.checkedAt < TOKEN_CHECK_MS) {
-        return void trackPushWork(registerDevice(stored.token)).catch(() => undefined)
+        return void trackPushWork(repost(stored, mark)).catch(() => undefined)
       }
       const checked = import('./push-flow')
         .then((flow) => flow.refreshToken(firebase, stored, mark))
@@ -70,7 +84,7 @@ function OwnedReregister({ firebase }: { firebase: FirebaseWebConfig }) {
             // Abandoned (push off, a logout): nothing more. Else tried again in a day.
             if (!stillCurrent(stored, mark)) return
             savePushState({ ...stored, checkedAt: Date.now() })
-            await registerDevice(stored.token)
+            await repost(stored, mark)
           },
         )
       void trackPushWork(checked).catch(() => undefined)

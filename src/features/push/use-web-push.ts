@@ -10,7 +10,7 @@ import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { isSessionExpiredError, ME_KEY } from '@/lib/session/viewer-queries'
 import { unregisterDevice } from './devices-api'
 import type { Messaging } from './firebase'
-import { browserSupportsPush, refreshToken, subscribe } from './push-flow'
+import { browserSupportsPush, PushAbandoned, refreshToken, subscribe } from './push-flow'
 import {
   abandonPushWork,
   clearPushState,
@@ -130,7 +130,8 @@ export function useWebPush(): WebPush {
           listen(await subscribe(firebase, account))
         } catch (failure) {
           if (isSessionExpiredError(failure)) return expire({ toLogin: true })
-          setError(ENABLE_FAILED)
+          // A logout or the session's end came meanwhile: push is off, as it should be.
+          if (!(failure instanceof PushAbandoned)) setError(ENABLE_FAILED)
         }
       }
       setPhase('idle')
