@@ -8,14 +8,17 @@ import type {
 } from './code-flow-types'
 import { failureWaits, NO_WAIT, restartWait } from './waits'
 
-// The state machine of registration and password recovery: entry → code → password → done.
-// Pure: the flows send the requests and dispatch what they answered. Going back keeps every
-// value typed; only a new identifier forgets the code (and token) sent for the old one.
+// The state machine of registration and password recovery (entry → code → password → done),
+// and of a contact change (entry → code → done). Pure: the flows send the requests and dispatch
+// what they answered. Going back keeps every value typed; only a new identifier forgets the code
+// (and token) sent for the old one.
 
 const STEP_OF: Record<CodeFlowField, CodeFlowStep> = {
   firstName: 'entry',
   lastName: 'entry',
   identifier: 'entry',
+  currentPassword: 'entry',
+  totp: 'entry',
   otp: 'code',
   password: 'password',
   confirm: 'password',

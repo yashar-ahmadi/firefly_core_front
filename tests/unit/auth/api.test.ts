@@ -56,6 +56,14 @@ describe('authApi', () => {
     expect([...form.keys()].sort()).toEqual(['avatar_picture', 'first_name'])
   })
 
+  it('removes the avatar with a JSON null (no multipart without a file)', async () => {
+    bff.fetch.mockResolvedValue({ data: SARA, msg: '', status: 200 })
+    await authApi.updateMe({ avatar_picture: null })
+    const [path, init] = bff.fetch.mock.calls[0]!
+    expect(path).toBe('account/profile/me/')
+    expect(init).toEqual({ method: 'PATCH', body: { avatar_picture: null } })
+  })
+
   it('throws the ApiError as it comes (code, detail and retry_after kept)', async () => {
     const error = ApiError.fromBody(429, {
       msg: 'm',

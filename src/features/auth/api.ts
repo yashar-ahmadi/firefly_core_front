@@ -44,12 +44,15 @@ async function get<T>(path: string, { signal }: ReadOptions = {}): Promise<T> {
   return (await bffFetch<T>(path, { signal })).data
 }
 
-/** Names as JSON; with an avatar, everything as multipart (the browser sets the boundary). */
+/**
+ * Names (and an avatar's removal, `null`) as JSON; with an avatar file, everything as multipart
+ * (the browser sets the boundary).
+ */
 async function patchProfile(changes: ProfileChanges): Promise<UserProfile> {
   const { avatar_picture: avatar, ...names } = changes
-  if (avatar === undefined) {
-    return (await bffFetch<UserProfile>('account/profile/me/', { method: 'PATCH', body: names }))
-      .data
+  if (!(avatar instanceof Blob)) {
+    const body = avatar === null ? { ...names, avatar_picture: null } : names
+    return (await bffFetch<UserProfile>('account/profile/me/', { method: 'PATCH', body })).data
   }
   const form = new FormData()
   for (const [key, value] of Object.entries(names)) if (value !== undefined) form.set(key, value)

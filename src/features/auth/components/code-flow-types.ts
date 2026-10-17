@@ -3,16 +3,29 @@ import type { AuthFailure } from './auth-failure'
 import type { LoginNotice } from './login-types'
 import type { StepWait, Wait } from './waits'
 
-// The types of the state machine registration and password recovery share (code-flow-state.ts).
+// The types of the state machine registration, password recovery and the profile's contact
+// change share (code-flow-state.ts).
 
 /**
- * `entry` (registration: the names and the identifier; recovery: the identifier) → `code` (the
- * one-time code sent to it) → `password` → `done` (the page is changing).
+ * `entry` (registration: the names and the identifier; recovery: the identifier; a contact
+ * change: the new identifier and its proof) → `code` (the one-time code sent to it) →
+ * `password` (not in a contact change) → `done` (the flow is over: the page or the form goes).
  */
 export type CodeFlowStep = 'entry' | 'code' | 'password' | 'done'
 
-/** A field a message can be shown under; each belongs to one step. */
-export type CodeFlowField = 'firstName' | 'lastName' | 'identifier' | 'otp' | 'password' | 'confirm'
+/**
+ * A field a message can be shown under; each belongs to one step. `currentPassword` and `totp`
+ * are a contact change's proof (auth digest §4.17), on its first step.
+ */
+export type CodeFlowField =
+  | 'firstName'
+  | 'lastName'
+  | 'identifier'
+  | 'currentPassword'
+  | 'totp'
+  | 'otp'
+  | 'password'
+  | 'confirm'
 
 /** The values typed after the first step. */
 export type CodeFlowValue = 'otpCode' | 'password' | 'confirm'

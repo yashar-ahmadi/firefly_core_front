@@ -8,12 +8,13 @@ import { cn } from './cn'
 import { SKELETON } from './skeleton'
 import { isOptimizable } from './smart-image'
 
-export type AvatarSize = 'sm' | 'md' | 'lg'
+export type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
 
 const SIZES: Record<AvatarSize, { box: string; letter: string; icon: string; px: number }> = {
   sm: { box: 'size-8', letter: 'text-sm', icon: 'size-6', px: 32 },
   md: { box: 'size-10', letter: 'text-base', icon: 'size-7', px: 40 },
   lg: { box: 'size-14', letter: 'text-xl', icon: 'size-10', px: 56 },
+  xl: { box: 'size-24', letter: 'text-4xl', icon: 'size-16', px: 96 },
 }
 
 export interface AvatarProps {

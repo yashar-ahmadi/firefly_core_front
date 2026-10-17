@@ -69,14 +69,19 @@ export function IdentifierField({
   )
 }
 
-/** «sara@example.com — تغییر»: the identifier of the next steps, and the way back to it. */
+/**
+ * «sara@example.com — تغییر»: the identifier of the next steps, and the way back to it.
+ * `changeLabel` ends the button's name for a screen reader («تغییر ایمیل یا شماره موبایل»).
+ */
 export function IdentifierSummary({
   identifier,
   type,
+  changeLabel = 'ایمیل یا شماره موبایل',
   onChange,
 }: {
   identifier: string
   type: ContactType | null
+  changeLabel?: string
   onChange: () => void
 }) {
   return (
@@ -86,7 +91,7 @@ export function IdentifierSummary({
       </span>
       <Button variant="ghost" size="sm" onClick={onChange} className="text-brand-700">
         تغییر
-        <VisuallyHidden> ایمیل یا شماره موبایل</VisuallyHidden>
+        <VisuallyHidden> {changeLabel}</VisuallyHidden>
       </Button>
     </div>
   )

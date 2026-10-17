@@ -189,8 +189,8 @@ export interface PasswordChangeBody {
 export interface ProfileChanges {
   first_name?: string
   last_name?: string
-  /** JPEG, PNG or WEBP, at most 5 MB. */
-  avatar_picture?: Blob
+  /** JPEG, PNG or WEBP, at most 5 MB; null removes the picture (the field is nullable). */
+  avatar_picture?: Blob | null
 }
 
 /**

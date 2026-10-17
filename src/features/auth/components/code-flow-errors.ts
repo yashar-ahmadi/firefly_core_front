@@ -1,8 +1,8 @@
 import { authFailure, type FailureRules } from './auth-failure'
 import type { CodeFlowFailure, CodeFlowField, CodeFlowStep } from './code-flow-types'
 
-// What a failed registration or recovery request means for its form (auth digest §4.1–4.4,
-// §4.12–4.14 and §6; see `authFailure`). Pure.
+// What a failed registration, recovery or contact-change request means for its form (auth
+// digest §4.1–4.4, §4.12–4.14, §4.17–4.18 and §6; see `authFailure`). Pure.
 
 /** The token of the flow is void (unknown, used, or out of time): start over at step 1. */
 const TOKEN_GONE = new Set(['auth_token_invalid', 'auth_token_expired'])
@@ -69,4 +69,40 @@ export function registerFailure(error: unknown): CodeFlowFailure {
  */
 export function recoveryFailure(error: unknown): CodeFlowFailure {
   return authFailure(error, RECOVERY_RULES)
+}
+
+const CONTACT_RULES: FailureRules<CodeFlowField> = {
+  byCode: {
+    // Taken by another account (at the request, or in the meantime at the verify), or the very
+    // address the account has verified already: under the new identifier.
+    auth_email_already_exists: 'identifier',
+    auth_phone_already_exists: 'identifier',
+    auth_contact_unchanged: 'identifier',
+    // The proof (§4.17); a required one the form did not ask for shows its field from then on.
+    auth_password_required: 'currentPassword',
+    auth_password_invalid: 'currentPassword',
+    auth_totp_required: 'totp',
+    auth_totp_invalid: 'totp',
+    auth_totp_locked: 'totp',
+    auth_otp_invalid: 'otp',
+    auth_otp_expired: 'otp',
+  },
+  byAttr: {
+    email: 'identifier',
+    phone_number: 'identifier',
+    otp_method: 'identifier',
+    password: 'currentPassword',
+    totp_code: 'totp',
+    otp_code: 'otp',
+  },
+  // Taken in the meantime (at the verify): the code sent is for an address that cannot be had.
+  restart: new Set(['auth_email_already_exists', 'auth_phone_already_exists']),
+}
+
+/**
+ * Adding or changing the email or the phone from the profile (F9). `auth_otp_not_found` (no
+ * code for this change, or for the other type) voids the code: a new one is asked for.
+ */
+export function contactFailure(error: unknown): CodeFlowFailure {
+  return authFailure(error, CONTACT_RULES)
 }
