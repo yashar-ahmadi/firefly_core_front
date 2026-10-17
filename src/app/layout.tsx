@@ -7,6 +7,7 @@ import { Providers } from '@/app/providers'
 import { SkipLink } from '@/components/layout/skip-link'
 import { getStoreConfig, toPublicConfig } from '@/config/store-config'
 import {
+  disabledAuth,
   getFeatureStatus,
   getSiteSettings,
   getSnippets,
@@ -31,10 +32,12 @@ export function generateViewport(): Viewport {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const config = getStoreConfig()
   // getSnippets() is started here with the rest; the snippet slots below read its cached result.
-  const [features, translations, cookieStore] = await Promise.all([
+  // The settings are the ones generateMetadata read (cache()): no second request.
+  const [features, translations, cookieStore, settings] = await Promise.all([
     getFeatureStatus(),
     getTranslations(),
     cookies(),
+    getSiteSettings(),
     getSnippets(),
   ])
   return (
@@ -50,6 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Snippets position="top_of_body" />
         <Providers
           config={toPublicConfig(config)}
+          auth={settings?.auth ?? disabledAuth()}
           features={features}
           translations={translations}
           hasSession={cookieStore.has(COOKIE.flag)}

@@ -8,12 +8,14 @@ import { IconButton } from '@/components/ui/icon-button'
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 import { parseServerEnv } from '@/config/env-schema'
 import { resolveStoreConfig, toPublicConfig } from '@/config/resolve-store-config'
+import { useAuthSettings } from '@/features/auth/use-auth-settings'
 import { useFeature, type FeatureMap } from '@/features/settings/feature-context'
 import { ApiError } from '@/lib/api/errors'
 import { FEATURE_KEYS } from '@/lib/api/types/common'
 import { useStoreConfig } from '@/lib/config-context'
 import { useT } from '@/lib/i18n/i18n-context'
 import { SessionProvider, useSession } from '@/lib/session/session-context'
+import { emailOnlyAuth } from '../support/auth'
 import { stubBrowserApis } from '../support/dom-stubs'
 
 const config = toPublicConfig(
@@ -27,6 +29,8 @@ const config = toPublicConfig(
   ),
 )
 
+const auth = emailOnlyAuth()
+
 const features = Object.fromEntries(
   FEATURE_KEYS.map((key) => [key, { key, name: '', enabled: true, reason: null }]),
 ) as FeatureMap
@@ -36,6 +40,7 @@ function providers(props: { hasSession?: boolean; translations?: Record<string, 
     return (
       <Providers
         config={config}
+        auth={auth}
         features={features}
         translations={props.translations ?? {}}
         hasSession={props.hasSession ?? false}
@@ -60,6 +65,20 @@ describe('Providers', () => {
     const { result } = renderHook(() => useStoreConfig(), { wrapper: providers() })
     expect(result.current.preset).toBe('digital')
     expect(result.current.mediaOrigin).toBe('https://api.shop.ir')
+  })
+
+  it("exposes the settings' auth block, which the login and registration forms are built from", () => {
+    const { result } = renderHook(() => useAuthSettings(), { wrapper: providers() })
+    expect(result.current).toEqual(auth)
+  })
+
+  it('asks for the auth settings only inside the providers', () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(() => renderHook(() => useAuthSettings())).toThrow(/Providers/)
+    } finally {
+      quiet.mockRestore()
+    }
   })
 
   it('translates with the operator overrides over the bundled dictionary', () => {

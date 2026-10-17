@@ -14,6 +14,8 @@ import type { Paginated } from '@/lib/api/types/common'
 import { loginHref } from '@/lib/links/login'
 import { runMutation } from '@/lib/query/run-mutation'
 import { useSession } from '@/lib/session/session-context'
+import { useSessionExpired, type SessionExpired } from '@/lib/session/use-session-expired'
+import { isSessionExpiredError } from '@/lib/session/viewer-queries'
 
 // The signed-in visitor's saved products, as a set of product ids for the hearts on cards.
 // Pages are cached for everyone without a token, so the hearts are filled in on the client.
@@ -54,13 +56,23 @@ export interface WishlistIds {
 
 /**
  * The saved product ids, read only with a session (`GET product/wishlist/list/?limit=100`, every
- * page). An error, a 401 from an expired session included, leaves the set empty: it never throws.
+ * page). An error leaves the set empty: it never throws. A 401 because the session is gone ends
+ * it (`useSessionExpired`), so no heart mounted later asks again.
  */
 export function useWishlistIds(): WishlistIds {
   const { hasSession } = useSession()
+  const expire = useSessionExpired()
   const query = useQuery({
     queryKey: WISHLIST_IDS_KEY,
-    queryFn: ({ signal }) => fetchWishlistIds(signal),
+    queryFn: async ({ signal }) => {
+      try {
+        return await fetchWishlistIds(signal)
+      } catch (error) {
+        if (!isSessionExpiredError(error)) throw error
+        expire()
+        return []
+      }
+    },
     enabled: hasSession,
     staleTime: STALE_TIME,
     select: toIdSet,
@@ -100,12 +112,13 @@ type ToggleResult = Awaited<ReturnType<typeof bffFetch<{ is_in_wishlist: boolean
 
 /**
  * The optimistic toggle as mutation options. The heart flips at once; a failure flips it back
- * and shows the API's message, and a 401 (session gone) goes to login. After the last toggle
- * settles the ids are read again, so the cache ends up matching the server.
+ * and shows the API's message, and a 401 because the session is gone ends it and goes to login
+ * (`expire`). After the last toggle settles the ids are read again, so the cache ends up
+ * matching the server.
  */
 function toggleOptions(
   client: QueryClient,
-  router: Router,
+  expire: SessionExpired,
 ): MutationOptions<ToggleResult, Error, ToggleVariables> {
   return {
     mutationKey: TOGGLE_KEY,
@@ -124,7 +137,7 @@ function toggleOptions(
     },
     onError: (error, { id, save }) => {
       setSaved(client, id, !save)
-      if (error instanceof ApiError && error.isAuth()) router.push(loginHref(currentPath()))
+      if (isSessionExpiredError(error)) expire({ toLogin: true })
       else notify.error(error instanceof ApiError ? error.detail : GENERIC_ERROR_DETAIL)
     },
     onSettled: () => {
@@ -140,21 +153,28 @@ function toggleOptions(
 const isSaved = (client: QueryClient, id: number) =>
   client.getQueryData<number[]>(WISHLIST_IDS_KEY)?.includes(id) ?? false
 
+/** What a toggle without a hook needs from the page (CardScope reads it once per grid). */
+export interface WishlistViewer {
+  hasSession: boolean
+  router: Router
+  /** `useSessionExpired()`. */
+  expire: SessionExpired
+}
+
 /**
  * One toggle without a hook: the mutation is created when it is called (a product card creates
  * none until its heart is pressed). Guests go to the login page. Never rejects.
  */
 export function toggleWishlistOnce(
   client: QueryClient,
-  router: Router,
-  hasSession: boolean,
+  { hasSession, router, expire }: WishlistViewer,
   { id, slug }: { id: number; slug: string },
 ): Promise<void> {
   if (!hasSession) {
     router.push(loginHref(currentPath()))
     return Promise.resolve()
   }
-  return runMutation(client, toggleOptions(client, router), {
+  return runMutation(client, toggleOptions(client, expire), {
     id,
     slug,
     save: !isSaved(client, id),
@@ -169,7 +189,8 @@ export function useToggleWishlist(): ToggleWishlist {
   const { hasSession } = useSession()
   const router = useRouter()
   const client = useQueryClient()
-  const mutation = useMutation(toggleOptions(client, router))
+  const expire = useSessionExpired()
+  const mutation = useMutation(toggleOptions(client, expire))
 
   const toggle = ({ id, slug }: { id: number; slug: string }) => {
     if (!hasSession) {

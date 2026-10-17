@@ -9,6 +9,7 @@ import { useCompare } from '@/features/compare/store'
 import { toggleWishlistOnce, useWishlistIds } from '@/features/wishlist/hooks'
 import { usePersistHydration } from '@/lib/store/persisted'
 import { useSession } from '@/lib/session/session-context'
+import { useSessionExpired } from '@/lib/session/use-session-expired'
 
 /** What every card of a grid or rail reads, from one set of subscriptions. */
 export interface CardScopeValue {
@@ -50,6 +51,7 @@ export function CardScope({ children }: { children: ReactNode }) {
   const { hasSession } = useSession()
   const router = useRouter()
   const client = useQueryClient()
+  const expire = useSessionExpired()
 
   const value = useMemo<CardScopeValue>(
     () => ({
@@ -58,11 +60,12 @@ export function CardScope({ children }: { children: ReactNode }) {
       savedLoading: isLoading,
       compared: new Set(items.map((item) => item.slug)),
       compareReady,
-      toggleWishlist: (product) => toggleWishlistOnce(client, router, hasSession, product),
+      toggleWishlist: (product) =>
+        toggleWishlistOnce(client, { hasSession, router, expire }, product),
       addToCart: (variant, quantity, meta) =>
         addToCartOnce(client, { variant, quantity, meta, toast: true }),
     }),
-    [hydrated, ids, isLoading, items, compareReady, client, router, hasSession],
+    [hydrated, ids, isLoading, items, compareReady, client, router, hasSession, expire],
   )
   return <CardScopeContext value={value}>{children}</CardScopeContext>
 }

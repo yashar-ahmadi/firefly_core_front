@@ -5,11 +5,13 @@ import { Direction } from 'radix-ui'
 import { useState, type ReactNode } from 'react'
 import { Toaster } from '@/components/ui/toaster'
 import type { PublicStoreConfig } from '@/config/resolve-store-config'
+import { AuthSettingsContext } from '@/features/auth/use-auth-settings'
 import {
   FeatureProvider,
   useMarkFeatureDisabled,
   type FeatureMap,
 } from '@/features/settings/feature-context'
+import type { AuthSettings } from '@/lib/api/types/settings'
 import { StoreConfigProvider } from '@/lib/config-context'
 import { I18nProvider } from '@/lib/i18n/i18n-context'
 import { createQueryClient } from '@/lib/query/query-client'
@@ -17,6 +19,8 @@ import { SessionProvider } from '@/lib/session/session-context'
 
 export interface ProvidersProps {
   config: PublicStoreConfig
+  /** The settings' `auth` block (`disabledAuth()` without settings), for `useAuthSettings`. */
+  auth: AuthSettings
   features: FeatureMap
   /** The operator's dictionary overrides (`getTranslations()`). */
   translations: Record<string, string>
@@ -35,6 +39,7 @@ function QueryProvider({ children }: { children: ReactNode }) {
 /** Every client-side context of the storefront, mounted once by the root layout. */
 export function Providers({
   config,
+  auth,
   features,
   translations,
   hasSession,
@@ -43,16 +48,18 @@ export function Providers({
   return (
     <Direction.Provider dir="rtl">
       <StoreConfigProvider value={config}>
-        <I18nProvider overrides={translations}>
-          <SessionProvider initialHasSession={hasSession}>
-            <FeatureProvider initial={features}>
-              <QueryProvider>
-                {children}
-                <Toaster />
-              </QueryProvider>
-            </FeatureProvider>
-          </SessionProvider>
-        </I18nProvider>
+        <AuthSettingsContext value={auth}>
+          <I18nProvider overrides={translations}>
+            <SessionProvider initialHasSession={hasSession}>
+              <FeatureProvider initial={features}>
+                <QueryProvider>
+                  {children}
+                  <Toaster />
+                </QueryProvider>
+              </FeatureProvider>
+            </SessionProvider>
+          </I18nProvider>
+        </AuthSettingsContext>
       </StoreConfigProvider>
     </Direction.Provider>
   )

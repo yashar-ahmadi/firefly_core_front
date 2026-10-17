@@ -47,7 +47,8 @@ the API digests in [backend-integration/](backend-integration/) and
   memoised accessors that read `process.env` (`getServerEnv()`, `getStoreConfig()`) are
   `server-only` and are never called at module top level.
 - **Providers** (`src/app/providers.tsx`, mounted once by the root layout): RTL direction, public
-  store config, i18n (operator overrides merged over `fa.ts`), session flag, feature switches,
+  store config, the settings' `auth` block (`useAuthSettings`; every method off without settings),
+  i18n (operator overrides merged over `fa.ts`), session flag, feature switches,
   TanStack Query (30 s stale time, no retry on 4xx or `feature_disabled`) and the toaster, which
   loads Sonner with the first toast. Tooltips are not a provider: each `Tooltip` brings its own
   (group several with `TooltipProvider`), so pages without one do not load its code.
@@ -199,6 +200,20 @@ JWTs never reach browser JavaScript. `proxy.ts` refreshes an access token that i
 within 30 s before Server Components run, sets the new cookie on the response and rewrites the
 forwarded `Cookie` header so the current render already sees it; a rejected refresh token clears
 every session cookie; a network failure keeps the cookies and renders.
+
+In the browser the session is the `hasSession` flag (`useSession`, first read from `ff_auth`).
+Queries that only make sense signed in (`useMe` under `['me']`, the wishlist ids, the account
+summary) are `enabled: hasSession`. When one of them answers a 401 that means the session is gone
+(`isSessionExpiredError`: not a missing API key), it calls `useSessionExpired()`
+(`lib/session/use-session-expired.ts`): `hasSession` turns false, so none of them asks again;
+`clearViewerQueries` drops what that visitor saw; `['me']` becomes null. On an account page the
+login page replaces it, with the page as `next`; after an action of the visitor (a heart) login
+is pushed; a background read on a public page only turns the page into its guest version.
+`clearViewerQueries` (`lib/session/viewer-queries.ts`) also runs on login and logout: it removes
+the session-only queries (`['me']`, `['summary']`, `['wishlist', …]`) and resets the ones guests
+read too whose answers depend on the viewer (`['cart']`, and under `['product', …]` the payload's
+`is_in_wishlist` and the comment lists' `is_current_user`), so nobody sees the previous visitor's
+data, not even within a stale time. A new viewer-dependent query key belongs in that list.
 
 ## Caching
 

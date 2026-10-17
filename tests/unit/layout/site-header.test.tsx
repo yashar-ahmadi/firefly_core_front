@@ -12,6 +12,7 @@ import { resolveStoreConfig, toPublicConfig } from '@/config/resolve-store-confi
 import type { FeatureMap } from '@/features/settings/feature-context'
 import { FEATURE_KEYS } from '@/lib/api/types/common'
 import type { MenuNode, SiteSettings } from '@/lib/api/types/settings'
+import { emailOnlyAuth } from '../support/auth'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { menuNode, sampleTree } from './support'
 
@@ -74,6 +75,7 @@ async function renderHeader(options: { hasSession?: boolean; registration?: bool
   return render(
     <Providers
       config={config}
+      auth={emailOnlyAuth()}
       features={featureMap(options.registration)}
       translations={{}}
       hasSession={options.hasSession ?? false}

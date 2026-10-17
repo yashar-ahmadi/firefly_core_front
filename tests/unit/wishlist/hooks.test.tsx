@@ -7,17 +7,21 @@ import {
   WISHLIST_IDS_KEY,
 } from '@/features/wishlist/hooks'
 import { ApiError } from '@/lib/api/errors'
+import { useSession } from '@/lib/session/session-context'
 import { clientProviders } from '../support/providers'
 
 const mocks = vi.hoisted(() => ({
   bffFetch: vi.fn(),
   push: vi.fn(),
+  replace: vi.fn(),
   error: vi.fn(),
   success: vi.fn(),
 }))
 
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
+}))
 vi.mock('@/components/ui/toaster', () => ({
   toastRegionReady: () => false,
   notify: { error: mocks.error, success: mocks.success, info: vi.fn(), dismiss: vi.fn() },
@@ -54,9 +58,10 @@ function deferred<T>() {
 
 function renderWishlist(hasSession = true) {
   const providers = clientProviders({ hasSession })
-  const hook = renderHook(() => ({ wishlist: useWishlistIds(), toggle: useToggleWishlist() }), {
-    wrapper: providers.wrapper,
-  })
+  const hook = renderHook(
+    () => ({ wishlist: useWishlistIds(), toggle: useToggleWishlist(), session: useSession() }),
+    { wrapper: providers.wrapper },
+  )
   return { ...hook, client: providers.client }
 }
 
@@ -70,6 +75,7 @@ function routeCalls(ids: number[], write: (path: string, method: string) => Prom
 beforeEach(() => {
   mocks.bffFetch.mockReset()
   mocks.push.mockReset()
+  mocks.replace.mockReset()
   mocks.error.mockReset()
   mocks.success.mockReset()
 })
@@ -100,14 +106,25 @@ describe('useWishlistIds', () => {
     expect(mocks.bffFetch).not.toHaveBeenCalled()
   })
 
-  it('treats an expired session (401) as an empty wishlist', async () => {
+  it('treats an expired session (401) as an empty wishlist and ends the session', async () => {
     mocks.bffFetch.mockRejectedValue(
       new ApiError({ status: 401, code: 'not_authenticated', detail: 'وارد شوید' }),
     )
-    const { result } = renderWishlist()
-    await waitFor(() => expect(mocks.bffFetch).toHaveBeenCalled())
-    await waitFor(() => expect(result.current.wishlist.isLoading).toBe(false))
+    window.history.replaceState(null, '', '/product-category/digital/mobile-phone/')
+    const { result, client } = renderWishlist()
+    await waitFor(() => expect(result.current.session.hasSession).toBe(false))
+    expect(result.current.wishlist.isLoading).toBe(false)
     expect(result.current.wishlist.ids.size).toBe(0)
+    // A background read on a catalog page: the page turns into its guest version and stays.
+    expect(mocks.push).not.toHaveBeenCalled()
+    expect(mocks.replace).not.toHaveBeenCalled()
+
+    // A heart mounted later (the next grid, a client navigation) asks nothing again.
+    renderHook(() => useWishlistIds(), {
+      wrapper: clientProviders({ hasSession: false, client }).wrapper,
+    })
+    await act(async () => {})
+    expect(mocks.bffFetch).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -184,12 +201,36 @@ describe('useToggleWishlist', () => {
     await waitFor(() => expect(result.current.wishlist.isLoading).toBe(false))
     act(() => result.current.toggle.toggle({ id: 2, slug: 'product-2' }))
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/login/?next=/brand/samsung/'))
+    expect(mocks.push).toHaveBeenCalledTimes(1)
     expect(result.current.wishlist.ids.has(2)).toBe(false)
     expect(mocks.error).not.toHaveBeenCalled()
+    // The page knows the session is gone: the header shows the login link again.
+    expect(result.current.session.hasSession).toBe(false)
   })
 })
 
 describe('toggleWishlistOnce', () => {
+  it('ends the session and goes to login when the API says it is gone', async () => {
+    const { client } = clientProviders({ hasSession: true })
+    routeCalls([], () =>
+      Promise.reject(new ApiError({ status: 401, code: 'not_authenticated', detail: 'x' })),
+    )
+    const viewer = { hasSession: true, router: { push: mocks.push }, expire: vi.fn() }
+    await toggleWishlistOnce(client, viewer, { id: 2, slug: 'product-2' })
+    expect(viewer.expire).toHaveBeenCalledWith({ toLogin: true })
+    expect(mocks.push).not.toHaveBeenCalled()
+    expect(mocks.error).not.toHaveBeenCalled()
+  })
+
+  it('sends a guest to login without a request', async () => {
+    window.history.replaceState(null, '', '/brand/samsung/')
+    const { client } = clientProviders()
+    const viewer = { hasSession: false, router: { push: mocks.push }, expire: vi.fn() }
+    await toggleWishlistOnce(client, viewer, { id: 2, slug: 'product-2' })
+    expect(mocks.push).toHaveBeenCalledWith('/login/?next=/brand/samsung/')
+    expect(mocks.bffFetch).not.toHaveBeenCalled()
+  })
+
   it('leaves no mutation in the cache once it settled and gcTime passed', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
@@ -197,10 +238,10 @@ describe('toggleWishlistOnce', () => {
       routeCalls([], () =>
         Promise.resolve({ data: { is_in_wishlist: true }, msg: '', status: 201 }),
       )
-      const router = { push: mocks.push }
-      await toggleWishlistOnce(client, router, true, { id: 2, slug: 'product-2' })
+      const viewer = { hasSession: true, router: { push: mocks.push }, expire: vi.fn() }
+      await toggleWishlistOnce(client, viewer, { id: 2, slug: 'product-2' })
       routeCalls([2], () => Promise.reject(new ApiError({ status: 429, code: 'throttled' })))
-      await toggleWishlistOnce(client, router, true, { id: 3, slug: 'product-3' })
+      await toggleWishlistOnce(client, viewer, { id: 3, slug: 'product-3' })
       const cache = client.getMutationCache()
       const gcTime = cache.getAll()[0]?.gcTime ?? 0
       expect(gcTime).toBeGreaterThan(0)

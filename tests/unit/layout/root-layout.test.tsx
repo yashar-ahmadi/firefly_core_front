@@ -9,7 +9,7 @@ import { parseServerEnv } from '@/config/env-schema'
 import { resolveStoreConfig, type StoreConfig } from '@/config/resolve-store-config'
 import { SnippetHtmlZone, Snippets } from '@/features/settings/snippets'
 import { FEATURE_KEYS } from '@/lib/api/types/common'
-import type { FeatureState, SiteSettings } from '@/lib/api/types/settings'
+import type { AuthSettings, FeatureState, SiteSettings } from '@/lib/api/types/settings'
 
 const mocks = vi.hoisted(() => ({
   config: undefined as unknown as StoreConfig,
@@ -34,7 +34,8 @@ const features = Object.fromEntries(
     { key, name: '', enabled: key !== 'wallet', reason: key === 'wallet' ? 'به‌زودی' : null },
   ]),
 )
-vi.mock('@/features/settings/api', () => ({
+vi.mock('@/features/settings/api', async (importOriginal) => ({
+  disabledAuth: (await importOriginal<typeof import('@/features/settings/api')>()).disabledAuth,
   getSiteSettings: async () => mocks.settings,
   getFeatureStatus: async () => features,
   getTranslations: async () => ({ cart: 'سبد من' }),
@@ -168,6 +169,33 @@ describe('RootLayout', () => {
     expect(config).not.toHaveProperty('apiUrl')
     expect(config.mediaOrigin).toBe('https://api.shop.ir')
     expect(JSON.stringify(providers?.props)).not.toContain('secret-key')
+  })
+
+  it("passes the settings' auth block to the providers", async () => {
+    const auth: AuthSettings = {
+      google_login_enabled: false,
+      google_client_id: null,
+      sms_otp_enabled: true,
+      telegram_otp_enabled: false,
+      available_otp_methods: ['email', 'sms'],
+      registration_methods: ['email', 'phone'],
+      default_otp_methods: { email: 'email', phone: 'sms' },
+    }
+    mocks.settings = { ...SETTINGS, auth }
+    const tree = await RootLayout({ children: null })
+    const providers = elements(tree).find((element) => element.type === Providers)
+    expect(providers?.props.auth).toEqual(auth)
+  })
+
+  it('without settings, offers no sign-in method at all', async () => {
+    mocks.settings = null
+    const tree = await RootLayout({ children: null })
+    const providers = elements(tree).find((element) => element.type === Providers)
+    expect(providers?.props.auth).toMatchObject({
+      google_login_enabled: false,
+      available_otp_methods: [],
+      registration_methods: [],
+    })
   })
 
   it('has no session without the ff_auth flag', async () => {

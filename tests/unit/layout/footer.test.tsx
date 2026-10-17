@@ -9,6 +9,7 @@ import { resolveStoreConfig, toPublicConfig } from '@/config/resolve-store-confi
 import type { FeatureMap } from '@/features/settings/feature-context'
 import { FEATURE_KEYS } from '@/lib/api/types/common'
 import type { MenuNode, SiteSettings, Snippet, Social } from '@/lib/api/types/settings'
+import { emailOnlyAuth } from '../support/auth'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { menuNode } from './support'
 
@@ -56,7 +57,13 @@ const features = Object.fromEntries(
 async function renderFooter() {
   const footer: ReactNode = await SiteFooter()
   return render(
-    <Providers config={config} features={features} translations={{}} hasSession={false}>
+    <Providers
+      config={config}
+      auth={emailOnlyAuth()}
+      features={features}
+      translations={{}}
+      hasSession={false}
+    >
       {footer}
     </Providers>,
   )

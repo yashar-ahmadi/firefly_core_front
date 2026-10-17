@@ -12,6 +12,7 @@ describe('loginHref', () => {
     expect(loginHref('/login/')).toBe('/login/')
     expect(loginHref('/login/?next=/cart/')).toBe('/login/')
     expect(loginHref('/register/')).toBe('/login/')
+    expect(loginHref('/forgot-password/')).toBe('/login/')
   })
 
   it('keeps any other page and its query as a readable next', () => {

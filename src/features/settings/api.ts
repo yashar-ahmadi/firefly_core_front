@@ -28,7 +28,7 @@ const REVALIDATE_SECONDS = 300
 const FEATURES_REVALIDATE_SECONDS = 60
 
 /** The safe `auth` block: every sign-in method off. A fresh object, so callers cannot share it. */
-function disabledAuth(): AuthSettings {
+export function disabledAuth(): AuthSettings {
   return {
     google_login_enabled: false,
     google_client_id: null,
