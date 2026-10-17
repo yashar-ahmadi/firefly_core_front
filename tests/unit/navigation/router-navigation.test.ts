@@ -1,4 +1,5 @@
 import { act, fireEvent, renderHook } from '@testing-library/react'
+import { startTransition } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { onRouterTransitionStart } from '@/instrumentation-client'
 import {
@@ -10,6 +11,12 @@ import {
 
 const route = vi.hoisted(() => ({ pathname: '/', search: '' }))
 
+function deferredTransition() {
+  let resolve: () => void = () => {}
+  const promise = new Promise<void>((done) => (resolve = done))
+  return { promise, resolve }
+}
+
 vi.mock('next/navigation', () => ({
   usePathname: () => route.pathname,
   useSearchParams: () => new URLSearchParams(route.search),
@@ -19,10 +26,13 @@ describe('onRouterTransitionStart (instrumentation-client)', () => {
   const listener = vi.fn()
   afterEach(() => window.removeEventListener(ROUTER_NAVIGATION_START, listener))
 
-  it('announces every App Router navigation to the page', () => {
+  it('announces every App Router navigation to the page, in order, once the call returned', async () => {
     window.addEventListener(ROUTER_NAVIGATION_START, listener)
     onRouterTransitionStart('/brand/apple/')
     onRouterTransitionStart('/product-category/digital/')
+    // Not inside Next's call: that runs in the navigation's transition (see below).
+    expect(listener).not.toHaveBeenCalled()
+    await Promise.resolve()
     expect(listener.mock.calls.map(([event]) => (event as CustomEvent<string>).detail)).toEqual([
       '/brand/apple/',
       '/product-category/digital/',
@@ -64,6 +74,22 @@ describe('useLeavingPage', () => {
     route.pathname = '/product/list/'
     route.search = 'search=a+b&q=%DA%A9'
     expect(leavingAfter('/product/list/?search=a%20b&q=\u{06A9}').pending).toBe(false)
+  })
+
+  it('holds at once although the router announces it inside its own navigation transition', async () => {
+    route.pathname = '/brand/apple/'
+    const { result } = renderHook(() => useLeavingPage(() => {}))
+    // A transition that stays pending, as a navigation does until the new page arrives: an
+    // update made inside it would wait with it.
+    const pending = deferredTransition()
+    await act(async () =>
+      startTransition(async () => {
+        onRouterTransitionStart('/brand/samsung/')
+        await pending.promise
+      }),
+    )
+    expect(result.current).toBe(true)
+    await act(async () => pending.resolve())
   })
 
   it('treats a different query as another URL', () => {

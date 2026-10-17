@@ -1,6 +1,8 @@
 import { act, fireEvent, render } from '@testing-library/react'
+import { startTransition, Suspense, use, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NavigationProgress } from '@/components/layout/navigation-progress'
+import { onRouterTransitionStart } from '@/instrumentation-client'
 import { announceRouterNavigation } from '@/lib/navigation/router-navigation'
 
 const route = vi.hoisted(() => ({ pathname: '/', search: '' }))
@@ -74,6 +76,40 @@ describe('NavigationProgress', () => {
     act(() => announceRouterNavigation('/product/x/'))
     expect(bar()).toHaveAttribute('data-phase', 'loading')
     expect(main()).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('shows at once although the router announces it inside its own navigation transition', async () => {
+    // Next calls onRouterTransitionStart inside the startTransition of the navigation, which
+    // stays pending (the old page on screen) until the new page arrives.
+    const arriving = new Promise<never>(() => {})
+    function Page({ next }: { next: boolean }) {
+      if (next) use(arriving)
+      return null
+    }
+    let navigate = () => {}
+    function Router() {
+      const [next, setNext] = useState(false)
+      navigate = () =>
+        startTransition(() => {
+          onRouterTransitionStart('/product/x/')
+          setNext(true)
+        })
+      return (
+        <Suspense fallback={null}>
+          <Page next={next} />
+        </Suspense>
+      )
+    }
+    const view = render(
+      <>
+        <NavigationProgress />
+        <main id="main" />
+        <Router />
+      </>,
+    )
+    await act(async () => navigate())
+    expect(view.container.querySelector('[data-phase]')).toHaveAttribute('data-phase', 'loading')
+    expect(view.container.querySelector('main')).toHaveAttribute('aria-busy', 'true')
   })
 
   it('ignores a navigation to the URL on screen', () => {
