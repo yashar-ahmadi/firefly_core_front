@@ -1,7 +1,9 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderToString } from 'react-dom/server'
+import { NotificationsPage } from '@/features/notifications/notifications-page'
 import { REFRESH_MESSAGE } from '@/features/pwa/sw-source'
-import { FIREBASE, stubPushBrowser, unstubPushBrowser } from '../push/support'
+import { FIREBASE, pushProviders, stubPushBrowser, unstubPushBrowser } from '../push/support'
 import { renderInbox } from './render-inbox'
 import { apiError, inboxPage, listReads, newInboxApi, notification, stubInboxApi } from './support'
 
@@ -60,6 +62,18 @@ describe('NotificationsPage', () => {
       'notification/list/?limit=20',
       'notification/list/?limit=100',
     ])
+  })
+
+  it('the server’s HTML has no rows, so no «… پیش»: how long ago is worked out in the browser', () => {
+    const { wrapper: Providers } = pushProviders({ firebase: null })
+    const html = renderToString(
+      <Providers>
+        <NotificationsPage title="اعلان‌ها" />
+      </Providers>,
+    )
+    expect(html).toContain('در حال بارگذاری اعلان‌ها')
+    expect(html).not.toContain('<time')
+    expect(html).not.toContain('پیش')
   })
 
   it('«نمایش بیشتر» reads the next 20', async () => {

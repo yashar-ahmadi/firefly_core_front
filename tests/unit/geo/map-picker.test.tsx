@@ -172,15 +172,27 @@ describe('MapPicker', () => {
     expect(map.zoomIn).not.toHaveBeenCalled()
   })
 
-  it('a position found after the map went is not announced as a move', async () => {
+  it('a position found after the map went moves nothing, and fails nothing', async () => {
     let found: (value: unknown) => void = () => {}
     mocks.locate.mockReturnValue(new Promise((resolve) => (found = resolve)))
-    const { user, unmount } = renderPicker()
-    await waitFor(() => expect(mocks.createPickerMap).toHaveBeenCalledOnce())
-    await user.click(screen.getByRole('button', { name: 'موقعیت من' }))
-    unmount()
-    await act(async () => found({ ok: true, point: { latitude: 35.75, longitude: 51.41 } }))
-    expect(map.setView).not.toHaveBeenCalled()
+    // The press's handler runs on after the await: a throw there is an unhandled rejection.
+    const failures: unknown[] = []
+    const onFailure = (reason: unknown) => failures.push(reason)
+    process.on('unhandledRejection', onFailure)
+    try {
+      const { user, unmount } = renderPicker()
+      await waitFor(() => expect(mocks.createPickerMap).toHaveBeenCalledOnce())
+      await user.click(screen.getByRole('button', { name: 'موقعیت من' }))
+      unmount()
+      expect(map.remove).toHaveBeenCalledOnce()
+      await act(async () => found({ ok: true, point: { latitude: 35.75, longitude: 51.41 } }))
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      // Not the removed map (a reference kept from before the wait), and no null map either.
+      expect(map.setView).not.toHaveBeenCalled()
+      expect(failures).toEqual([])
+    } finally {
+      process.off('unhandledRejection', onFailure)
+    }
   })
 
   it('Leaflet that cannot load: says so in place, the address can still be saved', async () => {

@@ -1,5 +1,6 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AvatarUpload } from '@/features/account/profile/avatar-upload'
 import { ContactSection } from '@/features/account/profile/contact-section'
 import { PasswordSection } from '@/features/account/profile/password-section'
 import { ProfileForm } from '@/features/account/profile/profile-form'
@@ -7,7 +8,7 @@ import { TwoFactorSection } from '@/features/account/profile/two-factor-section'
 import { ApiError } from '@/lib/api/errors'
 import { ME_KEY } from '@/lib/session/viewer-queries'
 import { stubBrowserApis } from '../support/dom-stubs'
-import { renderWithMe } from './profile-support'
+import { renderWithMe, saraWith } from './profile-support'
 
 // A profile write whose session is gone (the BFF's one refresh failed: 401 not_authenticated or
 // token_not_valid) ends the session the way every session call does (Plan 3 ruling): the
@@ -106,6 +107,35 @@ describe('a profile write after the session ended', () => {
     await user.click(await screen.findByRole('button', { name: 'فعال‌سازی ورود دومرحله‌ای' }))
     const group = await screen.findByRole('group', { name: 'کد برنامهٔ احراز هویت' })
     await user.type(within(group).getAllByRole('textbox')[0]!, '123456')
+    await expectLogin(client)
+  })
+
+  it('the avatar’s upload (401 not_authenticated)', async () => {
+    mocks.updateMe.mockRejectedValue(gone('not_authenticated'))
+    const objectUrls = { create: URL.createObjectURL, revoke: URL.revokeObjectURL }
+    // jsdom has no object URLs (the preview).
+    URL.createObjectURL = vi.fn(() => 'blob:http://localhost:3000/preview-1')
+    URL.revokeObjectURL = vi.fn()
+    try {
+      const { user, client, container } = renderWithMe((me) => <AvatarUpload me={me} />)
+      const file = new File(['x'], 'me.png', { type: 'image/png' })
+      fireEvent.change(container.querySelector('input[type="file"]')!, {
+        target: { files: [file] },
+      })
+      await user.click(await screen.findByRole('button', { name: 'ذخیرهٔ تصویر' }))
+      await expectLogin(client)
+    } finally {
+      Object.assign(URL, { createObjectURL: objectUrls.create, revokeObjectURL: objectUrls.revoke })
+    }
+  })
+
+  it('the avatar’s removal (401 token_not_valid)', async () => {
+    mocks.updateMe.mockRejectedValue(gone('token_not_valid'))
+    const { user, client } = renderWithMe((me) => <AvatarUpload me={me} />, {
+      me: saraWith({ avatar_picture: 'http://localhost:8000/media/user/avatar/3f2a.webp' }),
+    })
+    await user.click(screen.getByRole('button', { name: 'حذف تصویر' }))
+    await user.click(screen.getByRole('button', { name: 'بله، حذف شود' }))
     await expectLogin(client)
   })
 })
