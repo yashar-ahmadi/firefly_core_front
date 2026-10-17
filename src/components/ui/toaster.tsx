@@ -28,6 +28,15 @@ function send(notice: Notice) {
   for (const listener of listeners) listener()
 }
 
+/**
+ * Whether a toaster view (Sonner, or the stand-in) is on the page, its live region with it: a
+ * toast sent now is read out by that region. Before, the first toast creates the region along
+ * with itself, which a screen reader can miss, so callers that must be heard also `announce`.
+ */
+export function toastRegionReady(): boolean {
+  return sink !== null
+}
+
 /** For the toaster that shows them: takes the queued notices, then each new one. */
 export function connectToasts(next: (notice: Notice) => void): () => void {
   sink = next

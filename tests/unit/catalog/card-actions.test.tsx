@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), push: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/components/ui/toaster', () => ({
+  toastRegionReady: () => false,
   notify: { error: vi.fn(), success: vi.fn(), info: vi.fn(), dismiss: vi.fn() },
 }))
 

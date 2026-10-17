@@ -24,6 +24,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }))
 vi.mock('@/components/ui/toaster', () => ({
+  toastRegionReady: () => false,
   notify: { error: mocks.error, success: mocks.success, info: vi.fn(), dismiss: vi.fn() },
 }))
 

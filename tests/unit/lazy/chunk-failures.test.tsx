@@ -43,6 +43,7 @@ vi.mock('@/lib/navigation/hard-navigation', () => ({
   reloadPage: mocks.reloadPage,
 }))
 vi.mock('@/components/ui/toaster', () => ({
+  toastRegionReady: () => false,
   notify: { error: mocks.error, success: vi.fn(), info: vi.fn(), dismiss: vi.fn() },
 }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: vi.fn() }))

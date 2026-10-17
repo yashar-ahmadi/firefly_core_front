@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,14 +8,21 @@ import { AddToCartButton } from '@/features/cart/components/add-to-cart-button'
 import { cart, cartLine, MSG_ADDED, result } from '../cart/support'
 import { clientProviders } from '../support/providers'
 
-const mocks = vi.hoisted(() => ({ bffFetch: vi.fn() }))
+const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), toastRegionReady: false }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
 vi.mock('@/components/ui/toaster', () => ({
   notify: { error: vi.fn(), success: vi.fn(), info: vi.fn(), dismiss: vi.fn() },
+  toastRegionReady: () => mocks.toastRegionReady,
 }))
 
-beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  mocks.toastRegionReady = false
+  // The region's text lives at module level: start every test from an empty one.
+  announce('')
+  vi.advanceTimersByTime(100)
+})
 afterEach(() => vi.useRealTimers())
 
 const region = () => screen.getByRole('status')
@@ -52,7 +59,7 @@ describe('LiveAnnouncer', () => {
     expect(typesIn(ShopShell({ children: null }))).toContain(LiveAnnouncer)
   })
 
-  it('says «به سبد خرید اضافه شد: <name>» after a successful add', async () => {
+  async function addOnce() {
     mocks.bffFetch.mockResolvedValue(result(cart([cartLine()]), MSG_ADDED))
     const { wrapper } = clientProviders()
     render(
@@ -63,7 +70,20 @@ describe('LiveAnnouncer', () => {
       { wrapper },
     )
     await userEvent.click(screen.getByRole('button', { name: 'افزودن به سبد خرید' }))
+    await waitFor(() => expect(mocks.bffFetch).toHaveBeenCalled())
+    await act(async () => {})
     act(() => vi.advanceTimersByTime(100))
+  }
+
+  it('says «به سبد خرید اضافه شد: <name>» after an add while no toaster is on the page', async () => {
+    // Sonner's region would be created with this very toast, which a screen reader can miss.
+    await addOnce()
     expect(region()).toHaveTextContent('به سبد خرید اضافه شد: گوشی S25')
+  })
+
+  it("leaves the add to Sonner's own region once the toaster is on the page: read once", async () => {
+    mocks.toastRegionReady = true
+    await addOnce()
+    expect(region()).toBeEmptyDOMElement()
   })
 })

@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { announce } from '@/components/ui/live-announcer'
-import { notify } from '@/components/ui/toaster'
+import { notify, toastRegionReady } from '@/components/ui/toaster'
 import { useHydrated } from '@/components/ui/use-media-query'
 import { ApiError } from '@/lib/api/errors'
 import type { Cart, CartLine } from '@/lib/api/types/cart'
@@ -100,10 +100,11 @@ export interface AddVariables {
 }
 
 /**
- * `POST cart/item/add/` as mutation options. Success stores the returned cart, shows the
- * «added» toast and reads «به سبد خرید اضافه شد: <name>» out through the shell's live region; a
- * refusal (limit, stock, a switched-off feature, throttling) shows the API's Persian detail and
- * leaves the cache alone.
+ * `POST cart/item/add/` as mutation options. Success stores the returned cart and shows the
+ * «added» toast, read out once: by Sonner's own live region when the toaster is already on the
+ * page, else as «به سبد خرید اضافه شد: <name>» through the shell's region (Sonner's is created
+ * with its first toast, which a screen reader can miss). A refusal (limit, stock, a switched-off
+ * feature, throttling) shows the API's Persian detail and leaves the cache alone.
  */
 function addToCartOptions(
   client: QueryClient,
@@ -114,9 +115,9 @@ function addToCartOptions(
     onSuccess: async ({ data, msg }, { meta, toast }) => {
       await storeCart(client, data)
       if (!toast) return
+      const heardByToaster = toastRegionReady()
       showAddedToCartToast({ ...meta, message: msg })
-      // Also through the shell's own region: Sonner's is only created with its first toast.
-      announce(`${ADDED_ANNOUNCEMENT}: ${meta.name}`)
+      if (!heardByToaster) announce(`${ADDED_ANNOUNCEMENT}: ${meta.name}`)
     },
     onError: (error) => notify.error(errorDetail(error)),
   }

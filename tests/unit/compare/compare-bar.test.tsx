@@ -8,6 +8,7 @@ import { useCompare, type CompareItem } from '@/features/compare/store'
 const mocks = vi.hoisted(() => ({ pathname: '/', success: vi.fn() }))
 vi.mock('next/navigation', () => ({ usePathname: () => mocks.pathname }))
 vi.mock('@/components/ui/toaster', () => ({
+  toastRegionReady: () => false,
   notify: { success: mocks.success, info: vi.fn(), error: vi.fn(), dismiss: vi.fn() },
 }))
 

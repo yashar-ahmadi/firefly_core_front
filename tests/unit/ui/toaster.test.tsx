@@ -50,6 +50,19 @@ describe('Toaster', () => {
   })
 })
 
+describe('toastRegionReady', () => {
+  it('turns true once a toaster view is on the page (its live region with it), not before', async () => {
+    const { notify, Toaster, toastRegionReady } = await load()
+    render(<Toaster />)
+    expect(toastRegionReady()).toBe(false)
+    // The first toast only asks for the view: Sonner's region comes with it.
+    notify.success('به سبد اضافه شد')
+    expect(toastRegionReady()).toBe(false)
+    await waitFor(() => expect(sonner.toast.success).toHaveBeenCalled())
+    expect(toastRegionReady()).toBe(true)
+  })
+})
+
 describe('notify', () => {
   it('forwards success, error and info to Sonner in order, also those sent before it loaded', async () => {
     const { notify, Toaster } = await load()

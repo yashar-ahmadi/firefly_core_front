@@ -5,6 +5,7 @@ import { ShareButton } from '@/features/product/components/share-button'
 const mocks = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }))
 
 vi.mock('@/components/ui/toaster', () => ({
+  toastRegionReady: () => false,
   notify: { error: mocks.error, success: mocks.success, info: vi.fn(), dismiss: vi.fn() },
 }))
 
