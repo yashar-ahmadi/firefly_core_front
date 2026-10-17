@@ -65,7 +65,11 @@ describe('PasswordSection', () => {
 
   it('changes the password with the current one; a toast, the fields emptied', async () => {
     const { user } = renderWithMe((me) => <PasswordSection me={me} />)
-    expect(screen.getByRole('heading', { level: 2, name: 'رمز عبور' })).toBeInTheDocument()
+    const heading = screen.getByRole('heading', { level: 2, name: 'رمز عبور' })
+    // The card's own line, right under its title, as every profile card has it.
+    const line = heading.parentElement!.nextElementSibling!
+    expect(line.tagName).toBe('P')
+    expect(line).toHaveTextContent(/^پس از تغییر رمز عبور/)
     expect(field('رمز فعلی')).toHaveAttribute('autocomplete', 'current-password')
     expect(field('رمز عبور جدید')).toHaveAttribute('autocomplete', 'new-password')
     expect(field('تکرار رمز عبور جدید')).toHaveAttribute('autocomplete', 'new-password')

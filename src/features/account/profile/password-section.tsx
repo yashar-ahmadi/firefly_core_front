@@ -23,6 +23,7 @@ import { useProfileRunner } from './use-profile-runner'
 type PasswordField = 'current' | 'password' | 'confirm'
 type Values = Record<PasswordField, string>
 
+const TITLE = 'رمز عبور'
 const EMPTY: Values = { current: '', password: '', confirm: '' }
 
 const toFailure = (error: unknown) =>
@@ -108,46 +109,47 @@ function PasswordForm({ me }: { me: UserProfile }) {
   }
 
   return (
-    <div ref={container} className="flex flex-col gap-5">
-      {/* The section's line under its title, as the other cards have it (4px under the title;
-          it says «change» or «set», which only the profile tells). */}
-      <p className="-mt-3 text-base leading-7 text-ink-600">{copy.description}</p>
-      {state.notice && <FormAlert>{state.notice.detail}</FormAlert>}
-      <AuthForm className="gap-5 sm:max-w-md" onSubmit={save}>
-        <input
-          type="text"
-          name="username"
-          autoComplete="username"
-          value={usernameOf(me)}
-          readOnly
-          hidden
-        />
-        {withCurrent && (
-          <Field label="رمز فعلی" error={errors.current}>
-            <PasswordInput
-              name="current-password"
-              autoComplete="current-password"
-              enterKeyHint="next"
-              value={values.current}
-              onChange={(event) => edit('current', event.currentTarget.value)}
-            />
-          </Field>
-        )}
-        <PasswordFields
-          labels={copy.labels}
-          password={values.password}
-          confirm={values.confirm}
-          errors={errors}
-          reasons={state.reasons}
-          related={[me.first_name, me.last_name, me.email ?? '', me.username]}
-          onPassword={(value) => edit('password', value)}
-          onConfirm={(value) => edit('confirm', value)}
-        />
-        <SubmitButton busy={state.busy} lock={lock} size="md" className={FORM_BUTTON}>
-          {copy.submit}
-        </SubmitButton>
-      </AuthForm>
-    </div>
+    // The card's line says «change» or «set», which only the profile (or the API) tells: the card
+    // is drawn here, once the profile is in.
+    <ProfileSection title={TITLE} description={copy.description}>
+      <div ref={container} className="flex flex-col gap-5">
+        {state.notice && <FormAlert>{state.notice.detail}</FormAlert>}
+        <AuthForm className="gap-5 sm:max-w-md" onSubmit={save}>
+          <input
+            type="text"
+            name="username"
+            autoComplete="username"
+            value={usernameOf(me)}
+            readOnly
+            hidden
+          />
+          {withCurrent && (
+            <Field label="رمز فعلی" error={errors.current}>
+              <PasswordInput
+                name="current-password"
+                autoComplete="current-password"
+                enterKeyHint="next"
+                value={values.current}
+                onChange={(event) => edit('current', event.currentTarget.value)}
+              />
+            </Field>
+          )}
+          <PasswordFields
+            labels={copy.labels}
+            password={values.password}
+            confirm={values.confirm}
+            errors={errors}
+            reasons={state.reasons}
+            related={[me.first_name, me.last_name, me.email ?? '', me.username]}
+            onPassword={(value) => edit('password', value)}
+            onConfirm={(value) => edit('confirm', value)}
+          />
+          <SubmitButton busy={state.busy} lock={lock} size="md" className={FORM_BUTTON}>
+            {copy.submit}
+          </SubmitButton>
+        </AuthForm>
+      </div>
+    </ProfileSection>
   )
 }
 
@@ -157,9 +159,5 @@ function PasswordForm({ me }: { me: UserProfile }) {
  * this device stays signed in; a toast says it went through and the fields empty.
  */
 export function PasswordSection({ me }: { me: UserProfile | undefined }) {
-  return (
-    <ProfileSection title="رمز عبور" loading={!me} skeletonFields={3}>
-      {me && <PasswordForm me={me} />}
-    </ProfileSection>
-  )
+  return me ? <PasswordForm me={me} /> : <ProfileSection title={TITLE} loading skeletonFields={3} />
 }
