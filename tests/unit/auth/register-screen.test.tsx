@@ -16,10 +16,8 @@ const mocks = vi.hoisted(() => ({
   fetchProfile: vi.fn(),
   router: { replace: vi.fn(), push: vi.fn() },
 }))
-vi.mock('@/features/auth/api', () => ({
-  authApi: { registerStart: mocks.registerStart },
-  fetchProfile: mocks.fetchProfile,
-}))
+vi.mock('@/features/auth/api', () => ({ authApi: { registerStart: mocks.registerStart } }))
+vi.mock('@/features/auth/profile-api', () => ({ fetchProfile: mocks.fetchProfile }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
 

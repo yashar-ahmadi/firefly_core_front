@@ -1,49 +1,20 @@
 'use client'
 
-import { ChevronDown, CircleUserRound, LogIn, ShoppingCart } from 'lucide-react'
+import { ShoppingCart } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { buttonClasses, iconButtonClasses } from '@/components/ui/button-styles'
+import { iconButtonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
-import { DeferredMenu } from '@/components/ui/deferred-menu'
 import { PanelPending } from '@/components/ui/panel-pending'
 import { trackPresses } from '@/components/ui/press-tracking'
 import { SHEET_SIDE_QUERY, useMediaQuery } from '@/components/ui/use-media-query'
 import { WidgetBoundary } from '@/components/ui/widget-boundary'
 import { CartBadge, useCartLabel } from '@/features/cart/components/cart-badge'
 import type { MiniCartProps } from '@/features/cart/components/mini-cart'
-import { useFeature } from '@/features/settings/feature-context'
-import { useT } from '@/lib/i18n/i18n-context'
-import { loginHref } from '@/lib/links/login'
 import { loadPage } from '@/lib/navigation/hard-navigation'
 import { isModifiedClick } from '@/lib/navigation/modified-click'
-import { useSession } from '@/lib/session/session-context'
-
-const loadAccountMenu = () => import('./account-menu').then((module) => module.AccountMenu)
-
-/**
- * Signed in: the account entry, a menu whose code loads on first use (DeferredMenu). If that
- * code cannot be downloaded, the account page is the way on.
- */
-function AccountEntry() {
-  const t = useT()
-  return (
-    <DeferredMenu
-      load={loadAccountMenu}
-      props={{}}
-      onUnavailable={() => loadPage('/account/')}
-      trigger={
-        <Button variant="ghost" iconStart={<CircleUserRound />} className="gap-1.5 px-3">
-          {t('account')}
-          <ChevronDown aria-hidden className="size-4! text-ink-500" />
-        </Button>
-      }
-    />
-  )
-}
+import { AccountEntry } from './account-entry'
 
 type LazyMiniCartProps = MiniCartProps & { onUnavailable: () => void }
 
@@ -120,25 +91,10 @@ function CartEntry() {
 
 /** The header's end: the account entry (from md; phones use the bottom bar) and the cart. */
 export function HeaderActions() {
-  const t = useT()
-  const pathname = usePathname() ?? '/'
-  const { hasSession } = useSession()
-  const registration = useFeature('registration').enabled
-
   return (
     <div className="flex shrink-0 items-center gap-1 md:gap-2">
       <div className="hidden md:block">
-        {hasSession ? (
-          <AccountEntry />
-        ) : (
-          <Link
-            href={loginHref(pathname)}
-            className={cn(buttonClasses({ variant: 'outline' }), 'gap-2 px-4')}
-          >
-            <LogIn aria-hidden className="rtl:-scale-x-100" />
-            {t(registration ? 'login_register' : 'login')}
-          </Link>
-        )}
+        <AccountEntry />
       </div>
       <span aria-hidden className="hidden h-6 w-px bg-ink-200 md:block" />
       <CartEntry />

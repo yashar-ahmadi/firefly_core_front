@@ -23,11 +23,11 @@ function HeaderMenuButton({ item, pathname }: { item: MenuNode; pathname: string
       load={loadHeaderDropdown}
       props={{ item, pathname }}
       onUnavailable={() => (item.url !== null ? loadPage(item.url) : reloadPage())}
+      indicator={<ChevronDown aria-hidden className="size-4 text-ink-500" />}
       trigger={
         <button type="button" className={HEADER_LINK}>
           {item.icon && <MenuIcon src={item.icon} />}
           {item.title}
-          <ChevronDown aria-hidden className="size-4 text-ink-500" />
         </button>
       }
     />

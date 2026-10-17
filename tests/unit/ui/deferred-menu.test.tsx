@@ -61,6 +61,38 @@ describe('DeferredMenu', () => {
     expect(screen.getByRole('button', { name: 'راهنما' }).querySelector('.animate-spin')).toBeNull()
   })
 
+  it('puts the spinner in the place of the indicator (the chevron), with its classes', async () => {
+    const { load, resolve } = deferredLoad()
+    render(
+      <DeferredMenu
+        load={load}
+        props={{}}
+        onUnavailable={vi.fn()}
+        indicator={<svg data-testid="chevron" aria-hidden className="size-4! text-ink-500" />}
+        trigger={
+          <button type="button">
+            <span>راهنما</span>
+          </button>
+        }
+      />,
+    )
+    const button = screen.getByRole('button', { name: 'راهنما' })
+    // The indicator ends the button; the label comes first.
+    expect(button.lastElementChild).toBe(screen.getByTestId('chevron'))
+    expect(button.children).toHaveLength(2)
+    fireEvent.click(button)
+    expect(screen.queryByTestId('chevron')).toBeNull()
+    const spinner = button.querySelector('.animate-spin')
+    expect(button.lastElementChild).toBe(spinner)
+    expect(button.children).toHaveLength(2)
+    expect(spinner).toHaveClass('size-4!', 'text-ink-500')
+    await act(async () => resolve(FakeMenu))
+    // The loaded menu's own button: the indicator is back, no spinner.
+    const loaded = screen.getByRole('button', { name: 'راهنما' })
+    expect(loaded.lastElementChild).toBe(screen.getByTestId('chevron'))
+    expect(loaded.querySelector('.animate-spin')).toBeNull()
+  })
+
   it('opens from Enter, Space or Down as a keyboard opening', async () => {
     const { load, resolve } = deferredLoad()
     const button = renderMenu(load)

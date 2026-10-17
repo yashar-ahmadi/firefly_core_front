@@ -1,4 +1,5 @@
 import { bffFetch } from '@/lib/api/client'
+import { fetchProfile, type ReadOptions } from './profile-api'
 import type {
   AuthenticatedResponse,
   ContactRequestBody,
@@ -34,10 +35,6 @@ import type {
 // IP, so the throttles count per visitor. Each resolves with the answer's `data` and rejects with
 // the `ApiError` as it comes: show `detail`, branch on `code`, wait `retryAfter` on a 429.
 
-interface ReadOptions {
-  signal?: AbortSignal
-}
-
 async function post<T>(path: string, body?: object): Promise<T> {
   const options = body === undefined ? { method: 'POST' } : { body }
   return (await bffFetch<T>(path, options)).data
@@ -45,14 +42,6 @@ async function post<T>(path: string, body?: object): Promise<T> {
 
 async function get<T>(path: string, { signal }: ReadOptions = {}): Promise<T> {
   return (await bffFetch<T>(path, { signal })).data
-}
-
-/**
- * `GET account/profile/me/`, on its own so a component that needs only the profile (`useMe`, in
- * the header) does not bring the rest of `authApi` along.
- */
-export function fetchProfile(options?: ReadOptions): Promise<UserProfile> {
-  return get<UserProfile>('account/profile/me/', options)
 }
 
 /** Names as JSON; with an avatar, everything as multipart (the browser sets the boundary). */

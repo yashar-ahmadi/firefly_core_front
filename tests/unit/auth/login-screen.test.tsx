@@ -22,6 +22,7 @@ interface ScriptProps {
 const mocks = vi.hoisted(() => {
   const replace = vi.fn()
   return {
+    notify: { info: vi.fn(), success: vi.fn(), error: vi.fn(), dismiss: vi.fn() },
     google: vi.fn(),
     logout: vi.fn(),
     fetchProfile: vi.fn(),
@@ -35,16 +36,13 @@ const mocks = vi.hoisted(() => {
 })
 vi.mock('@/features/auth/api', () => ({
   authApi: { google: mocks.google, logout: mocks.logout },
-  fetchProfile: mocks.fetchProfile,
 }))
+vi.mock('@/features/auth/profile-api', () => ({ fetchProfile: mocks.fetchProfile }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
 // `disabledAuth` lives with the server-side settings loaders.
 vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
-vi.mock('@/components/ui/toaster', () => ({
-  toastRegionReady: () => false,
-  notify: { info: vi.fn(), success: vi.fn(), error: vi.fn(), dismiss: vi.fn() },
-}))
+vi.mock('@/components/ui/toaster', () => ({ toastRegionReady: () => false, notify: mocks.notify }))
 // Google Identity Services: loads (or fails to) as the test says.
 vi.mock('next/script', () => ({
   default: function Script({ src, onReady, onError }: ScriptProps) {
@@ -122,15 +120,22 @@ describe('LoginScreen', () => {
     expect(mocks.replace).not.toHaveBeenCalled()
   })
 
-  it('logs out from there, and the form follows', async () => {
+  it('logs out from there with useLogout: busy meanwhile, then home with the toast', async () => {
     mocks.fetchProfile.mockResolvedValue(SARA)
-    mocks.logout.mockResolvedValue({})
+    let answer: () => void = () => {}
+    mocks.logout.mockReturnValue(new Promise<void>((resolve) => (answer = resolve)))
     const { user, client } = renderScreen({ hasSession: true })
     await screen.findByText(/سارا احمدی/)
-    await user.click(screen.getByRole('button', { name: 'خروج' }))
+    const logout = screen.getByRole('button', { name: 'خروج' })
+    await user.click(logout)
+    expect(logout).toHaveAttribute('aria-busy', 'true')
+    await user.click(logout)
+    answer()
     expect(await screen.findByLabelText('ایمیل یا شماره موبایل')).toBeVisible()
     expect(mocks.logout).toHaveBeenCalledTimes(1)
     expect(client.getQueryData(ME_KEY)).toBeUndefined()
+    expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/')
+    expect(mocks.notify.success).toHaveBeenCalledExactlyOnceWith('از حساب خارج شدید')
   })
 
   it('says sign-in is unavailable without settings, and offers no form', () => {

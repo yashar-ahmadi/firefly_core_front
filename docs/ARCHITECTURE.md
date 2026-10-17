@@ -369,6 +369,12 @@ signed-in header to another.
   the `Accordion` where either matters or the state is driven from code (the listing filters).
   Server Components must not import a heavy client primitive just to wrap a trigger (a `Dialog`
   imported by a Server Component ships with every page that renders it).
+- **Signed-in code.** What only a signed-in visitor sees loads with the session, never with a
+  guest's page (the budget is measured as a guest): the header's account button (the profile
+  read, the avatar) is a `next/dynamic` import rendered only while `hasSession` (server-rendered,
+  and so preloaded, when the request carries the session flag), and its menu (with logout) loads
+  on first use. A shared module in that code must not drag a larger one in: `useMe` reads the
+  profile from `features/auth/profile-api.ts`, not from `authApi`, which holds every auth endpoint.
 - **Product cards.** A card's heart, compare toggle, quick view icon and add slot are one client
   island (`CardActions`), not four: they read their grid's or rail's `CardScope` (one hydration
   flag, one wishlist-ids query and one compare-list subscription for every card), and the heart
@@ -486,6 +492,14 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   start the backend with a larger budget, e.g. `THROTTLE_ANON=20000/hour`. A global setup
   (`tests/e2e/global-setup.ts`) probes the backend once before the run and stops it with that
   advice when the answer is already 429.
+- **Signed-in specs** (Plan 3). Every login is one `auth_attempt` at the backend, 20 a minute per
+  address for the whole run (the BFF forwards the visitor's address), so specs never log in per
+  test or in a loop (`tests/e2e/support/session.ts`). A spec that only reads with a session uses
+  `signedInTest` from there: its `page` shares one login per project per run (a storage-state file
+  in the output folder, written by the first worker that asks for it while the others wait). Never
+  log that session out, revoke it or change its password with it, and restore any account data a
+  test changes (addresses, wishlist). A spec that ends or changes its session logs in on its own,
+  once per project, with `logIn` (as `tests/e2e/account/logout.spec.ts` does).
 - **CI** (`.github/workflows/ci.yml`, push and PR to `main`): install, `typecheck`, `lint`,
   `format:check`, `test`, `build`. End-to-end tests are not run in CI (they need the backend, a
   separate repository); run them locally before pushing.

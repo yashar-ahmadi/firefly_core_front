@@ -1,7 +1,8 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav'
+import { useSession, type SessionState } from '@/lib/session/session-context'
 import { cart, cartLine, result } from '../cart/support'
 import { clientProviders } from '../support/providers'
 
@@ -48,6 +49,27 @@ describe('MobileBottomNav', () => {
       'href',
       '/account/',
     )
+  })
+
+  it('follows the session as it changes: a logout gives the guest link back, no reload', () => {
+    let session: SessionState | null = null
+    function Probe() {
+      session = useSession()
+      return null
+    }
+    render(
+      withSession(
+        <>
+          <Probe />
+          <MobileBottomNav />
+        </>,
+        true,
+      ),
+    )
+    const account = () => within(bottomNav()).getByRole('link', { name: /^حساب من/ })
+    expect(account()).toHaveAttribute('href', '/account/')
+    act(() => session?.setHasSession(false))
+    expect(account()).toHaveAttribute('href', '/login/?next=/account/')
   })
 
   it('marks the current tab, including the pages under it', () => {

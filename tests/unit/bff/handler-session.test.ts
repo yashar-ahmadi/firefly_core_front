@@ -137,6 +137,25 @@ describe('session end and replacement', () => {
     for (const name of SESSION) expect(isCleared(setCookies(res)[name]), name).toBe(true)
   })
 
+  it.each(['account/auth/logout/', 'account/auth/logout-all/'])(
+    'clears the session after %s when the API cannot be reached, or answers no JSON',
+    async (path) => {
+      const cookies = { ff_at: jwtExpiringIn(600), ff_rt: jwtExpiringIn(9999), ff_cart: 'c' }
+      fetchSpy.mockRejectedValue(new TypeError('fetch failed'))
+      const handleBff = await loadHandler()
+      const unreachable = await handleBff(...bff(path, { method: 'POST', json: {}, cookies }))
+      expect(unreachable.status).toBe(502)
+      for (const name of SESSION) expect(isCleared(setCookies(unreachable)[name]), name).toBe(true)
+      // The guest cart cookie is not the session's: it stays.
+      expect(setCookies(unreachable).ff_cart).toBeUndefined()
+
+      fetchSpy.mockResolvedValue(new Response('<html>Bad gateway</html>', { status: 503 }))
+      const html = await handleBff(...bff(path, { method: 'POST', json: {}, cookies }))
+      expect(html.status).toBe(503)
+      for (const name of SESSION) expect(isCleared(setCookies(html)[name]), name).toBe(true)
+    },
+  )
+
   it('replaces the pair returned by a password change', async () => {
     const access = jwtExpiringIn(900)
     const refresh = jwtExpiringIn(604_800)

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/components/ui/cn'
 import { CartBadge, useCartLabel } from '@/features/cart/components/cart-badge'
 import { useT } from '@/lib/i18n/i18n-context'
+import { loginHref } from '@/lib/links/login'
 import { useSession } from '@/lib/session/session-context'
 import { BOTTOM_BAR_FRAME, BOTTOM_BAR_ROW, BOTTOM_BAR_SPACER } from './bottom-bar'
 
@@ -25,11 +26,13 @@ const under = (pathname: string, ...prefixes: string[]) =>
   prefixes.some((prefix) => pathname.startsWith(prefix))
 
 /**
- * The phone's bottom navigation (below md): home, categories, cart and account. The current tab
- * is brand-coloured with a filled icon. It slides away while scrolling down and is not shown
- * during checkout. While a page's own buy bar is mounted (the product page) a rule in
- * globals.css hides it (`data-bottom-nav`); its spacer stays, since the bar is as tall. It
- * reserves its height at the end of the page, so nothing hides under either bar.
+ * The phone's bottom navigation (below md): home, categories, cart and account (the account for
+ * a signed-in visitor; login first, then the account, for a guest; it follows the session as it
+ * changes). The current tab is brand-coloured with a filled icon. It slides away while
+ * scrolling down and is not shown during checkout. While a page's own buy bar is mounted (the
+ * product page) a rule in globals.css hides it (`data-bottom-nav`); its spacer stays, since the
+ * bar is as tall. It reserves its height at the end of the page, so nothing hides under either
+ * bar.
  */
 export function MobileBottomNav() {
   const t = useT()
@@ -54,7 +57,7 @@ export function MobileBottomNav() {
       cart: true,
     },
     {
-      href: hasSession ? '/account/' : '/login/?next=/account/',
+      href: hasSession ? '/account/' : loginHref('/account/'),
       label: t('account'),
       icon: CircleUserRound,
       active: under(pathname, '/account/', '/login/', '/register/', '/forgot-password/'),

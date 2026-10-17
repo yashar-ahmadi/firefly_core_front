@@ -13,7 +13,8 @@ import { stubBrowserApis } from '../support/dom-stubs'
 // the URL, the history and the server logs): the server HTML has the submit button disabled
 // and a POST form, the page says JavaScript is needed, and hydration enables the button.
 
-vi.mock('@/features/auth/api', () => ({ authApi: {}, fetchProfile: vi.fn() }))
+vi.mock('@/features/auth/api', () => ({ authApi: {} }))
+vi.mock('@/features/auth/profile-api', () => ({ fetchProfile: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }))
 

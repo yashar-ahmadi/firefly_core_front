@@ -39,8 +39,14 @@ export const fa: Record<string, string> = {
   login: 'ورود',
   login_register: 'ورود | ثبت\u{200C}نام',
   account: 'حساب من',
+  account_of: 'حساب کاربری: {name}',
+  account_dashboard: 'پیشخوان',
   account_orders: 'سفارش\u{200C}ها',
   account_wishlist: 'علاقه\u{200C}مندی\u{200C}ها',
+  account_addresses: 'نشانی\u{200C}ها',
+  account_notifications: 'اعلان\u{200C}ها',
+  notifications_unread: 'اعلان خوانده\u{200C}نشده دارید',
+  logout: 'خروج',
   cart_count: 'سبد خرید، {count} کالا',
 
   // Shell

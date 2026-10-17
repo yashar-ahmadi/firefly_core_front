@@ -10,7 +10,8 @@ const mocks = vi.hoisted(() => ({
   fetchProfile: vi.fn(),
   router: { replace: vi.fn(), push: vi.fn() },
 }))
-vi.mock('@/features/auth/api', () => ({ authApi: {}, fetchProfile: mocks.fetchProfile }))
+vi.mock('@/features/auth/api', () => ({ authApi: {} }))
+vi.mock('@/features/auth/profile-api', () => ({ fetchProfile: mocks.fetchProfile }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: vi.fn() }))
 // `disabledAuth` lives with the server-side settings loaders.
 vi.mock('server-only', () => ({}))

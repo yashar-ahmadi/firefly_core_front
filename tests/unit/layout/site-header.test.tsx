@@ -39,10 +39,15 @@ vi.mock('@/config/store-config', async () => {
   )
   return { ...pure, getStoreConfig: () => config }
 })
-// The header's cart badge reads the cart through the BFF: a guest without a cart.
+// The BFF: the signed-in visitor's profile (the account button's name), else an empty cart (the
+// header's cart badge).
 vi.mock('@/lib/api/client', async () => {
   const { cart, result } = await import('../cart/support')
-  return { bffFetch: async () => result(cart()) }
+  const { SARA } = await import('../auth/fixtures')
+  return {
+    bffFetch: async (path: string) =>
+      path === 'account/profile/me/' ? { data: SARA, msg: '', status: 200 } : result(cart()),
+  }
 })
 vi.mock('@/features/settings/api', () => ({
   getSiteSettings: async () => mocks.settings,
@@ -181,16 +186,20 @@ describe('SiteHeader', () => {
     expect(screen.getByRole('link', { name: 'ورود' })).toHaveAttribute('href', '/login/')
   })
 
-  it('shows the account menu to a signed-in visitor', async () => {
+  it('shows the account menu to a signed-in visitor, named after her', async () => {
     await renderHeader({ hasSession: true })
     expect(screen.queryByRole('link', { name: /ورود/ })).toBeNull()
-    expect(screen.getByRole('button', { name: 'حساب من' })).toHaveAttribute('aria-haspopup', 'menu')
+    expect(await screen.findByRole('button', { name: 'حساب کاربری: سارا احمدی' })).toHaveAttribute(
+      'aria-haspopup',
+      'menu',
+    )
   })
 
   it('opens the account menu (its code loads on first use), from the keyboard on its first item', async () => {
     const user = userEvent.setup()
     await renderHeader({ hasSession: true })
-    const button = screen.getByRole('button', { name: 'حساب من' })
+    const name = 'حساب کاربری: سارا احمدی'
+    const button = await screen.findByRole('button', { name })
     expect(button).toHaveAttribute('aria-expanded', 'false')
     await user.click(button)
     const menu = await screen.findByRole('menu')
@@ -198,15 +207,22 @@ describe('SiteHeader', () => {
       within(menu)
         .getAllByRole('menuitem')
         .map((item) => item.getAttribute('href')),
-    ).toEqual(['/account/', '/account/orders/', '/account/wishlist/'])
+    ).toEqual([
+      '/account/',
+      '/account/orders/',
+      '/account/wishlist/',
+      '/account/addresses/',
+      '/account/notifications/',
+      null,
+    ])
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
-    const loaded = screen.getByRole('button', { name: 'حساب من' })
+    const loaded = screen.getByRole('button', { name })
     expect(loaded).toHaveFocus()
     await user.keyboard('{Enter}')
     const again = await screen.findByRole('menu')
     await waitFor(() =>
-      expect(within(again).getByRole('menuitem', { name: 'حساب من' })).toHaveFocus(),
+      expect(within(again).getByRole('menuitem', { name: 'پیشخوان' })).toHaveFocus(),
     )
   })
 

@@ -5,7 +5,7 @@ import type { UserProfile } from '@/lib/api/types/account'
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { isSessionExpiredError, ME_KEY } from '@/lib/session/viewer-queries'
-import { fetchProfile } from './api'
+import { fetchProfile } from './profile-api'
 
 export { ME_KEY }
 
