@@ -4,6 +4,7 @@ import { useLogout } from '@/features/auth/use-logout'
 import { readPushState, savePushState } from '@/features/push/push-storage'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { clientProviders } from '../support/providers'
+import { OWNER } from './support'
 
 // Web push and the session's end (dashboard digest §4.3, step 5): a logout sends this browser's
 // token with the refresh token (`{refresh, registration_id}`: the BFF adds the refresh cookie),
@@ -63,7 +64,7 @@ function logoutHook() {
 
 describe('logout and web push', () => {
   it('sends this browser’s token with the logout, then forgets it and its subscription', async () => {
-    savePushState({ token: TOKEN, checkedAt: 1 })
+    savePushState({ token: TOKEN, owner: OWNER, checkedAt: 1 })
     const { result } = logoutHook()
     await act(() => result.current.logout())
     expect(mocks.logout).toHaveBeenCalledExactlyOnceWith({ registration_id: TOKEN })
@@ -71,15 +72,16 @@ describe('logout and web push', () => {
     await waitFor(() => expect(mocks.unsubscribe).toHaveBeenCalledTimes(1))
   })
 
-  it('without push on, the logout sends nothing more', async () => {
+  it('nothing stored: the logout sends no token, and a subscription left is still dropped', async () => {
+    // Without storage push was on for one page only: its subscription may be there all the same.
     const { result } = logoutHook()
     await act(() => result.current.logout())
     expect(mocks.logout).toHaveBeenCalledExactlyOnceWith()
-    expect(mocks.unsubscribe).not.toHaveBeenCalled()
+    await waitFor(() => expect(mocks.unsubscribe).toHaveBeenCalledTimes(1))
   })
 
   it('logout-all deactivates every device itself: no token sent, still forgotten here', async () => {
-    savePushState({ token: TOKEN, checkedAt: 1 })
+    savePushState({ token: TOKEN, owner: OWNER, checkedAt: 1 })
     const { result } = logoutHook()
     await act(() => result.current.logout({ all: true }))
     expect(mocks.logoutAll).toHaveBeenCalledExactlyOnceWith()
@@ -87,7 +89,7 @@ describe('logout and web push', () => {
   })
 
   it('a failed logout request still forgets the token here (the session is gone anyway)', async () => {
-    savePushState({ token: TOKEN, checkedAt: 1 })
+    savePushState({ token: TOKEN, owner: OWNER, checkedAt: 1 })
     mocks.logout.mockRejectedValue(new Error('offline'))
     const { result } = logoutHook()
     await act(() => result.current.logout())
@@ -96,8 +98,16 @@ describe('logout and web push', () => {
 })
 
 describe('a session that ended by itself and web push', () => {
+  it('nothing stored (no storage): the browser’s subscription still goes', async () => {
+    const { result } = renderHook(useSessionExpired, {
+      wrapper: clientProviders({ hasSession: true }).wrapper,
+    })
+    act(() => result.current())
+    await waitFor(() => expect(mocks.unsubscribe).toHaveBeenCalledTimes(1))
+  })
+
   it('forgets the token and the subscription, asking nothing of the API', async () => {
-    savePushState({ token: TOKEN, checkedAt: 1 })
+    savePushState({ token: TOKEN, owner: OWNER, checkedAt: 1 })
     const { result } = renderHook(useSessionExpired, {
       wrapper: clientProviders({ hasSession: true }).wrapper,
     })

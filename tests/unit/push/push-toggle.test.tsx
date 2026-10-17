@@ -4,7 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PUSH_LABEL, PushToggle } from '@/features/push/push-toggle'
 import { savePushState } from '@/features/push/push-storage'
 import { ENABLE_FAILED } from '@/features/push/use-web-push'
-import { pushProviders, stubPushBrowser, unstubPushBrowser, type PushBrowser } from './support'
+import {
+  OWNER,
+  pushProviders,
+  stubPushBrowser,
+  unstubPushBrowser,
+  type PushBrowser,
+} from './support'
 
 // «دریافت اعلان در مرورگر» in the inbox's header: hidden without the shop's Firebase config, a
 // note in a browser without web push, otherwise a switch (off, on, blocked in the browser's
@@ -68,7 +74,7 @@ describe('PushToggle', () => {
 
   it('on: the switch is on', () => {
     browser = stubPushBrowser({ permission: 'granted' })
-    savePushState({ token: 'token', checkedAt: Date.now() })
+    savePushState({ token: 'token', owner: OWNER, checkedAt: Date.now() })
     toggle()
     expect(pushSwitch()).toBeChecked()
     expect(pushSwitch()).toHaveAccessibleDescription(/روشن است/)
@@ -84,10 +90,12 @@ describe('PushToggle', () => {
 
   it('turning it on asks the permission, shows the wait, then reads as on', async () => {
     let grant: () => void = () => {}
+    // The prompt is answered later; answering grants it, as the browser does.
+    const answer = browser.requestPermission.getMockImplementation()!
     browser.requestPermission.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
-          grant = () => resolve('granted')
+          grant = () => resolve(answer())
         }),
     )
     const user = userEvent.setup()

@@ -40,6 +40,9 @@ function Filters() {
       <a href={url.href({ ...url.params, sort: 'c', page: 1 })} onClick={url.follow}>
         مرتب‌سازی c
       </a>
+      <a href={url.href({ ...url.params, page: 2 })} onClick={url.followPage}>
+        صفحه ۲
+      </a>
       <a href={url.href(url.params)} onClick={url.follow}>
         همین
       </a>
@@ -101,6 +104,17 @@ describe('useListUrl', () => {
     expect(prevented).toEqual([true])
     expect(history.pushed()).toEqual(['/account/things/?sort=c'])
     expect(mocks.router.push).not.toHaveBeenCalled()
+  })
+
+  it('a page link’s click: a new history entry, and the new page shown from the top', () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    render(<Filters />)
+    fireEvent.click(screen.getByRole('link', { name: 'صفحه ۲' }))
+    expect(prevented).toEqual([true])
+    expect(history.pushed()).toEqual(['/account/things/?sort=b&page=2'])
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0 })
+    expect(mocks.router.push).not.toHaveBeenCalled()
+    scrollTo.mockRestore()
   })
 
   it('a click that opens a new tab is left to the browser; the link on screen adds no entry', () => {

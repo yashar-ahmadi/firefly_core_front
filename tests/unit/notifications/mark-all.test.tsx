@@ -4,7 +4,7 @@ import { progressText } from '@/features/notifications/mark-all-button'
 import { NOTIFICATIONS_KEY } from '@/features/notifications/notifications-api'
 import type { Inbox } from '@/features/notifications/notifications-cache'
 import { UNREAD_NOTIFICATIONS_KEY } from '@/features/notifications/unread'
-import { ALL_READ, useMarkAll } from '@/features/notifications/use-mark-all'
+import { useMarkAll } from '@/features/notifications/use-mark-all'
 import { THROTTLED_MESSAGE } from '@/features/account/lists/list-error'
 import { clientProviders } from '../support/providers'
 import { apiError, inboxPage, newInboxApi, notification, readIds, stubInboxApi } from './support'
@@ -73,7 +73,9 @@ describe('useMarkAll', () => {
     await waitFor(() => expect(result.current.state.phase).toBe('idle'))
     expect(api.read).toHaveBeenCalledTimes(3)
     expect(unreadRows(client)).toEqual([])
-    expect(mocks.notify.success).toHaveBeenCalledWith(ALL_READ)
+    // Said once, by the page's status line (the count at 0), not by a toast as well.
+    expect(mocks.notify.success).not.toHaveBeenCalled()
+    expect(client.getQueryData(UNREAD_NOTIFICATIONS_KEY)).toBe(0)
   })
 
   it('reads the unread ids from every page, not only the inbox’s pages on screen', async () => {

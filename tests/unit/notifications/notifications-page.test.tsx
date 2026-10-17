@@ -126,12 +126,15 @@ describe('NotificationsPage', () => {
     expect(rowButton('سفارش شما ارسال شد')).toHaveAccessibleName('سفارش شما ارسال شد')
   })
 
-  it('the worker’s word after a click on a notification: the inbox reads itself again', async () => {
+  it.each([
+    ['a click on a notification', { type: REFRESH_MESSAGE }],
+    ['a push while the inbox is open', { isFirebaseMessaging: true, messageType: 'push-received' }],
+  ])('the worker’s word after %s: the inbox reads itself again', async (_label, message) => {
     const browser = stubPushBrowser()
     renderInbox()
     await screen.findAllByRole('article')
     const before = listReads(mocks.bffFetch).length
-    act(() => browser.postFromWorker({ type: REFRESH_MESSAGE }))
+    act(() => browser.postFromWorker(message))
     await waitFor(() => expect(listReads(mocks.bffFetch).length).toBeGreaterThan(before))
   })
 

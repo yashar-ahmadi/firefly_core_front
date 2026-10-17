@@ -48,9 +48,11 @@ export function inboxPage(
   }
 }
 
+type ListAnswer = Paginated<NotificationItem> | ApiError
+
 export interface InboxApi {
-  /** The list for a query (an `ApiError` is thrown). */
-  list: (query: QueryInit) => Paginated<NotificationItem> | ApiError
+  /** The list for a query, now or later (an `ApiError` is thrown). */
+  list: (query: QueryInit) => ListAnswer | Promise<ListAnswer>
   /** Answers `POST notification/<id>/read/`. */
   read: Mock<(id: number) => Promise<unknown>>
 }
@@ -65,7 +67,7 @@ export function newInboxApi(rows: NotificationItem[]): InboxApi {
 export function stubInboxApi(bffFetch: Mock, api: InboxApi): void {
   bffFetch.mockImplementation(async (path: string, options: Options = {}) => {
     if (path === LIST) {
-      const answer = api.list(options.query ?? {})
+      const answer = await api.list(options.query ?? {})
       if (answer instanceof ApiError) throw answer
       return { data: answer, msg: '', status: 200 }
     }
@@ -84,6 +86,13 @@ export function listReads(bffFetch: Mock): string[] {
 
 /** The ids marked read, in order. */
 export const readIds = (api: InboxApi) => api.read.mock.calls.map(([id]) => id)
+
+/** A promise and the function that resolves it (an answer held back). */
+export function deferred<T>() {
+  let resolve: (value: T) => void = () => {}
+  const promise = new Promise<T>((done) => (resolve = done))
+  return { promise, resolve }
+}
 
 /** An API error as the BFF passes it on. */
 export function apiError(status: number, code: string, data: Record<string, unknown> = {}) {

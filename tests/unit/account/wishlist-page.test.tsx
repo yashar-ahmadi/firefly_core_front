@@ -113,6 +113,17 @@ describe('WishlistPage', () => {
     expect(history.replaced().at(-1)).toBe('/account/wishlist/?in_stock=true')
   })
 
+  it('a page link changes only the URL (a new history entry, no server round trip)', async () => {
+    api.list = () => wishlistPage(PRODUCTS, { count: 23, totalPages: 2 })
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+    const { user } = renderWishlist()
+    await user.click(await screen.findByRole('link', { name: 'صفحه بعدی' }))
+    expect(history.pushed()).toEqual(['/account/wishlist/?page=2'])
+    expect(mocks.replace).not.toHaveBeenCalled()
+    scrollTo.mockRestore()
+    window.history.replaceState(null, '', '/')
+  })
+
   it('turning the switch off clears it from the URL', async () => {
     mocks.search = 'sort=added-asc&in_stock=true'
     const { user } = renderWishlist()

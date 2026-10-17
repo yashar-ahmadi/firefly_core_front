@@ -6,12 +6,17 @@ import { useCallback, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
 import { announce } from '@/components/ui/live-announcer'
 import { notify, toastRegionReady } from '@/components/ui/toaster'
-import { clearPushState, readPushState } from '@/features/push/push-storage'
+import {
+  abandonPushWork,
+  clearPushState,
+  readPushState,
+  settlePushWork,
+} from '@/features/push/push-storage'
 import { sweepAfterNavigation } from '@/lib/session/after-logout'
 import { useSession } from '@/lib/session/session-context'
 import { clearViewerQueries } from '@/lib/session/viewer-queries'
 import { authApi } from './api'
-import { runBeforeLogout } from './logout-hooks'
+import { LOGOUT_STEP_TIMEOUT_MS, runBeforeLogout } from './logout-hooks'
 
 export interface LogoutOptions {
   /** Every device (`logout-all/`), not only this one. */
@@ -72,7 +77,8 @@ function forgetVisitor(client: QueryClient, setHasSession: (value: boolean) => v
  *
  * 1. The steps registered with `onBeforeLogout`, while the session still exists; one that fails
  *    or hangs never holds the logout back.
- * 2. `POST logout/` (the BFF adds this device's refresh token) with this browser's push token when
+ * 2. Web push steps on their way stop, and are waited for (3 s at most).
+ *    `POST logout/` (the BFF adds this device's refresh token) with this browser's push token when
  *    web push is on (`registration_id`: the API deactivates the device, digest §4.3), or
  *    `logout-all/` (which deactivates every device itself). The BFF clears the session cookies
  *    whatever the API answers, even when it cannot be reached.
@@ -92,6 +98,9 @@ export function useLogout(): Logout {
       const all = options.all ?? false
       const run = async () => {
         await runBeforeLogout({ all })
+        // A push step on its way (a re-register, a token check) must not land after the logout.
+        abandonPushWork()
+        await settlePushWork(LOGOUT_STEP_TIMEOUT_MS)
         const push = readPushState()
         try {
           if (all) await authApi.logoutAll()

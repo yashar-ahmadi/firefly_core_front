@@ -42,6 +42,7 @@ async function expectDefault(res: Response) {
   expect(res.status).toBe(200)
   expect(res.headers.get('content-type')).toBe('image/png')
   expect(res.headers.get('cache-control')).toBe('public, max-age=300')
+  expect(res.headers.get('x-content-type-options')).toBe('nosniff')
   const bytes = new Uint8Array(await res.arrayBuffer())
   expect([...bytes.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47])
   expect(bytes.byteLength).toBeGreaterThan(PNG.byteLength)
@@ -55,6 +56,7 @@ describe('/favicon.ico', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/png')
     expect(res.headers.get('cache-control')).toBe('public, max-age=86400')
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff')
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(PNG)
     const [url, init] = fetchSpy.mock.calls[0]!
     expect(String(url)).toBe('https://api.test/media/categories/26/09/13/site-favicon.png')

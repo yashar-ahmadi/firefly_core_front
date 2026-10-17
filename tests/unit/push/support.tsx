@@ -3,10 +3,15 @@ import { vi } from 'vitest'
 import type { FirebaseWebConfig } from '@/config/env-schema'
 import type { PublicStoreConfig } from '@/config/resolve-store-config'
 import { StoreConfigProvider } from '@/lib/config-context'
+import { ME_KEY } from '@/lib/session/viewer-queries'
+import { SARA } from '../auth/fixtures'
 import { clientProviders } from '../support/providers'
 
 // What web push's tests share: a store config with or without Firebase, the providers, and a
 // browser with the Notification API, a push manager and `navigator.serviceWorker`, each recorded.
+
+/** The signed-in account (sara): what push registrations are kept for. */
+export const OWNER = SARA.uuid
 
 export const FIREBASE: FirebaseWebConfig = {
   apiKey: 'api-key',
@@ -33,6 +38,8 @@ export function pushProviders({
   webPush,
 }: { hasSession?: boolean; firebase?: FirebaseWebConfig | null; webPush?: boolean } = {}) {
   const base = clientProviders({ hasSession })
+  // The header has read the profile already, as on every page of a signed-in visitor.
+  if (hasSession) base.client.setQueryData(ME_KEY, SARA)
   const Base = base.wrapper
   const wrapper = ({ children }: { children: ReactNode }) => (
     <StoreConfigProvider value={pushConfig(firebase, webPush)}>

@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Ellipsis } from 'lucide-react'
 import Link from 'next/link'
+import type { MouseEvent } from 'react'
 import { toPersianDigits } from '@/lib/format'
 import { cn } from './cn'
 
@@ -27,6 +28,11 @@ export interface PaginationProps {
   page: number
   totalPages: number
   hrefFor: (page: number) => string
+  /**
+   * A page link's click, for a page that changes only its URL (an account list: `useListUrl`'s
+   * `followPage`). Without it the links navigate as links do.
+   */
+  onFollow?: (event: MouseEvent<HTMLAnchorElement>) => void
   className?: string
 }
 
@@ -42,7 +48,7 @@ const STEP_DISABLED = 'border-ink-200 text-ink-300'
  * Real links (crawlable, work without JavaScript). Phones see «قبلی · صفحه ۲ از ۵ · بعدی»;
  * from `md` up every nearby page is listed. In RTL «قبلی» is on the right.
  */
-export function Pagination({ page, totalPages, hrefFor, className }: PaginationProps) {
+export function Pagination({ page, totalPages, hrefFor, onFollow, className }: PaginationProps) {
   if (totalPages <= 1) return null
   const current = Math.min(Math.max(1, Math.trunc(page)), totalPages)
   const prev = current > 1 ? current - 1 : null
@@ -69,6 +75,7 @@ export function Pagination({ page, totalPages, hrefFor, className }: PaginationP
       {prev !== null ? (
         <Link
           href={hrefFor(prev)}
+          onClick={onFollow}
           rel="prev"
           aria-label="صفحه قبلی"
           className={cn(STEP, STEP_ENABLED)}
@@ -100,6 +107,7 @@ export function Pagination({ page, totalPages, hrefFor, className }: PaginationP
             <li key={item}>
               <Link
                 href={hrefFor(item)}
+                onClick={onFollow}
                 aria-label={`صفحه ${toPersianDigits(item)}`}
                 aria-current={item === current ? 'page' : undefined}
                 className={cn(
@@ -119,6 +127,7 @@ export function Pagination({ page, totalPages, hrefFor, className }: PaginationP
       {next !== null ? (
         <Link
           href={hrefFor(next)}
+          onClick={onFollow}
           rel="next"
           aria-label="صفحه بعدی"
           className={cn(STEP, STEP_ENABLED)}

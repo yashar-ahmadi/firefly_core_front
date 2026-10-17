@@ -9,7 +9,7 @@ import { useLeavingPage } from '@/lib/navigation/router-navigation'
 // reload, Back and a shared link show the same list. The page's server component never reads
 // the query, so a change only rewrites the URL with the native history API, which Next keeps in
 // step with `useSearchParams` (docs: Linking and Navigating, «Native History API»): no server
-// round trip, and the scroll stays where it is.
+// round trip; the scroll stays where it is (a page link's shows the new page from the top).
 
 export interface ListUrl<P> {
   /** The URL's state, parsed (unknown values already the defaults). */
@@ -27,10 +27,22 @@ export interface ListUrl<P> {
    * A click that opens a new tab or window is left to the browser, like the link without script.
    */
   follow: (event: MouseEvent<HTMLAnchorElement>) => void
+  /** A page link's click: as `follow`, and the new page is shown from the top. */
+  followPage: (event: MouseEvent<HTMLAnchorElement>) => void
 }
 
 const here = () => `${window.location.pathname}${window.location.search}`
 const ignore = () => {}
+
+/** A link's click as a new history entry for its URL; whether the URL changed. */
+function push(event: MouseEvent<HTMLAnchorElement>): boolean {
+  if (event.defaultPrevented || isModifiedClick(event)) return false
+  event.preventDefault()
+  const target = event.currentTarget.getAttribute('href')
+  if (!target || target === here()) return false
+  window.history.pushState(null, '', target)
+  return true
+}
 
 /**
  * `parse` and `search` are a page's pure pair (module functions, so stable): the URL's query to
@@ -53,11 +65,9 @@ export function useListUrl<P>(
         if (leaving || search(next) === search(params)) return
         window.history.replaceState(null, '', href(next))
       },
-      follow: (event) => {
-        if (event.defaultPrevented || isModifiedClick(event)) return
-        event.preventDefault()
-        const target = event.currentTarget.getAttribute('href')
-        if (target && target !== here()) window.history.pushState(null, '', target)
+      follow: (event) => void push(event),
+      followPage: (event) => {
+        if (push(event)) window.scrollTo({ top: 0 })
       },
     }
   }, [basePath, parse, search, query, leaving])

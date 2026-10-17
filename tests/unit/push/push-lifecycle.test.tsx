@@ -5,7 +5,13 @@ import type { ForegroundPush } from '@/features/push/firebase'
 import { readPushState, savePushState } from '@/features/push/push-storage'
 import { DISABLE_FAILED, useWebPush } from '@/features/push/use-web-push'
 import { ApiError } from '@/lib/api/errors'
-import { pushProviders, stubPushBrowser, unstubPushBrowser, type PushBrowser } from './support'
+import {
+  OWNER,
+  pushProviders,
+  stubPushBrowser,
+  unstubPushBrowser,
+  type PushBrowser,
+} from './support'
 
 // Web push while it is on (dashboard digest §4.3–4.4): the inbox checks the token (a rotated one
 // is registered, the old one unregistered), a permission withdrawn in the browser unregisters the
@@ -33,7 +39,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   browser = stubPushBrowser({ permission: 'granted' })
-  savePushState({ token: TOKEN, checkedAt: 1 })
+  savePushState({ token: TOKEN, owner: OWNER, checkedAt: 1 })
   mocks.getToken.mockResolvedValue(TOKEN)
   mocks.deleteToken.mockResolvedValue(undefined)
   mocks.loadMessaging.mockResolvedValue({
@@ -96,13 +102,14 @@ describe('useWebPush while push is on', () => {
     expect(mocks.loadMessaging).not.toHaveBeenCalled()
   })
 
-  it('a push in view: a toast with its title and text, and the inbox read again', async () => {
+  it('a push in view: a toast with its title and text (the worker’s word reads the inbox again)', async () => {
     const { client } = push()
     client.setQueryData(NOTIFICATIONS_KEY, { pages: [], pageParams: [] })
     await waitFor(() => expect(mocks.listener).not.toBeNull())
     act(() => mocks.listener!({ title: 'جشنواره', body: 'تا ۴۰ درصد تخفیف' }))
     expect(mocks.notify.info).toHaveBeenCalledWith('جشنواره', { description: 'تا ۴۰ درصد تخفیف' })
-    expect(client.getQueryState(NOTIFICATIONS_KEY)?.isInvalidated).toBe(true)
+    // One read again per push: `useInboxRefresh`'s, on the same event.
+    expect(client.getQueryState(NOTIFICATIONS_KEY)?.isInvalidated).toBe(false)
   })
 
   it('turning it off: DELETE devices/unregister/ with the token in a JSON body, then revoked and forgotten', async () => {

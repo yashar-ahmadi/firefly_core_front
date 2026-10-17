@@ -1,7 +1,16 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderInbox } from './render-inbox'
-import { apiError, listReads, newInboxApi, notification, readIds, stubInboxApi } from './support'
+import {
+  apiError,
+  deferred,
+  inboxPage,
+  listReads,
+  newInboxApi,
+  notification,
+  readIds,
+  stubInboxApi,
+} from './support'
 
 // Opening a notification (a disclosure) shows all of it; an unread one is marked read
 // (`POST notification/<id>/read/`) at once on screen, the count with it. A failure puts both
@@ -99,15 +108,19 @@ describe('opening a notification', () => {
     expect(shipped()).toHaveAccessibleName(UNREAD_NAME)
   })
 
-  it('a 404 (deleted by the shop): the row goes and the inbox is read again', async () => {
+  it('a 404 (deleted by the shop): the row goes at once, and the inbox is read again', async () => {
     api.read.mockRejectedValueOnce(apiError(404, 'not_found'))
     const { user } = await inbox()
     const before = listReads(mocks.bffFetch).length
-    api.list = () => newInboxApi([FESTIVAL]).list({ limit: '20' })
+    // The read again is held back: the row must go before it answers.
+    const held = deferred<ReturnType<typeof inboxPage>>()
+    api.list = () => held.promise
     await user.click(shipped())
-    await waitFor(() => expect(screen.queryByRole('button', { name: /^سفارش شما/ })).toBeNull())
     await waitFor(() => expect(listReads(mocks.bffFetch).length).toBeGreaterThan(before))
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^سفارش شما/ })).toBeNull())
     expect(screen.getAllByRole('article')).toHaveLength(1)
+    act(() => held.resolve(inboxPage([FESTIVAL])))
+    await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(1))
     expect(mocks.notify.error).not.toHaveBeenCalled()
   })
 

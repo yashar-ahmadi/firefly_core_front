@@ -21,6 +21,11 @@ export async function GET(): Promise<Response> {
   const icon = configured ?? defaultFavicon()
   const maxAge = configured ? FAVICON_REVALIDATE_SECONDS : FALLBACK_MAX_AGE_SECONDS
   return new Response(icon.bytes, {
-    headers: { 'Content-Type': icon.type, 'Cache-Control': `public, max-age=${maxAge}` },
+    headers: {
+      'Content-Type': icon.type,
+      'Cache-Control': `public, max-age=${maxAge}`,
+      // Bytes from the API host: never sniffed into anything but the image type they claim.
+      'X-Content-Type-Options': 'nosniff',
+    },
   })
 }

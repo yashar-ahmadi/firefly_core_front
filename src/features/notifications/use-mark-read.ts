@@ -37,7 +37,7 @@ export function useMarkRead(): (item: NotificationItem) => void {
   const sending = useRef(new Set<number>())
 
   async function markRead({ id }: NotificationItem) {
-    await holdInboxReads(client)
+    const resume = await holdInboxReads(client)
     setRowRead(client, id, true)
     shiftUnread(client, -1)
     try {
@@ -52,6 +52,8 @@ export function useMarkRead(): (item: NotificationItem) => void {
       setRowRead(client, id, false)
       shiftUnread(client, 1)
       notify.error(readFailure(error))
+    } finally {
+      resume()
     }
   }
 

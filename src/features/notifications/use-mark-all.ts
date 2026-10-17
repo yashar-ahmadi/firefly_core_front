@@ -2,7 +2,6 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { tell } from '@/features/account/tell'
 import { ApiError, isApiNotFound } from '@/lib/api/errors'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { isSessionExpiredError } from '@/lib/session/viewer-queries'
@@ -20,8 +19,6 @@ import { UNREAD_NOTIFICATIONS_KEY } from './unread'
 
 /** A 429 longer than this is not waited out: the loop stops and says so. */
 export const MAX_THROTTLE_WAIT_S = 60
-
-export const ALL_READ = 'همه اعلان‌ها خوانده شد.'
 
 export interface MarkAllState {
   /** idle, going through the ids, waiting out a 429, or stopped by a failure. */
@@ -55,7 +52,8 @@ function wait(seconds: number, signal: AbortSignal): Promise<void> {
  * read in turn, one request at a time, each row and the count changing as it goes («۳ از ۱۰»).
  * A 429 waits out `retry_after` and goes on (stops and says so past a minute); a 404 (gone) takes
  * the row out; a 401 that means the session is gone goes to login; any other failure stops with
- * the reason. Leaving the page stops it. At the end the inbox and the count are read again.
+ * the reason. Leaving the page stops it. At the end the inbox and the count are read again (the
+ * page's status line then says all is read).
  */
 export function useMarkAll(): { state: MarkAllState; start: () => void } {
   const client = useQueryClient()
@@ -76,6 +74,7 @@ export function useMarkAll(): { state: MarkAllState; start: () => void } {
         signal.throwIfAborted()
         try {
           await markNotificationRead(id, signal)
+          // Read again (`refreshInbox`) at the end: nothing stopped here needs a read of its own.
           await holdInboxReads(client)
           // Opened while its request was on its way: the count has gone down for it already.
           if (rowRead(client, id) !== true) shiftUnread(client, -1)
@@ -96,8 +95,8 @@ export function useMarkAll(): { state: MarkAllState; start: () => void } {
       }
       setState((current) => ({ ...current, done: index + 1 }))
     }
+    // The status line says the end («همهٔ اعلان‌ها خوانده شده است.»), read out once.
     setState(IDLE)
-    tell(ALL_READ)
   }
 
   function start() {

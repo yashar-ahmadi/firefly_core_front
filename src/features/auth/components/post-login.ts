@@ -7,6 +7,7 @@ import { notify } from '@/components/ui/toaster'
 import { ADJUSTMENTS_TITLE, adjustmentText } from '@/features/cart/adjustments'
 import { cartApi } from '@/features/cart/api'
 import { CART_KEY } from '@/features/cart/cart-cache'
+import { clearPushState, readPushState } from '@/features/push/push-storage'
 import { ApiError } from '@/lib/api/errors'
 import type { AuthenticatedResponse } from '@/lib/api/types/account'
 import type { Cart } from '@/lib/api/types/cart'
@@ -38,9 +39,10 @@ async function mergeGuestCart(): Promise<Cart | null> {
  *
  * 1. `POST cart/merge/` once (the BFF sends the guest cart token for it); its `adjustments`, when
  *    there are any, in one toast. A failed merge is logged and said softly, never in the way.
- * 2. The previous visitor's queries are dropped (`clearViewerQueries`) and the page is signed in
- *    (`setHasSession(true)`); the profile and the merged cart are stored, then `['cart']`,
- *    `['me']` and `['summary']` are invalidated so whatever shows them reads them again.
+ * 2. A web push registration of another account is forgotten. The previous visitor's queries
+ *    are dropped (`clearViewerQueries`) and the page is signed in (`setHasSession(true)`); the
+ *    profile and the merged cart are stored, then `['cart']`, `['me']` and `['summary']` are
+ *    invalidated so whatever shows them reads them again.
  * 3. `router.replace(safeNext(next))`: a path on this site, else `/account/`.
  */
 export function useCompleteLogin(): CompleteLogin {
@@ -50,6 +52,9 @@ export function useCompleteLogin(): CompleteLogin {
   return useCallback(
     async (res, next) => {
       const cart = await mergeGuestCart()
+      // A web push registration belongs to its account: one left by another (a session that
+      // ended unseen) is forgotten, the browser's subscription with it, never posted for this one.
+      if (!res.user || readPushState()?.owner !== res.user.uuid) clearPushState()
       await clearViewerQueries(client)
       setHasSession(true)
       if (res.user) client.setQueryData(ME_KEY, res.user)

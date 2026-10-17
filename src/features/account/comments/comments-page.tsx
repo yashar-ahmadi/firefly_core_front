@@ -159,6 +159,7 @@ export function CommentsPage({ title }: { title: string }) {
           page={data.current_page}
           totalPages={data.total_pages}
           hrefFor={(page) => url.href({ ...params, page })}
+          onFollow={url.followPage}
           className="mt-6"
         />
       </>
