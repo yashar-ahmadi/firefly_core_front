@@ -1,6 +1,7 @@
 import { act, cleanup, render, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCompleteLogin } from '@/features/auth/components/post-login'
+import { LazyPushReregister } from '@/features/push/lazy-push-reregister'
 import { PushReregister } from '@/features/push/push-reregister'
 import { readPushState, savePushState } from '@/features/push/push-storage'
 import { useWebPush } from '@/features/push/use-web-push'
@@ -75,7 +76,8 @@ describe('the re-register effect and the account', () => {
 
   it('signed out with a registration still stored: forgotten with its subscription', async () => {
     savePushState(SARAS)
-    render(<PushReregister />, { wrapper: pushProviders({ hasSession: false }).wrapper })
+    // The shop layout's gate does it, without the re-register chunk.
+    render(<LazyPushReregister />, { wrapper: pushProviders({ hasSession: false }).wrapper })
     await waitFor(() => expect(readPushState()).toBeNull())
     await waitFor(() => expect(unsubscribed()).toBe(1))
     expect(devicesCalls()).toEqual([])

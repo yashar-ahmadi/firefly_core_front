@@ -402,6 +402,14 @@ signed-in header to another.
   end (desktop/phone, signed in): home 227.6/225.0, category 247.9/245.3, product 246.0/243.5,
   account 231.4/228.8, profile 235.8/233.2, notifications 223.6/221.0 — the signed-in desktop's
   catalog carries the header's account button chunk.
+- **Push shops.** Web push's re-register effect has its own chunk, downloaded only by a browser
+  with push on and a session (`LazyPushReregister` reads the stored registration first). The
+  `budget-push` project runs both specs again against a second server on the same build with
+  dummy `FIREBASE_*` values (playwright.config.ts: the config is read at runtime), signed in with
+  push on in the browser (the costliest case), through the desktop project's session. After the
+  Plan 3 final fixes (desktop/phone): a guest's pages are the same as without push (category
+  245.5/245.5); signed in, without push 247.7/245.5 for the category, with push on
+  249.2/247.0 — 0.8 KB under the budget: the next catalog feature must pay for itself.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each

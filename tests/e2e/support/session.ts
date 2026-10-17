@@ -23,7 +23,7 @@ import path from 'node:path'
 //   per project, with `logIn` (or the form), as `account/logout.spec.ts` does, and ends it.
 //
 // The attempts of a full run: the shared session of each project (mobile, tablet, desktop,
-// journeys: 4); logout.spec (a login and a logout per project but journeys: 6);
+// journeys: 4; budget-push reads through the desktop's); logout.spec (a login and a logout per project but journeys: 6);
 // session-restore.spec (a form login and a logout, idem: 6); auth.spec (journeys only: a wrong
 // password, a form login and its logout: 3). 19 in all. They come apart because Playwright, as
 // configured, runs the projects one after the other (mobile, tablet, desktop, then journeys, which
@@ -127,11 +127,15 @@ async function sharedState(file: string, create: () => Promise<object>): Promise
 
 /**
  * The project's shared session (sara), as a storage-state file: made the first time it is asked
- * for in a run (one login), then the same file for every worker and spec of the project.
+ * for in a run (one login), then the same file for every worker and spec of the project. A
+ * project with `metadata.session` uses that project's instead (`budget-push` reads only, through
+ * the desktop's session: no login of its own; cookies are the host's, whatever the port).
  */
 export async function saraSession(browser: Browser, project: FullProject): Promise<string> {
   const baseURL = project.use.baseURL ?? 'http://localhost:3000'
-  const file = path.join(project.outputDir, '.auth', `sara-${project.name}.json`)
+  const owner =
+    typeof project.metadata.session === 'string' ? project.metadata.session : project.name
+  const file = path.join(project.outputDir, '.auth', `sara-${owner}.json`)
   return sharedState(file, async () => {
     const context = await browser.newContext({ baseURL })
     try {

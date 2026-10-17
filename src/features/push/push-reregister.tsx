@@ -28,21 +28,18 @@ export const TOKEN_CHECK_MS = 24 * 60 * 60_000
  * token; a check that fails is tried again a day later, the stored token posted meanwhile.
  *
  * Never for anyone else: a registration of another account (a session that ended unseen, then
- * someone else signed in) or one left while signed out is forgotten here, with the browser's
- * subscription. A permission withdrawn in the browser's settings unregisters the device. Nothing
- * is written once the registration was forgotten or push turned off meanwhile (`stillCurrent`).
- * The profile (whose registration it is) is read only when a registration is stored. Renders
- * nothing; the shop layout mounts it (`LazyPushReregister`) only when the shop has push.
+ * someone else signed in) is forgotten here, with the browser's subscription (one left while
+ * signed out is forgotten by `LazyPushReregister`). A permission withdrawn in the browser's
+ * settings unregisters the device. Nothing is written once the registration was forgotten or push
+ * turned off meanwhile (`stillCurrent`). The profile (whose registration it is) is read only when
+ * a registration is stored. Renders nothing; the shop layout mounts it through
+ * `LazyPushReregister`, only for a shop with push, a session and push on in this browser.
  */
 export function PushReregister() {
   const firebase = useOptionalStoreConfig()?.firebase ?? null
   const { hasSession } = useSession()
   // Loaded without SSR: the stored registration can be read as it renders.
   const stored = firebase !== null && readPushState() !== null
-  useEffect(() => {
-    // Signed out with a registration left behind (a session that ended unseen): forgotten here.
-    if (firebase && !hasSession && readPushState()) clearPushState()
-  }, [firebase, hasSession])
   // Whose registration it is needs the profile: read only when there is one.
   return firebase && hasSession && stored ? <OwnedReregister firebase={firebase} /> : null
 }

@@ -3,6 +3,7 @@ import {
   expect,
   type Browser,
   type BrowserContextOptions,
+  type FullProject,
   type Page,
   type TestInfo,
 } from '@playwright/test'
@@ -17,7 +18,9 @@ import { SESSION_COOKIES } from './session'
 // for QUIET_MS (network-idle style, limited to the app's own assets; at most SETTLE_LIMIT_MS).
 // `noModule` polyfills are never requested by a modern browser, so they do not count; code
 // that loads on first use (a panel, a menu, a toast, the phone search overlay) does not either.
-// Used by catalog/budget.spec.ts (a guest) and catalog/budget-signed-in.spec.ts (sara).
+// Used by catalog/budget.spec.ts (a guest) and catalog/budget-signed-in.spec.ts (sara), in the
+// `desktop` project and again in `budget-push` (the same build as a shop with web push: dummy
+// FIREBASE_* on its own server, playwright.config.ts).
 
 /** The session's flag cookie (`ff_auth`): there while the session lives. */
 const FLAG_COOKIE = SESSION_COOKIES[2]
@@ -28,6 +31,35 @@ export interface BudgetRoute {
 }
 
 export const BUDGET_KB = 250
+
+/** Whether `project` measures the budget: `desktop`, and `budget-push` for a push shop. */
+export function measuresBudget(project: FullProject): boolean {
+  return project.name === 'desktop' || project.metadata.pushShop === true
+}
+
+/** Names the device and the shop a figure is for: `desktop`, `phone, signed in, push shop`. */
+export function deviceLabel(project: FullProject, device: string): string {
+  return project.metadata.pushShop === true ? `${device}, push shop` : device
+}
+
+/** Whether `project` is the push shop's (dummy FIREBASE_*: `budget-push`). */
+export function pushShop(project: FullProject): boolean {
+  return project.metadata.pushShop === true
+}
+
+/**
+ * Web push on in this browser, as `push-storage.ts` keeps it, for the costliest signed-in page of
+ * a push shop: the re-register effect's chunk loads. Kept for another account, so the effect
+ * forgets it once it has read the profile, and never calls the API (device calls are refused
+ * anyway).
+ */
+async function pushOn(page: Page): Promise<void> {
+  await page.route('**/api/bff/devices/**', (route) => route.abort())
+  await page.addInitScript(() => {
+    const state = { token: 'e2e-budget-token', owner: 'e2e-budget-owner', checkedAt: Date.now() }
+    localStorage.setItem('ff_push', JSON.stringify(state))
+  })
+}
 const QUIET_MS = 1000
 const SETTLE_LIMIT_MS = 15_000
 export const PHONE = { ...devices['Pixel 7'], viewport: { width: 375, height: 812 } }
@@ -80,6 +112,13 @@ interface Measure {
   line: string
 }
 
+export interface MeasureOptions {
+  /** Signed in: the session must still be there once the page has loaded. */
+  signedIn?: boolean
+  /** Web push on in this browser (`pushOn`). */
+  push?: boolean
+}
+
 /**
  * Loads `route` in `page` and sums its scripts, gzipped, once /_next/static has gone quiet. The
  * page measured must be the route itself (not a redirect to login), and with `signedIn` the
@@ -90,9 +129,10 @@ export async function measure(
   page: Page,
   route: BudgetRoute,
   device: string,
-  { signedIn = false }: { signedIn?: boolean } = {},
+  { signedIn = false, push = false }: MeasureOptions = {},
 ): Promise<Measure> {
   if (route.name === 'compare') await seedCompare(page, [SAMPLE.S25, SAMPLE.A56])
+  if (push) await pushOn(page)
   const scripts = recordScripts(page)
 
   const response = await page.goto(route.path, { waitUntil: 'load' })
@@ -138,12 +178,13 @@ export async function measurePhone(
   {
     device = 'phone',
     signedIn = false,
+    push = false,
     ...options
-  }: BrowserContextOptions & { device?: string; signedIn?: boolean } = {},
+  }: BrowserContextOptions & MeasureOptions & { device?: string } = {},
 ) {
   const context = await browser.newContext({ ...PHONE, ...options })
   try {
-    return await measure(await context.newPage(), route, device, { signedIn })
+    return await measure(await context.newPage(), route, device, { signedIn, push })
   } finally {
     await context.close()
   }
