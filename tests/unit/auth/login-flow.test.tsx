@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LoginFlow } from '@/features/auth/components/login-flow'
 import { ApiError } from '@/lib/api/errors'
 import { stubBrowserApis } from '../support/dom-stubs'
+import { handedByClick, resetHandoff } from '../support/handoff'
 import { authProviders, everyMethodAuth } from '../support/auth-providers'
 import { cart, result } from '../cart/support'
 import { SARA } from './fixtures'
@@ -43,6 +44,7 @@ const SENT = { otp_method: 'email', expires_in: 300, resend_after: 120 }
 beforeEach(() => {
   vi.clearAllMocks()
   stubBrowserApis()
+  resetHandoff()
   mocks.bffFetch.mockResolvedValue(result(cart()))
 })
 
@@ -199,10 +201,10 @@ describe('LoginFlow', () => {
     )
     await user.click(await screen.findByRole('button', { name: 'ارسال کد' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('کاربری با این ایمیل یافت نشد.')
-    expect(screen.getByRole('link', { name: /ثبت‌نام/ })).toHaveAttribute(
-      'href',
-      '/register/?identifier=nobody%40example.com',
-    )
+    // The identifier goes with the link (handed over), never in its URL.
+    const register = screen.getByRole('link', { name: /ثبت‌نام/ })
+    expect(register).toHaveAttribute('href', '/register/')
+    expect(await handedByClick(register, '/register/')).toBe('nobody@example.com')
   })
 
   it.each([

@@ -1,4 +1,4 @@
-// The query of an auth page (`?next=`, `?identifier=`) as Next hands it to the page. Pure.
+// The query of an auth page (`?next=`) as Next hands it to the page. Pure.
 
 export type SearchParams = Record<string, string | string[] | undefined>
 

@@ -8,13 +8,11 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'ورود به حساب کاربری' }
 
 /**
- * `/login/?next=<path>&identifier=<email or mobile>`. `next` is read by `completeLogin` through
- * `safeNext` (a path on this site, else `/account/`); `identifier` prefills the first step
- * (registration and password recovery send it).
+ * `/login/?next=<path>`. `next` is read by `completeLogin` through `safeNext` (a path on this
+ * site, else `/account/`). The URL never carries an identifier: registration and password
+ * recovery hand it over apart (`identifier-handoff.ts`), and an `?identifier=` is ignored.
  */
 export default async function LoginPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams
-  return (
-    <LoginScreen next={firstParam(params.next)} initialIdentifier={firstParam(params.identifier)} />
-  )
+  return <LoginScreen next={firstParam(params.next)} />
 }

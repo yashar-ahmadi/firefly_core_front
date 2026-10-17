@@ -24,7 +24,7 @@ beforeEach(() => {
 
 describe('ForgotPasswordScreen', () => {
   it('shows the recovery form', () => {
-    render(<ForgotPasswordScreen next="" initialIdentifier="" />, {
+    render(<ForgotPasswordScreen next="" />, {
       wrapper: authProviders({ auth: emailOnlyAuth() }).wrapper,
     })
     expect(screen.getByRole('heading', { name: 'بازیابی رمز عبور' })).toBeVisible()
@@ -36,7 +36,7 @@ describe('ForgotPasswordScreen', () => {
 
   it('a signed-in visitor is told so, with no redirect', () => {
     mocks.fetchProfile.mockReturnValue(new Promise(() => {}))
-    render(<ForgotPasswordScreen next="" initialIdentifier="" />, {
+    render(<ForgotPasswordScreen next="" />, {
       wrapper: authProviders({ hasSession: true }).wrapper,
     })
     expect(screen.getByRole('heading', { name: 'شما وارد شده‌اید' })).toBeVisible()
@@ -45,7 +45,7 @@ describe('ForgotPasswordScreen', () => {
   })
 
   it('without the settings (every method off) it says recovery is not possible now', () => {
-    render(<ForgotPasswordScreen next="" initialIdentifier="" />, {
+    render(<ForgotPasswordScreen next="" />, {
       wrapper: authProviders({ auth: disabledAuth() }).wrapper,
     })
     expect(screen.getByText(/بازیابی رمز عبور در حال حاضر ممکن نیست/)).toBeVisible()

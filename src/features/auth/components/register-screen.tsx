@@ -7,6 +7,7 @@ import { useFeature } from '@/features/settings/feature-context'
 import { useSession } from '@/lib/session/session-context'
 import { loginPageHref } from '../auth-links'
 import { useAuthSettings } from '../use-auth-settings'
+import { useHandedIdentifier } from '../use-handed-identifier'
 import { AuthUnavailable } from './auth-card'
 import { RegisterFlow } from './register-flow'
 import { SignedInPanel } from './signed-in-panel'
@@ -19,8 +20,6 @@ const NO_METHOD = 'ثبت‌نام در حال حاضر ممکن نیست. لط�
 export interface RegisterScreenProps {
   /** A safe `?next=` path, or ''. */
   next: string
-  /** The `?identifier=`, normalised ('' when it was not an email address or a mobile number). */
-  initialIdentifier: string
   /** The operator's terms, sanitised on the server. */
   termsHtml: string | null
 }
@@ -29,10 +28,12 @@ export interface RegisterScreenProps {
  * `/register/`: the registration steps; for a visitor signed in already, a note saying so
  * (never a redirect: see SignedInPanel); and, while registration is closed (the `registration`
  * feature, or no `registration_methods`), why, with the way to login and no form. Once the
- * account is made, the steps stay on screen until the page changes.
+ * account is made, the steps stay on screen until the page changes. An identifier login handed
+ * over (no account had it) prefills its method (`useHandedIdentifier`; never in the URL).
  */
-export function RegisterScreen({ next, initialIdentifier, termsHtml }: RegisterScreenProps) {
+export function RegisterScreen({ next, termsHtml }: RegisterScreenProps) {
   const auth = useAuthSettings()
+  const handed = useHandedIdentifier('/register/')
   const registration = useFeature('registration')
   const { hasSession } = useSession()
   const [arrivedSignedIn] = useState(hasSession)
@@ -47,7 +48,7 @@ export function RegisterScreen({ next, initialIdentifier, termsHtml }: RegisterS
         message={registration.enabled ? NO_METHOD : (registration.reason ?? SWITCHED_OFF)}
         action={
           <Button asChild size="lg" fullWidth>
-            <Link href={loginPageHref(undefined, next)}>ورود به حساب کاربری</Link>
+            <Link href={loginPageHref(next)}>ورود به حساب کاربری</Link>
           </Button>
         }
       />
@@ -55,8 +56,9 @@ export function RegisterScreen({ next, initialIdentifier, termsHtml }: RegisterS
   }
   return (
     <RegisterFlow
+      key={handed ? 'handed' : 'blank'}
       next={next}
-      initialIdentifier={initialIdentifier}
+      initialIdentifier={handed}
       termsHtml={termsHtml}
       autoFocus={arrivedSignedIn}
       onSignedIn={() => setSigningIn(true)}

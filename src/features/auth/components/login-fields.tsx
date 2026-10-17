@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { Button, type ButtonProps } from '@/components/ui/button'
@@ -17,6 +16,7 @@ import { registerHref } from '../auth-links'
 import { normalizeIdentifier } from '../identifier'
 import { FormAlert } from './auth-card'
 import type { SubmitLock } from './code-timers'
+import { HandoffLink } from './handoff-link'
 import type { LoginNotice } from './login-types'
 
 // Small parts the auth steps share (login, registration, password recovery).
@@ -169,9 +169,14 @@ export function LoginNoticeAlert({
   let action: ReactNode = null
   if (notice.code === 'auth_user_not_found' && canRegister) {
     action = (
-      <Link href={registerHref(normalizeIdentifier(identifier), next)} className={TEXT_LINK}>
+      <HandoffLink
+        page="/register/"
+        href={registerHref(next)}
+        identifier={identifier}
+        className={TEXT_LINK}
+      >
         ثبت‌نام با همین مشخصات
-      </Link>
+      </HandoffLink>
     )
   }
   return <FormAlert action={action}>{notice.detail}</FormAlert>

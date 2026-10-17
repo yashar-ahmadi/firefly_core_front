@@ -23,7 +23,7 @@ const NO_METHODS: LoginMethods = { password: false, otpChannels: [], defaultOtpC
 export interface LoginFlowProps {
   /** The raw `?next=`: `completeLogin` sends it through `safeNext`. */
   next: string
-  /** Prefilled (`?identifier=`, from registration or password recovery). */
+  /** Prefilled: handed over by registration or password recovery (`useHandedIdentifier`). */
   initialIdentifier?: string
   /** Focus the first field at once: the form took the place of another view of the page. */
   autoFocus?: boolean
@@ -100,9 +100,7 @@ export function LoginFlow({
             )
           }
           registerHref={
-            auth.registration_methods.length > 0 && registration.enabled
-              ? registerHref(undefined, next)
-              : null
+            auth.registration_methods.length > 0 && registration.enabled ? registerHref(next) : null
           }
           onIdentifier={(value) => dispatch({ type: 'edit', field: 'identifier', value })}
           onContinue={actions.continueWithIdentifier}
@@ -117,7 +115,7 @@ export function LoginFlow({
           rememberMe={state.rememberMe}
           error={errors.password}
           canUseCode={methods.otpChannels.length > 0}
-          forgotHref={forgotPasswordHref(loginIdentifier, next)}
+          forgotHref={forgotPasswordHref(next)}
           onPassword={(value) => dispatch({ type: 'edit', field: 'password', value })}
           onRemember={remember}
           onSubmit={actions.submitPassword}

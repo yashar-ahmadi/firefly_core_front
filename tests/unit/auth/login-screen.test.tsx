@@ -86,7 +86,7 @@ function renderScreen({
   next = '',
 }: { auth?: AuthSettings; hasSession?: boolean; next?: string } = {}) {
   const providers = authProviders({ auth, hasSession })
-  render(<LoginScreen next={next} initialIdentifier="" />, { wrapper: providers.wrapper })
+  render(<LoginScreen next={next} />, { wrapper: providers.wrapper })
   return { user: userEvent.setup(), client: providers.client }
 }
 

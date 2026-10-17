@@ -2,11 +2,13 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ForgotPasswordFlow } from '@/features/auth/components/forgot-password-flow'
+import { peekIdentifier } from '@/features/auth/identifier-handoff'
 import { ApiError } from '@/lib/api/errors'
 import type { AuthSettings } from '@/lib/api/types/settings'
 import { emailOnlyAuth } from '../support/auth'
 import { authProviders, everyMethodAuth } from '../support/auth-providers'
 import { stubBrowserApis } from '../support/dom-stubs'
+import { handedByClick, resetHandoff } from '../support/handoff'
 
 // Password recovery (auth digest F7): the identifier, the channel when there is a choice, the
 // code, then the new password; no tokens come back, so the visitor signs in again.
@@ -36,6 +38,7 @@ const RESET = { reset_token: 'reset-token-1', expires_in: 600 }
 beforeEach(() => {
   vi.clearAllMocks()
   stubBrowserApis()
+  resetHandoff()
   vi.useFakeTimers({ shouldAdvanceTime: true })
 })
 
@@ -100,11 +103,11 @@ describe('ForgotPasswordFlow', () => {
       password: 'Firefly@5678',
       confirm_password: 'Firefly@5678',
     })
+    // To login, the identifier handed over for it to prefill: never in the URL.
     await waitFor(() =>
-      expect(mocks.router.replace).toHaveBeenCalledWith(
-        '/login/?identifier=sara.ahmadi%40example.com&next=%2Fcart%2F',
-      ),
+      expect(mocks.router.replace).toHaveBeenCalledWith('/login/?next=%2Fcart%2F'),
     )
+    expect(peekIdentifier('/login/')).toBe(EMAIL)
     expect(mocks.notify.success).toHaveBeenCalledWith('رمز عبور تغییر کرد؛ دوباره وارد شوید')
   })
 
@@ -118,10 +121,9 @@ describe('ForgotPasswordFlow', () => {
     await user.click(send)
     expect(await screen.findByRole('alert')).toHaveTextContent(detail)
     expect(send).toHaveFocus()
-    expect(screen.getByRole('link', { name: /ثبت‌نام/ })).toHaveAttribute(
-      'href',
-      '/register/?identifier=nobody%40example.com',
-    )
+    const register = screen.getByRole('link', { name: /ثبت‌نام/ })
+    expect(register).toHaveAttribute('href', '/register/')
+    expect(await handedByClick(register, '/register/')).toBe('nobody@example.com')
     expect(screen.queryByRole('group', { name: 'کد بازیابی' })).toBeNull()
   })
 

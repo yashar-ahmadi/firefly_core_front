@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useSession } from '@/lib/session/session-context'
 import { signInOpen } from '../login-methods'
 import { useAuthSettings } from '../use-auth-settings'
+import { useHandedIdentifier } from '../use-handed-identifier'
 import { AuthUnavailable } from './auth-card'
 import { ForgotPasswordFlow } from './forgot-password-flow'
 import { ReloadButton } from './reload-button'
@@ -12,17 +13,17 @@ import { SignedInPanel } from './signed-in-panel'
 export interface ForgotPasswordScreenProps {
   /** A safe `?next=` path, or ''. */
   next: string
-  /** The `?identifier=`, normalised ('' when it was not an email address or a mobile number). */
-  initialIdentifier: string
 }
 
 /**
  * `/forgot-password/`: the recovery steps; for a visitor signed in already, a note saying so
  * (never a redirect: see SignedInPanel, whose «خروج» brings the form); without settings
- * (`disabledAuth()`), no code can be sent: said plainly.
+ * (`disabledAuth()`), no code can be sent: said plainly. The identifier typed on the login page
+ * is prefilled (`useHandedIdentifier`; never in the URL).
  */
-export function ForgotPasswordScreen({ next, initialIdentifier }: ForgotPasswordScreenProps) {
+export function ForgotPasswordScreen({ next }: ForgotPasswordScreenProps) {
   const auth = useAuthSettings()
+  const handed = useHandedIdentifier('/forgot-password/')
   const { hasSession } = useSession()
   const [arrivedSignedIn] = useState(hasSession)
 
@@ -38,8 +39,9 @@ export function ForgotPasswordScreen({ next, initialIdentifier }: ForgotPassword
   }
   return (
     <ForgotPasswordFlow
+      key={handed ? 'handed' : 'blank'}
       next={next}
-      initialIdentifier={initialIdentifier}
+      initialIdentifier={handed}
       autoFocus={arrivedSignedIn}
     />
   )

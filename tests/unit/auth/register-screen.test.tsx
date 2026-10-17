@@ -48,7 +48,7 @@ function renderScreen({
   const features = registrationOff
     ? { registration: { key: 'registration', name: 'ثبت نام', enabled: false, reason } as const }
     : {}
-  render(<RegisterScreen next={next} initialIdentifier="" termsHtml={termsHtml} />, {
+  render(<RegisterScreen next={next} termsHtml={termsHtml} />, {
     wrapper: authProviders({ auth, hasSession, features }).wrapper,
   })
   return user

@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import type { ReactNode, Ref } from 'react'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
@@ -9,6 +8,7 @@ import { normalizeIdentifier } from '../identifier'
 import { AuthCard, OrDivider } from './auth-card'
 import { AuthForm } from './auth-form'
 import { useSubmitWait } from './code-timers'
+import { HandoffLink } from './handoff-link'
 import { IdentifierSummary, RememberMe, SubmitButton, TEXT_LINK } from './login-fields'
 import type { Wait } from './waits'
 import { PasswordInput } from './password-input'
@@ -25,6 +25,7 @@ export interface PasswordStepProps {
   submitWait: Wait
   /** The settings offer a code for this identifier type. */
   canUseCode: boolean
+  /** «فراموشی رمز عبور» (with `next`): the identifier goes with it, not in it. */
   forgotHref: string
   titleRef: Ref<HTMLHeadingElement>
   onPassword: (value: string) => void
@@ -84,9 +85,14 @@ export function PasswordStep({
           />
         </Field>
         <div className="-mt-2 flex justify-end">
-          <Link href={forgotHref} className={TEXT_LINK}>
+          <HandoffLink
+            page="/forgot-password/"
+            href={forgotHref}
+            identifier={identifier}
+            className={TEXT_LINK}
+          >
             فراموشی رمز عبور
-          </Link>
+          </HandoffLink>
         </div>
         <RememberMe checked={rememberMe} onChange={onRemember} />
         <SubmitButton busy={busy} lock={lock}>

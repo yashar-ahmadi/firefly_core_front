@@ -2,12 +2,14 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RegisterScreen } from '@/features/auth/components/register-screen'
+import { handOffIdentifier } from '@/features/auth/identifier-handoff'
 import { ApiError } from '@/lib/api/errors'
 import type { AuthSettings } from '@/lib/api/types/settings'
 import { cart, result } from '../cart/support'
 import { emailOnlyAuth } from '../support/auth'
 import { authProviders, everyMethodAuth } from '../support/auth-providers'
 import { stubBrowserApis } from '../support/dom-stubs'
+import { handedByClick, resetHandoff } from '../support/handoff'
 
 // Registration answers that send the visitor elsewhere (an identifier taken: login with it; a
 // weak password: its reasons), the checks made before any request, and the focus after each.
@@ -39,6 +41,7 @@ const STARTED = { otp_method: 'email', expires_in: 300, resend_after: 120 }
 beforeEach(() => {
   vi.clearAllMocks()
   stubBrowserApis()
+  resetHandoff()
   mocks.bffFetch.mockResolvedValue(result(cart()))
 })
 
@@ -48,7 +51,8 @@ function renderScreen({
   next = '',
 }: { auth?: AuthSettings; identifier?: string; next?: string } = {}) {
   const user = userEvent.setup()
-  render(<RegisterScreen next={next} initialIdentifier={identifier} termsHtml={null} />, {
+  if (identifier) handOffIdentifier('/register/', identifier)
+  render(<RegisterScreen next={next} termsHtml={null} />, {
     wrapper: authProviders({ auth }).wrapper,
   })
   return user
@@ -90,21 +94,18 @@ describe('registration answers and checks', () => {
     const email = screen.getByRole('textbox', { name: 'ایمیل' })
     await waitFor(() => expect(email).toHaveAccessibleDescription(detail))
     expect(email).toHaveFocus()
-    expect(screen.getByRole('link', { name: 'ورود با همین ایمیل' })).toHaveAttribute(
-      'href',
-      '/login/?identifier=sara.ahmadi%40example.com&next=%2Fcart%2F',
-    )
+    // The email goes to the login page with the link, never in its URL.
+    const login = screen.getByRole('link', { name: 'ورود با همین ایمیل' })
+    expect(login).toHaveAttribute('href', '/login/?next=%2Fcart%2F')
+    expect(await handedByClick(login, '/login/')).toBe('sara.ahmadi@example.com')
     // Another address: the message and its link go.
     await user.type(email, 'x')
     expect(screen.queryByRole('link', { name: 'ورود با همین ایمیل' })).toBeNull()
   })
 
   it('auth_phone_already_exists on complete: back to the start, «ورود» with that number', async () => {
-    const user = userEvent.setup()
-    render(<RegisterScreen next="" initialIdentifier="09121234501" termsHtml={null} />, {
-      wrapper: authProviders({ auth: everyMethodAuth() }).wrapper,
-    })
-    // The prefilled mobile number picks the phone tab.
+    const user = renderScreen({ auth: everyMethodAuth(), identifier: '09121234501' })
+    // The mobile number handed over by login picks the phone tab.
     expect(screen.getByRole('tab', { name: 'شماره موبایل' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -134,10 +135,9 @@ describe('registration answers and checks', () => {
     const phone = await screen.findByRole('textbox', { name: 'شماره موبایل' })
     await waitFor(() => expect(phone).toHaveFocus())
     expect(phone).toHaveAccessibleDescription(expect.stringContaining(detail))
-    expect(screen.getByRole('link', { name: 'ورود با همین شماره' })).toHaveAttribute(
-      'href',
-      '/login/?identifier=09121234501',
-    )
+    const login = screen.getByRole('link', { name: 'ورود با همین شماره' })
+    expect(login).toHaveAttribute('href', '/login/')
+    expect(await handedByClick(login, '/login/')).toBe('09121234501')
   })
 
   it('auth_password_weak lists each reason under the password field', async () => {

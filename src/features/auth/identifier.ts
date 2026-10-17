@@ -39,8 +39,8 @@ export function normalizeIdentifier(value: string): string {
 const PREFILL_MAX = 254
 
 /**
- * The `?identifier=` of a link to an auth page, normalised, when it is an email address or a
- * mobile number; anything else gives '' (the field starts empty).
+ * An identifier handed to an auth page (`identifier-handoff.ts`), normalised, when it is an email
+ * address or a mobile number; anything else gives '' (the field starts empty).
  */
 export function prefilledIdentifier(value: string): string {
   if (value.length > PREFILL_MAX || identifierType(value) === null) return ''

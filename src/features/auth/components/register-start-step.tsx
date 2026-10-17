@@ -11,6 +11,7 @@ import { AuthForm } from './auth-form'
 import { ChannelChoice } from './channel-choice'
 import { useSubmitWait } from './code-timers'
 import type { CodeFlowField } from './code-flow-types'
+import { HandoffLink } from './handoff-link'
 import { SubmitButton, TEXT_LINK } from './login-fields'
 import type { RegisterEntry } from './use-register-actions'
 import type { Wait } from './waits'
@@ -25,9 +26,9 @@ export interface RegisterStartStepProps {
   channels: OtpMethod[]
   channel: OtpMethod | null
   errors: Partial<Record<CodeFlowField, string>>
-  /** The identifier belongs to an account already: «ورود» with it. */
-  loginWithIdentifier: string | null
-  /** «وارد شوید», for a visitor who has an account. */
+  /** The identifier belongs to an account already: «ورود» with it (handed over, not in the URL). */
+  identifierTaken: boolean
+  /** The login page (with `next`): «وارد شوید», and «ورود» with a taken identifier. */
   loginHref: string
   notice: ReactNode
   busy: boolean
@@ -43,7 +44,7 @@ export interface RegisterStartStepProps {
 
 /** The identifier of one method: an email address, or a mobile number and its channel. */
 function IdentifierInput(props: RegisterStartStepProps & { method: ContactType }) {
-  const { method, entry, errors, channels, channel, loginWithIdentifier } = props
+  const { method, entry, errors, channels, channel, identifierTaken } = props
   const email = method === 'email'
   return (
     <>
@@ -70,10 +71,15 @@ function IdentifierInput(props: RegisterStartStepProps & { method: ContactType }
             }}
           />
         </Field>
-        {loginWithIdentifier && (
-          <Link href={loginWithIdentifier} className={TEXT_LINK}>
+        {identifierTaken && (
+          <HandoffLink
+            page="/login/"
+            href={props.loginHref}
+            identifier={entry[method]}
+            className={TEXT_LINK}
+          >
             {email ? 'ورود با همین ایمیل' : 'ورود با همین شماره'}
-          </Link>
+          </HandoffLink>
         )}
       </div>
       {!email && channel && channels.length > 1 && (

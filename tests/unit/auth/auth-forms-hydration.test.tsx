@@ -23,17 +23,9 @@ beforeEach(() => {
 })
 
 const PAGES: [string, ReactElement, string][] = [
-  ['/login/', <LoginScreen key="login" next="" initialIdentifier="" />, 'ادامه'],
-  [
-    '/register/',
-    <RegisterScreen key="register" next="" initialIdentifier="" termsHtml={null} />,
-    'دریافت کد تأیید',
-  ],
-  [
-    '/forgot-password/',
-    <ForgotPasswordScreen key="forgot" next="" initialIdentifier="" />,
-    'ارسال کد بازیابی',
-  ],
+  ['/login/', <LoginScreen key="login" next="" />, 'ادامه'],
+  ['/register/', <RegisterScreen key="register" next="" termsHtml={null} />, 'دریافت کد تأیید'],
+  ['/forgot-password/', <ForgotPasswordScreen key="forgot" next="" />, 'ارسال کد بازیابی'],
 ]
 
 describe.each(PAGES)('%s', (_path, page, submit) => {

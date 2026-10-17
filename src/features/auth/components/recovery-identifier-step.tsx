@@ -1,11 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import type { ReactNode, Ref } from 'react'
 import type { OtpMethod } from '@/lib/api/types/account'
 import { AuthCard } from './auth-card'
 import { AuthForm } from './auth-form'
 import { ChannelChoice } from './channel-choice'
+import { HandoffLink } from './handoff-link'
 import { useSubmitWait } from './code-timers'
 import { IdentifierField, SubmitButton, TEXT_LINK } from './login-fields'
 import type { Wait } from './waits'
@@ -20,7 +20,7 @@ export interface RecoveryIdentifierStepProps {
   busy: boolean
   /** Before «ارسال کد بازیابی» may send: a code's wait, or a 429's. */
   wait: Wait
-  /** «بازگشت به صفحهٔ ورود». */
+  /** «بازگشت به صفحهٔ ورود» (with `next`): what is typed goes with it, not in it. */
   loginHref: string
   titleRef: Ref<HTMLHeadingElement>
   onIdentifier: (value: string) => void
@@ -62,9 +62,14 @@ export function RecoveryIdentifierStep(props: RecoveryIdentifierStepProps) {
         </SubmitButton>
       </AuthForm>
       <p className="text-center">
-        <Link href={props.loginHref} className={TEXT_LINK}>
+        <HandoffLink
+          page="/login/"
+          href={props.loginHref}
+          identifier={props.identifier}
+          className={TEXT_LINK}
+        >
           بازگشت به صفحهٔ ورود
-        </Link>
+        </HandoffLink>
       </p>
     </AuthCard>
   )

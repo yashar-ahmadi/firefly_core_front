@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { RegisterScreen } from '@/features/auth/components/register-screen'
-import { prefilledIdentifier } from '@/features/auth/identifier'
 import { safeNext } from '@/features/auth/safe-next'
 import { firstParam, type SearchParams } from '@/features/auth/search-params'
 import { registrationTermsHtml } from '@/features/auth/terms'
@@ -13,10 +12,10 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'ثبت‌نام' }
 
 /**
- * `/register/?identifier=<email or mobile>&next=<path>`. The identifier prefills its method
- * (only an email address or a mobile number, normalised); `next` is kept only as a path on this
- * site and is where the new account lands. The operator's terms (`accept_terms_text`) are
- * sanitised here, on the server: the parser never reaches the browser.
+ * `/register/?next=<path>`. `next` is kept only as a path on this site and is where the new
+ * account lands. The URL never carries an identifier (login hands it over apart:
+ * `identifier-handoff.ts`; an `?identifier=` is ignored). The operator's terms
+ * (`accept_terms_text`) are sanitised here, on the server: the parser never reaches the browser.
  */
 export default async function RegisterPage({
   searchParams,
@@ -27,7 +26,6 @@ export default async function RegisterPage({
   return (
     <RegisterScreen
       next={safeNext(firstParam(params.next), '')}
-      initialIdentifier={prefilledIdentifier(firstParam(params.identifier))}
       termsHtml={registrationTermsHtml(settings?.accept_terms_text ?? null)}
     />
   )

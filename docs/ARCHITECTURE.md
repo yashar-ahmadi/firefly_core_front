@@ -285,14 +285,21 @@ field with «ورود» for it. The operator's terms (`accept_terms_text`) are s
 (`features/auth/terms.ts`, every web link in a new tab so the form is not lost) and passed to the
 page as a prop. Recovery checks the code by the channel it went by, keeps the reset token for
 another try after `auth_password_weak` or `auth_password_unchanged`, and ends with a toast on
-`/login/?identifier=…` (no tokens come back). An unknown identifier gets the API's own
+`/login/`, prefilled (no tokens come back). An unknown identifier gets the API's own
 `404 auth_user_not_found` detail, which the API reveals on purpose (§4.12). The new-password
 strength hint is client-side guidance only and steps aside while the API's reasons are shown.
 No auth form ever submits natively (a GET would put names, an email or a mobile number in the
 URL, the history and the server logs): every step's form is an `AuthForm` (`method="post"`; Next
 renders the page again for a form POST that is no Server Action), its `SubmitButton` is disabled
 until the page has hydrated (`useHydrated`, so the server HTML has it disabled too, which also
-stops Enter in a field), and a `<noscript>` notice in the card says JavaScript is needed.
+stops Enter in a field), and a `<noscript>` notice in the card says JavaScript is needed. For the
+same reason the links between the auth pages carry `next` alone: what the visitor typed goes to
+the next page by a one-shot handoff (`features/auth/identifier-handoff.ts`: this tab's session
+storage, with an in-memory copy when storage is blocked), set by the link's click (`HandoffLink`;
+not for a new tab) or before `router.replace`, taken and cleared by the page it names
+(`useHandedIdentifier`, which keys the form on it so a server-rendered page hydrates empty and is
+prefilled right after). An `?identifier=` in a URL is ignored: an email address or a mobile number
+there would reach the history, the server logs, the Referer and the operator's analytics.
 
 ## Caching
 

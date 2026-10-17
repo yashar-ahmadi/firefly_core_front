@@ -39,7 +39,7 @@ function initialEntry(methods: ContactType[], identifier: string): RegisterEntry
 export interface RegisterFlowProps {
   /** A safe `?next=` path, or '': `completeLogin` goes there (else to `/account/`). */
   next: string
-  /** Prefilled (`?identifier=`, normalised): from a login page that found no account. */
+  /** Prefilled (normalised): handed over by a login page that found no account. */
   initialIdentifier: string
   /** The operator's terms (`accept_terms_text`), sanitised on the server. */
   termsHtml: string | null
@@ -90,8 +90,8 @@ export function RegisterFlow({
           channels={actions.channels.otpChannels}
           channel={actions.channel}
           errors={errors}
-          loginWithIdentifier={taken ? loginPageHref(normalized, next) : null}
-          loginHref={loginPageHref(undefined, next)}
+          identifierTaken={taken}
+          loginHref={loginPageHref(next)}
           wait={actions.startWait}
           termsHtml={termsHtml}
           onEntry={(changes, field, destination) =>

@@ -40,6 +40,20 @@ function authRequests(page: Page): string[] {
   return urls
 }
 
+/**
+ * From the login page to password recovery as a visitor goes: `identifier` typed, «ادامه», then
+ * «فراموشی رمز عبور» on the password step. What was typed goes along (handed over by the link),
+ * never in the URL.
+ */
+async function toRecovery(page: Page, identifier: string) {
+  await page.goto('/login/')
+  await expect(page.getByRole('button', { name: 'ادامه' })).toBeEnabled()
+  await page.getByLabel('ایمیل یا شماره موبایل').fill(identifier)
+  await page.getByRole('button', { name: 'ادامه' }).click()
+  await page.getByRole('link', { name: 'فراموشی رمز عبور' }).click()
+  await expect(page).toHaveURL((url) => url.pathname === '/forgot-password/' && url.search === '')
+}
+
 function ok(data: object) {
   return { status: 200, contentType: 'application/json', json: { msg: '', code: 200, data } }
 }
@@ -111,12 +125,13 @@ test.describe('registration', () => {
 })
 
 test.describe('password recovery', () => {
-  test('prefills the identifier, and checks it before sending', async ({ page }) => {
+  test('prefills the identifier typed on login, and checks it before sending', async ({ page }) => {
     const errors = watchErrors(page)
     const sent = authRequests(page)
-    const response = await page.goto('/forgot-password/?identifier=%20Sara%40Example.com%20')
+    const response = await page.goto('/forgot-password/')
     expect(response?.status()).toBe(200)
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
+    await toRecovery(page, ' Sara@Example.com ')
     const field = page.getByRole('textbox', { name: 'ایمیل یا شماره موبایل' })
     await expect(field).toHaveValue('Sara@Example.com')
     await formHydrated(page)
@@ -139,7 +154,7 @@ test.describe('password recovery', () => {
     await page.route('**/api/bff/account/auth/password-reset/confirm/', (route) =>
       route.fulfill(ok({})),
     )
-    await page.goto('/forgot-password/?identifier=e2e-noreply%40example.com')
+    await toRecovery(page, 'e2e-noreply@example.com')
     await formHydrated(page)
     await page.getByRole('button', { name: 'ارسال کد بازیابی' }).click()
     await expect(page.getByLabel('رقم ۱')).toBeFocused()
@@ -149,7 +164,8 @@ test.describe('password recovery', () => {
     await password.fill('Firefly@5678')
     await page.getByLabel('تکرار رمز عبور جدید').fill('Firefly@5678')
     await page.getByRole('button', { name: 'تغییر رمز عبور' }).click()
-    await page.waitForURL('**/login/?identifier=e2e-noreply%40example.com')
+    // Back on login, prefilled: the address went along, never in the URL.
+    await expect(page).toHaveURL((url) => url.pathname === '/login/' && url.search === '')
     await expect(
       page.locator('[data-sonner-toast]', { hasText: 'رمز عبور تغییر کرد؛ دوباره وارد شوید' }),
     ).toBeVisible()

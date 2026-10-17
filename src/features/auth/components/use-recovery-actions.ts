@@ -8,6 +8,7 @@ import type { ContactType, OtpMethod, PasswordResetRequestBody } from '@/lib/api
 import type { AuthSettings } from '@/lib/api/types/settings'
 import { authApi } from '../api'
 import { loginPageHref } from '../auth-links'
+import { handOffIdentifier } from '../identifier-handoff'
 import { identifierType, normalizeIdentifier } from '../identifier'
 import { chosenChannel, codeChannels, type CodeChannels } from '../login-methods'
 import {
@@ -136,11 +137,13 @@ export function useRecoveryActions({
       run(
         () => authApi.passwordResetConfirm(confirmBody),
         () => {
-          // Every session was revoked and no tokens came back: sign in again, prefilled.
+          // Every session was revoked and no tokens came back: sign in again, prefilled (the
+          // identifier handed over, never in the URL).
           dispatch({ type: 'done' })
           notify.success(PASSWORD_CHANGED)
           if (!toastRegionReady()) announce(PASSWORD_CHANGED)
-          router.replace(loginPageHref(loginIdentifier, next))
+          handOffIdentifier('/login/', loginIdentifier)
+          router.replace(loginPageHref(next))
           return 'leaving'
         },
       )

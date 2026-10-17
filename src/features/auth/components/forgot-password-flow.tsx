@@ -17,7 +17,7 @@ import { stepWait } from './waits'
 export interface ForgotPasswordFlowProps {
   /** A safe `?next=` path, or '': carried to the login page afterwards. */
   next: string
-  /** Prefilled (`?identifier=`, normalised): from the login page's «فراموشی رمز عبور». */
+  /** Prefilled (normalised): handed over by the login page's «فراموشی رمز عبور». */
   initialIdentifier: string
   /** Focus the first field at once: the form took the place of another view of the page. */
   autoFocus?: boolean
@@ -72,7 +72,7 @@ export function ForgotPasswordFlow({
           channels={actions.channels.otpChannels}
           channel={channel}
           wait={actions.requestWait}
-          loginHref={loginPageHref(type ? loginIdentifier : undefined, next)}
+          loginHref={loginPageHref(next)}
           onIdentifier={(identifier) =>
             dispatch({
               type: 'entry',
