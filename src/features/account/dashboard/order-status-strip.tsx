@@ -42,9 +42,10 @@ const SKELETON_COUNT = 5
  */
 const LIST = cn(
   // `relative`: the tiles' sr-only words (absolutely placed) stay inside the scroller instead of
-  // widening the page past its edge.
-  'relative -mx-4 flex snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain px-4 [scrollbar-width:none]',
-  'sm:mx-0 sm:grid sm:gap-2 sm:overflow-visible sm:px-0',
+  // widening the page past its edge. `py-1 -my-1`: room for the tiles' focus rings, which the
+  // scroller would clip at its top and bottom, without making the strip taller.
+  'relative -mx-4 -my-1 flex snap-x snap-proximity gap-1 overflow-x-auto overscroll-x-contain px-4 py-1 [scrollbar-width:none]',
+  'sm:mx-0 sm:my-0 sm:grid sm:gap-2 sm:overflow-visible sm:px-0 sm:py-0',
 )
 const ITEM = 'w-[5.75rem] shrink-0 snap-start sm:w-auto'
 

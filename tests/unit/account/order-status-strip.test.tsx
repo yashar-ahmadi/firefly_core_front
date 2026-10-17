@@ -38,6 +38,11 @@ describe('the order status strip on phones and edge cases', () => {
     // The containing block of the tiles' sr-only words: they never widen the page.
     expect(list.className).toMatch(/(^| )relative( |$)/)
     expect(list.className).toContain('sm:grid')
+    // Room above and below the tiles inside the scroller, which would clip their focus rings;
+    // the margins take it back, so the strip stays as tall (sm and up: no scroller, no room).
+    for (const name of ['py-1', '-my-1', 'sm:py-0', 'sm:my-0']) {
+      expect(list.className, name).toMatch(new RegExp(`(^| )${name}( |$)`))
+    }
     for (const group of groups) {
       expect(group.closest('li')!.className).toContain('w-[5.75rem]')
       expect(group.querySelector('[data-group-label]')!.className).toContain('line-clamp-2')
