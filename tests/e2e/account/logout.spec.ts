@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 import { shellHydrated } from '../support/hydrated'
 import { logIn, SARA } from '../support/session'
 import { watchErrors } from '../support/watch-errors'
@@ -10,6 +10,15 @@ import { watchErrors } from '../support/watch-errors'
 // `useLogout`.
 
 const GUEST_LOGIN = /^ورود/
+const API_URL = process.env.FIREFLY_API_URL ?? 'http://localhost:8000'
+
+/** The header's guest link: «ورود | ثبت‌نام» while registration is open, else «ورود». */
+async function guestLinkName(request: APIRequestContext): Promise<string> {
+  const feature = await request.get(`${API_URL}/api/v1/global/feature-status/registration/`)
+  expect(feature.ok(), 'the registration feature').toBe(true)
+  const { is_enabled } = ((await feature.json()) as { data: { is_enabled: boolean } }).data
+  return is_enabled ? 'ورود | ثبت\u{200C}نام' : 'ورود'
+}
 
 /** No cookie of ours is left: the session's are deleted, and no guest cart was made. */
 async function expectNoShopCookies(page: Page) {
@@ -23,6 +32,7 @@ function accountTab(page: Page) {
 
 test('logs out: the guest header is back, the session cookies are gone', async ({
   page,
+  request,
   baseURL,
 }) => {
   const errors = watchErrors(page)
@@ -69,7 +79,12 @@ test('logs out: the guest header is back, the session cookies are gone', async (
   await page.goto('/')
   await shellHydrated(page)
   if (phone) await expect(accountTab(page)).toHaveAttribute('href', '/login/?next=/account/')
-  else await expect(banner.getByRole('link', { name: GUEST_LOGIN })).toBeVisible()
+  else await expect(banner.getByRole('link', { name: await guestLinkName(request) })).toBeVisible()
   await expect(banner.getByRole('button', { name: /^حساب کاربری/ })).toHaveCount(0)
+
+  // And the account is closed to it: login, with the account as `next` (kept readable).
+  await page.goto('/account/')
+  await expect(page).toHaveURL(`${origin}/login/?next=/account/`)
+  await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
   expect(errors).toEqual([])
 })

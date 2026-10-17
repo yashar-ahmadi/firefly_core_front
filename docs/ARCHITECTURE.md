@@ -376,7 +376,12 @@ signed-in header to another.
   `[js-budget] <route> (<device>): <KB>` for each and fails a route over 250 KB on either. At Plan
   2's end (desktop): home 219, category, list and brand 238, product 237, search 208, compare 214,
   brand index 204. The phone figures were about 15 KB higher (category 255) until the phone search
-  overlay stopped preloading on idle.
+  overlay stopped preloading on idle. Its sibling `tests/e2e/catalog/budget-signed-in.spec.ts`
+  measures the same way with the project's shared session (Plan 3): home, a category and a product
+  as sara sees them, `/account/`, `/account/profile/` and `/account/notifications/`. At Plan 3's
+  end (desktop/phone, signed in): home 227.6/225.0, category 247.9/245.3, product 246.0/243.5,
+  account 231.4/228.8, profile 235.8/233.2, notifications 223.6/221.0 — the signed-in desktop's
+  catalog carries the header's account button chunk.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -503,7 +508,10 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   next to it, exactly like the Docker image — against the local backend with sample data
   (`http://localhost:8000`). Three projects: `mobile` (Pixel 7), `tablet` (iPad landscape, Chromium)
   and `desktop` (1440×900). Specs that hit counted endpoints or check viewport-independent behaviour
-  (edge, snippets) run in one project only. An already running server on the base URL is reused;
+  (edge, snippets) run in one project only. A fourth, `journeys` (1440×900, one worker), runs after
+  the other three: the specs that log in through the form or write sara's data
+  (`tests/e2e/account/auth.spec.ts`, `account.spec.ts`), so no read-only spec sees that data change;
+  it is skipped when a project before it failed (`--no-deps` runs it alone). An already running server on the base URL is reused;
   `E2E_BASE_URL` points elsewhere. One full run makes about 220 anonymous API requests (about 400
   before the BFF served a guest's empty cart from a shared copy), all from one address, and the
   sample backend allows 2000 an hour per address (`THROTTLE_ANON`, a sliding hour): about eight
@@ -512,15 +520,18 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   start the backend with a larger budget, e.g. `THROTTLE_ANON=20000/hour`. A global setup
   (`tests/e2e/global-setup.ts`) probes the backend once before the run and stops it with that
   advice when the answer is already 429.
-- **Signed-in specs** (Plan 3). Every login is one `auth_attempt` at the backend, 20 a minute per
-  address for the whole run (the BFF forwards the visitor's address), so specs never log in per
-  test or in a loop (`tests/e2e/support/session.ts`). A spec that only reads with a session uses
+- **Signed-in specs** (Plan 3). Every login, and every logout, is one `auth_attempt` at the
+  backend, 20 a minute per address for the whole run (the BFF forwards the visitor's address), so
+  specs never log in per test or in a loop (`tests/e2e/support/session.ts`, which counts a full
+  run's attempts: 19, at most about 5 in a minute, the projects running one after the other). A spec that only reads with a session uses
   `signedInTest` from there: its `page` shares one login per project per run (a storage-state file
   in the output folder, written by the first worker that asks for it while the others wait; if
   that login fails, the waiting workers fail at once with its reason, without logging in). Never
   log that session out, revoke it or change its password with it, and restore any account data a
-  test changes (addresses, wishlist). A spec that ends or changes its session logs in on its own,
-  once per project, with `logIn` (as `tests/e2e/account/logout.spec.ts` does).
+  test changes: `tests/e2e/support/sara-data.ts` reads sara's address book (with its default),
+  wishlist and cart lines before a write journey and puts them back exactly in its `finally`. A
+  spec that ends or changes its session logs in on its own, once per project, with `logIn` (as
+  `tests/e2e/account/logout.spec.ts` does) or the form (`logInWithForm`), and logs out.
 - **CI** (`.github/workflows/ci.yml`, push and PR to `main`): install, `typecheck`, `lint`,
   `format:check`, `test`, `build`. End-to-end tests are not run in CI (they need the backend, a
   separate repository); run them locally before pushing.

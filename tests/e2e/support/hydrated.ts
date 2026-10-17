@@ -20,3 +20,24 @@ export async function shellHydrated(page: Page): Promise<void> {
     )
   }
 }
+
+/**
+ * Resolves once the page has run the work React scheduled for its last commit: the effects of
+ * what just mounted, and a render they asked for. Two animation frames, then a message posted
+ * after React's scheduler tasks (the same task source, run in order). For checking that the page
+ * *stays* as it is after a mount effect that could change it, without a fixed wait.
+ */
+export async function scheduledWorkDone(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const channel = new MessageChannel()
+            channel.port1.onmessage = () => resolve()
+            channel.port2.postMessage(null)
+          }),
+        ),
+      ),
+  )
+}

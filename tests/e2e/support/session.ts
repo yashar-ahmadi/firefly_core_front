@@ -1,18 +1,33 @@
-import { test as base, expect, type BrowserContext } from '@playwright/test'
+import {
+  test as base,
+  expect,
+  type Browser,
+  type BrowserContext,
+  type FullProject,
+  type Page,
+} from '@playwright/test'
 import { mkdir, open, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
-// Signing in for e2e specs (Plan 3). Every login is one `auth_attempt` at the backend, 20 a
-// minute per IP for the whole run (the BFF forwards the visitor's IP), so specs never log in per
-// test, and never in a loop:
+// Signing in for e2e specs (Plan 3). Every login, and every logout too, is one `auth_attempt`
+// at the backend: 20 a minute per IP for the whole run (the BFF forwards the visitor's IP), so
+// specs never log in per test, and never in a loop:
 //
 // - A spec that only reads with a session (the account pages, the header) uses `signedInTest`:
 //   its `page` is signed in as sara through a session shared by every spec and worker of the
 //   project, logged in once per project per run, the first time a test asks for it. That
 //   session must stay as it is: never log it out, revoke it (logout everywhere) or change the
-//   password with it, and restore any account data a test changes (addresses, wishlist).
+//   password with it, and restore any account data a test changes (support/sara-data.ts).
 // - A spec that ends or changes its session (logout, password change) logs in on its own, once
-//   per project, with `logIn`, as `account/logout.spec.ts` does.
+//   per project, with `logIn` (or the form), as `account/logout.spec.ts` does, and ends it.
+//
+// The attempts of a full run: the shared session of each project (mobile, tablet, desktop,
+// journeys: 4); logout.spec (a login and a logout per project but journeys: 6);
+// session-restore.spec (a form login and a logout, idem: 6); auth.spec (journeys only: a wrong
+// password, a form login and its logout: 3). 19 in all, and never many at once: Playwright runs
+// the projects one after the other (mobile, tablet, desktop, then journeys, which waits for the
+// others), each project's account specs first, so a minute holds at most one project's 3–5. No
+// spacing is needed; a spec that adds attempts adds its count here.
 
 /** The dev backend's demo customer. */
 export const SARA = {
@@ -39,6 +54,34 @@ export async function logIn(context: BrowserContext, baseURL: string): Promise<v
     },
   })
   expect(response.status(), `login through the BFF: ${await response.text()}`).toBe(200)
+}
+
+/**
+ * Signs in on the login page that `page` shows, the way a visitor does: sara's email, «ادامه»,
+ * the password (sara's unless another is given), «ورود». One `auth_attempt`. Resolves once
+ * «ورود» is pressed: the caller waits for what should follow.
+ */
+export async function logInWithForm(page: Page, password: string = SARA.password): Promise<void> {
+  // Hydrated first: a value typed into the server's HTML could be lost to hydration.
+  await page.waitForFunction(() => {
+    const form = document.querySelector('main form')
+    return form !== null && Object.keys(form).some((key) => key.startsWith('__reactProps'))
+  })
+  await page.getByLabel('ایمیل یا شماره موبایل').fill(SARA.email)
+  await page.getByRole('button', { name: 'ادامه' }).click()
+  await page.getByLabel('رمز عبور', { exact: true }).fill(password)
+  await page.getByRole('button', { name: 'ورود', exact: true }).click()
+}
+
+/**
+ * Ends `context`'s session through the BFF, as the account menu's «خروج» does (the API revokes the
+ * refresh token; the BFF drops the cookies). One `auth_attempt`.
+ */
+export async function logOut(context: BrowserContext, baseURL: string): Promise<void> {
+  const response = await context.request.post(`${baseURL}/api/bff/account/auth/logout/`, {
+    headers: { 'X-Requested-With': 'ff', Origin: baseURL },
+  })
+  expect(response.status(), `logout through the BFF: ${await response.text()}`).toBe(200)
 }
 
 const exists = (file: string) =>
@@ -80,23 +123,28 @@ async function sharedState(file: string, create: () => Promise<object>): Promise
   }
 }
 
+/**
+ * The project's shared session (sara), as a storage-state file: made the first time it is asked
+ * for in a run (one login), then the same file for every worker and spec of the project.
+ */
+export async function saraSession(browser: Browser, project: FullProject): Promise<string> {
+  const baseURL = project.use.baseURL ?? 'http://localhost:3000'
+  const file = path.join(project.outputDir, '.auth', `sara-${project.name}.json`)
+  return sharedState(file, async () => {
+    const context = await browser.newContext({ baseURL })
+    try {
+      await logIn(context, baseURL)
+      return await context.storageState()
+    } finally {
+      await context.close()
+    }
+  })
+}
+
 /** `test` with `page` (and `context`) signed in as sara through the project's shared session. */
 export const signedInTest = base.extend<object, { saraState: string }>({
   saraState: [
-    async ({ browser }, provide, { project }) => {
-      const baseURL = project.use.baseURL ?? 'http://localhost:3000'
-      const file = path.join(project.outputDir, '.auth', `sara-${project.name}.json`)
-      const state = await sharedState(file, async () => {
-        const context = await browser.newContext({ baseURL })
-        try {
-          await logIn(context, baseURL)
-          return await context.storageState()
-        } finally {
-          await context.close()
-        }
-      })
-      await provide(state)
-    },
+    async ({ browser }, provide, { project }) => provide(await saraSession(browser, project)),
     { scope: 'worker' },
   ],
   // The fixture's `use` callback, named apart from React's `use` (the hooks lint rule).
