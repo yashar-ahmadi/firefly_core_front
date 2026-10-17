@@ -305,7 +305,7 @@ describe('session refresh', () => {
   )
 
   it('keeps the cookies when the API cannot be reached', async () => {
-    refreshAccess.mockResolvedValue({ error: 'network' })
+    refreshAccess.mockResolvedValue({ error: 'network', retryAfter: null })
     const { proxy } = await load()
     const res = await proxy(request('/product/x/', { cookies: { ff_rt: refresh } }))
     expect(res.headers.getSetCookie()).toEqual([])

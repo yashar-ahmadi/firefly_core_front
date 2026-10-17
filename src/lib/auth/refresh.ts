@@ -2,7 +2,11 @@ import 'server-only'
 import { ApiError } from '@/lib/api/errors'
 import { apiFetch } from '@/lib/api/server'
 
-export type RefreshResult = { access: string } | { error: 'invalid' | 'inactive' | 'network' }
+export type RefreshResult =
+  | { access: string }
+  | { error: 'invalid' | 'inactive' }
+  /** Nothing said about the session; `retryAfter`: seconds, when a 429 said so. */
+  | { error: 'network'; retryAfter: number | null }
 
 const REFRESH_TIMEOUT_MS = 5_000
 
@@ -40,8 +44,10 @@ export async function refreshAccess(
     })
     return typeof data?.access === 'string' && data.access !== ''
       ? { access: data.access }
-      : { error: 'network' }
+      : { error: 'network', retryAfter: null }
   } catch (error) {
-    return { error: classify(error) }
+    const kind = classify(error)
+    if (kind !== 'network') return { error: kind }
+    return { error: kind, retryAfter: error instanceof ApiError ? error.retryAfter : null }
   }
 }

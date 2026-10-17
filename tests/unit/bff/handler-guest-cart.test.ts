@@ -22,7 +22,14 @@ let fetchSpy: FetchSpy
 
 beforeEach(() => {
   stubEnv()
-  fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => envelope(emptyCart()))
+  // A refresh cookie's request refreshes first (its access cookie is gone): it gets a token.
+  fetchSpy = vi
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(async (input) =>
+      String(input).endsWith('account/auth/token/refresh/')
+        ? envelope({ access: jwtExpiringIn(900) })
+        : envelope(emptyCart()),
+    )
 })
 
 afterEach(() => {

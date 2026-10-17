@@ -131,7 +131,7 @@ describe('the account guard in the proxy', () => {
   })
 
   it('renders the page when the API cannot be reached: the session may well be alive', async () => {
-    refreshAccess.mockResolvedValue({ error: 'network' })
+    refreshAccess.mockResolvedValue({ error: 'network', retryAfter: null })
     const proxy = await loadProxy()
     const res = await proxy(request('/account/', { ff_rt: REFRESH }))
     expect(res.headers.get('x-middleware-next')).toBe('1')

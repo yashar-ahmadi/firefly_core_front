@@ -30,8 +30,9 @@ afterEach(() => {
 })
 
 describe('streamed uploads', () => {
-  it('does not replay a streamed upload after a 401 (the refresh before the call covers expiry)', async () => {
-    fetchSpy.mockResolvedValue(failure(401, 'token_not_valid'))
+  // The refresh after it, and the retryable 503 when it works: handler-refresh-transient.test.ts.
+  it('never sends a streamed upload twice after a 401 (the refresh before the call covers expiry)', async () => {
+    fetchSpy.mockImplementation(async () => failure(401, 'token_not_valid'))
     const form = new FormData()
     form.append('receipt', new Blob(['x']), 'r.jpg')
     const handleBff = await loadHandler()
@@ -42,9 +43,10 @@ describe('streamed uploads', () => {
         cookies: { ff_at: jwtExpiringIn(600), ff_rt: jwtExpiringIn(9999) },
       }),
     )
+    // The refresh token is refused too: the 401 stands.
     expect(res.status).toBe(401)
     expect(upstreamCalls(fetchSpy)).toHaveLength(1)
-    expect(refreshCalls(fetchSpy)).toHaveLength(0)
+    expect(refreshCalls(fetchSpy)).toHaveLength(1)
   })
 })
 

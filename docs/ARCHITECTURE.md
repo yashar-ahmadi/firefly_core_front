@@ -118,7 +118,12 @@ re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
   cart merge, never on key-only paths), `Idempotency-Key` (passed through) and `X-Forwarded-For` (the visitor IP from
   `CLIENT_IP_HEADER`);
 - refreshes the access token once (before the call when it is expiring, or after a
-  `401 token_not_valid`/`authentication_failed`) and retries once;
+  `401 token_not_valid`/`authentication_failed`) and retries once; a refresh that fails
+  transiently (5xx, 429, no answer) keeps the cookies and, where the call would go without a usable
+  bearer or its 401 would be relayed, answers a retryable `503 session_refresh_unavailable` (with
+  `Retry-After` when the API said when) instead of a 401 that would end a live session; a
+  streamed upload, which cannot be replayed, answers `503 upload_retry` after a successful
+  refresh (the new access cookie set) so the page sends it again;
 - moves `data.tokens` (auth responses) and `data.token` (cart responses) into httpOnly cookies and
   strips them from the body the browser sees; clears the session on logout, `user_inactive` or
   `user_not_found`, and drops the cart cookie after a merge or `cart_not_found`;

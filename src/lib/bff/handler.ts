@@ -2,7 +2,7 @@ import 'server-only'
 import type { NextRequest, NextResponse } from 'next/server'
 import { getServerEnv } from '@/config/env'
 import { apiPath } from '@/lib/api/envelope'
-import { NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
+import { GENERIC_ERROR_DETAIL, NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
 import { isExpiring } from '@/lib/auth/jwt'
 import { refreshAccess } from '@/lib/auth/refresh'
 import { isAllowed } from '@/lib/bff/allowlist'
@@ -87,14 +87,39 @@ function tooLarge(): NextResponse {
 }
 
 /**
+ * The session lives (its refresh cookie), but no access token the API takes can be had now: the
+ * refresh failed for a reason that says nothing about the session (5xx, 429, no answer). A
+ * retryable 503 (`Retry-After` when the API said when), never a call without the bearer, whose
+ * 401 would end a live session in the page.
+ */
+function refreshUnavailable(retryAfter: number | null): NextResponse {
+  const after = retryAfter === null ? null : String(retryAfter)
+  return errorResponse(503, 'session_refresh_unavailable', NETWORK_ERROR_DETAIL, after)
+}
+
+/** A streamed upload met a stale access token: refreshed now, but a stream cannot be replayed. */
+function uploadRetry(): NextResponse {
+  return errorResponse(503, 'upload_retry', GENERIC_ERROR_DETAIL)
+}
+
+/** What the request's one refresh came to: `unavailable` when it failed transiently. */
+interface RefreshState {
+  done: boolean
+  unavailable: { retryAfter: number | null } | null
+}
+
+/**
  * The browser's only door to the Firefly API. See the route file for the full contract.
  *
  * Token refresh happens at most once per request: before the call when `ff_at` is missing or
  * about to expire (and `ff_rt` exists), otherwise after a `401 token_not_valid`, followed by one
  * retry (`401 cart_token_required` on `cart/merge/` counts as stale too, when a bearer was sent).
- * A streamed upload cannot be replayed, so it is not retried. If the refresh token is
- * rejected, the session cookies are cleared and the call goes out without a bearer: the API
- * answers public paths as a guest and auth-required paths with its own 401, which is relayed.
+ * A streamed upload cannot be replayed: after that refresh it answers a retryable 503 (the new
+ * access cookie set), so the page sends it again instead of ending a live session. If the refresh
+ * token is rejected, the session cookies are cleared and the call goes out without a bearer: the
+ * API answers public paths as a guest and auth-required paths with its own 401, which is relayed.
+ * If the refresh fails transiently (5xx, 429, no answer), the cookies stay and, where the call
+ * would go without a usable bearer or its 401 would be relayed, a retryable 503 answers instead.
  */
 export async function handleBff(req: NextRequest, segments: string[]): Promise<NextResponse> {
   const env = getServerEnv()
@@ -127,24 +152,35 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
   }
 
   let access = keyOnly ? null : cookies.access
-  let refreshed = false
+  const refreshing: RefreshState = { done: false, unavailable: null }
   const refresh = async (): Promise<boolean> => {
-    if (refreshed || !cookies.refresh) return false
-    refreshed = true
+    if (refreshing.done || !cookies.refresh) return false
+    refreshing.done = true
     const result = await refreshAccess(cookies.refresh, forwardedFor)
     if ('access' in result) {
       access = result.access
       jar.setAccess(result.access)
       return true
     }
-    if (result.error !== 'network') {
+    if (result.error === 'network') {
+      refreshing.unavailable = { retryAfter: result.retryAfter }
+    } else {
       access = null
       jar.clearSession()
     }
     return false
   }
+  const secure = new URL(env.SITE_URL).protocol === 'https:'
+  const answer = (response: NextResponse): NextResponse => {
+    jar.applyTo(response, secure)
+    return response
+  }
 
   if (!keyOnly && cookies.refresh && isExpiring(access)) await refresh()
+  // No access token the API would take (none left, or expired): never a call without the bearer.
+  if (refreshing.unavailable && isExpiring(access, 0)) {
+    return answer(refreshUnavailable(refreshing.unavailable.retryAfter))
+  }
 
   const send = async () => {
     const sentAccess = access !== null
@@ -164,13 +200,13 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
   }
 
   let attempt = await send()
-  if (
-    attempt.sentAccess &&
-    body.replayable &&
-    isStaleAccess(attempt.result, path) &&
-    (await refresh())
-  ) {
-    attempt = await send()
+  if (attempt.sentAccess && isStaleAccess(attempt.result, path)) {
+    const refreshedNow = await refresh()
+    if (refreshedNow && !body.replayable) return answer(uploadRetry())
+    if (refreshedNow) attempt = await send()
+    else if (refreshing.unavailable) {
+      return answer(refreshUnavailable(refreshing.unavailable.retryAfter))
+    }
   }
 
   let response: NextResponse
@@ -182,8 +218,7 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
     captureSession({ path, status: result.status, body: json, sentAccess, sentCart }, jar)
     response = toResponse(result)
   }
-  jar.applyTo(response, new URL(env.SITE_URL).protocol === 'https:')
-  return response
+  return answer(response)
 }
 
 function upstreamHeaders(

@@ -86,6 +86,20 @@ describe('refreshAccess', () => {
   ])('maps %s to network, so the session is kept', async (_label, impl) => {
     fetchSpy.mockImplementation(impl as () => Promise<Response>)
     const refreshAccess = await load()
-    await expect(refreshAccess('r.r.r', null)).resolves.toEqual({ error: 'network' })
+    await expect(refreshAccess('r.r.r', null)).resolves.toEqual({
+      error: 'network',
+      retryAfter: null,
+    })
+  })
+
+  it('a 429 that says when: network, with its Retry-After', async () => {
+    const throttled = failure(429, 'throttled')
+    throttled.headers.set('retry-after', '30')
+    fetchSpy.mockResolvedValue(throttled)
+    const refreshAccess = await load()
+    await expect(refreshAccess('r.r.r', null)).resolves.toEqual({
+      error: 'network',
+      retryAfter: 30,
+    })
   })
 })
