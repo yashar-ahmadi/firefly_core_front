@@ -121,13 +121,14 @@ describe('not-found.tsx and the shop shell', () => {
   })
 })
 
+// The root boundary loads its view on demand (error-boundary-chunk.test.tsx): awaited here.
 describe('error.tsx', () => {
-  it('is the skip link target when it replaces the shop layout', () => {
+  it('is the skip link target when it replaces the shop layout', async () => {
     const { container } = render(
       <ErrorPage error={new Error('x')} reset={vi.fn()} retry={vi.fn()} />,
     )
     expect(container.querySelector('main#main')).toContainElement(
-      screen.getByRole('heading', { level: 1 }),
+      await screen.findByRole('heading', { level: 1 }),
     )
   })
 
@@ -140,7 +141,9 @@ describe('error.tsx', () => {
         <ErrorPage error={error} reset={vi.fn()} retry={retry} />
       </I18nProvider>,
     )
-    expect(screen.getByRole('heading', { level: 1, name: 'مشکلی پیش آمد' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'مشکلی پیش آمد' }),
+    ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'تلاش دوباره' }))
     expect(retry).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('link', { name: 'صفحه\u{0654} اصلی' })).toHaveAttribute('href', '/')
@@ -150,14 +153,16 @@ describe('error.tsx', () => {
     expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
   })
 
-  it('logs the error with its digest', () => {
+  it('logs the error with its digest', async () => {
     const error = Object.assign(new Error('boom'), { digest: 'abc123' })
     render(<ErrorPage error={error} reset={vi.fn()} retry={vi.fn()} />)
+    await screen.findByRole('heading', { level: 1 })
     expect(consoleError).toHaveBeenCalledWith('[error-boundary]', 'abc123', error)
   })
 
-  it('shows no reference without a digest', () => {
+  it('shows no reference without a digest', async () => {
     render(<ErrorPage error={new Error('client')} reset={vi.fn()} retry={vi.fn()} />)
+    await screen.findByRole('heading', { level: 1 })
     expect(screen.queryByText(/کد پیگیری/)).toBeNull()
   })
 })

@@ -436,6 +436,18 @@ signed-in header to another.
   Plan 3 final fixes (desktop/phone): a guest's pages are the same as without push (category
   245.7/245.7); signed in, the category is 247.9/245.7 without push and 249.5/247.3 with push
   on — 0.5 KB under the budget: the next catalog feature must pay for itself.
+- **Plan 4's recovery (ruling P4-R2).** The root `app/error.tsx` boundary sits above the shop
+  layout, so Turbopack builds its chunk group without the layout's chunks: its static import of
+  `ErrorView` (next/link, `Button` and its Slot, icons) put a second copy of that code on every
+  page (6.6 KB, of which 0.2 KB was the boundary's own). It now loads the view through
+  `next/dynamic` when the boundary shows (a plain `ErrorFallback` with a reload if that chunk
+  cannot load). Every route dropped 5.6 KB: signed in (desktop/phone) home 222.0/219.8, category
+  242.3/240.1, product 240.5/238.2; the push shop with push on, category 243.9/241.6. The
+  duplicates are found by parsing the loaded chunks' module ids (a module id in two chunks of
+  one page); Turbopack's chunking options (`requestCost`, `minChunkSize`,
+  `generateComponentChunks`) did not help (equal, +11 KB, +0.4 KB). A new boundary or other
+  render-dependent file (error, not-found) at a segment above the shop layout must not import
+  what the layout already ships.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
