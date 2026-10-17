@@ -99,6 +99,10 @@ describe('the one-time code step', () => {
     await user.click(screen.getByRole('button', { name: 'ارسال کد' }))
     const resend = await screen.findByRole('button', { name: 'ارسال مجدد کد' })
     expect(resend).toHaveAttribute('aria-disabled', 'true')
+    // «مرا به خاطر بسپار» comes before the boxes, which send the code once full.
+    const remember = screen.getByRole('checkbox', { name: 'مرا به خاطر بسپار' })
+    const boxes = screen.getByRole('group', { name: 'کد ورود' })
+    expect(remember.compareDocumentPosition(boxes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByText(/کد تا ۰۵:۰۰ دیگر معتبر است/)).toBeVisible()
     // The ticking times are not in a live region: only the moment the wait ends is read out.
     const wait = screen.getByText(/ارسال دوباره پس از/)
@@ -126,7 +130,9 @@ describe('the one-time code step', () => {
     // The previous code is void now: ask for a new one, at once.
     expect(await screen.findByRole('alert')).toHaveTextContent(detail)
     expect(screen.queryByRole('group', { name: 'کد ورود' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'ارسال کد' })).not.toHaveAttribute('aria-disabled')
+    const sendAgain = screen.getByRole('button', { name: 'ارسال کد' })
+    expect(sendAgain).not.toHaveAttribute('aria-disabled')
+    await waitFor(() => expect(sendAgain).toHaveFocus())
   })
 
   it('keeps counting while the visitor is on another step, and shows what is left on return', async () => {
@@ -148,6 +154,8 @@ describe('the one-time code step', () => {
     const user = await openCodeStep()
     mocks.loginOtpRequest.mockResolvedValueOnce(SENT)
     await user.click(screen.getByRole('button', { name: 'ارسال کد' }))
+    // The answer is in (the boxes show) before the clock moves on.
+    await screen.findByRole('group', { name: 'کد ورود' })
     await seconds(120)
     const detail = 'تعداد درخواست‌های امروز به سقف رسیده است.'
     mocks.loginOtpRequest.mockRejectedValueOnce(
@@ -181,7 +189,7 @@ describe('the one-time code step', () => {
     })
   })
 
-  it('a wrong code shows under the boxes; too many tries clears it and waits retry_after', async () => {
+  it('a wrong code is cleared, so retyping sends it once; too many tries waits retry_after', async () => {
     const user = await openCodeStep()
     mocks.loginOtpRequest.mockResolvedValueOnce(SENT)
     await user.click(screen.getByRole('button', { name: 'ارسال کد' }))
@@ -192,6 +200,9 @@ describe('the one-time code step', () => {
     await user.keyboard('111111')
     const group = screen.getByRole('group', { name: 'کد ورود' })
     await waitFor(() => expect(group).toHaveAccessibleDescription('کد تأیید نامعتبر است.'))
+    // Empty again, from the first box: six new digits are one more try, not six.
+    expect(screen.getByLabelText('رقم ۶')).toHaveValue('')
+    await waitFor(() => expect(screen.getByLabelText('رقم ۱')).toHaveFocus())
 
     mocks.loginOtpVerify.mockRejectedValueOnce(
       new ApiError({
@@ -201,11 +212,16 @@ describe('the one-time code step', () => {
         retryAfter: 45,
       }),
     )
-    await user.click(screen.getByLabelText('رقم ۶'))
-    await user.keyboard('{Backspace}2')
+    await user.keyboard('222222')
     expect(await screen.findByRole('alert')).toHaveTextContent('تلاش‌های ناموفق زیاد بود.')
+    expect(mocks.loginOtpVerify).toHaveBeenCalledTimes(2)
+    expect(mocks.loginOtpVerify).toHaveBeenLastCalledWith(
+      expect.objectContaining({ otp_code: '222222' }),
+    )
     const send = screen.getByRole('button', { name: 'ارسال کد' })
     expect(send).toHaveAttribute('aria-disabled', 'true')
     expect(send).toHaveAccessibleDescription(expect.stringContaining('۰۰:۴۵'))
+    // The code form is gone; the focus goes to the step's main control, not to the page.
+    await waitFor(() => expect(send).toHaveFocus())
   })
 })

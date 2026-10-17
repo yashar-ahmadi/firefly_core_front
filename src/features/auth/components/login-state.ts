@@ -1,95 +1,27 @@
-import type { LoginBody, LoginOtpVerifyBody, OtpMethod, OtpSent } from '@/lib/api/types/account'
+import type {
+  LoginAction,
+  LoginFailure,
+  LoginField,
+  LoginState,
+  LoginStep,
+  Wait,
+} from './login-types'
 
 // The login page's state machine: identifier → (password | otp) → totp? → done. Pure: the
 // component sends the requests and dispatches what they answered. Going back keeps every value
 // typed; only a new identifier forgets the code sent to the old one.
 
-export type LoginStep = 'identifier' | 'password' | 'otp' | 'totp' | 'done'
-/** A field a message can be shown under; each belongs to one step. */
-export type LoginField = 'identifier' | 'password' | 'otp' | 'totp'
-type FirstStep = 'identifier' | 'password' | 'otp'
-
-/** The request a TOTP challenge answered: sent again as it was, plus `totp_code`. */
-export type PendingLogin =
-  | { kind: 'password'; body: LoginBody }
-  | { kind: 'otp'; body: LoginOtpVerifyBody }
-  | { kind: 'google'; body: { id_token: string } }
-
-/** A message for the whole step; `code` picks its call to action (register, for one). */
-export interface LoginNotice {
-  detail: string
-  code: string
-}
-
-/** What a failed request means for the form (see `loginFailure`). */
-export interface LoginFailure {
-  /** Shown under this field, on its step; without one, a notice on the current step. */
-  field?: LoginField
-  detail: string
-  code: string
-  /** A 429's `retry_after`: the wait before sending a code again, or before the next TOTP. */
-  retryAfter?: number | null
-  /** The code sent is void (or there is none): a new one must be asked for. */
-  forgetCode?: boolean
-  /** On the TOTP step: the first request cannot succeed any more; go back to its step. */
-  restart?: boolean
-}
-
-/**
- * A wait that ends at `until` (epoch ms; 0: no wait). An absolute time, so a timer shown again
- * later (back on the step, another phase) shows what is left; `seq` tells each new wait apart.
- */
-export interface Wait {
-  until: number
-  seq: number
-}
-
-export interface LoginState {
-  step: LoginStep
-  /** As typed (the API gets `normalizeIdentifier` of it). */
-  identifier: string
-  password: string
-  rememberMe: boolean
-  /** The visitor's choice of channel; null: the settings' default. */
-  otpChannel: OtpMethod | null
-  otpCode: string
-  totpCode: string
-  /** The last code sent, while it can still be used. */
-  otpSent: OtpSent | null
-  /** Codes sent so far: a new code gets a fresh field. */
-  sends: number
-  /** When the last code sent expires (`expires_in`). */
-  codeExpiry: Wait
-  /** Before the next code may be asked for: `resend_after`, or a 429's `retry_after`. */
-  sendWait: Wait
-  /** Before the next TOTP code may be tried (`auth_totp_locked`). */
-  totpWait: Wait
-  pending: PendingLogin | null
-  /** Where the TOTP step goes back to. */
-  totpFrom: FirstStep
-  /** A request is on its way (and, once done, the page is changing). */
-  busy: boolean
-  /** That request asks for a code (its button shows the spinner, not the step's main one). */
-  sending: boolean
-  fieldErrors: Partial<Record<LoginField, string>>
-  notice: LoginNotice | null
-  /** Counts failures (checks included): each moves the focus to the field in error. */
-  attempt: number
-}
-
-export type LoginAction =
-  | { type: 'edit'; field: 'identifier' | 'password' | 'otpCode' | 'totpCode'; value: string }
-  | { type: 'remember'; value: boolean }
-  | { type: 'channel'; value: OtpMethod }
-  | { type: 'go'; step: FirstStep }
-  /** A check before any request (an empty or malformed identifier). */
-  | { type: 'invalid'; field: LoginField; detail: string }
-  | { type: 'submit'; sending?: boolean }
-  | { type: 'otpSent'; sent: OtpSent; now: number }
-  | { type: 'needsTotp'; request: PendingLogin }
-  | { type: 'back' }
-  | { type: 'signedIn' }
-  | { type: 'failed'; failure: LoginFailure; now: number }
+export type {
+  LoginAction,
+  LoginFailure,
+  LoginField,
+  LoginNotice,
+  LoginState,
+  LoginStep,
+  PendingLogin,
+  StepWait,
+  Wait,
+} from './login-types'
 
 const STEP_OF: Record<LoginField, LoginStep> = {
   identifier: 'identifier',
@@ -120,7 +52,7 @@ export function initialLoginState(identifier = ''): LoginState {
     sends: 0,
     codeExpiry: NO_WAIT,
     sendWait: NO_WAIT,
-    totpWait: NO_WAIT,
+    submitWait: { ...NO_WAIT, step: 'identifier' },
     pending: null,
     totpFrom: 'identifier',
     busy: false,
@@ -145,7 +77,7 @@ function withoutError(errors: LoginState['fieldErrors'], field: LoginField) {
 
 /** The step a failure lands on, and what it changes there. */
 function failed(state: LoginState, failure: LoginFailure, now: number): LoginState {
-  const { field, detail, code, retryAfter, forgetCode, restart } = failure
+  const { field, detail, code, retryAfter, forgetCode, restart, sendSide } = failure
   const step = field
     ? STEP_OF[field]
     : state.step === 'totp' && restart
@@ -161,14 +93,16 @@ function failed(state: LoginState, failure: LoginFailure, now: number): LoginSta
     attempt: state.attempt + 1,
   }
   if (state.step === 'totp' && step !== 'totp') next.pending = null
+  // A code in error is typed again from scratch: kept, each new digit would send it once more.
   if (field === 'totp' || step !== 'totp') next.totpCode = ''
+  if (field === 'otp') next.otpCode = ''
   if (forgetCode) {
     next.otpSent = null
     next.otpCode = ''
   }
   if (retryAfter && retryAfter > 0) {
-    if (step === 'otp') next.sendWait = restartWait(state.sendWait, now, retryAfter)
-    if (step === 'totp') next.totpWait = restartWait(state.totpWait, now, retryAfter)
+    if (state.sending || sendSide) next.sendWait = restartWait(state.sendWait, now, retryAfter)
+    else next.submitWait = { ...restartWait(state.submitWait, now, retryAfter), step }
   }
   return next
 }
@@ -243,7 +177,18 @@ export function loginReducer(state: LoginState, action: LoginAction): LoginState
       }
       return { ...state, step: 'identifier', fieldErrors: {}, notice: null }
     case 'signedIn':
-      return { ...state, step: 'done', busy: true, fieldErrors: {}, notice: null }
+      // Nothing secret stays in memory once it has served (the password, a code, a token).
+      return {
+        ...state,
+        step: 'done',
+        busy: true,
+        password: '',
+        otpCode: '',
+        totpCode: '',
+        pending: null,
+        fieldErrors: {},
+        notice: null,
+      }
     case 'failed':
       return failed(state, action.failure, action.now)
   }

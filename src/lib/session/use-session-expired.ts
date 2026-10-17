@@ -33,7 +33,8 @@ const SESSION_PAGE = /^\/account(?:\/|$)/
  *
  * Stable across renders. Only the first call for a session does the above (`endSession`): when
  * several session calls fail at once, each calls this before React re-renders, and a second run
- * would read the page again and replace it twice. A later call for an action still pushes login.
+ * would read the page again and replace it twice. A later call for an action still goes to
+ * login (replaced on an account page, pushed elsewhere).
  */
 export function useSessionExpired(): SessionExpired {
   const { endSession } = useSession()
@@ -48,8 +49,10 @@ export function useSessionExpired(): SessionExpired {
       }
       const { pathname, search } = window.location
       const login = loginHref(`${pathname}${search}`)
+      // A background read that finds the session over already says nothing new; an action that
+      // needs one does, even then (the flag cookie and the session cookie can disagree).
       if (SESSION_PAGE.test(pathname)) {
-        if (first) router.replace(login)
+        if (first || toLogin) router.replace(login)
       } else if (toLogin) router.push(login)
     },
     [client, router, endSession],

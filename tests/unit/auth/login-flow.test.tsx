@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LoginFlow } from '@/features/auth/components/login-flow'
 import { ApiError } from '@/lib/api/errors'
 import { stubBrowserApis } from '../support/dom-stubs'
-import { authProviders } from '../support/auth-providers'
+import { authProviders, everyMethodAuth } from '../support/auth-providers'
 import { cart, result } from '../cart/support'
 import { SARA } from './fixtures'
 
@@ -46,11 +46,17 @@ beforeEach(() => {
   mocks.bffFetch.mockResolvedValue(result(cart()))
 })
 
-function renderFlow(identifier = '') {
+function renderFlow(identifier = '', options: Parameters<typeof authProviders>[0] = {}) {
   const user = userEvent.setup()
-  render(<LoginFlow next="" initialIdentifier={identifier} />, { wrapper: authProviders().wrapper })
+  render(<LoginFlow next="" initialIdentifier={identifier} />, {
+    wrapper: authProviders(options).wrapper,
+  })
   return user
 }
+
+const REGISTRATION_OFF = {
+  registration: { key: 'registration', name: 'ثبت نام', enabled: false, reason: null },
+} as const
 
 async function toPasswordStep(user: ReturnType<typeof userEvent.setup>, identifier = EMAIL) {
   await user.type(screen.getByLabelText('ایمیل یا شماره موبایل'), identifier)
@@ -197,5 +203,24 @@ describe('LoginFlow', () => {
       'href',
       '/register/?identifier=nobody%40example.com',
     )
+  })
+
+  it.each([
+    ['registration is switched off', 'nobody@example.com', { features: REGISTRATION_OFF }],
+    [
+      'the settings register no phone numbers',
+      '09121234599',
+      { auth: { ...everyMethodAuth(), registration_methods: ['email' as const] } },
+    ],
+  ])('offers no registration when %s', async (_case, identifier, options) => {
+    const user = renderFlow(identifier, options)
+    await user.click(screen.getByRole('button', { name: 'ادامه' }))
+    await user.click(await screen.findByRole('button', { name: 'ورود با کد یکبار مصرف' }))
+    mocks.loginOtpRequest.mockRejectedValueOnce(
+      new ApiError({ status: 404, code: 'auth_user_not_found', detail: 'کاربری یافت نشد.' }),
+    )
+    await user.click(await screen.findByRole('button', { name: 'ارسال کد' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('کاربری یافت نشد.')
+    expect(screen.queryByRole('link', { name: /ثبت‌نام/ })).toBeNull()
   })
 })

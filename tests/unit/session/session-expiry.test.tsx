@@ -205,6 +205,20 @@ describe('useSessionExpired', () => {
     expect(mocks.push).toHaveBeenCalledWith('/login/?next=/brand/samsung/')
   })
 
+  it('on an account page, an action still goes to login when the page thought it was a guest', () => {
+    // ff_rt let the account layout in, but ff_auth was gone: hasSession started false.
+    window.history.replaceState(null, '', '/account/wishlist/')
+    const providers = clientProviders({ hasSession: false })
+    const { result } = renderHook(() => useSessionExpired(), { wrapper: providers.wrapper })
+    // A background read has nothing to end: no navigation.
+    act(() => result.current())
+    expect(mocks.replace).not.toHaveBeenCalled()
+    act(() => result.current({ toLogin: true }))
+    expect(mocks.replace).toHaveBeenCalledTimes(1)
+    expect(mocks.replace).toHaveBeenCalledWith('/login/?next=/account/wishlist/')
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
   it('works again for a session that starts after the last one ended', () => {
     window.history.replaceState(null, '', '/account/')
     const { result } = renderExpiry()

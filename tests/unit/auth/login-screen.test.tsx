@@ -73,7 +73,8 @@ beforeEach(() => {
   mocks.scripts.length = 0
   mocks.script.outcome = 'ready'
   credential = null
-  window.google = { accounts: { id: gis } }
+  // A fresh API object per test, as on a new page: Google is initialised once per object.
+  window.google = { accounts: { id: { ...gis } } }
   mocks.bffFetch.mockResolvedValue(result(cart()))
 })
 
@@ -175,5 +176,33 @@ describe('LoginScreen', () => {
     renderScreen()
     expect(mocks.scripts).toEqual([])
     expect(screen.queryByText('یا')).toBeNull()
+  })
+
+  it('initialises Google once; a button drawn again after a step change still signs in', async () => {
+    const { user } = renderScreen({ auth: everyMethodAuth() })
+    await waitFor(() => expect(gis.renderButton).toHaveBeenCalledTimes(1))
+    await user.type(screen.getByLabelText('ایمیل یا شماره موبایل'), 'sara.ahmadi@example.com')
+    await user.click(screen.getByRole('button', { name: 'ادامه' }))
+    await user.click(await screen.findByRole('button', { name: /تغییر/ }))
+    await waitFor(() => expect(gis.renderButton).toHaveBeenCalledTimes(2))
+    expect(gis.initialize).toHaveBeenCalledTimes(1)
+    mocks.google.mockResolvedValue({ user: SARA, requires_totp: false, remember_me: false })
+    await act(async () => credential?.({ credential: 'gis-id-token' }))
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith('/account/'))
+  })
+
+  it('a throttled Google login waits retry_after: the button is inert, a credential ignored', async () => {
+    renderScreen({ auth: everyMethodAuth() })
+    await waitFor(() => expect(gis.renderButton).toHaveBeenCalledTimes(1))
+    const detail = 'درخواست محدود شد. انتظار می رود در 30 ثانیه در دسترس باشد.'
+    mocks.google.mockRejectedValueOnce(
+      new ApiError({ status: 429, code: 'throttled', detail, retryAfter: 30 }),
+    )
+    await act(async () => credential?.({ credential: 'first' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('در ۳۰ ثانیه')
+    expect(screen.getByText(/زمان باقی‌مانده تا تلاش دوباره/)).toBeVisible()
+    expect(screen.getByText('Google').closest('[inert]')).not.toBeNull()
+    await act(async () => credential?.({ credential: 'second' }))
+    expect(mocks.google).toHaveBeenCalledTimes(1)
   })
 })

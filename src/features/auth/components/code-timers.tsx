@@ -6,9 +6,9 @@ import { cn } from '@/components/ui/cn'
 import { Spinner } from '@/components/ui/spinner'
 import { toPersianDigits } from '@/lib/format'
 import { useCountdown, type Countdown } from '../use-countdown'
-import type { Wait } from './login-state'
+import type { Wait } from './login-types'
 
-// The waits of the code steps, always the API's seconds (`resend_after`, `expires_in`, a 429's
+// The waits of the login steps, always the API's seconds (`resend_after`, `expires_in`, a 429's
 // `retry_after`). The ticking time is plain text; only the moment a wait ends is read out, in a
 // polite region that is on the page from the start.
 
@@ -87,6 +87,7 @@ export function SendCodeButton({
         aria-disabled={blocked || undefined}
         aria-busy={busy || undefined}
         aria-describedby={done ? undefined : waitId}
+        data-primary={variant === 'primary' ? '' : undefined}
         iconStart={busy ? <Spinner /> : undefined}
         onClick={() => {
           if (!blocked) onSend()
@@ -119,21 +120,29 @@ export function CodeExpiry({ wait }: { wait: Wait }) {
   )
 }
 
+/** A step's main action held back by a wait: the time left (`noteId`), its end read out once. */
+export interface SubmitLock {
+  locked: boolean
+  note: ReactNode
+  noteId: string
+}
+
 /**
- * A lock for the length of a wait (`auth_totp_locked`): `locked` while it runs, and a `note`
- * with the time left that reads its end out once.
+ * Holds a step's main action for the length of a 429's wait (throttled, `auth_totp_locked`):
+ * `locked` while it runs, with a `note` of the time left that describes the button.
  */
-export function useLock(wait: Wait, endMessage: string): { locked: boolean; note: ReactNode } {
+export function useSubmitWait(wait: Wait): SubmitLock {
   const { remaining, done, ended } = useWait(wait)
+  const noteId = useId()
   const note = (
     <>
       {!done && (
-        <p className="text-sm leading-6 text-ink-600 tabular-nums">
+        <p id={noteId} className="text-center text-sm leading-6 text-ink-600 tabular-nums">
           {`زمان باقی‌مانده تا تلاش دوباره: ${formatClock(remaining)}`}
         </p>
       )}
-      <EndNotice when={ended} message={endMessage} />
+      <EndNotice when={ended} message="اکنون می‌توانید دوباره تلاش کنید." />
     </>
   )
-  return { locked: !done, note }
+  return { locked: !done, note, noteId }
 }

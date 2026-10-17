@@ -13,7 +13,8 @@ import { formatIranMobile, toPersianDigits } from '@/lib/format'
 import { registerHref } from '../auth-links'
 import { normalizeIdentifier } from '../identifier'
 import { FormAlert } from './auth-card'
-import type { LoginNotice } from './login-state'
+import type { SubmitLock } from './code-timers'
+import type { LoginNotice } from './login-types'
 
 // Small parts the login steps share.
 
@@ -73,37 +74,54 @@ export function RememberMe({
 }
 
 /**
- * The step's main button. While its request is on the way it shows a spinner and does nothing
- * more, but stays focusable (`aria-disabled`), so the focus is still there when the answer comes.
+ * The step's main button (`data-primary`). While its request is on the way it shows a spinner,
+ * and while a 429's wait runs (`lock`) it shows the time left; either way it does nothing more
+ * but stays focusable (`aria-disabled`), so the focus is still there when the answer comes.
  */
-export function SubmitButton({ busy, children, ...props }: ButtonProps & { busy: boolean }) {
+export function SubmitButton({
+  busy,
+  lock,
+  children,
+  ...props
+}: ButtonProps & { busy: boolean; lock?: SubmitLock }) {
+  const locked = lock?.locked ?? false
   return (
-    <Button
-      type="submit"
-      size="lg"
-      fullWidth
-      aria-disabled={busy || undefined}
-      aria-busy={busy || undefined}
-      iconStart={busy ? <Spinner /> : undefined}
-      {...props}
-    >
-      {children}
-    </Button>
+    <>
+      <Button
+        type="submit"
+        size="lg"
+        fullWidth
+        data-primary=""
+        aria-disabled={busy || locked || undefined}
+        aria-busy={busy || undefined}
+        aria-describedby={locked ? lock?.noteId : undefined}
+        iconStart={busy ? <Spinner /> : undefined}
+        {...props}
+      >
+        {children}
+      </Button>
+      {lock?.note}
+    </>
   )
 }
 
-/** A notice of the step, with registration offered when no account has the identifier. */
+/**
+ * A notice of the step. When no account has the identifier, registration is offered with it,
+ * if registration is open to this kind of identifier (`canRegister`).
+ */
 export function LoginNoticeAlert({
   notice,
   identifier,
   next,
+  canRegister,
 }: {
   notice: LoginNotice
   identifier: string
   next: string
+  canRegister: boolean
 }) {
   let action: ReactNode = null
-  if (notice.code === 'auth_user_not_found') {
+  if (notice.code === 'auth_user_not_found' && canRegister) {
     action = (
       <Link href={registerHref(normalizeIdentifier(identifier), next)} className={TEXT_LINK}>
         ثبت‌نام با همین مشخصات

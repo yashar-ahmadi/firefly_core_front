@@ -6,9 +6,9 @@ import { OtpInput } from '@/components/ui/otp-input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import type { ContactType, OtpMethod, OtpSent } from '@/lib/api/types/account'
 import { AuthCard, OrDivider } from './auth-card'
-import { CodeExpiry, SendCodeButton } from './code-timers'
+import { CodeExpiry, SendCodeButton, useSubmitWait } from './code-timers'
 import { IdentifierSummary, RememberMe, SubmitButton } from './login-fields'
-import type { Wait } from './login-state'
+import type { Wait } from './login-types'
 
 const CHANNEL_LABEL: Record<OtpMethod, string> = {
   email: 'ایمیل',
@@ -33,6 +33,8 @@ export interface OtpStepProps {
   sends: number
   codeExpiry: Wait
   sendWait: Wait
+  /** A 429's wait before «تأیید و ورود» may be sent again. */
+  submitWait: Wait
   code: string
   rememberMe: boolean
   error?: string
@@ -56,6 +58,8 @@ export interface OtpStepProps {
 export function OtpStep(props: OtpStepProps) {
   const { identifier, type, channels, channel, sent, sends, sendWait, busy, sending } = props
   const errorId = useId()
+  const lock = useSubmitWait(props.submitWait)
+  const blocked = busy || lock.locked
 
   return (
     <AuthCard title="ورود با کد یکبار مصرف" titleRef={props.titleRef}>
@@ -78,25 +82,24 @@ export function OtpStep(props: OtpStepProps) {
           ))}
         </RadioGroup>
       )}
+      <p className="text-base leading-7 text-ink-700">
+        {sent === null
+          ? `کد ورود ${DESTINATION[channel]} فرستاده می‌شود.`
+          : `کد ۶ رقمی ${DESTINATION[sent.otp_method]} فرستاده شد.`}
+      </p>
+      {/* Chosen before the code is typed: the boxes send it as soon as they are full. */}
+      <RememberMe checked={props.rememberMe} onChange={props.onRemember} />
       {sent === null ? (
-        <>
-          <p className="text-base leading-7 text-ink-700">
-            {`کد ورود ${DESTINATION[channel]} فرستاده می‌شود.`}
-          </p>
-          <SendCodeButton label="ارسال کد" wait={sendWait} busy={sending} onSend={props.onSend} />
-        </>
+        <SendCodeButton label="ارسال کد" wait={sendWait} busy={sending} onSend={props.onSend} />
       ) : (
         <form
           noValidate
           className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault()
-            if (!busy) props.onSubmit()
+            if (!blocked) props.onSubmit()
           }}
         >
-          <p className="text-base leading-7 text-ink-700">
-            {`کد ۶ رقمی ${DESTINATION[sent.otp_method]} فرستاده شد.`}
-          </p>
           <div className="flex flex-col gap-2">
             <p aria-hidden className="text-base font-medium text-ink-800">
               کد ورود
@@ -110,7 +113,7 @@ export function OtpStep(props: OtpStepProps) {
               value={props.code}
               onChange={props.onCode}
               onComplete={(code) => {
-                if (!busy) props.onSubmit(code)
+                if (!blocked) props.onSubmit(code)
               }}
             />
             {props.error && (
@@ -120,8 +123,9 @@ export function OtpStep(props: OtpStepProps) {
             )}
             <CodeExpiry wait={props.codeExpiry} />
           </div>
-          <RememberMe checked={props.rememberMe} onChange={props.onRemember} />
-          <SubmitButton busy={busy && !sending}>تأیید و ورود</SubmitButton>
+          <SubmitButton busy={busy && !sending} lock={lock}>
+            تأیید و ورود
+          </SubmitButton>
           <SendCodeButton
             label="ارسال مجدد کد"
             variant="ghost"

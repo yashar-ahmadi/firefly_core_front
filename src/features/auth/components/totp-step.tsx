@@ -4,17 +4,17 @@ import { useId, type ReactNode, type Ref } from 'react'
 import { Button } from '@/components/ui/button'
 import { OtpInput } from '@/components/ui/otp-input'
 import { AuthCard } from './auth-card'
-import { useLock } from './code-timers'
+import { useSubmitWait } from './code-timers'
 import { SubmitButton } from './login-fields'
-import type { Wait } from './login-state'
+import type { Wait } from './login-types'
 
 export interface TotpStepProps {
   code: string
   error?: string
   notice: ReactNode
   busy: boolean
-  /** `auth_totp_locked`: no code is sent until it ends (the boxes stay usable, keeping focus). */
-  lockWait: Wait
+  /** A 429's wait (`auth_totp_locked`): no code is sent until it ends (the boxes stay usable). */
+  submitWait: Wait
   titleRef: Ref<HTMLHeadingElement>
   onCode: (code: string) => void
   onSubmit: (code?: string) => void
@@ -27,7 +27,7 @@ export function TotpStep({
   error,
   notice,
   busy,
-  lockWait,
+  submitWait,
   titleRef,
   onCode,
   onSubmit,
@@ -35,8 +35,8 @@ export function TotpStep({
 }: TotpStepProps) {
   const hintId = useId()
   const errorId = useId()
-  const { locked, note } = useLock(lockWait, 'اکنون می‌توانید دوباره کد را وارد کنید.')
-  const blocked = busy || locked
+  const lock = useSubmitWait(submitWait)
+  const blocked = busy || lock.locked
   return (
     <AuthCard
       title="تأیید دومرحله‌ای"
@@ -79,13 +79,12 @@ export function TotpStep({
               {error}
             </p>
           )}
-          {note}
           <p id={hintId} className="text-sm leading-6 text-ink-600">
             کد هر ۳۰ ثانیه عوض می‌شود. اگر پذیرفته نشد، کد بعدی را وارد کنید و از درست بودن ساعت
             گوشی مطمئن شوید.
           </p>
         </div>
-        <SubmitButton busy={busy} aria-disabled={blocked || undefined}>
+        <SubmitButton busy={busy} lock={lock}>
           تأیید و ورود
         </SubmitButton>
       </form>

@@ -120,7 +120,7 @@ describe('loginReducer', () => {
     expect(twice.sendWait.seq).not.toBe(once.sendWait.seq)
     const throttled = loginReducer(twice, {
       type: 'failed',
-      failure: { detail: 'صبر کنید.', code: 'auth_otp_throttled', retryAfter: 30 },
+      failure: { detail: 'صبر کنید.', code: 'auth_otp_throttled', retryAfter: 30, sendSide: true },
       now: NOW + 5000,
     })
     expect(throttled.sendWait.until).toBe(NOW + 35_000)
@@ -163,13 +163,83 @@ describe('loginReducer', () => {
         now: NOW,
       },
     )
-    expect(state).toMatchObject({ step: 'totp', totpCode: '', totpWait: { until: NOW + 240_000 } })
+    expect(state).toMatchObject({
+      step: 'totp',
+      totpCode: '',
+      submitWait: { until: NOW + 240_000, step: 'totp' },
+    })
   })
 
-  it('is done once signed in, and stays busy until the page changes', () => {
-    expect(run({ type: 'submit' }, { type: 'signedIn' })).toMatchObject({
+  it('clears a wrong one-time code, so retyping it sends it once, not on every digit', () => {
+    const state = run(
+      { type: 'go', step: 'otp' },
+      { type: 'otpSent', sent: SENT, now: NOW },
+      { type: 'edit', field: 'otpCode', value: '111111' },
+      { type: 'submit' },
+      {
+        type: 'failed',
+        failure: { field: 'otp', detail: 'کد تأیید نامعتبر است.', code: 'auth_otp_invalid' },
+        now: NOW,
+      },
+    )
+    expect(state).toMatchObject({ step: 'otp', otpCode: '', otpSent: SENT })
+    expect(state.fieldErrors.otp).toBe('کد تأیید نامعتبر است.')
+  })
+
+  it("makes a 429 wait for the step's main action, or for the next code when sending failed", () => {
+    const throttled = { detail: 'محدود شد.', code: 'throttled', retryAfter: 20 }
+    const onPassword = run(
+      { type: 'go', step: 'password' },
+      { type: 'submit' },
+      { type: 'failed', failure: throttled, now: NOW },
+    )
+    expect(onPassword.submitWait).toMatchObject({ until: NOW + 20_000, step: 'password' })
+    expect(onPassword.sendWait.until).toBe(0)
+    // The same 429 for a code being sent waits before the next send instead.
+    const onSend = run(
+      { type: 'go', step: 'otp' },
+      { type: 'submit', sending: true },
+      { type: 'failed', failure: throttled, now: NOW },
+    )
+    expect(onSend.sendWait.until).toBe(NOW + 20_000)
+    expect(onSend.submitWait.until).toBe(0)
+    // Too many wrong codes: the answer to a verify, but the wait is for a new code.
+    const spent = run(
+      { type: 'go', step: 'otp' },
+      { type: 'otpSent', sent: SENT, now: NOW },
+      { type: 'submit' },
+      {
+        type: 'failed',
+        failure: {
+          detail: 'زیاد بود.',
+          code: 'auth_otp_too_many_attempts',
+          retryAfter: 45,
+          forgetCode: true,
+          sendSide: true,
+        },
+        now: NOW + 1000,
+      },
+    )
+    expect(spent.sendWait.until).toBe(NOW + 46_000)
+    expect(spent.submitWait.until).toBe(0)
+  })
+
+  it('is done once signed in, stays busy until the page changes, and keeps no secret', () => {
+    const state = run(
+      { type: 'go', step: 'password' },
+      { type: 'edit', field: 'password', value: 'Firefly@1234' },
+      { type: 'needsTotp', request: { kind: 'google', body: { id_token: 'gis-token' } } },
+      { type: 'edit', field: 'totpCode', value: '123456' },
+      { type: 'submit' },
+      { type: 'signedIn' },
+    )
+    expect(state).toMatchObject({
       step: 'done',
       busy: true,
+      password: '',
+      pending: null,
+      otpCode: '',
+      totpCode: '',
     })
   })
 })

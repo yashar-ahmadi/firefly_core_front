@@ -7,7 +7,9 @@ import { Field } from '@/components/ui/field'
 import type { ContactType } from '@/lib/api/types/account'
 import { normalizeIdentifier } from '../identifier'
 import { AuthCard, OrDivider } from './auth-card'
+import { useSubmitWait } from './code-timers'
 import { IdentifierSummary, RememberMe, SubmitButton, TEXT_LINK } from './login-fields'
+import type { Wait } from './login-types'
 import { PasswordInput } from './password-input'
 
 export interface PasswordStepProps {
@@ -18,6 +20,8 @@ export interface PasswordStepProps {
   error?: string
   notice: ReactNode
   busy: boolean
+  /** A 429's wait before «ورود» may be sent again. */
+  submitWait: Wait
   /** The settings offer a code for this identifier type. */
   canUseCode: boolean
   forgotHref: string
@@ -38,6 +42,7 @@ export function PasswordStep({
   error,
   notice,
   busy,
+  submitWait,
   canUseCode,
   forgotHref,
   titleRef,
@@ -47,6 +52,7 @@ export function PasswordStep({
   onBack,
   onUseCode,
 }: PasswordStepProps) {
+  const lock = useSubmitWait(submitWait)
   return (
     <AuthCard title="رمز عبور را وارد کنید" titleRef={titleRef}>
       <IdentifierSummary identifier={identifier} type={type} onChange={onBack} />
@@ -56,7 +62,7 @@ export function PasswordStep({
         className="flex flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault()
-          if (!busy) onSubmit()
+          if (!busy && !lock.locked) onSubmit()
         }}
       >
         {/* The identifier of step 1, for password managers to save with the password. */}
@@ -84,7 +90,9 @@ export function PasswordStep({
           </Link>
         </div>
         <RememberMe checked={rememberMe} onChange={onRemember} />
-        <SubmitButton busy={busy}>ورود</SubmitButton>
+        <SubmitButton busy={busy} lock={lock}>
+          ورود
+        </SubmitButton>
       </form>
       {canUseCode && (
         <>

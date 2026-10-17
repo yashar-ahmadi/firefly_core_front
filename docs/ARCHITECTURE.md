@@ -224,7 +224,14 @@ password or one-time code → TOTP when the API asks → done) whose steps are b
 settings' `auth` block (`login-methods.ts`: no SMS, Telegram or Google unless it says so, and
 nothing at all under `disabledAuth()`). A `requires_totp` answer keeps the first request and sends
 it again with `totp_code`. Code timers are deadlines from the API's seconds (`expires_in`,
-`resend_after`, a 429's `retry_after`), so they survive a step change. Every successful login runs
+`resend_after`, a 429's `retry_after`), so they survive a step change. A 429 holds the step's main
+action (`ورود`, the code's `تأیید و ورود`, the TOTP step, the Google button) for its `retry_after`;
+when a code was refused or spent (`auth_otp_throttled`, `auth_otp_daily_limit`,
+`auth_otp_too_many_attempts`) it holds the next send instead. A code in error is cleared, since the
+six boxes send it again once they are full. The register link offered for `auth_user_not_found`
+needs the `registration` feature and a `registration_methods` entry for the identifier's type.
+Google is initialised once per page and client id; a button drawn again (back on step 1) reuses
+it. Every successful login runs
 `completeLogin` (`useCompleteLogin`, `post-login.ts`): `POST cart/merge/` once (its adjustments in
 one toast; a failure is logged and never blocks), `clearViewerQueries`, `setHasSession(true)`, the
 profile and the merged cart stored and invalidated with `['summary']`, then

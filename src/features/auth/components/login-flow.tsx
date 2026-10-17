@@ -11,13 +11,20 @@ import { AuthCard } from './auth-card'
 import { GoogleButton } from './google-button'
 import { IdentifierStep } from './identifier-step'
 import { LoginNoticeAlert } from './login-fields'
-import { initialLoginState, loginReducer, type LoginStep } from './login-state'
+import { initialLoginState, loginReducer } from './login-state'
+import type { LoginState, LoginStep, Wait } from './login-types'
 import { OtpStep } from './otp-step'
 import { PasswordStep } from './password-step'
 import { TotpStep } from './totp-step'
 import { useLoginActions } from './use-login-actions'
 
 const NO_METHODS: LoginMethods = { password: false, otpChannels: [], defaultOtpChannel: null }
+const NO_WAIT: Wait = { until: 0, seq: -1 }
+
+/** The 429 wait of the step on screen, if the last one was for it. */
+function stepWait({ submitWait, step }: LoginState): Wait {
+  return submitWait.step === step ? submitWait : NO_WAIT
+}
 
 export interface LoginFlowProps {
   /** The raw `?next=`: `completeLogin` sends it through `safeNext`. */
@@ -33,7 +40,8 @@ export interface LoginFlowProps {
 /**
  * Focus on a step change: the new step's first field (`data-autofocus`), else its title; unless
  * a field of the step took it already (the code boxes do). After a failure: the field in error,
- * whose message is its description.
+ * whose message is its description; else it stays on the control that was pressed, and if that
+ * went away with its form (a code that is void), the step's main control or title takes it.
  */
 function useStepFocus(
   container: RefObject<HTMLDivElement | null>,
@@ -51,9 +59,13 @@ function useStepFocus(
     target?.focus()
   }, [container, title, step])
   useEffect(() => {
-    if (attempt === 0) return
-    container.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
-  }, [container, attempt])
+    const root = container.current
+    if (attempt === 0 || !root) return
+    const invalid = root.querySelector<HTMLElement>('[aria-invalid="true"]')
+    if (invalid) return invalid.focus()
+    if (document.activeElement && root.contains(document.activeElement)) return
+    ;(root.querySelector<HTMLElement>('[data-primary]') ?? title.current)?.focus()
+  }, [container, title, attempt])
 }
 
 /**
@@ -91,24 +103,40 @@ export function LoginFlow({
     onSignedIn,
   })
   const google = actions.googleOff ? null : googleClientId(auth)
+  const canRegister =
+    registration.enabled && type !== null && auth.registration_methods.includes(type)
 
   const notice = state.notice && (
-    <LoginNoticeAlert notice={state.notice} identifier={state.identifier} next={next} />
+    <LoginNoticeAlert
+      notice={state.notice}
+      identifier={state.identifier}
+      next={next}
+      canRegister={canRegister}
+    />
   )
   const errors = state.fieldErrors
   const back = () => dispatch({ type: 'back' })
   const remember = (value: boolean) => dispatch({ type: 'remember', value })
-  const shared = { notice, busy: state.busy, titleRef }
+  const submitWait = stepWait(state)
+  const shared = { notice, busy: state.busy, titleRef, submitWait }
 
   return (
     <div ref={container}>
       {state.step === 'identifier' && (
         <IdentifierStep
-          {...shared}
+          notice={notice}
+          busy={state.busy}
+          titleRef={titleRef}
           identifier={state.identifier}
           error={errors.identifier}
           google={
-            google && <GoogleButton clientId={google} onCredential={actions.signInWithGoogle} />
+            google && (
+              <GoogleButton
+                clientId={google}
+                onCredential={actions.signInWithGoogle}
+                wait={submitWait}
+              />
+            )
           }
           registerHref={
             auth.registration_methods.length > 0 && registration.enabled
@@ -166,7 +194,6 @@ export function LoginFlow({
           {...shared}
           code={state.totpCode}
           error={errors.totp}
-          lockWait={state.totpWait}
           onCode={(value) => dispatch({ type: 'edit', field: 'totpCode', value })}
           onSubmit={actions.submitTotp}
           onBack={back}

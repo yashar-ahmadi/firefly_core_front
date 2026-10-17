@@ -1,6 +1,6 @@
 import { ApiError, GENERIC_ERROR_DETAIL } from '@/lib/api/errors'
 import { toPersianDigits } from '@/lib/format'
-import type { LoginFailure, LoginField } from './login-state'
+import type { LoginFailure, LoginField } from './login-types'
 
 // What a failed login request means for the form (auth digest §6): the API's `detail` is the
 // text, its `code` decides where it goes. Pure.
@@ -33,6 +33,13 @@ const CODE_GONE = new Set([
   'auth_otp_send_failed',
 ])
 
+/** 429s whose wait is for a new code, whichever request answered them. */
+const SEND_SIDE = new Set([
+  'auth_otp_throttled',
+  'auth_otp_daily_limit',
+  'auth_otp_too_many_attempts',
+])
+
 /** Answers a TOTP code cannot change: the first step must be done again (or differently). */
 const RESTART = new Set([
   'auth_otp_not_found',
@@ -57,6 +64,7 @@ export function loginFailure(error: unknown): LoginFailure {
     code: error.code,
     retryAfter: error.retryAfter,
     forgetCode: CODE_GONE.has(error.code),
+    sendSide: SEND_SIDE.has(error.code),
     restart: RESTART.has(error.code),
   }
 }

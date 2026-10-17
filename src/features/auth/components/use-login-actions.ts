@@ -5,7 +5,7 @@ import type { AuthenticatedResponse, ContactType, OtpMethod } from '@/lib/api/ty
 import { authApi } from '../api'
 import type { LoginMethods } from '../login-methods'
 import { loginFailure } from './login-errors'
-import type { LoginAction, LoginFailure, LoginState, PendingLogin } from './login-state'
+import type { LoginAction, LoginFailure, LoginState, PendingLogin } from './login-types'
 import { useCompleteLogin } from './post-login'
 
 const CODE_INCOMPLETE = 'کد ۶ رقمی را کامل وارد کنید.'
@@ -17,6 +17,11 @@ function failed(failure: LoginFailure): LoginAction {
 
 function codeSent(sent: Extract<LoginAction, { type: 'otpSent' }>['sent']): LoginAction {
   return { type: 'otpSent', sent, now: Date.now() }
+}
+
+/** A 429's wait still runs for the step on screen: its main action is not sent. */
+function waiting({ submitWait, step }: LoginState): boolean {
+  return submitWait.step === step && submitWait.until > Date.now()
 }
 
 export interface LoginContext {
@@ -77,6 +82,7 @@ export function useLoginActions(context: LoginContext): LoginActions {
 
   /** Sends `request` (again with `totpCode` after a challenge): signed in, or asked for TOTP. */
   function signIn(request: PendingLogin, totpCode?: string) {
+    if (waiting(state)) return
     const totp = totpCode === undefined ? {} : { totp_code: totpCode }
     const call = (): Promise<AuthenticatedResponse> => {
       if (request.kind === 'password') return authApi.login({ ...request.body, ...totp })
