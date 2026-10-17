@@ -1,7 +1,8 @@
 import { expect, test, type APIResponse } from '@playwright/test'
 
 // Edge behaviour against the dev backend (sample data): proxy redirects and forwards, robots.txt,
-// short links and the bank callback. Raw HTTP, no browser: every redirect is observed, not followed.
+// the favicon, short links and the bank callback. Raw HTTP, no browser: every redirect is
+// observed, not followed.
 
 const API_URL = process.env.FIREFLY_API_URL ?? 'http://localhost:8000'
 
@@ -45,6 +46,17 @@ test.describe('edge', () => {
     expect(res.status()).toBe(200)
     expect(res.headers()['content-type']).toContain('text/plain')
     expect(await res.text()).toContain('Sitemap:')
+  })
+
+  test('/favicon.ico is always an image: the shop’s favicon, or the bundled one', async ({
+    request,
+  }) => {
+    // Browsers ask for it on their own (the dev favicon is a missing media file): never a 404.
+    const res = await request.get('/favicon.ico', { maxRedirects: 0 })
+    expect(res.status()).toBe(200)
+    expect(res.headers()['content-type']).toMatch(/^image\//)
+    expect(res.headers()['cache-control']).toMatch(/^public, max-age=\d+$/)
+    expect((await res.body()).byteLength).toBeGreaterThan(0)
   })
 
   test('sitemap.xml is forwarded to the backend', async ({ request }) => {
