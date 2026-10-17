@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubEnv, type FetchSpy } from '../bff/support'
 
 // `/favicon.ico` (src/app/favicon.ico/route.ts): the shop's favicon from its settings, read from
-// the API host with a day's revalidate, or a bundled neutral icon on any failure, so the browser's
-// own `/favicon.ico` request never answers 404.
+// the API host (never into Next's Data Cache: kept a day in a small in-memory copy of the capped
+// bytes), or a bundled neutral icon on any failure, so the browser's own `/favicon.ico` request
+// never answers 404.
 
 const settings = vi.hoisted(() => ({ favicon: null as string | null, fail: false }))
 vi.mock('@/features/settings/api', () => ({
@@ -60,10 +61,60 @@ describe('/favicon.ico', () => {
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(PNG)
     const [url, init] = fetchSpy.mock.calls[0]!
     expect(String(url)).toBe('https://api.test/media/categories/26/09/13/site-favicon.png')
-    const next = (init as { next?: { revalidate?: number; tags?: string[] } }).next
-    expect(next).toEqual({ revalidate: 86_400, tags: ['settings'] })
+    // Never Next's Data Cache (it would keep the whole body, whatever its size): our own copy.
+    expect(init?.cache).toBe('no-store')
+    expect((init as { next?: unknown }).next).toBeUndefined()
     expect(init?.signal).toBeInstanceOf(AbortSignal)
     expect(init?.redirect).toBe('manual')
+  })
+
+  it('keeps the file a day in memory: asked once, then served from the copy', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-17T10:00:00Z'), toFake: ['Date'] })
+    try {
+      fetchSpy.mockImplementation(async () => png())
+      const { GET } = await load()
+      await GET()
+      const again = await GET()
+      expect(new Uint8Array(await again.arrayBuffer())).toEqual(PNG)
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      vi.setSystemTime(new Date('2026-10-18T10:00:01Z'))
+      await GET()
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a failure is tried again after five minutes, not a day', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-17T10:00:00Z'), toFake: ['Date'] })
+    try {
+      fetchSpy.mockImplementation(async () => new Response('Not found', { status: 404 }))
+      const { GET } = await load()
+      await expectDefault(await GET())
+      await GET()
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      vi.setSystemTime(new Date('2026-10-17T10:05:01Z'))
+      await GET()
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps a few files at most (a new favicon is a new URL): memory stays bounded', async () => {
+    fetchSpy.mockImplementation(async () => png())
+    const { GET } = await load()
+    for (let n = 1; n <= 5; n += 1) {
+      settings.favicon = `https://api.test/media/icons/${n}.png`
+      await GET()
+    }
+    expect(fetchSpy).toHaveBeenCalledTimes(5)
+    // The oldest went to make room; the newest is still kept.
+    settings.favicon = 'https://api.test/media/icons/1.png'
+    await GET()
+    settings.favicon = 'https://api.test/media/icons/5.png'
+    await GET()
+    expect(fetchSpy).toHaveBeenCalledTimes(6)
   })
 
   it('reads the file from the API host it was configured on, whatever host the URL names', async () => {

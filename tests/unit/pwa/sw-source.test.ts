@@ -150,20 +150,21 @@ describe('a click on a notification', () => {
     expect(self.clients.openWindow).not.toHaveBeenCalled()
   })
 
-  it('else focuses a window of the shop and takes it to the inbox', async () => {
-    const page = windowAt('/product/x/')
+  it.each([
+    ['a window of the shop busy elsewhere (checkout)', windowAt('/checkout/', { focused: true })],
+    ['a window the worker does not control', windowAt('/', { controlled: false })],
+  ])('else opens the inbox in a new window: %s is never taken away', async (_, page) => {
     const { self, fire } = worker([page])
     await fire('notificationclick', click())
-    expect(page.focus).toHaveBeenCalled()
-    expect(page.navigate).toHaveBeenCalledWith(INBOX)
-    expect(self.clients.openWindow).not.toHaveBeenCalled()
+    expect(page.navigate).not.toHaveBeenCalled()
+    expect(page.focus).not.toHaveBeenCalled()
+    expect(self.clients.openWindow).toHaveBeenCalledExactlyOnceWith(INBOX)
   })
 
-  it('else (no window, or none it may navigate) opens the inbox in a new one', async () => {
-    const stranger = windowAt('/', { controlled: false })
-    const { self, fire } = worker([stranger])
-    await fire('notificationclick', click())
-    expect(stranger.navigate).not.toHaveBeenCalled()
+  it('no window at all: opens the inbox; a window that cannot be opened is no error', async () => {
+    const { self, fire } = worker([])
+    self.clients.openWindow.mockRejectedValueOnce(new TypeError('not allowed'))
+    await expect(fire('notificationclick', click())).resolves.toBeUndefined()
     expect(self.clients.openWindow).toHaveBeenCalledExactlyOnceWith(INBOX)
   })
 })

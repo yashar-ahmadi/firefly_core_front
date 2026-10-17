@@ -86,33 +86,24 @@ self.addEventListener('push', (event) => {
 }
 
 /**
- * A click on a notification: it closes, and the inbox comes up in a window of the shop (the one
- * on the inbox, else one this worker controls, navigated there), else in a new window; the page
- * is told to read the inbox again.
+ * A click on a notification: it closes, and the inbox comes up: the window already on it is
+ * focused and told to read the inbox again; else the inbox opens in a new window. A window on
+ * another page is never taken there: it may be busy (a checkout, a form being filled).
  */
 function clickSection(): string {
   return `
 async function showInbox() {
-  const target = new URL(INBOX_PATH, self.location.origin).href
-  const all = await windows()
-  const onIt = all.find(onInbox)
+  const onIt = (await windows()).find(onInbox)
   if (onIt) {
     await onIt.focus()
     onIt.postMessage({ type: REFRESH_MESSAGE })
     return
   }
-  const controlled = await self.clients.matchAll({ type: 'window' })
-  for (const client of controlled) {
-    try {
-      const focused = await client.focus()
-      const shown = (await focused.navigate(target)) || focused
-      shown.postMessage({ type: REFRESH_MESSAGE })
-      return
-    } catch (error) {
-      // Not navigable from here: try the next window, else open one.
-    }
+  try {
+    await self.clients.openWindow(new URL(INBOX_PATH, self.location.origin).href)
+  } catch (error) {
+    // Not allowed here (the browser decides): the notification is gone, nothing more to do.
   }
-  await self.clients.openWindow(target)
 }
 
 self.addEventListener('notificationclick', (event) => {

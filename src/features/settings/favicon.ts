@@ -2,16 +2,25 @@ import 'server-only'
 
 // The shop's favicon for `/favicon.ico` (src/app/favicon.ico/route.ts): browsers ask for it on
 // their own when a page's icon fails to load, and a 404 there is noise in every console.
+//
+// Read with `cache: 'no-store'`: Next's patched fetch would buffer the whole body for its Data
+// Cache before our 100 KB cap could stop it. What was read (capped) is kept here instead, in
+// memory, a day per URL, a few URLs at most (`MAX_BYTES` × `MAX_ENTRIES` bounds it); a failure
+// for five minutes. A new favicon is a new file, so a new URL: read at once.
 
 export interface Icon {
   bytes: Uint8Array<ArrayBuffer>
   type: string
 }
 
-/** A favicon changes rarely; `revalidateTag('settings')` picks up a new one at once. */
+/** A favicon changes rarely (a new one comes with a new URL): kept, and cached by browsers, a day. */
 export const FAVICON_REVALIDATE_SECONDS = 86_400
+/** How long a favicon that could not be read waits before it is asked for again. */
+const FAILURE_SECONDS = 300
 const TIMEOUT_MS = 3_000
 const MAX_BYTES = 100 * 1024
+/** The favicons kept at once (the settings name one; old ones linger until pushed out). */
+const MAX_ENTRIES = 4
 /** The only paths the API serves files from. */
 const MEDIA_PATH = /^\/(?:media|static)\//
 
@@ -74,6 +83,30 @@ async function readCapped(res: Response): Promise<Uint8Array<ArrayBuffer> | null
   return bytes
 }
 
+/** The file at `url`, or null (see `loadFavicon`). Never throws. */
+async function readFavicon(url: string): Promise<Icon | null> {
+  try {
+    const res = await fetch(url, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      cache: 'no-store',
+    })
+    const type = res.headers.get('content-type')
+    const declared = Number(res.headers.get('content-length') ?? 0)
+    if (!res.ok || !isRaster(type) || declared > MAX_BYTES) {
+      await res.body?.cancel().catch(() => undefined)
+      return null
+    }
+    const bytes = await readCapped(res)
+    return bytes && bytes.byteLength > 0 ? { bytes, type } : null
+  } catch {
+    return null
+  }
+}
+
+/** What was read per URL, until when (epoch ms). Oldest first (a Map keeps insertion order). */
+const kept = new Map<string, { icon: Icon | null; until: number }>()
+
 /**
  * The configured favicon (`settings.favicon`), or null when there is none, or it does not answer
  * 2xx within 3 s, is not a raster image, or is over 100 KB. Never throws.
@@ -84,18 +117,12 @@ export async function loadFavicon(
 ): Promise<Icon | null> {
   const url = favicon ? sourceUrl(favicon, apiUrl) : null
   if (url === null) return null
-  try {
-    const res = await fetch(url, {
-      redirect: 'manual',
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      next: { revalidate: FAVICON_REVALIDATE_SECONDS, tags: ['settings'] },
-    })
-    const type = res.headers.get('content-type')
-    const declared = Number(res.headers.get('content-length') ?? 0)
-    if (!res.ok || !isRaster(type) || declared > MAX_BYTES) return null
-    const bytes = await readCapped(res)
-    return bytes && bytes.byteLength > 0 ? { bytes, type } : null
-  } catch {
-    return null
-  }
+  const copy = kept.get(url)
+  if (copy && copy.until > Date.now()) return copy.icon
+  const icon = await readFavicon(url)
+  const seconds = icon ? FAVICON_REVALIDATE_SECONDS : FAILURE_SECONDS
+  kept.delete(url)
+  kept.set(url, { icon, until: Date.now() + seconds * 1000 })
+  while (kept.size > MAX_ENTRIES) kept.delete(kept.keys().next().value!)
+  return icon
 }
