@@ -56,8 +56,17 @@ test('logs out: the guest header is back, the session cookies are gone', async (
   await expect(page.locator('[data-sonner-toast]', { hasText: 'از حساب خارج شدید' })).toBeVisible()
   await expectNoShopCookies(page)
 
-  // The server sees a guest too: a reload keeps the guest header.
-  await page.reload()
+  // Usable without a reload (the modal menu's pointer lock went with it): on to the login page,
+  // which shows a guest the form (a signed-in visitor would get «شما وارد شده‌اید»).
+  if (phone) await accountTab(page).click()
+  else await banner.getByRole('link', { name: GUEST_LOGIN }).click()
+  await expect(page).toHaveURL(new RegExp(`^${origin}/login/`))
+  await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'شما وارد شده‌اید' })).toHaveCount(0)
+  expect(await page.evaluate(() => document.body.style.pointerEvents)).toBe('')
+
+  // The server sees a guest too: a fresh load of the home page has the guest header.
+  await page.goto('/')
   await shellHydrated(page)
   if (phone) await expect(accountTab(page)).toHaveAttribute('href', '/login/?next=/account/')
   else await expect(banner.getByRole('link', { name: GUEST_LOGIN })).toBeVisible()

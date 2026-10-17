@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HeaderActions } from '@/components/layout/header-actions'
@@ -7,12 +7,12 @@ import { ApiError } from '@/lib/api/errors'
 import type { UserProfile } from '@/lib/api/types/account'
 import { cart, result } from '../cart/support'
 import { authProviders } from '../support/auth-providers'
-import { stubBrowserApis } from '../support/dom-stubs'
+import { minWidth, stubBrowserApis } from '../support/dom-stubs'
 import { SARA } from './fixtures'
 
-// The header's account entry (ruling P3-R2): the login link for a guest; for a signed-in visitor
-// a menu button with her initials, whose menu (loaded on first use) names her, links the account
-// pages and logs out.
+// The header's account entry (ruling P3-R2), from md: the login link for a guest; for a
+// signed-in visitor a menu button with her initials, whose menu (loaded on first use) names her,
+// links the account pages and logs out.
 
 const mocks = vi.hoisted(() => {
   const replace = vi.fn()
@@ -39,9 +39,12 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('@/components/ui/toaster', () => ({ toastRegionReady: () => true, notify: mocks.notify }))
 
+let media: ReturnType<typeof stubBrowserApis>
+
 beforeEach(() => {
   vi.clearAllMocks()
-  stubBrowserApis()
+  // From md: phones have no header entry (the bottom bar links the account).
+  media = stubBrowserApis(minWidth(48))
   mocks.pathname = '/product/x/'
   mocks.profile.mockResolvedValue(SARA)
   mocks.logout.mockResolvedValue({})
@@ -144,5 +147,70 @@ describe('the header account entry', () => {
     const menu = await openMenu(user)
     const item = within(menu).getByRole('menuitem', { name: /^اعلان/ })
     expect(item).toHaveAccessibleName('اعلان\u{200C}ها، اعلان خوانده\u{200C}نشده دارید')
+  })
+
+  it('«خروج» keeps the menu open and busy until the session is gone, then lets the page be used', async () => {
+    let answer: () => void = () => {}
+    mocks.logout.mockReturnValue(new Promise<void>((resolve) => (answer = () => resolve())))
+    const { user } = renderActions(true)
+    const menu = await openMenu(user)
+    // The menu is modal: the rest of the page takes no pointer events while it is open.
+    expect(document.body.style.pointerEvents).toBe('none')
+    const logout = within(menu).getByRole('menuitem', { name: 'خروج' })
+    await user.click(logout)
+    expect(screen.getByRole('menu')).toBe(menu)
+    expect(logout).toHaveAttribute('aria-busy', 'true')
+    expect(logout.querySelector('.animate-spin')).not.toBeNull()
+    expect(logout.querySelector('.lucide-log-out')).toBeNull()
+    await act(async () => answer())
+    await screen.findByRole('link', { name: 'ورود | ثبت‌نام' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    // The menu went with its button: the page is usable again without a reload.
+    await waitFor(() => expect(document.body.style.pointerEvents).toBe(''))
+  })
+
+  it('opens from the keyboard on its first item; Escape gives the focus back to its button', async () => {
+    const { user } = renderActions(true)
+    const button = await accountButton()
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+    await user.click(button)
+    await screen.findByRole('menu')
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+    const loaded = await accountButton()
+    expect(loaded).toHaveFocus()
+    await user.keyboard('{Enter}')
+    const again = await screen.findByRole('menu')
+    await waitFor(() =>
+      expect(within(again).getByRole('menuitem', { name: 'پیشخوان' })).toHaveFocus(),
+    )
+  })
+
+  it('shows a line of skeleton for the name and one for the contact while the profile loads', async () => {
+    let answer: (profile: UserProfile) => void = () => {}
+    mocks.profile.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { user } = renderActions(true)
+    await user.click(await accountButton('حساب من'))
+    const menu = await screen.findByRole('menu')
+    const lines = menu.querySelectorAll('[data-skeleton-line]')
+    expect(lines).toHaveLength(2)
+    expect(lines[0]).toHaveClass('h-6')
+    expect(lines[1]).toHaveClass('h-5')
+    await act(async () => answer(SARA))
+    // The text that replaces them has those line heights.
+    expect(await within(menu).findByText('سارا احمدی')).toHaveClass('leading-6')
+    expect(within(menu).getByText('sara.ahmadi@example.com').parentElement).toHaveClass('leading-5')
+    expect(menu.querySelector('[data-skeleton-line]')).toBeNull()
+  })
+
+  it('is not mounted on a phone: no code, no profile request, until the viewport reaches md', async () => {
+    media.set(() => false)
+    renderActions(true)
+    await act(async () => {})
+    expect(screen.queryByRole('button', { name: /حساب/ })).toBeNull()
+    expect(mocks.profile).not.toHaveBeenCalled()
+    act(() => media.set(minWidth(48)))
+    expect(await accountButton()).toBeVisible()
+    expect(mocks.profile).toHaveBeenCalledTimes(1)
   })
 })

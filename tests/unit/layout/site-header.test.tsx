@@ -1,5 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen, within } from '@testing-library/react'
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Providers } from '@/app/providers'
@@ -13,7 +12,7 @@ import type { FeatureMap } from '@/features/settings/feature-context'
 import { FEATURE_KEYS } from '@/lib/api/types/common'
 import type { MenuNode, SiteSettings } from '@/lib/api/types/settings'
 import { emailOnlyAuth } from '../support/auth'
-import { stubBrowserApis } from '../support/dom-stubs'
+import { minWidth, stubBrowserApis } from '../support/dom-stubs'
 import { menuNode, sampleTree } from './support'
 
 const mocks = vi.hoisted(() => ({
@@ -97,8 +96,10 @@ const SETTINGS = {
   announcement: '<p>ارسال <strong>رایگان</strong> برای سفارش&zwnj;های بالای ۱۰ میلیون تومان.</p>',
 } as SiteSettings
 
+let media: ReturnType<typeof stubBrowserApis>
+
 beforeEach(() => {
-  stubBrowserApis()
+  media = stubBrowserApis()
   sessionStorage.clear()
   mocks.settings = { ...SETTINGS }
   mocks.menus = {
@@ -186,43 +187,14 @@ describe('SiteHeader', () => {
     expect(screen.getByRole('link', { name: 'ورود' })).toHaveAttribute('href', '/login/')
   })
 
-  it('shows the account menu to a signed-in visitor, named after her', async () => {
+  it('shows the account menu to a signed-in visitor from md, named after her', async () => {
+    // Its opening, items and logout: tests/unit/auth/account-menu.test.tsx.
+    media.set(minWidth(48))
     await renderHeader({ hasSession: true })
     expect(screen.queryByRole('link', { name: /ورود/ })).toBeNull()
     expect(await screen.findByRole('button', { name: 'حساب کاربری: سارا احمدی' })).toHaveAttribute(
       'aria-haspopup',
       'menu',
-    )
-  })
-
-  it('opens the account menu (its code loads on first use), from the keyboard on its first item', async () => {
-    const user = userEvent.setup()
-    await renderHeader({ hasSession: true })
-    const name = 'حساب کاربری: سارا احمدی'
-    const button = await screen.findByRole('button', { name })
-    expect(button).toHaveAttribute('aria-expanded', 'false')
-    await user.click(button)
-    const menu = await screen.findByRole('menu')
-    expect(
-      within(menu)
-        .getAllByRole('menuitem')
-        .map((item) => item.getAttribute('href')),
-    ).toEqual([
-      '/account/',
-      '/account/orders/',
-      '/account/wishlist/',
-      '/account/addresses/',
-      '/account/notifications/',
-      null,
-    ])
-    await user.keyboard('{Escape}')
-    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
-    const loaded = screen.getByRole('button', { name })
-    expect(loaded).toHaveFocus()
-    await user.keyboard('{Enter}')
-    const again = await screen.findByRole('menu')
-    await waitFor(() =>
-      expect(within(again).getByRole('menuitem', { name: 'پیشخوان' })).toHaveFocus(),
     )
   })
 

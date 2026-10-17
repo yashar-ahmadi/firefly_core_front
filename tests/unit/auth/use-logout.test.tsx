@@ -173,6 +173,32 @@ describe('useLogout', () => {
     expectSignedOut(rendered)
   })
 
+  it('two places offering «خروج» share one logout: one request, one navigation, one toast', async () => {
+    let answer: () => void = () => {}
+    mocks.logout.mockImplementation(() => new Promise<void>((resolve) => (answer = resolve)))
+    const providers = clientProviders({ hasSession: true })
+    const { result: current } = renderHook(() => ({ menu: useLogout(), panel: useLogout() }), {
+      wrapper: providers.wrapper,
+    })
+    let first: Promise<void> = Promise.resolve()
+    let second: Promise<void> = Promise.resolve()
+    act(() => {
+      first = current.current.menu.logout()
+      second = current.current.panel.logout()
+    })
+    expect(second).toBe(first)
+    await waitFor(() => expect(current.current.panel.pending).toBe(true))
+    expect(current.current.menu.pending).toBe(true)
+    await act(async () => {
+      answer()
+      await first
+    })
+    expect(mocks.logout).toHaveBeenCalledTimes(1)
+    expect(mocks.replace).toHaveBeenCalledTimes(1)
+    expect(mocks.notify.success).toHaveBeenCalledTimes(1)
+    expect(current.current.panel.pending).toBe(false)
+  })
+
   it('an unregistered pre-logout step is not run', async () => {
     const step = vi.fn()
     const off = onBeforeLogout(step)

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AccountEntry } from '@/components/layout/account-entry'
 import { FeatureProvider } from '@/features/settings/feature-context'
+import { minWidth, stubBrowserApis } from '../support/dom-stubs'
 import { clientProviders } from '../support/providers'
 
 // The signed-in account button loads with a session only (a guest never downloads it). When its
@@ -22,6 +23,8 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({ 
 let consoleError: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
+  // From md, where the header shows the account entry.
+  stubBrowserApis(minWidth(48))
   consoleError = vi.spyOn(console, 'error')
 })
 

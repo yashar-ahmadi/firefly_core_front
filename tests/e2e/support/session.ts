@@ -1,5 +1,5 @@
 import { test as base, expect, type BrowserContext } from '@playwright/test'
-import { mkdir, open, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, open, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 // Signing in for e2e specs (Plan 3). Every login is one `auth_attempt` at the backend, 20 a
@@ -41,23 +41,33 @@ export async function logIn(context: BrowserContext, baseURL: string): Promise<v
   expect(response.status(), `login through the BFF: ${await response.text()}`).toBe(200)
 }
 
+const exists = (file: string) =>
+  stat(file).then(
+    () => true,
+    () => false,
+  )
+
 /**
  * The project's shared session as a storage-state file, made once: the worker that creates the
  * lock file logs in and writes the state (renamed into place, so nobody reads half a file); any
- * other worker waits for it. The output folder is emptied at the start of every run.
+ * other worker waits for it. If that login fails, its worker leaves a `.failed` file with the
+ * reason and every waiting worker fails at once with it (none tries again: one more login is one
+ * more `auth_attempt`). The output folder is emptied at the start of every run.
  */
 async function sharedState(file: string, create: () => Promise<object>): Promise<string> {
   await mkdir(path.dirname(file), { recursive: true })
+  const failed = `${file}.failed`
   try {
     await (await open(`${file}.lock`, 'wx')).close()
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-    const exists = () =>
-      stat(file).then(
-        () => true,
-        () => false,
-      )
-    await expect.poll(exists, { message: `the shared session ${file}`, timeout: 30_000 }).toBe(true)
+    const settled = async () => (await exists(file)) || (await exists(failed))
+    await expect
+      .poll(settled, { message: `the shared session ${file}`, timeout: 30_000 })
+      .toBe(true)
+    if (await exists(failed)) {
+      throw new Error(`The shared session could not be made: ${await readFile(failed, 'utf8')}`)
+    }
     return file
   }
   try {
@@ -65,7 +75,7 @@ async function sharedState(file: string, create: () => Promise<object>): Promise
     await rename(`${file}.tmp`, file)
     return file
   } catch (error) {
-    await rm(`${file}.lock`, { force: true })
+    await writeFile(failed, error instanceof Error ? error.message : String(error))
     throw error
   }
 }

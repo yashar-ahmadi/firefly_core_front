@@ -496,7 +496,8 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   address for the whole run (the BFF forwards the visitor's address), so specs never log in per
   test or in a loop (`tests/e2e/support/session.ts`). A spec that only reads with a session uses
   `signedInTest` from there: its `page` shares one login per project per run (a storage-state file
-  in the output folder, written by the first worker that asks for it while the others wait). Never
+  in the output folder, written by the first worker that asks for it while the others wait; if
+  that login fails, the waiting workers fail at once with its reason, without logging in). Never
   log that session out, revoke it or change its password with it, and restore any account data a
   test changes (addresses, wishlist). A spec that ends or changes its session logs in on its own,
   once per project, with `logIn` (as `tests/e2e/account/logout.spec.ts` does).

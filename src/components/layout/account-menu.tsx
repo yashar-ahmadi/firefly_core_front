@@ -19,7 +19,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/components/ui/cn'
+import { SKELETON } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { profileContact, profileName } from '@/features/auth/profile-display'
 import { useLogout } from '@/features/auth/use-logout'
@@ -36,7 +37,19 @@ interface AccountLink {
   unread?: boolean
 }
 
-/** Who is signed in: the avatar, the name and the email (or mobile); a skeleton meanwhile. */
+/** A skeleton bar in a line box of the text's own height (`h-6` the name, `h-5` the contact). */
+function SkeletonLine({ line, bar }: { line: string; bar: string }) {
+  return (
+    <span aria-hidden data-skeleton-line="" className={cn('flex items-center', line)}>
+      <span className={cn(SKELETON, bar)} />
+    </span>
+  )
+}
+
+/**
+ * Who is signed in: the avatar, the name and the email (or mobile). While the profile loads, a
+ * skeleton line for each, as tall as the text that replaces it: the label does not grow.
+ */
 function Who() {
   const { data: me, isPending } = useMe()
   const contact = me ? profileContact(me) : null
@@ -45,16 +58,21 @@ function Who() {
       <AccountAvatar profile={me} loading={isPending} className="size-10" />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         {isPending ? (
-          <Skeleton className="h-5 w-28" />
+          <>
+            <SkeletonLine line="h-6" bar="h-4 w-28" />
+            <SkeletonLine line="h-5" bar="h-3.5 w-40" />
+          </>
         ) : (
-          <span className="truncate text-base font-bold text-ink-900">
-            {me ? profileName(me) : null}
-          </span>
-        )}
-        {contact && (
-          <span className="truncate text-sm font-normal text-ink-500">
-            <span dir="ltr">{contact}</span>
-          </span>
+          <>
+            <span className="truncate text-base leading-6 font-bold text-ink-900">
+              {me ? profileName(me) : null}
+            </span>
+            {contact && (
+              <span className="truncate text-sm leading-5 font-normal text-ink-500">
+                <span dir="ltr">{contact}</span>
+              </span>
+            )}
+          </>
         )}
       </span>
     </DropdownMenuLabel>

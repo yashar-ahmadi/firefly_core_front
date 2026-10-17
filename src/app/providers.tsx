@@ -15,6 +15,7 @@ import type { AuthSettings } from '@/lib/api/types/settings'
 import { StoreConfigProvider } from '@/lib/config-context'
 import { I18nProvider } from '@/lib/i18n/i18n-context'
 import { createQueryClient } from '@/lib/query/query-client'
+import { AfterLogoutSweep } from '@/lib/session/after-logout'
 import { SessionProvider } from '@/lib/session/session-context'
 
 export interface ProvidersProps {
@@ -29,11 +30,19 @@ export interface ProvidersProps {
   children: ReactNode
 }
 
-/** One QueryClient per browser session; a `503 feature_disabled` turns that switch off. */
+/**
+ * One QueryClient per browser session; a `503 feature_disabled` turns that switch off. After a
+ * logout, the left page's queries are swept once the navigation home commits (`AfterLogoutSweep`).
+ */
 function QueryProvider({ children }: { children: ReactNode }) {
   const markFeatureDisabled = useMarkFeatureDisabled()
   const [client] = useState(() => createQueryClient({ onFeatureDisabled: markFeatureDisabled }))
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  return (
+    <QueryClientProvider client={client}>
+      {children}
+      <AfterLogoutSweep />
+    </QueryClientProvider>
+  )
 }
 
 /** Every client-side context of the storefront, mounted once by the root layout. */
