@@ -138,6 +138,15 @@ describe('AddressForm: a new address', () => {
     expect(screen.queryByRole('checkbox', { name: 'گیرنده خودم هستم' })).toBeNull()
   })
 
+  it('«گیرنده خودم هستم» is not offered for a profile with a phone but no name (it could never read as ticked)', () => {
+    renderForm(undefined, {
+      me: { ...SARA, first_name: '', last_name: '', full_name: '' },
+    })
+    expect(SARA.phone_number).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: 'گیرنده خودم هستم' })).toBeNull()
+    expect(field.mobile()).toHaveValue('')
+  })
+
   it('a profile without a phone: another typed mobile is not «myself»', async () => {
     const { user } = renderForm(undefined, { me: { ...SARA, phone_number: null } })
     const self = screen.getByRole('checkbox', { name: 'گیرنده خودم هستم' })

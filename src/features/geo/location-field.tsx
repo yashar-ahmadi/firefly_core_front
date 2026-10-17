@@ -86,6 +86,7 @@ export function LocationField({ value, onChange, provinceName, errors = [] }: Lo
       {open ? (
         <div
           ref={region}
+          data-map-region=""
           tabIndex={-1}
           role="group"
           aria-label={PICKER_LABEL}

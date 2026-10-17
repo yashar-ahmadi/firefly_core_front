@@ -31,15 +31,15 @@ function isProfile(values: Receiver, first: string, last: string, mobile: string
 /**
  * «گیرنده»: who takes the parcel, independent of the account (a gift). «گیرنده خودم هستم» fills
  * the three fields from the profile (`['me']`), and unticked empties them for someone else; it
- * reads as ticked while they are the profile's. It is not offered for a profile with nothing to
- * fill.
+ * reads as ticked while they are the profile's. It is offered only for a profile with a name: a
+ * phone alone is nobody (`isProfile`), so the box could never read as ticked.
  */
 export function ReceiverFields({ values, onChange, errors }: ReceiverFieldsProps) {
   const { data: me } = useMe()
   const myFirst = me?.first_name.trim() ?? ''
   const myLast = me?.last_name.trim() ?? ''
   const myMobile = me?.phone_number ? (normalizeIranMobile(me.phone_number) ?? '') : ''
-  const offered = !!me && (myFirst !== '' || myLast !== '' || myMobile !== '')
+  const offered = !!me && (myFirst !== '' || myLast !== '')
   const self = isProfile(values, myFirst, myLast, myMobile)
   return (
     <fieldset className="flex flex-col gap-4">
