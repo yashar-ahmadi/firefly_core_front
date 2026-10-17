@@ -13,7 +13,7 @@ import { bffFetch } from '@/lib/api/client'
 import { ApiError, GENERIC_ERROR_DETAIL } from '@/lib/api/errors'
 import type { CommentSubmitBody } from '@/lib/api/types/catalog'
 import { useSession } from '@/lib/session/session-context'
-import { SUMMARY_KEY } from '@/lib/session/viewer-queries'
+import { MY_COMMENTS_KEY, SUMMARY_KEY } from '@/lib/session/viewer-queries'
 import {
   commentPayload,
   EMPTY_VALUES,
@@ -97,8 +97,10 @@ export function CommentForm({
     onSuccess: ({ msg }) => {
       setValues(EMPTY_VALUES)
       setErrors({})
-      // The account summary counts the shopper's comments, questions included (`comment_count`).
+      // The account summary counts the shopper's comments, questions included (`comment_count`),
+      // and «دیدگاه‌های من» lists them.
       void queryClient.invalidateQueries({ queryKey: SUMMARY_KEY })
+      void queryClient.invalidateQueries({ queryKey: MY_COMMENTS_KEY })
       onDone(msg || DONE)
     },
     onError: (error) => {

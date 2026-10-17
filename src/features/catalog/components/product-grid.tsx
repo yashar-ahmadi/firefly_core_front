@@ -74,14 +74,16 @@ export function ProductGrid({
 export function ProductGridSkeleton({
   count = 10,
   withAction = false,
+  columns = 'full',
 }: {
   count?: number
   withAction?: boolean
+  columns?: GridColumns
 }) {
   return (
     <div aria-busy="true">
       <VisuallyHidden role="status">در حال بارگذاری کالاها</VisuallyHidden>
-      <div className={GRID.full}>
+      <div className={GRID[columns]}>
         {Array.from({ length: count }, (_, index) => (
           <ProductCardSkeleton key={index} withAction={withAction} />
         ))}

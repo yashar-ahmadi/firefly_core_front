@@ -20,9 +20,12 @@ import { isSessionExpiredError, SUMMARY_KEY } from '@/lib/session/viewer-queries
 // The signed-in visitor's saved products, as a set of product ids for the hearts on cards.
 // Pages are cached for everyone without a token, so the hearts are filled in on the client.
 
+/** Every wishlist query: the ids below and the account wishlist page's lists. */
+const WISHLIST_KEY = ['wishlist'] as const
 /** The query holding the saved product ids (a `number[]`). */
 export const WISHLIST_IDS_KEY = ['wishlist', 'ids'] as const
-const TOGGLE_KEY = ['wishlist', 'toggle'] as const
+/** Every heart's write (a save or a removal), with `WishlistToggle` variables. */
+export const WISHLIST_TOGGLE_KEY = ['wishlist', 'toggle'] as const
 
 const PAGE_SIZE = 100
 /** Stops a `next` link that never ends; 10,000 saved products is far past any real list. */
@@ -80,7 +83,7 @@ export function useWishlistIds(): WishlistIds {
   return { ids: (hasSession && query.data) || NO_IDS, isLoading: query.isLoading }
 }
 
-interface ToggleVariables {
+export interface WishlistToggle {
   id: number
   slug: string
   /** true: save (POST); false: remove (DELETE, answered with 204). */
@@ -113,15 +116,15 @@ type ToggleResult = Awaited<ReturnType<typeof bffFetch<{ is_in_wishlist: boolean
 /**
  * The optimistic toggle as mutation options. The heart flips at once; a failure flips it back
  * and shows the API's message, and a 401 because the session is gone ends it and goes to login
- * (`expire`). After the last toggle settles the ids (and the account summary, which counts
- * them) are read again, so the cache ends up matching the server.
+ * (`expire`). After the last toggle settles the ids, the account wishlist page's lists and the
+ * account summary (which counts them) are read again, so the cache ends up matching the server.
  */
 function toggleOptions(
   client: QueryClient,
   expire: SessionExpired,
-): MutationOptions<ToggleResult, Error, ToggleVariables> {
+): MutationOptions<ToggleResult, Error, WishlistToggle> {
   return {
-    mutationKey: TOGGLE_KEY,
+    mutationKey: WISHLIST_TOGGLE_KEY,
     mutationFn: ({ slug, save }) =>
       bffFetch<{ is_in_wishlist: boolean } | null>(`product/detail/${slug}/wishlist/`, {
         method: save ? 'POST' : 'DELETE',
@@ -141,10 +144,11 @@ function toggleOptions(
       else notify.error(error instanceof ApiError ? error.detail : GENERIC_ERROR_DETAIL)
     },
     onSettled: () => {
-      // Only after the last of several quick toggles, so a read never lands between them. The
-      // account summary counts the wishlist (`wishlist_count`): it is read again too.
-      if (client.isMutating({ mutationKey: TOGGLE_KEY }) === 1) {
-        void client.invalidateQueries({ queryKey: WISHLIST_IDS_KEY })
+      // Only after the last of several quick toggles, so a read never lands between them: the
+      // ids and the wishlist page's lists, and the account summary, which counts the wishlist
+      // (`wishlist_count`).
+      if (client.isMutating({ mutationKey: WISHLIST_TOGGLE_KEY }) === 1) {
+        void client.invalidateQueries({ queryKey: WISHLIST_KEY })
         void client.invalidateQueries({ queryKey: SUMMARY_KEY })
       }
     },
@@ -165,22 +169,19 @@ export interface WishlistViewer {
 
 /**
  * One toggle without a hook: the mutation is created when it is called (a product card creates
- * none until its heart is pressed). Guests go to the login page. Never rejects.
+ * none until its heart is pressed). `save` says which way («بازگردانی» saves); by default the
+ * opposite of the cached state. Guests go to the login page. Never rejects.
  */
 export function toggleWishlistOnce(
   client: QueryClient,
   { hasSession, router, expire }: WishlistViewer,
-  { id, slug }: { id: number; slug: string },
+  { id, slug, save = !isSaved(client, id) }: { id: number; slug: string; save?: boolean },
 ): Promise<void> {
   if (!hasSession) {
     router.push(loginHref(currentPath()))
     return Promise.resolve()
   }
-  return runMutation(client, toggleOptions(client, expire), {
-    id,
-    slug,
-    save: !isSaved(client, id),
-  }).then(
+  return runMutation(client, toggleOptions(client, expire), { id, slug, save }).then(
     () => undefined,
     () => undefined,
   )

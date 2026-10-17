@@ -15,11 +15,17 @@ export const ME_KEY = ['me'] as const
 export const SUMMARY_KEY = ['summary'] as const
 
 /**
+ * «دیدگاه‌های من»'s lists (under `['dashboard']`): read again after the visitor writes or
+ * withdraws a comment, wherever that happens.
+ */
+export const MY_COMMENTS_KEY = ['dashboard', 'comments'] as const
+
+/**
  * Read only with a session (each query is `enabled: hasSession`), so nothing of them is right
  * for anyone else: removed. The profile, the account summary, everything under `['dashboard']`
- * (the dashboard's lists), under `['wishlist']` (`WISHLIST_IDS_KEY`, the wishlist page), under
- * `['notifications']` (the inbox and its unread count, `UNREAD_NOTIFICATIONS_KEY`) and the
- * address book (`['addresses']`).
+ * (the dashboard's lists, `MY_COMMENTS_KEY`), under `['wishlist']` (`WISHLIST_IDS_KEY`, the
+ * wishlist page's lists), under `['notifications']` (the inbox and its unread count,
+ * `UNREAD_NOTIFICATIONS_KEY`) and the address book (`['addresses']`).
  */
 const SESSION_QUERIES: readonly QueryKey[] = [
   ME_KEY,

@@ -3,6 +3,7 @@
 import { CircleAlert, CircleCheck, Info } from 'lucide-react'
 import { useEffect, type CSSProperties } from 'react'
 import { Toaster as Sonner, toast } from 'sonner'
+import { cn } from './cn'
 import { connectToasts } from './toaster'
 
 // Sonner, loaded with the first toast of the page (see `Toaster` in toaster.tsx). Sonner injects
@@ -78,6 +79,13 @@ export function ToasterView() {
         classNames: {
           title: 'font-semibold!',
           closeButton: 'after:absolute after:-inset-3',
+          // An action («بازگردانی»): a 40px button with a 44px hit area and a visible focus ring
+          // (Sonner's own is 24px, 12px text and a faint shadow).
+          actionButton: cn(
+            'relative! h-10! rounded-control! px-3! text-sm! font-bold!',
+            'after:absolute after:-inset-y-0.5 after:inset-x-0',
+            'focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-(--focus)! focus-visible:outline-solid!',
+          ),
           icon: 'size-5! m-0!',
         },
       }}

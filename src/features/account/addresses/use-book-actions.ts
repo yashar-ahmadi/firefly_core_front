@@ -2,25 +2,15 @@
 
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useState, type RefObject } from 'react'
-import { announce } from '@/components/ui/live-announcer'
-import { notify, toastRegionReady } from '@/components/ui/toaster'
+import { notify } from '@/components/ui/toaster'
 import type { Address } from '@/lib/api/types/address'
 import { CART_KEY } from '@/features/cart/cart-cache'
 import type { Cart } from '@/lib/api/types/cart'
 import { isSessionExpiredError } from '@/lib/session/viewer-queries'
+import { tell } from '../tell'
 import type { AddressBook } from './address-api'
 import { addressFailure, MISSING_ADDRESS } from './address-errors'
 import { ADDRESSES_KEY, useDeleteAddress, useSetDefaultAddress } from './use-addresses'
-
-/**
- * Said once: by the toaster's region when it is on the page, else by the shell's. A done write
- * is a success; news that is not (the address had gone already) is information.
- */
-function tell(message: string, tone: 'success' | 'info' = 'success') {
-  const heard = toastRegionReady()
-  notify[tone](message)
-  if (!heard) announce(message)
-}
 
 /** «آدرس «…» اکنون پیش‌فرض است.» when the book (read again by then) has a new default. */
 function promotion(client: QueryClient, except: number): string {

@@ -87,3 +87,62 @@ export interface DashboardBanner {
   /** Defaults to «مشاهده کنید». */
   button_label: string
 }
+
+/** Where a comment of «دیدگاه‌های من» was written (digest §3.6). */
+export type CommentSubjectType = 'product' | 'post' | 'page'
+
+/** A comment's moderation state. Print `status_display` as it is; branch on this. */
+export type CommentStatus = 'pending' | 'accepted' | 'declined'
+
+/** What the comment is on: the product, the post or the page. */
+export interface MyCommentSubject {
+  id: number
+  /** The product's or post's name, or the page's title. */
+  name: string
+  slug: string
+  /** The product's or post's thumbnail (a placeholder when missing); null for a page. */
+  image: string | null
+  /** The product's average (a float); null for a post or a page. */
+  rating: number | null
+}
+
+/** A visible direct reply under one of the visitor's comments. */
+export interface MyCommentReply {
+  id: number
+  name: string
+  /** Plain text. */
+  review: string
+  /** The shop's own answer («پاسخ فروشگاه»). */
+  is_user_admin: boolean
+  created: string
+}
+
+/**
+ * `GET dashboard/comment/list/`: one of the visitor's own comments on a product, a post or a
+ * page, in any moderation state (withdrawn ones never come back), newest written first. `id` is
+ * unique only within `subject_type`: key a row by both (`${subject_type}:${id}`).
+ */
+export interface MyComment {
+  id: number
+  subject_type: CommentSubjectType
+  comment_type: 'comment' | 'question'
+  status: CommentStatus
+  /** «در انتظار تأیید», «تأیید شده» or «رد شده». */
+  status_display: string
+  /** A reply the visitor wrote under someone's comment. */
+  is_reply: boolean
+  /** Plain text. */
+  review: string
+  /** A product review's title; null otherwise. */
+  title: string | null
+  /** A product review's score (1–5); null otherwise. */
+  rating: number | null
+  /** A product review by a buyer («خریدار»); false for product questions, null for a post or a page. */
+  is_verified_buyer: boolean | null
+  /** The order a product review was written for; null otherwise. */
+  order_code: string | null
+  created: string
+  subject: MyCommentSubject
+  /** Visible direct replies (the shop's or other customers'), in the public thread's order. */
+  replies: MyCommentReply[]
+}

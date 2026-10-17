@@ -1,6 +1,11 @@
 'use client'
 
-import { useQuery, type QueryKey, type UseQueryResult } from '@tanstack/react-query'
+import {
+  useQuery,
+  type QueryKey,
+  type UseQueryOptions,
+  type UseQueryResult,
+} from '@tanstack/react-query'
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { isSessionExpiredError } from '@/lib/session/viewer-queries'
@@ -9,6 +14,8 @@ export interface AccountQueryOptions<T> {
   /** Under a key `clearViewerQueries` removes (`SESSION_QUERIES`): the data is the visitor's. */
   queryKey: QueryKey
   queryFn: (context: { signal: AbortSignal }) => Promise<T>
+  /** A paged list keeps showing its last page while the next loads (`keepPreviousData`). */
+  placeholderData?: UseQueryOptions<T, Error, T, QueryKey>['placeholderData']
 }
 
 /**
@@ -21,6 +28,7 @@ export interface AccountQueryOptions<T> {
 export function useAccountQuery<T>({
   queryKey,
   queryFn,
+  placeholderData,
 }: AccountQueryOptions<T>): UseQueryResult<T> {
   const { hasSession } = useSession()
   const expire = useSessionExpired()
@@ -35,6 +43,7 @@ export function useAccountQuery<T>({
       }
     },
     enabled: hasSession,
+    placeholderData,
   })
 }
 
