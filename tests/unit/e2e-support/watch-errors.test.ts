@@ -58,7 +58,7 @@ describe('isExpectedFailure', () => {
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/forgot-password/')).toBe(false)
   })
 
-  it('reports a 404 from the account pages that exist (Tasks 5–6), not from those to come', () => {
+  it('reports a 404 from the account pages that exist (Tasks 5–7), not from those to come', () => {
     const built = [
       '',
       'orders/?group=delivered',
@@ -66,6 +66,7 @@ describe('isExpectedFailure', () => {
       'reading-list/',
       'wallet/',
       'profile/',
+      'addresses/',
     ]
     for (const path of built) {
       expect(isExpectedFailure(NOT_FOUND, `http://localhost:3000/account/${path}`), path).toBe(
@@ -73,7 +74,7 @@ describe('isExpectedFailure', () => {
       )
     }
     // Built by later tasks of Plan 3; the account navigation links (and prefetches) them.
-    for (const path of ['wishlist', 'comments', 'addresses', 'notifications']) {
+    for (const path of ['wishlist', 'comments', 'notifications']) {
       const url = `http://localhost:3000/account/${path}/?_rsc=abc`
       expect(isExpectedFailure(NOT_FOUND, url), path).toBe(true)
     }

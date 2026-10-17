@@ -7,12 +7,12 @@ const MEDIA_PATH = /^\/(?:media|static)\//
  * Routes later tasks and plans build, which the shell already links to (the account pages the
  * account navigation lists, the cart; homepage posts, the registration terms' page links): a
  * visit or a router prefetch there answers 404 until the route exists. Remove each one as its
- * route lands (the auth pages, the dashboard, the account placeholders and the profile are built;
- * the other account pages: Plan 3 Tasks 7–9; cart and checkout: Plan 4; blog and content pages: the
- * content plan).
+ * route lands (the auth pages, the dashboard, the account placeholders, the profile and the
+ * address book are built; the other account pages: Plan 3 Tasks 8–9; cart and checkout: Plan 4;
+ * blog and content pages: the content plan).
  */
 const NOT_YET_BUILT =
-  /^\/(?:account\/(?:wishlist|comments|addresses|notifications)|cart|checkout|blog|page)\//
+  /^\/(?:account\/(?:wishlist|comments|notifications)|cart|checkout|blog|page)\//
 
 const NOT_FOUND = /^Failed to load resource: the server responded with a status of 404\b/
 

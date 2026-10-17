@@ -141,6 +141,7 @@ describe('AccountNav', () => {
     ['/account/', 'پیشخوان'],
     ['/account/orders/', 'سفارش‌ها، ۷ سفارش'],
     ['/account/wallet/', 'کیف پول، موجودی ۳٬۰۳۱٬۰۰۰ تومان'],
+    ['/account/addresses/', 'نشانی‌ها'],
   ])('marks %s as the current page', async (pathname, name) => {
     mocks.pathname = pathname
     renderNav()

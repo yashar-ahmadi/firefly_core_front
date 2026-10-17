@@ -34,6 +34,8 @@ function seed(client: ReturnType<typeof clientProviders>['client']) {
   client.setQueryData(ME_KEY, { full_name: 'سارا احمدی' })
   client.setQueryData(['summary'], { wishlist_count: 3 })
   client.setQueryData(['wishlist', 'ids'], [10001, 10062])
+  client.setQueryData(['addresses'], { count: 1, results: [{ id: 10001, title: 'خانه' }] })
+  client.setQueryData(['geo', 'provinces'], [{ id: 8, name: 'تهران' }])
   client.setQueryData(['cart'], cart([cartLine({ quantity: 2 })]))
   // The BFF's product payload carries `is_in_wishlist`; its comment lists `is_current_user`.
   client.setQueryData(['product', 'samsung-galaxy-s25-ultra'], { is_in_wishlist: true })
@@ -53,6 +55,7 @@ describe('clearViewerQueries', () => {
       ME_KEY,
       ['summary'],
       ['wishlist', 'ids'],
+      ['addresses'],
       ['cart'],
       ['product', 'samsung-galaxy-s25-ultra'],
       ['product', 'samsung-galaxy-s25-ultra', 'comments', 'review'],
@@ -60,6 +63,7 @@ describe('clearViewerQueries', () => {
       expect(client.getQueryData(key), JSON.stringify(key)).toBeUndefined()
     }
     expect(client.getQueryData(['search-suggest', 'گوشی'])).toEqual({ products: [] })
+    expect(client.getQueryData(['geo', 'provinces'])).toEqual([{ id: 8, name: 'تهران' }])
   })
 
   it('reads a query on screen again, for the new viewer, without showing the old data', async () => {

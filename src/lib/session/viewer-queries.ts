@@ -17,8 +17,9 @@ export const SUMMARY_KEY = ['summary'] as const
 /**
  * Read only with a session (each query is `enabled: hasSession`), so nothing of them is right
  * for anyone else: removed. The profile, the account summary, everything under `['dashboard']`
- * (the dashboard's lists), under `['wishlist']` (`WISHLIST_IDS_KEY`, the wishlist page) and
- * under `['notifications']` (the inbox and its unread count, `UNREAD_NOTIFICATIONS_KEY`).
+ * (the dashboard's lists), under `['wishlist']` (`WISHLIST_IDS_KEY`, the wishlist page), under
+ * `['notifications']` (the inbox and its unread count, `UNREAD_NOTIFICATIONS_KEY`) and the
+ * address book (`['addresses']`).
  */
 const SESSION_QUERIES: readonly QueryKey[] = [
   ME_KEY,
@@ -26,6 +27,7 @@ const SESSION_QUERIES: readonly QueryKey[] = [
   ['dashboard'],
   ['wishlist'],
   ['notifications'],
+  ['addresses'],
 ]
 
 /**
