@@ -34,8 +34,13 @@ export function AccountHeader({ className }: { className?: string }) {
               {me ? profileName(me) : null}
             </p>
             {contact && (
-              // Left to right as a whole: a long email is cut at its end, never its start.
-              <p dir="ltr" className="truncate text-right text-sm leading-6 text-ink-600">
+              // Left to right as a whole: a long email is cut at its end, never its start (the
+              // pointer shows all of it; screen readers read all of it anyway).
+              <p
+                dir="ltr"
+                title={contact}
+                className="truncate text-right text-sm leading-6 text-ink-600"
+              >
                 {contact}
               </p>
             )}

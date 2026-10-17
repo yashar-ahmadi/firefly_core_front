@@ -109,7 +109,9 @@ function PasswordForm({ me }: { me: UserProfile }) {
 
   return (
     <div ref={container} className="flex flex-col gap-5">
-      <p className="text-base leading-7 text-ink-600">{copy.description}</p>
+      {/* The section's line under its title, as the other cards have it (4px under the title;
+          it says «change» or «set», which only the profile tells). */}
+      <p className="-mt-3 text-base leading-7 text-ink-600">{copy.description}</p>
       {state.notice && <FormAlert>{state.notice.detail}</FormAlert>}
       <AuthForm className="gap-5 sm:max-w-md" onSubmit={save}>
         <input

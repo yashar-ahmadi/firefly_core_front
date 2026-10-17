@@ -38,12 +38,13 @@ const STYLES: Record<AccountNavVariant, RowStyle> = {
     logoutIcon: 'grid size-5 shrink-0 place-items-center [&_svg]:size-5',
   },
   // 56px rows on the phone's hub (the dashboard below lg): an icon tile, the label, the badge
-  // and a chevron; rows ruled apart.
+  // and a chevron; rows ruled apart. The focus ring is drawn inside the row: the card around
+  // the hub clips what is outside it (its rounded corners).
   hub: {
     list: 'flex flex-col divide-y divide-ink-100',
     row: cn(
       'group flex min-h-14 items-center gap-3 px-4 text-base font-medium text-ink-800 transition-colors',
-      'hover:bg-ink-50 active:bg-ink-100',
+      'hover:bg-ink-50 focus-visible:-outline-offset-2 active:bg-ink-100',
     ),
     icon: 'grid size-10 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-700 [&_svg]:size-5',
     logout: 'text-danger',
