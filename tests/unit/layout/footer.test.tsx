@@ -21,6 +21,11 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('server-only', () => ({}))
+// The root providers' session sweep uses the App Router (mounted around them in the app).
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}))
 vi.mock('@/config/store-config', async () => {
   const pure = await import('@/config/resolve-store-config')
   const { parseServerEnv: parse } = await import('@/config/env-schema')

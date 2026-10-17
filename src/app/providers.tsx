@@ -17,6 +17,7 @@ import { I18nProvider } from '@/lib/i18n/i18n-context'
 import { createQueryClient } from '@/lib/query/query-client'
 import { AfterLogoutSweep } from '@/lib/session/after-logout'
 import { SessionProvider } from '@/lib/session/session-context'
+import { SessionSwitchSweep } from '@/lib/session/session-switch-sweep'
 
 export interface ProvidersProps {
   config: PublicStoreConfig
@@ -33,6 +34,8 @@ export interface ProvidersProps {
 /**
  * One QueryClient per browser session; a `503 feature_disabled` turns that switch off. After a
  * logout, the left page's queries are swept once the navigation home commits (`AfterLogoutSweep`).
+ * A tab coming back is set right against the session cookie, whatever another tab did
+ * (`SessionSwitchSweep`: a logout or another login elsewhere).
  */
 function QueryProvider({ children }: { children: ReactNode }) {
   const markFeatureDisabled = useMarkFeatureDisabled()
@@ -41,6 +44,7 @@ function QueryProvider({ children }: { children: ReactNode }) {
     <QueryClientProvider client={client}>
       {children}
       <AfterLogoutSweep />
+      <SessionSwitchSweep />
     </QueryClientProvider>
   )
 }

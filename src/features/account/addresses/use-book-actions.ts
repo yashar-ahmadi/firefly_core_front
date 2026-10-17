@@ -2,12 +2,12 @@
 
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useState, type RefObject } from 'react'
+import { tell } from '@/components/ui/tell'
 import { notify } from '@/components/ui/toaster'
 import type { Address } from '@/lib/api/types/address'
 import { CART_KEY } from '@/features/cart/cart-cache'
 import type { Cart } from '@/lib/api/types/cart'
 import { isSessionExpiredError } from '@/lib/session/viewer-queries'
-import { tell } from '../tell'
 import type { AddressBook } from './address-api'
 import { addressFailure, MISSING_ADDRESS } from './address-errors'
 import { ADDRESSES_KEY, useDeleteAddress, useSetDefaultAddress } from './use-addresses'

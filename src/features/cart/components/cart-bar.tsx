@@ -5,6 +5,7 @@ import { BOTTOM_BAR_FRAME, BOTTOM_BAR_ROW } from '@/components/layout/bottom-bar
 import { cn } from '@/components/ui/cn'
 import type { Cart } from '@/lib/api/types/cart'
 import { formatToman } from '@/lib/format'
+import { isWaitReason } from '../checkout-block'
 import { CheckoutCta } from './checkout-cta'
 
 /** Mounted bars: the body flag stays while any is on the page. */
@@ -41,7 +42,13 @@ export function CartBar({ cart, reason }: { cart: Cart; reason: string | null })
         <CheckoutCta reason={reason} reasonId={reasonId} size="md" className="min-w-0 flex-1" />
         <div className="flex max-w-[55%] shrink-0 flex-col items-end text-end">
           {reason ? (
-            <span id={reasonId} className="line-clamp-1 text-sm leading-6 font-medium text-danger">
+            <span
+              id={reasonId}
+              className={cn(
+                'line-clamp-1 text-sm leading-6 font-medium',
+                isWaitReason(reason) ? 'text-ink-600' : 'text-danger',
+              )}
+            >
               {reason}
             </span>
           ) : (

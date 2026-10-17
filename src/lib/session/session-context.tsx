@@ -54,17 +54,14 @@ export function SessionProvider({
     setServerValue(initialHasSession)
     setState(initialHasSession)
   }
-  // This tab's session marker; null until known (read on mount, or when first asked).
+  // This tab's session marker: the one it loaded with, signed in with (`setHasSession(true)`) or
+  // had when a server render turned the session on; null without a session. A child that asks
+  // first (effects run children first) takes the cookie's value then.
   const marker = useRef<string | null>(null)
   useEffect(() => {
     live.current = hasSession
-    if (!hasSession) marker.current = null
+    marker.current = hasSession ? (marker.current ?? flagCookieValue()) : null
   }, [hasSession])
-  // The marker the tab loaded with (an account page's watch may have asked first: effects run
-  // children first).
-  useEffect(() => {
-    if (live.current) marker.current ??= flagCookieValue()
-  }, [])
 
   const setHasSession = useCallback((next: boolean) => {
     live.current = next

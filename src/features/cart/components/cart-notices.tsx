@@ -6,6 +6,7 @@ import { IconButton } from '@/components/ui/icon-button'
 import { announce } from '@/components/ui/live-announcer'
 import type { Cart } from '@/lib/api/types/cart'
 import { adjustmentText } from '../adjustments'
+import { focusCartHeading } from '../cart-heading'
 import { detachedCouponText } from '../coupon-messages'
 import { lineWarning } from '../line-warning'
 
@@ -60,6 +61,20 @@ export function CartNotices({ cart }: { cart: Cart }) {
   }
   const notices = [...kept, ...lineIssues(cart)].filter((notice) => !dismissed.has(notice.key))
 
+  // A dismissed notice took its button (and the focus) with it: the notice now in its place
+  // takes the focus, else the one before, else the page's heading.
+  const section = useRef<HTMLElement>(null)
+  const focusAt = useRef<number | null>(null)
+  useEffect(() => {
+    const index = focusAt.current
+    if (index === null) return
+    focusAt.current = null
+    const buttons = section.current?.querySelectorAll<HTMLElement>('[data-notice-dismiss]') ?? []
+    const next = buttons[Math.min(index, buttons.length - 1)]
+    if (next) next.focus()
+    else focusCartHeading()
+  })
+
   // Each notice is read out once, when it first appears.
   const spoken = useRef(new Set<string>())
   useEffect(() => {
@@ -71,8 +86,8 @@ export function CartNotices({ cart }: { cart: Cart }) {
 
   if (notices.length === 0) return null
   return (
-    <section aria-label={'پیام\u{200C}های سبد خرید'} className="flex flex-col gap-2">
-      {notices.map((notice) => (
+    <section ref={section} aria-label={'پیام\u{200C}های سبد خرید'} className="flex flex-col gap-2">
+      {notices.map((notice, index) => (
         <div
           key={notice.key}
           className="flex items-start gap-2 rounded-card bg-warning/10 py-1 ps-4 pe-1 text-base text-ink-800"
@@ -82,7 +97,11 @@ export function CartNotices({ cart }: { cart: Cart }) {
           <IconButton
             label="بستن پیام"
             icon={<X />}
-            onClick={() => setDismissed(new Set(dismissed).add(notice.key))}
+            data-notice-dismiss=""
+            onClick={() => {
+              focusAt.current = index
+              setDismissed(new Set(dismissed).add(notice.key))
+            }}
             className="shrink-0 text-ink-600"
           />
         </div>

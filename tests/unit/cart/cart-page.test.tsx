@@ -15,7 +15,7 @@ import { deferred } from './support'
 // The cart page as a whole: loading, empty, a read that failed, the checkout call to action and
 // why it can be held back, the phone's bottom bar, and clearing the cart.
 
-const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), expire: vi.fn() }))
+const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), expire: vi.fn(), success: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
 vi.mock('@/lib/session/use-session-expired', () => ({ useSessionExpired: () => mocks.expire }))
 vi.mock('next/navigation', () => ({
@@ -24,7 +24,7 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('@/components/ui/toaster', () => ({
   toastRegionReady: () => true,
-  notify: { success: vi.fn(), error: vi.fn(), info: vi.fn(), dismiss: vi.fn() },
+  notify: { success: mocks.success, error: vi.fn(), info: vi.fn(), dismiss: vi.fn() },
 }))
 
 stubBrowserApis()
@@ -38,7 +38,16 @@ function renderPage({ cart, hasSession = false }: { cart?: Cart; hasSession?: bo
       <Wrapper>{children}</Wrapper>
     </FeatureProvider>
   )
-  return { client, ...render(<CartPage />, { wrapper }) }
+  // The page's heading is the server page's (src/app/(shop)/cart/page.tsx).
+  const page = (
+    <>
+      <h1 id="cart-heading" tabIndex={-1}>
+        سبد خرید
+      </h1>
+      <CartPage />
+    </>
+  )
+  return { client, ...render(page, { wrapper }) }
 }
 
 const serve = (cart: Cart) =>
@@ -50,6 +59,7 @@ const ctas = () => screen.getAllByRole('link', { name: CONTINUE })
 beforeEach(() => {
   mocks.bffFetch.mockReset()
   mocks.expire.mockReset()
+  mocks.success.mockReset()
 })
 
 afterEach(() => document.body.removeAttribute('data-cart-bar-shown'))
@@ -84,6 +94,9 @@ describe('CartPage', () => {
   it('lists the lines with the summary, the coupon box and the way on to checkout', () => {
     renderPage({ cart: itemsCartFixture() })
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    // The lines' own heading (visually hidden) comes before their names (h3).
+    const lines = screen.getByRole('region', { name: 'کالاهای سبد خرید' })
+    expect(within(lines).getByRole('heading', { level: 2 })).toHaveTextContent('کالاهای سبد خرید')
     expect(screen.getByRole('region', { name: 'خلاصه\u{0654} سبد خرید' })).toBeInTheDocument()
     expect(screen.getByLabelText('کد تخفیف دارید؟')).toBeInTheDocument()
     for (const link of ctas()) expect(link).toHaveAttribute('href', '/checkout/')
@@ -94,13 +107,14 @@ describe('CartPage', () => {
     cart.is_orderable = false
     cart.lines[1] = { ...cart.lines[1]!, issue: 'unavailable', in_stock: false }
     renderPage({ cart })
-    const held = screen.getAllByRole('button', { name: CONTINUE })
+    const held = ctas()
     expect(held.length).toBeGreaterThan(0)
-    for (const button of held) {
-      expect(button).toHaveAttribute('aria-disabled', 'true')
-      expect(button).toHaveAccessibleDescription('برخی کالاها قابل سفارش نیستند.')
+    for (const link of held) {
+      expect(link).toHaveAttribute('aria-disabled', 'true')
+      expect(link).toHaveAccessibleDescription('برخی کالاها قابل سفارش نیستند.')
     }
-    expect(screen.queryByRole('link', { name: CONTINUE })).toBeNull()
+    // A blocking reason is said in the danger colour.
+    expect(screen.getAllByText('برخی کالاها قابل سفارش نیستند.')[0]).toHaveClass('text-danger')
   })
 
   it('holds checkout back while a change to the cart is on its way', async () => {
@@ -108,13 +122,23 @@ describe('CartPage', () => {
     const write = deferred<{ data: Cart; msg: string; status: number }>()
     mocks.bffFetch.mockImplementation(() => write.promise)
     renderPage({ cart: itemsCartFixture() })
+    const [cta] = ctas()
     await user.type(screen.getByLabelText('کد تخفیف دارید؟'), 'TEA30')
     await user.click(screen.getByRole('button', { name: 'اعمال کد' }))
-    for (const button of screen.getAllByRole('button', { name: CONTINUE })) {
-      expect(button).toHaveAccessibleDescription('در حال ذخیره\u{0654} تغییرات\u{2026}')
+    for (const link of ctas()) {
+      expect(link).toHaveAttribute('aria-disabled', 'true')
+      expect(link).toHaveAccessibleDescription('در حال ذخیره\u{0654} تغییرات\u{2026}')
     }
+    // Waiting is no fault: said in a neutral tone.
+    expect(screen.getAllByText('در حال ذخیره\u{0654} تغییرات\u{2026}')[0]).toHaveClass(
+      'text-ink-600',
+    )
+    cta!.focus()
     await act(async () => write.resolve({ data: itemsCartFixture(), msg: '', status: 200 }))
-    await waitFor(() => expect(ctas().length).toBeGreaterThan(0))
+    await waitFor(() => expect(cta).not.toHaveAttribute('aria-disabled'))
+    // One element throughout: the focus stayed on it.
+    expect(cta).toHaveFocus()
+    expect(ctas()[0]).toBe(cta)
   })
 
   it('a cart that could not be read: what happened and «تلاش دوباره»', async () => {
@@ -162,5 +186,27 @@ describe('CartPage', () => {
     await user.click(within(dialog).getByRole('button', { name: 'حذف همه' }))
     expect(mocks.bffFetch).toHaveBeenCalledWith('cart/clear/', { method: 'DELETE' })
     expect(await screen.findByRole('heading', { name: 'سبد خرید شما خالی است' })).toBeVisible()
+  })
+
+  it('«بازگردانی» on an emptied cart: the focus waits on the heading, then goes to the line', async () => {
+    const user = userEvent.setup()
+    const cart = itemsCartFixture()
+    const one = { ...cart, item_count: 1, lines: cart.lines.slice(1) }
+    mocks.bffFetch.mockImplementation((path: string) =>
+      Promise.resolve({
+        data: path.endsWith('/remove/') ? emptyCartFixture() : one,
+        msg: '',
+        status: 200,
+      }),
+    )
+    renderPage({ cart: one })
+    await user.click(screen.getByRole('button', { name: 'حذف از سبد خرید' }))
+    expect(await screen.findByRole('heading', { name: 'سبد خرید شما خالی است' })).toBeVisible()
+    await waitFor(() => expect(mocks.success).toHaveBeenCalled())
+    const [, options] = mocks.success.mock.calls.at(-1)!
+    act(() => options.action.onClick())
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+    const name = await screen.findByRole('link', { name: 'قهوه فوری نستله گلد' })
+    await waitFor(() => expect(name).toHaveFocus())
   })
 })

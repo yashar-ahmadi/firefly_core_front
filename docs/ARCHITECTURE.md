@@ -245,18 +245,23 @@ layout mounts `SessionCheck` (`lib/session/session-check.tsx`), which ends that 
 itself: the layout's own value of it may be old, since a back/forward visit replays an earlier
 render (a guest's login page after the login). An account page can also come back with its
 session gone and no server on the way: Back restores the page Next cached, and a tab left open
-asks nobody. `AccountShell` mounts `AccountSessionWatch`, which checks the `ff_auth` cookie on
-mount, when the tab is shown again or focused, and on a `pageshow` from the browser's cache: no
-session in the tab and no cookie → login replaces the page (with it as `next`); no session but
-the cookie (a login in another tab) → the tab takes the session itself (`setHasSession(true)`,
-the guest's viewer queries reset, so the session's reads start) and asks the server once
-(`router.refresh()`): the server's flag may never change (a tab first loaded signed in); a
-session but no cookie (ended elsewhere) → it ends as on a 401 and login replaces the page, its
-data dropped first; a session and the cookie, but with another login's marker than this tab's
-(`useSession().sessionReplaced()`: the marker it loaded with, or signed in with since) → another
-visitor signed in elsewhere: the viewer queries go, the tab's web push steps stop, and the page
-loads again (`location.reload()`). A check that finds the cookie as the previous one did does
-nothing, so `visibilitychange` and `focus` of one return to the tab check once. A logout
+asks nobody. Every tab is set right when it comes back (shown again, focused, or a `pageshow`
+from the browser's cache) by `SessionSwitchSweep` (`lib/session/session-switch-sweep.tsx`, in the
+root providers), against the `ff_auth` cookie: a session but no cookie (ended elsewhere) → it ends
+as on a 401 (the guest version of a public page; login replaces an account page, its data dropped
+first); a session and the cookie, but with another login's marker than this tab's
+(`useSession().sessionReplaced()`: the marker it loaded with, signed in with, or had when a server
+render turned the session on) → another visitor signed in elsewhere: the tab's web push steps
+stop, and an account or checkout page loads again (`location.reload()`: its HTML is the
+visitor's own) while any other page reads the viewer queries again in place
+(`resetViewerQueries`: the header's name, hearts, the cart, the «شما» marks; their HTML is the
+same for everyone); no session but the cookie (a login elsewhere) → the tab takes the session
+itself (`setHasSession(true)`, the guest's viewer queries reset) and asks the server once
+(`router.refresh()`). A check that finds the cookie as the previous one did does nothing, so
+`visibilitychange` and `focus` of one return to the tab check once. `AccountShell` mounts
+`AccountSessionWatch`, the same check once when an account page mounts (Back restores the page
+Next cached), plus the account area's own case: no session and no cookie → login replaces the
+page, with it as `next`. A logout
 that never reached the BFF (no connection: `status` 0 with the cookie still set) keeps the
 session and says so (`useLogout`); one that reached it signs the tab out whatever the API said
 (F6). Account pages are `force-dynamic` and `noindex`;

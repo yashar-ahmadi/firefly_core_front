@@ -2,8 +2,7 @@
 
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
-import { Button, type ButtonSize } from '@/components/ui/button'
-import { buttonClasses } from '@/components/ui/button-styles'
+import { buttonClasses, type ButtonSize } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 
 export const CHECKOUT_LABEL = 'ادامه\u{0654} خرید'
@@ -18,22 +17,26 @@ export interface CheckoutCtaProps {
 }
 
 /**
- * «ادامهٔ خرید»: a link to `/checkout/` (never prefetched: the checkout reads the cart afresh),
- * or, while held back, a button that stays focusable but does nothing (`aria-disabled`),
- * described by the reason.
+ * «ادامهٔ خرید»: one link to `/checkout/` (never prefetched: the checkout reads the cart
+ * afresh), the same element whether or not it is held back, so a reason that comes or goes
+ * while it has the focus keeps the focus there. Held back, it stays focusable but does nothing
+ * (`aria-disabled`, its clicks cancelled), described by the reason.
  */
 export function CheckoutCta({ reason, reasonId, size = 'lg', className }: CheckoutCtaProps) {
-  if (reason === null) {
-    return (
-      <Link href="/checkout/" prefetch={false} className={cn(buttonClasses({ size }), className)}>
-        {CHECKOUT_LABEL}
-        <ArrowLeft aria-hidden />
-      </Link>
-    )
-  }
+  const held = reason !== null
   return (
-    <Button size={size} aria-disabled aria-describedby={reasonId} className={className}>
+    <Link
+      href="/checkout/"
+      prefetch={false}
+      aria-disabled={held || undefined}
+      aria-describedby={held ? reasonId : undefined}
+      onClick={(event) => {
+        if (held) event.preventDefault()
+      }}
+      className={cn(buttonClasses({ size }), held && 'cursor-not-allowed opacity-50', className)}
+    >
       {CHECKOUT_LABEL}
-    </Button>
+      <ArrowLeft aria-hidden />
+    </Link>
   )
 }

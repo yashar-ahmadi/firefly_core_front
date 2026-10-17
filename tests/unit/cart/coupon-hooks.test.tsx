@@ -4,6 +4,8 @@ import { CART_KEY } from '@/features/cart/cart-cache'
 import { useClearCart } from '@/features/cart/clear-hooks'
 import { normaliseCouponCode, useApplyCoupon, useRemoveCoupon } from '@/features/cart/coupon-hooks'
 import { useUpdateCartLine } from '@/features/cart/hooks'
+import { useRemoveLineWithUndo } from '@/features/cart/remove-hooks'
+import { ApiError } from '@/lib/api/errors'
 import type { Cart } from '@/lib/api/types/cart'
 import { clientProviders } from '../support/providers'
 import { couponCartFixture, emptyCartFixture, itemsCartFixture } from './fixtures'
@@ -13,8 +15,14 @@ import { deferred } from './support'
 // catalog's code): they run in the cart writes' scope (one at a time, in order, with the
 // stepper's PUTs and the removals) and store the cart they get back.
 
-const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), success: vi.fn(), error: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  bffFetch: vi.fn(),
+  success: vi.fn(),
+  error: vi.fn(),
+  expire: vi.fn(),
+}))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
+vi.mock('@/lib/session/use-session-expired', () => ({ useSessionExpired: () => mocks.expire }))
 vi.mock('@/components/ui/toaster', () => ({
   toastRegionReady: () => true,
   notify: { success: mocks.success, error: mocks.error, info: vi.fn(), dismiss: vi.fn() },
@@ -33,7 +41,10 @@ beforeEach(() => {
   mocks.bffFetch.mockReset()
   mocks.success.mockReset()
   mocks.error.mockReset()
+  mocks.expire.mockReset()
 })
+
+const sessionGone = () => new ApiError({ status: 401, code: 'token_not_valid' })
 
 describe('normaliseCouponCode', () => {
   it('reads a code as the API does: Latin digits, no outer spaces, upper case', () => {
@@ -102,5 +113,19 @@ describe('the cart page’s writes', () => {
     expect(mocks.bffFetch).toHaveBeenCalledWith('cart/clear/', { method: 'DELETE' })
     expect(client.getQueryData<Cart>(CART_KEY)?.is_empty).toBe(true)
     expect(mocks.success).toHaveBeenCalledWith('سبد خرید خالی شد.')
+  })
+
+  it('a session that is gone ends there, for every page write, without a toast of its own', async () => {
+    mocks.bffFetch.mockRejectedValue(sessionGone())
+    const { result } = setup(() => ({
+      coupon: useRemoveCoupon(),
+      clear: useClearCart(),
+      line: useRemoveLineWithUndo(),
+    }))
+    await act(() => result.current.coupon.remove())
+    await act(() => result.current.clear.clear())
+    await act(() => result.current.line.remove(itemsCartFixture().lines[0]!))
+    expect(mocks.expire).toHaveBeenCalledTimes(3)
+    expect(mocks.error).not.toHaveBeenCalled()
   })
 })

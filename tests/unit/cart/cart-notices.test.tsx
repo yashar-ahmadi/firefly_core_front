@@ -102,6 +102,25 @@ describe('CartNotices', () => {
     )
   })
 
+  it('a dismissed notice hands the focus to the next one, the last one to the page heading', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <h1 id="cart-heading" tabIndex={-1}>
+          سبد خرید
+        </h1>
+        <CartNotices cart={adjusted()} />
+      </>,
+    )
+    const [first] = screen.getAllByRole('button', { name: DISMISS })
+    await user.click(first!)
+    const [next] = screen.getAllByRole('button', { name: DISMISS })
+    expect(next).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(screen.queryByRole('region', { name: NOTICES })).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus()
+  })
+
   it('renders nothing for a cart with nothing to say', () => {
     render(<CartNotices cart={itemsCartFixture()} />)
     expect(screen.queryByRole('region', { name: NOTICES })).toBeNull()

@@ -31,7 +31,7 @@ describe('error.tsx without its view', () => {
   it('says what happened, in the skip link target, and reloads the page', async () => {
     const { default: RootError } = await import('@/app/error')
     const user = userEvent.setup()
-    const error = new Error('boom')
+    const error = Object.assign(new Error('boom'), { digest: '4096538751' })
     const { container } = render(<RootError error={error} reset={vi.fn()} retry={vi.fn()} />)
     const heading = await screen.findByRole('heading', { level: 1, name: 'مشکلی پیش آمد' })
     expect(container.querySelector('main#main')).toContainElement(heading)
@@ -39,7 +39,10 @@ describe('error.tsx without its view', () => {
     expect(screen.getByText(/دوباره تلاش کنید/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'تلاش دوباره' }))
     expect(reloadPage).toHaveBeenCalledTimes(1)
-    expect(consoleError).toHaveBeenCalledWith('[error-boundary]', '', error)
+    expect(consoleError).toHaveBeenCalledWith('[error-boundary]', '4096538751', error)
+    // A plain link home, and the reference that matches the server log.
+    expect(screen.getByRole('link', { name: 'صفحه\u{0654} اصلی' })).toHaveAttribute('href', '/')
+    expect(screen.getByText('4096538751')).toHaveAttribute('dir', 'ltr')
     expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
   })
 })

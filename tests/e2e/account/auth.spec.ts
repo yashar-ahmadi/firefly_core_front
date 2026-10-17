@@ -12,7 +12,8 @@ import { watchErrors } from '../support/watch-errors'
 // that the login merges into sara's cart is taken out again by the `sara` guard (support/
 // sara-guard.ts), her lines left as they were, however the test ends. The same login then
 // meets another visitor's login in another tab (Plan 4 Task 1, the Plan 3 residual): sara logs
-// out there and kamran signs in; back in her tab, nothing of hers may stay on screen.
+// out there and kamran signs in; back in her account tab, nothing of hers may stay on screen
+// (the page loads again), and her catalog tab reads kamran's name and hearts in place.
 
 test.describe.configure({ mode: 'serial' })
 
@@ -91,6 +92,15 @@ guardedTest(
       await expect(cartLink(page)).toHaveAccessibleName(`سبد خرید، ${digits(count)} کالا`)
       expect(await readCart(sara.request)).toContainEqual({ variant, quantity: 1 })
 
+      // A catalog tab of the same visitor, her name in its header.
+      const catalog = await page.context().newPage()
+      await catalog.goto('/product-category/digital/mobile-phone/')
+      await shellHydrated(catalog)
+      const catalogBanner = catalog.getByRole('banner')
+      await expect(
+        catalogBanner.getByRole('button', { name: `حساب کاربری: ${SARA.fullName}` }),
+      ).toBeVisible()
+
       // Another tab of this browser (its requests share the cookies): sara logs out there, and
       // kamran logs in. The flag cookie now holds another login's marker: back in this tab, its
       // data goes and the page loads again, as kamran's. (Headless pages never lose the focus,
@@ -115,6 +125,25 @@ guardedTest(
       ).toBeVisible()
       await expect(page.getByText(SARA.fullName)).toHaveCount(0)
       await expect(page.getByRole('heading', { name: 'سلام سارا' })).toHaveCount(0)
+
+      // Back to the catalog tab: its HTML is everyone's, so it stays (no document loaded); the
+      // header reads the visitor again (kamran's name) and so do the hearts.
+      const loaded: string[] = []
+      catalog.on('request', (request) => {
+        if (request.isNavigationRequest()) loaded.push(request.url())
+      })
+      const hearts = catalog.waitForResponse(
+        (response) =>
+          new URL(response.url()).pathname === '/api/bff/product/wishlist/list/' && response.ok(),
+      )
+      await catalog.bringToFront()
+      await catalog.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await expect(
+        catalogBanner.getByRole('button', { name: `حساب کاربری: ${KAMRAN.fullName}` }),
+      ).toBeVisible()
+      await hearts
+      await expect(catalog.getByText(SARA.fullName)).toHaveCount(0)
+      expect(loaded).toEqual([])
       expect(errors).toEqual([])
     } finally {
       // Each on its own (sara's cart itself is the guard's): this page's session (sara's, or

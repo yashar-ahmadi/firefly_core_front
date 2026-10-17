@@ -1,9 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { tell } from '@/components/ui/tell'
 import { notify } from '@/components/ui/toaster'
+import { useSessionExpired } from '@/lib/session/use-session-expired'
+import { isSessionExpiredError } from '@/lib/session/viewer-queries'
 import { cartApi } from './api'
 import { CART_KEY, CART_WRITES, errorDetail, storeCart } from './cart-cache'
 import { isCartGone } from './coupon-hooks'
-import { tell } from './tell'
 
 // Clearing the cart from the cart page (cart digest §3.5), in a module of its own (ruling
 // P4-R1). The lines, the coupon and the shipping choice go; the destination stays.
@@ -18,11 +20,13 @@ export interface ClearCart {
 
 /**
  * Runs in the cart writes' scope (after any change still on its way) and stores the empty cart
- * the API returns, with its message. A cart that is gone is empty already: it is read again. Any
- * other refusal shows its detail and reads the cart again.
+ * the API returns, with its message. A cart that is gone is empty already: it is read again. A
+ * session that is gone ends here too. Any other refusal shows its detail and reads the cart
+ * again.
  */
 export function useClearCart(): ClearCart {
   const client = useQueryClient()
+  const expire = useSessionExpired()
   const mutation = useMutation({
     scope: CART_WRITES,
     mutationFn: () => cartApi.clear(),
@@ -36,7 +40,8 @@ export function useClearCart(): ClearCart {
       await mutation.mutateAsync()
       return true
     } catch (error) {
-      if (!isCartGone(error)) notify.error(errorDetail(error))
+      if (isSessionExpiredError(error)) expire()
+      else if (!isCartGone(error)) notify.error(errorDetail(error))
       void client.invalidateQueries({ queryKey: CART_KEY })
       return false
     }

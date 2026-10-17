@@ -114,6 +114,26 @@ describe('WishlistPage: removing from the wishlist', () => {
     await waitFor(() => expect(screen.getByRole('link', { name: 'کالای ۱' })).toHaveFocus())
   })
 
+  it('a second press on «بازگردانی» (the toast is still closing) saves nothing more', async () => {
+    const { user } = renderWishlist()
+    const heart = await heartOf('کالای ۱')
+    serverWithout(1)
+    await user.click(heart)
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'کالای ۱' })).toBeNull())
+    const [, options] = mocks.notify.success.mock.calls.find(([message]) =>
+      String(message).includes('حذف شد'),
+    )!
+    api.saved = [1, ...api.saved]
+    api.list = () => wishlistPage(PRODUCTS)
+    const saves = () => api.toggle.mock.calls.filter(([, method]) => method === 'POST').length
+    await act(async () => {
+      options.action.onClick(new MouseEvent('click'))
+      options.action.onClick(new MouseEvent('click'))
+    })
+    expect(await screen.findByRole('link', { name: 'کالای ۱' })).toBeInTheDocument()
+    expect(saves()).toBe(1)
+  })
+
   it('a failed DELETE leaves the card, its heart pressed again, and says why', async () => {
     api.toggle.mockRejectedValueOnce(
       ApiError.fromBody(500, {

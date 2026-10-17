@@ -15,6 +15,7 @@ import { deferred } from './support'
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), success: vi.fn(), error: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
+vi.mock('@/lib/session/use-session-expired', () => ({ useSessionExpired: () => vi.fn() }))
 vi.mock('@/components/ui/toaster', () => ({
   toastRegionReady: () => true,
   notify: { success: mocks.success, error: mocks.error, info: vi.fn(), dismiss: vi.fn() },
@@ -153,6 +154,24 @@ describe('CartLineItem', () => {
       }),
     )
     await waitFor(() => expect(client.getQueryData(CART_KEY)).toEqual(itemsEnvelope().data))
+  })
+
+  it('a second press on «بازگردانی» (the toast is still closing) adds nothing more', async () => {
+    const user = userEvent.setup()
+    const afterRemoval = itemsCartFixture({ lines: itemsCartFixture().lines.slice(1) })
+    mocks.bffFetch.mockImplementation((path: string) =>
+      path === 'cart/item/add/' ? ok(itemsEnvelope().data) : ok(afterRemoval),
+    )
+    const { client } = renderLine(TEA())
+    await user.click(screen.getByRole('button', { name: 'حذف از سبد خرید' }))
+    await waitFor(() => expect(client.getQueryData(CART_KEY)).toEqual(afterRemoval))
+    const [, options] = mocks.success.mock.calls.at(-1)!
+    await act(async () => {
+      options.action.onClick()
+      options.action.onClick()
+    })
+    await waitFor(() => expect(client.getQueryData(CART_KEY)).toEqual(itemsEnvelope().data))
+    expect(calls('POST')).toHaveLength(1)
   })
 
   it('says why the line cannot be ordered as it is', () => {

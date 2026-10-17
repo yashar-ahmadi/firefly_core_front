@@ -3,6 +3,7 @@
 import { matchMutation, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useEffect, useEffectEvent, useRef, useState, type RefObject } from 'react'
+import { tell } from '@/components/ui/tell'
 import { productPath } from '@/features/catalog/listing-routes'
 import {
   toggleWishlistOnce,
@@ -12,7 +13,6 @@ import {
 import type { WishlistProductCard } from '@/lib/api/types/catalog'
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
-import { tell } from '../tell'
 
 /** How long the toast offers «بازگردانی» (it waits while hovered or focused). */
 const UNDO_MS = 10_000
@@ -105,8 +105,17 @@ export function useWishlistRemovals({
     const index = products.findIndex((product) => product.id === id)
     const product = products[index] ?? seen.current.get(id)
     if (!product) return
+    // Sonner keeps the closing toast pressable for a moment: the undo runs once.
+    let undone = false
     tell(`«${product.name}» از علاقه‌مندی‌ها حذف شد.`, 'success', {
-      action: { label: 'بازگردانی', onClick: () => restore(product) },
+      action: {
+        label: 'بازگردانی',
+        onClick: () => {
+          if (undone) return
+          undone = true
+          restore(product)
+        },
+      },
       duration: UNDO_MS,
     })
     // Its card is on another view now (the visitor moved on): nothing here changes.

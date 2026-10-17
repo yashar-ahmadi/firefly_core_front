@@ -18,3 +18,6 @@ export function checkoutBlock(cart: Cart, pending: boolean): string | null {
   const issue = cart.lines.some((line) => line.issue !== null || !line.in_stock)
   return !cart.is_orderable || issue ? CHECKOUT_ISSUES : null
 }
+
+/** A reason that only waits (a change being saved), said in a neutral tone; the others block. */
+export const isWaitReason = (reason: string | null) => reason === CHECKOUT_PENDING

@@ -20,8 +20,14 @@ import {
 // The coupon box of the cart page: apply and remove (`coupon/apply/`, `coupon/remove/`), the
 // API's own words for a refusal, the 20/min throttle's wait, and the `coupons` switch.
 
-const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), success: vi.fn(), error: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  bffFetch: vi.fn(),
+  success: vi.fn(),
+  error: vi.fn(),
+  expire: vi.fn(),
+}))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
+vi.mock('@/lib/session/use-session-expired', () => ({ useSessionExpired: () => mocks.expire }))
 vi.mock('@/components/ui/toaster', () => ({
   toastRegionReady: () => true,
   notify: { success: mocks.success, error: mocks.error, info: vi.fn(), dismiss: vi.fn() },
@@ -53,6 +59,7 @@ beforeEach(() => {
   mocks.bffFetch.mockReset()
   mocks.success.mockReset()
   mocks.error.mockReset()
+  mocks.expire.mockReset()
 })
 
 afterEach(() => vi.useRealTimers())
@@ -71,6 +78,32 @@ describe('CouponBox', () => {
     expect(field).toHaveAccessibleDescription(new RegExp(detail))
     expect(field).toHaveValue('vip1m')
     expect(mocks.error).not.toHaveBeenCalled()
+    // Read out by the alert once; the focus stays on «اعمال کد» (no second reading of it).
+    expect(screen.getByRole('button', { name: APPLY })).toHaveFocus()
+  })
+
+  it('the same refusal again is read out again (a new alert)', async () => {
+    const user = userEvent.setup()
+    mocks.bffFetch.mockImplementation(() => reject(400, couponMinSpendBody()))
+    renderBox(itemsCartFixture())
+    await user.type(screen.getByLabelText(FIELD), 'vip1m')
+    const apply = screen.getByRole('button', { name: APPLY })
+    await user.click(apply)
+    const first = await screen.findByRole('alert')
+    await user.click(apply)
+    await waitFor(() => expect(screen.getByRole('alert')).not.toBe(first))
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+  })
+
+  it('a session that is gone ends here too', async () => {
+    const user = userEvent.setup()
+    mocks.bffFetch.mockImplementation(() =>
+      reject(401, { data: { errors: [{ code: 'token_not_valid', detail: 'x', attr: null }] } }),
+    )
+    renderBox(itemsCartFixture())
+    await user.type(screen.getByLabelText(FIELD), 'TEA30')
+    await user.click(screen.getByRole('button', { name: APPLY }))
+    await waitFor(() => expect(mocks.expire).toHaveBeenCalledTimes(1))
   })
 
   it('sends the code as the API reads it: Latin digits, trimmed, upper case', async () => {
@@ -97,9 +130,11 @@ describe('CouponBox', () => {
     await user.type(screen.getByLabelText(FIELD), 'TEA30')
     await user.click(screen.getByRole('button', { name: APPLY }))
     await waitFor(() => expect(client.getQueryData(CART_KEY)).toEqual(applied.data))
-    expect(mocks.success.mock.calls[0]?.[0]).toBe('کوپن تخفیف اعمال شد.')
     rerender(applied.data)
     expect(screen.getByText('TEA30')).toBeInTheDocument()
+    // Said once: by the applied coupon taking the focus, not by a toast as well.
+    expect(screen.getByText(/روی سبد اعمال شد/)).toHaveFocus()
+    expect(mocks.success).not.toHaveBeenCalled()
     expect(screen.getByText(applied.data.coupon.title!)).toBeInTheDocument()
     expect(screen.queryByLabelText(FIELD)).toBeNull()
     expect(screen.getByRole('button', { name: REMOVE })).toBeInTheDocument()

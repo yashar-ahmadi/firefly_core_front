@@ -9,7 +9,8 @@ import { watchErrors } from '../support/watch-errors'
 // login with the page as `next`, as a guest's (never «شما وارد شده‌اید» with the old profile).
 // The other tab is played by dropping this context's session cookies: the shared session itself
 // is left alone at the API (no logout, no login). Then the same with no navigation at all: the
-// account tab gets the focus back (AccountSessionWatch), its data must go with the page.
+// account tab gets the focus back (the shop-wide SessionSwitchSweep), its data must go with the
+// page; and a catalog tab becomes a guest's in place (Plan 4 Task 1, fix round 1).
 
 signedInTest(
   'a session ended in another tab: the next account page is login, with it as next',
@@ -63,6 +64,43 @@ signedInTest(
     await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
     await expect(page.getByText(SARA.email)).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'شما وارد شده‌اید' })).toHaveCount(0)
+    expect(errors).toEqual([])
+  },
+)
+
+signedInTest(
+  'a session ended in another tab: back to a catalog tab, its header is a guest’s, no reload',
+  async ({ page, context }) => {
+    const errors = watchErrors(page)
+    await page.goto('/product-category/digital/mobile-phone/')
+    await shellHydrated(page)
+    const phone = (page.viewportSize()?.width ?? 0) < 768
+    const banner = page.getByRole('banner')
+    const accountTab = page
+      .getByRole('navigation', { name: 'منوی پایین' })
+      .getByRole('link', { name: 'حساب من' })
+    if (phone) await expect(accountTab).toHaveAttribute('href', '/account/')
+    else {
+      await expect(
+        banner.getByRole('button', { name: `حساب کاربری: ${SARA.fullName}` }),
+      ).toBeVisible()
+    }
+    const documents: string[] = []
+    page.on('request', (request) => {
+      if (request.isNavigationRequest()) documents.push(request.url())
+    })
+
+    // Another tab, where the session ends (its logout drops the cookies both tabs share).
+    for (const name of SESSION_COOKIES) await context.clearCookies({ name })
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+    if (phone) await expect(accountTab).toHaveAttribute('href', '/login/?next=/account/')
+    else {
+      await expect(banner.getByRole('link', { name: /^ورود/ })).toBeVisible()
+      await expect(banner.getByRole('button', { name: /^حساب کاربری/ })).toHaveCount(0)
+    }
+    await expect(page.getByText(SARA.fullName)).toHaveCount(0)
+    // The catalog page itself is everyone's: it stays, no document loaded.
+    expect(documents).toEqual([])
     expect(errors).toEqual([])
   },
 )

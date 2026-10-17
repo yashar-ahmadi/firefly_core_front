@@ -65,6 +65,17 @@ export async function clearViewerQueries(client: QueryClient): Promise<void> {
 }
 
 /**
+ * Another visitor signed in while this page was open (another tab): every viewer query is read
+ * again in place, as the new visitor, showing nothing of the old one meanwhile. Reset, not
+ * removed: the session stays on, so nothing re-renders to attach what is on screen to a new
+ * query (the header's profile would keep the old name). Never rejects.
+ */
+export async function resetViewerQueries(client: QueryClient): Promise<void> {
+  const keys = [...SESSION_QUERIES, ...VIEWER_AWARE_QUERIES]
+  await Promise.all(keys.map((queryKey) => client.resetQueries({ queryKey }))).catch(() => {})
+}
+
+/**
  * The 401 codes that mean the session is gone: no or a rejected token, or an account that was
  * deleted or disabled. The BFF has tried its one refresh by then (and dropped the cookies if
  * that failed). Not a missing or bad API key or a malformed header (configuration problems that

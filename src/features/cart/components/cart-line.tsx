@@ -24,6 +24,8 @@ export interface CartLineItemProps {
   onRemoving?: () => void
   /** The removal was refused: the line stays. */
   onRemoveFailed?: () => void
+  /** «بازگردانی» was pressed in the removal's toast (the page moves the focus). */
+  onUndo?: (line: CartLine) => void
 }
 
 /**
@@ -40,11 +42,12 @@ export function CartLineItem({
   onPendingChange,
   onRemoving,
   onRemoveFailed,
+  onUndo,
 }: CartLineItemProps) {
   const nameId = useId()
   const href = productPath(line.product_slug)
   const quantity = useUpdateCartLine(line)
-  const { remove, isPending: removing } = useRemoveLineWithUndo()
+  const { remove, isPending: removing } = useRemoveLineWithUndo({ onUndo })
   const { min, max } = lineLimits(line)
   const warning = lineWarning(line)
   const pending = quantity.isPending || removing
@@ -56,7 +59,11 @@ export function CartLineItem({
   useEffect(() => () => onPendingChange?.(variant, false), [onPendingChange, variant])
 
   return (
-    <li aria-busy={pending || undefined} className="flex gap-3 py-4 md:gap-4 md:py-5">
+    <li
+      data-variant={line.variant_id}
+      aria-busy={pending || undefined}
+      className="flex gap-3 py-4 md:gap-4 md:py-5"
+    >
       {/* The name link is the one tab stop; the image repeats it for pointers. */}
       <Link href={href} tabIndex={-1} aria-hidden className="shrink-0 self-start">
         <SmartImage

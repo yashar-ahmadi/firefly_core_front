@@ -18,6 +18,13 @@ import { SessionProvider, useSession } from '@/lib/session/session-context'
 import { emailOnlyAuth } from '../support/auth'
 import { stubBrowserApis } from '../support/dom-stubs'
 
+// The session sweep (SessionSwitchSweep) uses the App Router, which is mounted around the root
+// providers in the app.
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}))
+
 const config = toPublicConfig(
   resolveStoreConfig(
     parseServerEnv({
@@ -96,6 +103,16 @@ describe('Providers', () => {
     expect(result.current.hasSession).toBe(true)
     act(() => result.current.setHasSession(false))
     expect(result.current.hasSession).toBe(false)
+  })
+
+  it('sets a tab right when it comes back after a logout elsewhere (SessionSwitchSweep)', async () => {
+    document.cookie = 'ff_auth=login-a-0123456789; path=/'
+    const { result } = renderHook(() => useSession(), {
+      wrapper: providers({ hasSession: true }),
+    })
+    document.cookie = 'ff_auth=; max-age=0; path=/'
+    act(() => void window.dispatchEvent(new Event('focus')))
+    await waitFor(() => expect(result.current.hasSession).toBe(false))
   })
 
   it('keeps a local change until a server re-render brings a different flag', () => {
