@@ -1,4 +1,4 @@
-import type { QueryClient, QueryKey } from '@tanstack/react-query'
+import { partialMatchKey, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { ApiError } from '@/lib/api/errors'
 
 // The TanStack Query data that belongs to the visitor who is signed in, and what makes it stale
@@ -26,6 +26,10 @@ export const MY_COMMENTS_KEY = ['dashboard', 'comments'] as const
  * (the dashboard's lists, `MY_COMMENTS_KEY`), under `['wishlist']` (`WISHLIST_IDS_KEY`, the
  * wishlist page's lists), under `['notifications']` (the inbox and its unread count,
  * `UNREAD_NOTIFICATIONS_KEY`) and the address book (`['addresses']`).
+ *
+ * Every new per-visitor query (orders, the wallet, the reading list…) goes under one of these
+ * prefixes, or adds its own here: `useAccountQuery` refuses any other key (`isSessionQuery`), and
+ * tests/unit/session/session-query-keys.test.tsx lists the keys of the other session-only reads.
  */
 const SESSION_QUERIES: readonly QueryKey[] = [
   ME_KEY,
@@ -35,6 +39,11 @@ const SESSION_QUERIES: readonly QueryKey[] = [
   ['notifications'],
   ['addresses'],
 ]
+
+/** Whether `queryKey` is under a `SESSION_QUERIES` prefix: a logout removes it. */
+export function isSessionQuery(queryKey: QueryKey): boolean {
+  return SESSION_QUERIES.some((prefix) => partialMatchKey(queryKey, prefix))
+}
 
 /**
  * Read by guests too, but the answer depends on who asks: the cart (`CART_KEY`), and under

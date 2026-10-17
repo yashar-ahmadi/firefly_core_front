@@ -8,11 +8,14 @@ import {
 } from '@tanstack/react-query'
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
-import { isSessionExpiredError } from '@/lib/session/viewer-queries'
+import { isSessionExpiredError, isSessionQuery } from '@/lib/session/viewer-queries'
 import { withSessionExpiry } from '@/lib/session/with-session-expiry'
 
 export interface AccountQueryOptions<T> {
-  /** Under a key `clearViewerQueries` removes (`SESSION_QUERIES`): the data is the visitor's. */
+  /**
+   * Under a key `clearViewerQueries` removes (`SESSION_QUERIES`): the data is the visitor's. Any
+   * other key is refused outside production (it would outlive a logout).
+   */
   queryKey: QueryKey
   queryFn: (context: { signal: AbortSignal }) => Promise<T>
   /** A paged list keeps showing its last page while the next loads (`keepPreviousData`). */
@@ -31,6 +34,12 @@ export function useAccountQuery<T>({
   queryFn,
   placeholderData,
 }: AccountQueryOptions<T>): UseQueryResult<T> {
+  if (process.env.NODE_ENV !== 'production' && !isSessionQuery(queryKey)) {
+    throw new Error(
+      `useAccountQuery: ${JSON.stringify(queryKey)} is under no SESSION_QUERIES prefix ` +
+        '(src/lib/session/viewer-queries.ts): a logout would leave it for the next visitor.',
+    )
+  }
   const { hasSession } = useSession()
   const expire = useSessionExpired()
   const read = withSessionExpiry(queryFn, expire)
