@@ -1,14 +1,17 @@
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent, { type UserEvent } from '@testing-library/user-event'
 import type { ReactNode } from 'react'
-import { vi } from 'vitest'
+import { beforeEach, expect, vi } from 'vitest'
+import { AddressForm } from '@/features/account/addresses/address-form'
 import { ApiError } from '@/lib/api/errors'
+import type { UserProfile } from '@/lib/api/types/account'
 import type { Address } from '@/lib/api/types/address'
 import { ME_KEY } from '@/lib/session/viewer-queries'
 import { SARA } from '../auth/fixtures'
 import { geoPage, ISFAHAN, ISFAHAN_CITIES, PROVINCES, TEHRAN, TEHRAN_CITIES } from '../geo/fixtures'
 import { authProviders } from '../support/auth-providers'
-import { addressPage } from './address-fixtures'
+import { stubBrowserApis } from '../support/dom-stubs'
+import { addressPage, HOME, WORK } from './address-fixtures'
 
 // The address book's tests share an API stand-in: the geography lists, sara's profile and her
 // book (`book`), and the writes the test decides (`writes`), each recorded as `bffFetch` calls.
@@ -62,9 +65,12 @@ export function failure(
  * Renders `ui` signed in as sara (her profile in `['me']`), with a user-event. `noRetry`: a
  * failed read of the book shows at once (the app retries server errors twice, with back-off).
  */
-export function renderSignedIn(ui: ReactNode, { noRetry = false } = {}) {
+export function renderSignedIn(
+  ui: ReactNode,
+  { noRetry = false, me = SARA }: { noRetry?: boolean; me?: UserProfile } = {},
+) {
   const providers = authProviders({ hasSession: true })
-  providers.client.setQueryData(ME_KEY, SARA)
+  providers.client.setQueryData(ME_KEY, me)
   if (noRetry) providers.client.setQueryDefaults(['addresses'], { retry: false })
   const user = userEvent.setup()
   const view = render(ui, { wrapper: providers.wrapper })
@@ -85,3 +91,56 @@ export const field = {
   save: () => screen.getByRole('button', { name: 'ذخیرهٔ آدرس' }),
   isDefault: () => screen.getByRole('switch', { name: /آدرس پیش‌فرض/ }),
 }
+
+/**
+ * Each test starts with sara's two addresses and no write answered (set `api.write` per test;
+ * `api.book` is what the list answers from then on).
+ */
+export function setUpAddressApi(bffFetch: ReturnType<typeof vi.fn>) {
+  const api = { book: [HOME, WORK] as Address[], write: vi.fn<ApiStub['write']>() }
+  beforeEach(() => {
+    vi.clearAllMocks()
+    stubBrowserApis()
+    api.book = [HOME, WORK]
+    api.write = vi.fn<ApiStub['write']>()
+    stubApi(bffFetch, {
+      get book() {
+        return api.book
+      },
+      write: (path, options) => api.write(path, options),
+    })
+  })
+  return api
+}
+
+/** The form for `initial` (or a new address), signed in. */
+export function renderForm(initial?: Address, options?: { me?: UserProfile }) {
+  const onSaved = vi.fn()
+  const view = renderSignedIn(<AddressForm initial={initial} onSaved={onSaved} />, options)
+  return { onSaved, ...view }
+}
+
+export async function chooseRegion(user: UserEvent, province = 'تهران', city = 'شهریار') {
+  await waitFor(() =>
+    expect(within(field.province()).getByRole('option', { name: province })).toBeInTheDocument(),
+  )
+  await user.selectOptions(field.province(), province)
+  await waitFor(() => expect(field.city()).toBeEnabled())
+  await user.selectOptions(field.city(), city)
+}
+
+/** A complete new address, typed with Persian digits where people use them. */
+export async function fillNew(user: UserEvent) {
+  await user.type(field.title(), 'منزل پدری')
+  await chooseRegion(user)
+  await user.type(field.address(), 'خیابان امام، کوچه یاس')
+  await user.type(field.plaque(), '۱۲ب')
+  await user.type(field.unit(), '۳')
+  await user.type(field.postalCode(), '۱۲۳۴۵-۶۷۸۹۰')
+  await user.type(field.firstName(), 'مریم')
+  await user.type(field.lastName(), 'رضایی')
+  await user.type(field.mobile(), '۰۹۱۲۱۲۳۴۵۶۷')
+}
+
+/** What a create answers in these tests. */
+export const SAVED: Address = { ...WORK, id: 10050, title: 'منزل پدری', is_default: false }

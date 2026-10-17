@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   bffFetch: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
+  info: vi.fn(),
   announce: vi.fn(),
 }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
@@ -21,7 +22,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn(), push: 
 vi.mock('@/components/ui/live-announcer', () => ({ announce: mocks.announce }))
 vi.mock('@/components/ui/toaster', () => ({
   toastRegionReady: () => false,
-  notify: { success: mocks.success, error: mocks.error, info: vi.fn(), dismiss: vi.fn() },
+  notify: { success: mocks.success, error: mocks.error, info: mocks.info, dismiss: vi.fn() },
 }))
 
 let book: Address[]
@@ -150,7 +151,10 @@ describe('AddressList', () => {
     await user.click(
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'حذف آدرس' }),
     )
-    await waitFor(() => expect(mocks.success).toHaveBeenCalledWith('این آدرس دیگر وجود ندارد.'))
+    // Not a success: said in the information tone (and heard through the shell's region).
+    await waitFor(() => expect(mocks.info).toHaveBeenCalledWith('این آدرس دیگر وجود ندارد.'))
+    expect(mocks.success).not.toHaveBeenCalled()
+    expect(mocks.announce).toHaveBeenCalledWith('این آدرس دیگر وجود ندارد.')
     await waitFor(() => expect(cards()).toHaveLength(1))
   })
 
@@ -188,20 +192,5 @@ describe('AddressList', () => {
     expect(client.getQueryState(['cart'])?.isInvalidated).toBe(true)
     await waitFor(() => expect(mocks.success).toHaveBeenCalledWith('آدرس «محل کار» پیش‌فرض شد.'))
     await waitFor(() => expect(card('محل کار')).toHaveFocus())
-  })
-
-  it('«افزودن آدرس جدید» opens the form in a sheet; a save closes it and is said', async () => {
-    const created: Address = { ...WORK, id: 10060, title: 'منزل پدری' }
-    write.mockImplementation(async () => {
-      book = [HOME, WORK, created]
-      return written(created, 201)
-    })
-    const { user } = renderSignedIn(<AddressList title="آدرس‌های من" />)
-    await waitFor(() => expect(cards()).toHaveLength(2))
-    await user.click(screen.getByRole('button', { name: 'افزودن آدرس جدید' }))
-    const sheet = await screen.findByRole('dialog', { name: 'افزودن آدرس جدید' })
-    expect(within(sheet).getByRole('button', { name: 'ذخیرهٔ آدرس' })).toBeInTheDocument()
-    await user.click(within(sheet).getByRole('button', { name: 'انصراف' }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 })

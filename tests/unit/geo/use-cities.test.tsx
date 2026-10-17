@@ -25,6 +25,22 @@ function answer(path: string, { query }: { query?: Query } = {}) {
   return Promise.reject(new Error(`unexpected ${path} ${JSON.stringify(query)}`))
 }
 
+/** The city list's answer to a province id the API no longer has. */
+const staleError = () =>
+  ApiError.fromBody(400, {
+    msg: 'خطا',
+    data: {
+      type: 'validation_error',
+      errors: [
+        {
+          code: 'invalid_choice',
+          detail: 'یک گزینهٔ معتبر انتخاب کنید. 9999 از گزینه‌های موجود نیست.',
+          attr: 'province',
+        },
+      ],
+    },
+  })
+
 const calls = (path: string) =>
   mocks.bffFetch.mock.calls.filter(([called]) => called === path).map(([, options]) => options)
 
@@ -101,22 +117,9 @@ describe('useCities', () => {
     await waitFor(() => expect(provinces.result.current.data).toEqual(PROVINCES))
     client.setQueryData(['geo', 'cities', TEHRAN.id], TEHRAN_CITIES)
 
-    const stale = ApiError.fromBody(400, {
-      msg: 'خطا',
-      data: {
-        type: 'validation_error',
-        errors: [
-          {
-            code: 'invalid_choice',
-            detail: 'یک گزینهٔ معتبر انتخاب کنید. 9999 از گزینه‌های موجود نیست.',
-            attr: 'province',
-          },
-        ],
-      },
-    })
     mocks.bffFetch.mockImplementation((path: string, options: { query?: Query }) =>
       path === 'transportation/city/list/' && options.query?.province === 9999
-        ? Promise.reject(stale)
+        ? Promise.reject(staleError())
         : answer(path, options),
     )
     const onStale = vi.fn()
@@ -126,5 +129,33 @@ describe('useCities', () => {
     expect(result.current.data).toBeUndefined()
     await waitFor(() => expect(calls('transportation/province/list/')).toHaveLength(2))
     expect(client.getQueryData(['geo', 'cities', TEHRAN.id])).toBeUndefined()
+  })
+
+  it('a caller that does not reset on stale (a new callback each render) is told once, no loop', async () => {
+    mocks.bffFetch.mockImplementation((path: string, options: { query?: Query }) =>
+      path === 'transportation/city/list/' && options.query?.province === 9999
+        ? Promise.reject(staleError())
+        : answer(path, options),
+    )
+    const told = vi.fn()
+    const { wrapper } = clientProviders()
+    const { result, rerender } = renderHook(
+      () => {
+        const provinces = useProvinces()
+        // A new arrow on every render, and the province is kept: nothing ends the error.
+        useCities(9999, { onStale: () => told() })
+        return provinces
+      },
+      { wrapper },
+    )
+    await waitFor(() => expect(told).toHaveBeenCalledOnce())
+    await waitFor(() => expect(result.current.isFetching).toBe(false))
+    rerender()
+    rerender()
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(told).toHaveBeenCalledOnce()
+    // The first read and one refresh: no loop against the anonymous throttle.
+    expect(calls('transportation/province/list/')).toHaveLength(2)
+    expect(calls('transportation/city/list/')).toHaveLength(1)
   })
 })

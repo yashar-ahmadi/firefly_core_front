@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import type { Address } from '@/lib/api/types/address'
 import type { Paginated } from '@/lib/api/types/common'
 import type { City, Province } from '@/lib/api/types/geo'
@@ -16,6 +16,17 @@ const BLANK_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=',
   'base64',
 )
+
+/** A button's target height: its box, or further where its ::after hit area reaches. */
+function targetHeight(button: Locator): Promise<number> {
+  return button.evaluate((node) => {
+    const height = node.getBoundingClientRect().height
+    const after = getComputedStyle(node, '::after')
+    if (after.content === 'none' || after.position !== 'absolute') return height
+    const reach = (inset: string) => Math.max(0, -(parseFloat(inset) || 0))
+    return height + reach(after.top) + reach(after.bottom)
+  })
+}
 
 /** sara's book, read the way the page reads it. */
 async function liveBook(page: Page): Promise<Paginated<Address>> {
@@ -80,15 +91,16 @@ signedInTest(
           .getByRole('link', { name: 'نشانی‌ها' }),
       ).toHaveAttribute('aria-current', 'page')
     }
-    // No sideways page scroll; every button of the page at least 44px tall (with its hit area).
+    // No sideways page scroll; every button of the page a target at least 44px tall. The cards'
+    // `sm` buttons are drawn 40px high and reach 44px with their ::after hit area (`HIT_AREA`),
+    // which a bounding box does not include: the target is measured with it.
     const width = page.viewportSize()?.width ?? 0
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       width,
     )
     for (const button of await page.getByRole('main').getByRole('button').all()) {
       if (!(await button.isVisible())) continue
-      const box = await button.boundingBox()
-      expect(box?.height ?? 0, await button.innerText()).toBeGreaterThanOrEqual(40)
+      expect(await targetHeight(button), await button.innerText()).toBeGreaterThanOrEqual(44)
     }
     expect(writes).toEqual([])
     expect(errors).toEqual([])
@@ -135,6 +147,8 @@ signedInTest(
 
     // The map loads on demand, left-to-right, with OpenStreetMap's attribution.
     await sheet.getByRole('button', { name: 'انتخاب موقعیت روی نقشه' }).click()
+    // The pressed button gave way to the picker: the focus is on its region, never lost.
+    await expect(sheet.getByRole('group', { name: /^انتخاب موقعیت روی نقشه:/ })).toBeFocused()
     const map = sheet.getByRole('application', { name: 'نقشه' })
     await expect(sheet.getByRole('button', { name: 'تأیید موقعیت' })).toBeEnabled({
       timeout: 15_000,

@@ -119,8 +119,9 @@ export function AddressForm({
       if (isSessionExpiredError(error)) return
       const failure = addressFailure(error)
       const reset: Partial<AddressValues> = {}
+      // The cached lists disagree with the API: they read again.
+      if (failure.staleGeo || failure.resetCity) refreshGeo(client)
       if (failure.staleGeo) {
-        refreshGeo(client)
         if (failure.fields.province) Object.assign(reset, { province: null, city: null })
         if (failure.fields.city) reset.city = null
       }

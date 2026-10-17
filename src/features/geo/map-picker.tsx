@@ -27,7 +27,8 @@ export interface MapPickerProps {
 
 const OSM_ONLY = { provider: 'osm', neshanKey: null } as const
 const FOUND = 'نقشه روی موقعیت شما رفت؛ اگر لازم است آن را جابه‌جا کنید.'
-const OVERLAY_BUTTON = 'border border-ink-300 bg-white shadow-card hover:bg-ink-50'
+const OVERLAY_BUTTON =
+  'border border-ink-300 bg-white shadow-card hover:bg-ink-50 aria-disabled:opacity-50'
 
 function startView(initial: GeoPoint | null, provinceName: string | undefined): MapView {
   if (initial) return { centre: initial, zoom: STREET_ZOOM }
@@ -118,15 +119,22 @@ export function MapPicker({ initial, provinceName, onConfirm, onCancel }: MapPic
     }
   }, [setup])
 
+  const ready = status === 'ready'
+  // The overlay buttons wait for the map (focusable, said unavailable, inert).
+  const waiting = { 'aria-disabled': !ready || undefined }
+
   async function findMe() {
-    if (locating) return
+    if (locating || !ready) return
     setLocating(true)
     setMessage('')
     const result = await locate()
     setLocating(false)
     if (!result.ok) return setMessage(result.message)
+    // Only a move that happened is announced (the map may have gone meanwhile).
+    const view = map.current
+    if (!view) return
     const { latitude, longitude } = result.point
-    map.current?.setView([latitude, longitude], STREET_ZOOM, { animate: !prefersReducedMotion() })
+    view.setView([latitude, longitude], STREET_ZOOM, { animate: !prefersReducedMotion() })
     setMessage(FOUND)
   }
 
@@ -159,12 +167,14 @@ export function MapPicker({ initial, provinceName, onConfirm, onCancel }: MapPic
             label="بزرگ‌نمایی"
             icon={<Plus />}
             className={OVERLAY_BUTTON}
+            {...waiting}
             onClick={() => map.current?.zoomIn()}
           />
           <IconButton
             label="کوچک‌نمایی"
             icon={<Minus />}
             className={OVERLAY_BUTTON}
+            {...waiting}
             onClick={() => map.current?.zoomOut()}
           />
         </div>
@@ -174,6 +184,7 @@ export function MapPicker({ initial, provinceName, onConfirm, onCancel }: MapPic
           className={cn('absolute bottom-7 left-2 z-20', OVERLAY_BUTTON)}
           loading={locating}
           iconStart={<LocateFixed aria-hidden />}
+          {...waiting}
           onClick={() => void findMe()}
         >
           موقعیت من

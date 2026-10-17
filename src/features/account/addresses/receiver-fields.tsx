@@ -17,33 +17,41 @@ export interface ReceiverFieldsProps {
 }
 
 /**
+ * Whether the receiver typed is the profile: a name of it at least (an empty profile is nobody),
+ * both names equal, and the mobile equal to the profile's whenever one is typed (empty only when
+ * the profile has none).
+ */
+function isProfile(values: Receiver, first: string, last: string, mobile: string): boolean {
+  if (first === '' && last === '') return false
+  if (values.firstName.trim() !== first || values.lastName.trim() !== last) return false
+  const typed = values.mobile.trim()
+  return typed === '' ? mobile === '' : mobile !== '' && normalizeIranMobile(typed) === mobile
+}
+
+/**
  * «گیرنده»: who takes the parcel, independent of the account (a gift). «گیرنده خودم هستم» fills
  * the three fields from the profile (`['me']`), and unticked empties them for someone else; it
- * reads as ticked while they are the profile's.
+ * reads as ticked while they are the profile's. It is not offered for a profile with nothing to
+ * fill.
  */
 export function ReceiverFields({ values, onChange, errors }: ReceiverFieldsProps) {
   const { data: me } = useMe()
+  const myFirst = me?.first_name.trim() ?? ''
+  const myLast = me?.last_name.trim() ?? ''
   const myMobile = me?.phone_number ? (normalizeIranMobile(me.phone_number) ?? '') : ''
-  const self =
-    !!me &&
-    values.firstName.trim() === me.first_name &&
-    values.lastName.trim() === me.last_name &&
-    (myMobile === '' || normalizeIranMobile(values.mobile) === myMobile)
+  const offered = !!me && (myFirst !== '' || myLast !== '' || myMobile !== '')
+  const self = isProfile(values, myFirst, myLast, myMobile)
   return (
     <fieldset className="flex flex-col gap-4">
       <legend className="mb-1 text-lg leading-8 font-bold text-ink-900">گیرنده</legend>
-      {me && (
+      {offered && (
         <Checkbox
           label="گیرنده خودم هستم"
           checked={self}
           onCheckedChange={(checked) =>
             onChange(
               checked === true
-                ? {
-                    firstName: me.first_name,
-                    lastName: me.last_name,
-                    mobile: myMobile || values.mobile,
-                  }
+                ? { firstName: myFirst, lastName: myLast, mobile: myMobile }
                 : { firstName: '', lastName: '', mobile: '' },
             )
           }

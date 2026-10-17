@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useEffectEvent } from 'react'
 import type { City } from '@/lib/api/types/geo'
 import { citiesKey, GEO_STALE_TIME, geoApi, isStaleProvinceError, refreshGeo } from './api'
 
@@ -29,11 +29,14 @@ export function useCities(
     staleTime: GEO_STALE_TIME,
     gcTime: GEO_STALE_TIME,
   })
-  const stale = isStaleProvinceError(query.error)
+  // Once per failed read (its time), whatever the caller does: a caller that keeps the stale
+  // province and passes a new callback each render is told once, and the lists read once.
+  const staleAt = isStaleProvinceError(query.error) ? query.errorUpdatedAt : 0
+  const tell = useEffectEvent(() => onStale?.())
   useEffect(() => {
-    if (!stale) return
+    if (!staleAt) return
     refreshGeo(client)
-    onStale?.()
-  }, [stale, client, onStale])
+    tell()
+  }, [staleAt, client])
   return query
 }

@@ -39,28 +39,41 @@ export interface LocationFieldProps {
   errors?: readonly string[]
 }
 
+/** The picker's region: said when the focus lands on it, so the map's use is known before it. */
+const PICKER_LABEL =
+  'انتخاب موقعیت روی نقشه: نقشه را بکشید یا با کلیدهای جهت‌نما جابه‌جا کنید تا نشانگر وسط روی محل بایستد، سپس «تأیید موقعیت» را بزنید.'
+
 /**
  * «موقعیت روی نقشه» (optional): «انتخاب موقعیت روی نقشه» opens the picker in place; with a
- * point, «تغییر موقعیت» and «حذف موقعیت». The focus comes back to the block's first button when
- * the picker closes or the point goes.
+ * point, «تغییر موقعیت» and «حذف موقعیت». The pressed button goes with the picker opening, so
+ * the focus moves to the picker's region at once (there while its code loads too; Tab goes on
+ * into the map), and comes back to the block's first button when the picker closes or the
+ * point goes.
  */
 export function LocationField({ value, onChange, provinceName, errors = [] }: LocationFieldProps) {
   const [open, setOpen] = useState(false)
   const primary = useRef<HTMLButtonElement>(null)
-  const refocus = useRef(false)
+  const region = useRef<HTMLDivElement>(null)
+  const refocus = useRef<'region' | 'primary' | null>(null)
   const labelId = useId()
   const stateId = useId()
   const errorId = useId()
 
   useEffect(() => {
-    if (!refocus.current || open) return
-    refocus.current = false
-    primary.current?.focus()
+    const target = refocus.current === 'region' ? region : refocus.current && primary
+    if (!target?.current) return
+    refocus.current = null
+    target.current.focus()
   })
+
+  function openPicker() {
+    refocus.current = 'region'
+    setOpen(true)
+  }
 
   function close(next?: GeoPoint | null) {
     if (next !== undefined) onChange(next)
-    refocus.current = true
+    refocus.current = 'primary'
     setOpen(false)
   }
 
@@ -71,12 +84,20 @@ export function LocationField({ value, onChange, provinceName, errors = [] }: Lo
         موقعیت روی نقشه <span className="font-normal text-ink-600">(اختیاری)</span>
       </p>
       {open ? (
-        <MapPicker
-          initial={value}
-          provinceName={provinceName}
-          onConfirm={(point) => close(point)}
-          onCancel={() => close()}
-        />
+        <div
+          ref={region}
+          tabIndex={-1}
+          role="group"
+          aria-label={PICKER_LABEL}
+          className="rounded-control outline-none focus-visible:ring-4 focus-visible:ring-(--focus)"
+        >
+          <MapPicker
+            initial={value}
+            provinceName={provinceName}
+            onConfirm={(point) => close(point)}
+            onCancel={() => close()}
+          />
+        </div>
       ) : (
         <>
           <p id={stateId} className="flex items-start gap-2 text-base leading-7 text-ink-700">
@@ -89,9 +110,10 @@ export function LocationField({ value, onChange, provinceName, errors = [] }: Lo
               variant="outline"
               iconStart={<MapPinned aria-hidden />}
               aria-describedby={described}
+              aria-invalid={errors.length > 0 || undefined}
               onPointerEnter={preloadMap}
               onFocus={preloadMap}
-              onClick={() => setOpen(true)}
+              onClick={openPicker}
             >
               {value ? 'تغییر موقعیت' : 'انتخاب موقعیت روی نقشه'}
             </Button>

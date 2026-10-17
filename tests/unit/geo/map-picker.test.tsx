@@ -152,6 +152,37 @@ describe('MapPicker', () => {
     expect(screen.getByRole('button', { name: 'تأیید موقعیت' })).toBeEnabled()
   })
 
+  it('its overlay buttons wait for the map: nothing asked, nothing announced before it is there', async () => {
+    let ready: (value: unknown) => void = () => {}
+    mocks.loadLeaflet.mockReturnValue(new Promise((resolve) => (ready = resolve)))
+    const { user } = renderPicker()
+    const locateButton = screen.getByRole('button', { name: 'موقعیت من' })
+    for (const button of [
+      locateButton,
+      screen.getByRole('button', { name: 'بزرگ‌نمایی' }),
+      screen.getByRole('button', { name: 'کوچک‌نمایی' }),
+    ]) {
+      expect(button).toHaveAttribute('aria-disabled', 'true')
+    }
+    await user.click(locateButton)
+    await user.click(screen.getByRole('button', { name: 'بزرگ‌نمایی' }))
+    expect(mocks.locate).not.toHaveBeenCalled()
+    await act(async () => ready({}))
+    await waitFor(() => expect(locateButton).not.toHaveAttribute('aria-disabled'))
+    expect(map.zoomIn).not.toHaveBeenCalled()
+  })
+
+  it('a position found after the map went is not announced as a move', async () => {
+    let found: (value: unknown) => void = () => {}
+    mocks.locate.mockReturnValue(new Promise((resolve) => (found = resolve)))
+    const { user, unmount } = renderPicker()
+    await waitFor(() => expect(mocks.createPickerMap).toHaveBeenCalledOnce())
+    await user.click(screen.getByRole('button', { name: 'موقعیت من' }))
+    unmount()
+    await act(async () => found({ ok: true, point: { latitude: 35.75, longitude: 51.41 } }))
+    expect(map.setView).not.toHaveBeenCalled()
+  })
+
   it('Leaflet that cannot load: says so in place, the address can still be saved', async () => {
     mocks.loadLeaflet.mockRejectedValue(new Error('ChunkLoadError'))
     const { onCancel, user } = renderPicker()
@@ -159,6 +190,8 @@ describe('MapPicker', () => {
       await screen.findByText('نقشه بارگذاری نشد؛ می‌توانید بدون نقشه ادامه دهید.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'تأیید موقعیت' })).toBeNull()
+    // The map that had the focus is gone: the way out takes it.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'بستن نقشه' })).toHaveFocus())
     await user.click(screen.getByRole('button', { name: 'بستن نقشه' }))
     expect(onCancel).toHaveBeenCalledOnce()
   })

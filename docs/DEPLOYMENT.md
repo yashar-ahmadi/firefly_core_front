@@ -66,7 +66,7 @@
 | `THEME_ACCENT` | خیر | اجرا | `"#F97316"` | رنگ تأکیدی؛ پیش‌فرض از preset. |
 | `THEME_RADIUS` | خیر | اجرا | `lg` | گردی گوشه‌ها: `sm`، `md`، `lg`، `xl`؛ پیش‌فرض از preset. |
 | `THEME_FONT` | خیر | اجرا | `custom` | `vazirmatn` (پیش‌فرض) یا `custom` برای فونت اختصاصی (`public/fonts/custom/font.woff2`). |
-| `NESHAN_MAP_KEY` | خیر | اجرا | `web.xxxxx` | کلید نقشهٔ نشان (به مرورگر فرستاده می‌شود)؛ بدون آن OpenStreetMap. |
+| `NESHAN_MAP_KEY` | خیر | اجرا | `web.xxxxx` | کلید نقشهٔ نشان (به مرورگر فرستاده می‌شود)؛ بدون آن کاشی‌های عمومی OpenStreetMap، با محدودیت‌های [این بخش](CUSTOMIZATION.md#نقشهٔ-نشان). |
 | `NESHAN_SERVICE_KEY` | خیر | اجرا | `service.xxxxx` | کلید سرویس نشان برای جستجو و مکان‌یابی سمت سرور؛ به مرورگر نمی‌رود. |
 | `FIREBASE_API_KEY` | خیر | اجرا | `AIza…` | اعلان وب. هر پنج متغیر `FIREBASE_*` باید تنظیم شوند، وگرنه اعلان وب خاموش است. این مقادیر ذاتاً عمومی‌اند و به مرورگر می‌روند. |
 | `FIREBASE_PROJECT_ID` | خیر | اجرا | `shop-12345` | شناسهٔ پروژهٔ Firebase. |

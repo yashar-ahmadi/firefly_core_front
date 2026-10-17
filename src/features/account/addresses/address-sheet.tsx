@@ -21,13 +21,16 @@ export interface AddressSheetProps {
  * The address form in a `Sheet` (a bottom sheet on phones, a side panel from md): the account's
  * address book and the checkout both open it. It keeps what was typed across the sheet's switch
  * between its phone and desktop variants (which remounts the form), starts afresh each time it
- * opens, and stays open while a save is on its way (the write would land anyway).
+ * opens (or for another address), and stays open while a save is on its way (the write would land
+ * anyway).
  */
 export function AddressSheet({ open, onOpenChange, initial, onSaved }: AddressSheetProps) {
   const [draft, setDraft] = useState(() => valuesFrom(initial))
-  const [shown, setShown] = useState({ open, initial })
-  if (shown.open !== open || shown.initial !== initial) {
-    setShown({ open, initial })
+  // Afresh when it opens, or for another address; not when the caller hands the same address as
+  // a new object (its list was read again).
+  const [shown, setShown] = useState({ open, id: initial?.id })
+  if (shown.open !== open || shown.id !== initial?.id) {
+    setShown({ open, id: initial?.id })
     if (open) setDraft(valuesFrom(initial))
   }
   const writing = useIsMutating({ mutationKey: ADDRESS_WRITE_KEY }) > 0

@@ -63,6 +63,33 @@ describe('AddressSheet', () => {
     expect(field.title()).toHaveValue('محل کار')
   })
 
+  it('keeps the draft when the caller hands the same address again (a list read again)', async () => {
+    function Refetching() {
+      const [open, setOpen] = useState(false)
+      const [, setReads] = useState(0)
+      // A fresh object each render, as `book.results.find(…)` gives after a refetch.
+      const initial = { ...WORK }
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            open
+          </button>
+          <button type="button" onClick={() => setReads((count) => count + 1)}>
+            refetch
+          </button>
+          <AddressSheet open={open} onOpenChange={setOpen} initial={initial} onSaved={vi.fn()} />
+        </>
+      )
+    }
+    const { user } = renderSignedIn(<Refetching />)
+    await user.click(screen.getByRole('button', { name: 'open' }))
+    await screen.findByRole('dialog', { name: 'ویرایش آدرس' })
+    await user.clear(field.title())
+    await user.type(field.title(), 'دفتر')
+    act(() => screen.getByRole('button', { name: 'refetch', hidden: true }).click())
+    expect(field.title()).toHaveValue('دفتر')
+  })
+
   it('stays open while the save is on its way, then the caller closes it', async () => {
     let answer: () => void = () => {}
     write.mockReturnValue(new Promise((resolve) => (answer = () => resolve(written(WORK)))))

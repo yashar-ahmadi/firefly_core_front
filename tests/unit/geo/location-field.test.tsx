@@ -53,6 +53,8 @@ describe('LocationField', () => {
     // module that is still loading the real module.
     fireEvent.click(open)
     expect(await screen.findByRole('alert')).toHaveTextContent(MAP_UNAVAILABLE)
+    // The pressed button is gone: the focus is on the way out, never on the page's body.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'بستن نقشه' })).toHaveFocus())
     await user.click(screen.getByRole('button', { name: 'بستن نقشه' }))
     expect(screen.queryByRole('alert')).toBeNull()
     await waitFor(() =>

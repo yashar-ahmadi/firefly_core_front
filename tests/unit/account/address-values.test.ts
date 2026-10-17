@@ -200,6 +200,15 @@ describe('addressFailure', () => {
     expect(city).toMatchObject({ alert: 'شهر در این استان نیست.', resetCity: true, fields: {} })
   })
 
+  it('an attr the form shows nowhere (is_default, unknown) goes to the alert, never lost', () => {
+    const failure = addressFailure(
+      fromBody(400, [
+        { code: 'invalid', detail: 'مقدار پیش‌فرض نامعتبر است.', attr: 'is_default' },
+      ]),
+    )
+    expect(failure).toMatchObject({ fields: {}, alert: 'مقدار پیش‌فرض نامعتبر است.' })
+  })
+
   it('a province or city the API no longer has: the lists reload, the field asks again', () => {
     const failure = addressFailure(
       fromBody(400, [

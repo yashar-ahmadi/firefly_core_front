@@ -9,6 +9,10 @@ export const MISSING_ADDRESS = 'این آدرس دیگر وجود ندارد.'
 export const STALE_CHOICE = 'این گزینه دیگر در دسترس نیست؛ دوباره انتخاب کنید.'
 const LIMIT_HINT = 'برای افزودن آدرس تازه، یکی از آدرس‌های قبلی را حذف کنید.'
 
+/**
+ * The API's `attr`s the form shows under a field. Any other (`is_default`, which has no message
+ * place, or an attr the form does not know) goes to the form's alert: never a silent failure.
+ */
 const FIELDS: Record<string, AddressField> = {
   title: 'title',
   province: 'province',
@@ -22,14 +26,13 @@ const FIELDS: Record<string, AddressField> = {
   receiver_mobile: 'mobile',
   latitude: 'location',
   longitude: 'location',
-  is_default: 'isDefault',
 }
 
 export interface AddressFailure {
   fields: FieldErrors
   /** For the whole form (`role="alert"`). */
   alert: string | null
-  /** `address_city_not_in_province`: the city goes. */
+  /** `address_city_not_in_province`: the city goes and the lists read again (they are stale). */
   resetCity: boolean
   /** `does_not_exist` on the province or the city: the lists read again. */
   staleGeo: boolean

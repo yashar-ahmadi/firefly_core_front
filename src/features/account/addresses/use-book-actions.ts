@@ -12,10 +12,13 @@ import type { AddressBook } from './address-api'
 import { addressFailure, MISSING_ADDRESS } from './address-errors'
 import { ADDRESSES_KEY, useDeleteAddress, useSetDefaultAddress } from './use-addresses'
 
-/** Said once: by the toaster's region when it is on the page, else by the shell's. */
-function tell(message: string) {
+/**
+ * Said once: by the toaster's region when it is on the page, else by the shell's. A done write
+ * is a success; news that is not (the address had gone already) is information.
+ */
+function tell(message: string, tone: 'success' | 'info' = 'success') {
   const heard = toastRegionReady()
-  notify.success(message)
+  notify[tone](message)
   if (!heard) announce(message)
 }
 
@@ -88,6 +91,7 @@ export function useBookActions({
     if (!address || remove.isPending) return
     setDeletion((state) => ({ ...state, error: null }))
     let message = `آدرس «${address.title}» حذف شد.`
+    let tone: 'success' | 'info' = 'success'
     try {
       await remove.mutateAsync({ id: address.id, address })
       if (address.is_default) message += promotion(client, address.id)
@@ -97,10 +101,11 @@ export function useBookActions({
       if (!failure.notFound) return setDeletion((state) => ({ ...state, error: failure.alert }))
       // Gone already (deleted elsewhere): the list is read again; nothing left to ask.
       message = MISSING_ADDRESS
+      tone = 'info'
     }
     setDeleted(true)
     setDeletion((state) => ({ ...state, open: false }))
-    tell(message)
+    tell(message, tone)
   }
 
   async function setDefault(address: Address) {
