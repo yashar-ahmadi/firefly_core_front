@@ -13,6 +13,12 @@ const MEDIA_PATH = /^\/(?:media|static)\//
 const NOT_YET_BUILT = /^\/(?:checkout|blog|page)\//
 
 const NOT_FOUND = /^Failed to load resource: the server responded with a status of 404\b/
+const SERVER_ERROR = /^Failed to load resource: the server responded with a status of 500\b/
+
+/** Per watched page: what it collected, and the failed requests the test accounted for. */
+const watched = new WeakMap<object, { errors: string[]; forgiven: Set<string> }>()
+
+const consoleError = (text: string, url: string) => (url ? `${text} (${url})` : text)
 
 function pathOf(url: string): string | null {
   try {
@@ -42,12 +48,30 @@ export function isExpectedFailure(text: string, url: string): boolean {
  */
 export function watchErrors(page: Page): string[] {
   const errors: string[] = []
+  const forgiven = new Set<string>()
+  watched.set(page, { errors, forgiven })
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => {
     if (message.type() !== 'error') return
     const url = message.location().url
     if (isExpectedFailure(message.text(), url)) return
-    errors.push(url ? `${message.text()} (${url})` : message.text())
+    if (forgiven.has(url) && SERVER_ERROR.test(message.text())) return
+    errors.push(consoleError(message.text(), url))
   })
   return errors
+}
+
+/**
+ * A request's 500 the test accounted for (a cart write that met the dev database's lock and was
+ * repeated, support/cart-write.ts): its console error, logged already or still to come, is not
+ * one of the page's. Nothing for a page nobody watches.
+ */
+export function forgiveFailure(page: object, url: string): void {
+  const entry = watched.get(page)
+  if (!entry) return
+  entry.forgiven.add(url)
+  for (let index = entry.errors.length - 1; index >= 0; index--) {
+    const error = entry.errors[index]!
+    if (error.endsWith(`(${url})`) && SERVER_ERROR.test(error)) entry.errors.splice(index, 1)
+  }
 }

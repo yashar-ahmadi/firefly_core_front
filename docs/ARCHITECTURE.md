@@ -601,7 +601,12 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   `throttled` (`retryAfter` in the server log) and many specs fail at once. For back-to-back runs,
   start the backend with a larger budget, e.g. `THROTTLE_ANON=20000/hour`. A global setup
   (`tests/e2e/global-setup.ts`) probes the backend once before the run and stops it with that
-  advice when the answer is already 429.
+  advice when the answer is already 429. The dev backend runs on SQLite: two projects writing
+  carts at the same moment can meet «database is locked» (a 500). Every spec that writes a cart
+  through the UI does it with `cartWrite` (`tests/e2e/support/cart-write.ts`): a 500 that the
+  backend's log (`FIREFLY_BACKEND_LOG`, by default `/tmp/backend.log`) shows as that lock, and
+  that left the cart unchanged (read again through the BFF), is logged as a warning and the
+  visitor's action is repeated once; any other failure fails the test. No retry in app code.
 - **Signed-in specs** (Plan 3). Every login, and every logout, is one `auth_attempt` at the
   backend, 20 a minute per address for the whole run (the BFF forwards the visitor's address), so
   specs never log in per test or in a loop (`tests/e2e/support/session.ts`, which counts a full

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isExpectedFailure, watchErrors } from '../../e2e/support/watch-errors'
+import { forgiveFailure, isExpectedFailure, watchErrors } from '../../e2e/support/watch-errors'
 
 // The e2e console guard (tests/e2e/support/watch-errors.ts): only the dev backend's missing
 // pictures and routes later plans build may fail; anything else must reach the test.
@@ -118,5 +118,23 @@ describe('watchErrors', () => {
       `${NOT_FOUND} (http://localhost:3000/_next/static/chunks/app.js)`,
       'Hydration failed',
     ])
+  })
+
+  it('forgets the 500 of a write the test retried after the dev database lock (cart-write)', () => {
+    const fake = fakePage()
+    const errors = watchErrors(fake.page as never)
+    const add = 'http://localhost:3000/api/bff/cart/item/add/'
+    fake.consoleMessage('error', SERVER_ERROR, add)
+    fake.consoleMessage('error', SERVER_ERROR, 'http://localhost:3000/api/bff/cart/clear/')
+    forgiveFailure(fake.page, add)
+    // Also one the browser reports after the test accounted for it.
+    fake.consoleMessage('error', SERVER_ERROR, add)
+    fake.consoleMessage('error', NOT_FOUND, add)
+    expect(errors).toEqual([
+      `${SERVER_ERROR} (http://localhost:3000/api/bff/cart/clear/)`,
+      `${NOT_FOUND} (${add})`,
+    ])
+    // A page nobody watches: nothing to forget.
+    expect(() => forgiveFailure({}, add)).not.toThrow()
   })
 })

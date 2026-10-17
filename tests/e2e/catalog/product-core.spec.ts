@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { cartWrite } from '../support/cart-write'
 import { watchErrors } from '../support/watch-errors'
 
 // The product page's buying core against the dev backend's sample data (product digest §5,
@@ -132,8 +133,11 @@ test.describe('product page', () => {
     const add = isPhone(page)
       ? buyBar(page).getByRole('button', { name: ADD })
       : buyBox(page).getByRole('button', { name: ADD })
-    await add.click()
     try {
+      // (The dev SQLite «database is locked» is retried once, logged: support/cart-write.ts.)
+      await cartWrite(page, { method: 'POST', path: 'cart/item/add/', label: 'add' }, () =>
+        add.click(),
+      )
       await expect(cart).toHaveAccessibleName(`سبد خرید، ${digits(1)} کالا`)
     } finally {
       // Give the stock hold back to the shared dev backend.

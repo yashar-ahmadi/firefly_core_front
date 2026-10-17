@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { cartWrite } from '../support/cart-write'
 import { SAMPLE, seedCompare } from '../support/compare-seed'
 import { watchErrors } from '../support/watch-errors'
 
@@ -74,7 +75,12 @@ test.describe('quick view', () => {
     // The line to remove afterwards: the variant on screen when adding.
     const added = await chosenVariant(dialog)
     try {
-      await dialog.getByRole('button', { name: 'افزودن به سبد خرید' }).click()
+      // (The dev SQLite «database is locked» is retried once, logged: support/cart-write.ts.)
+      await cartWrite(
+        page,
+        { method: 'POST', path: 'cart/item/add/', label: 'quick view add' },
+        () => dialog.getByRole('button', { name: 'افزودن به سبد خرید' }).click(),
+      )
       // It closes once the cart has the product, and the badge counts it.
       await expect(dialog).toBeHidden()
       await expect(cart).toHaveAccessibleName(`سبد خرید، ${digits(1)} کالا`)

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { ProductDetail } from '@/lib/api/types/catalog'
+import { cartWrite } from '../support/cart-write'
 import { shellHydrated } from '../support/hydrated'
 import { MARKERS, readCart } from '../support/sara-data'
 import { guardedTest } from '../support/sara-guard'
@@ -71,10 +72,12 @@ guardedTest(
       await page.goto(`/product/${GUEST_PRODUCT}/`)
       await shellHydrated(page)
       await expect(cartLink(page)).toHaveAccessibleName('سبد خرید')
-      await page
-        .getByRole('region', { name: 'خرید', exact: true })
-        .getByRole('button', { name: ADD })
-        .click()
+      const add = page.getByRole('region', { name: 'خرید', exact: true }).getByRole('button', {
+        name: ADD,
+      })
+      await cartWrite(page, { method: 'POST', path: 'cart/item/add/', label: 'guest add' }, () =>
+        add.click(),
+      )
       await expect(cartLink(page)).toHaveAccessibleName(`سبد خرید، ${digits(1)} کالا`)
 
       // A `next` off the site is never followed: the login lands on the account.

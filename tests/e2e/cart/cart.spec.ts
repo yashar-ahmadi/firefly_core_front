@@ -1,4 +1,5 @@
-import { expect, test, type Page, type Response } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import { cartWrite } from '../support/cart-write'
 import { shellHydrated } from '../support/hydrated'
 import { watchErrors } from '../support/watch-errors'
 
@@ -7,12 +8,8 @@ import { watchErrors } from '../support/watch-errors'
 // test per project: add a product, then on `/cart/` the stepper up and down, a code the API
 // refuses (its own words under the field), removal with «بازگردانی», and clearing the cart.
 // Throttles: one `coupon/apply/` per project (the backend allows 20 a minute per IP), a few
-// dozen anonymous requests (2000 an hour).
-
-// The dev backend runs on SQLite: two projects writing carts at the same moment can meet
-// «database is locked» (a 500, seen in its log during this spec's first runs). One retry, in a
-// fresh context (a new guest cart); a write that fails says what the BFF answered.
-test.describe.configure({ retries: 1 })
+// dozen anonymous requests (2000 an hour). Every write goes through `cartWrite`
+// (support/cart-write.ts): the dev SQLite «database is locked» is retried once, logged.
 
 /** A simple product (one variant, 10123) with stock to spare. */
 const PRODUCT = { slug: 'nestle-coffee-gold', variant: 10123, name: 'قهوه فوری نستله گلد' }
@@ -22,36 +19,24 @@ const EMPTY = 'سبد خرید شما خالی است'
 
 const isPhone = (page: Page) => (page.viewportSize()?.width ?? 0) < 768
 
-/** The BFF's answer to `method path` (an API path, e.g. `cart/item/add/`). */
-function answer(page: Page, method: string, path: string, body?: (data: unknown) => boolean) {
-  return page.waitForResponse((response: Response) => {
-    const request = response.request()
-    if (request.method() !== method || !response.url().endsWith(`${BFF}${path}`)) return false
-    return body ? body(request.postDataJSON()) : true
-  })
-}
-
-/** The write went through; else the failure says what the BFF answered. */
-async function expectOk(response: Promise<Response>, label: string): Promise<void> {
-  const settled = await response
-  const said = settled.ok() ? '' : ` ${settled.status()} ${await settled.text()}`
-  expect(settled.ok(), `${label}${said}`).toBe(true)
-}
-
 const quantityIs = (quantity: number) => (data: unknown) =>
   (data as { quantity?: number } | null)?.quantity === quantity
+
+/** Adds the product from its page (the buy box, or the phone's buy bar). */
+async function addFromProductPage(page: Page): Promise<void> {
+  await page.goto(`/product/${PRODUCT.slug}/`)
+  await shellHydrated(page)
+  // Phones buy from the bar at the bottom, wider screens from the buy box.
+  const buy = page.getByRole('region', { name: isPhone(page) ? 'نوار خرید' : 'خرید', exact: true })
+  const add = buy.getByRole('button', { name: 'افزودن به سبد خرید' })
+  await cartWrite(page, { method: 'POST', path: 'cart/item/add/', label: 'add' }, () => add.click())
+}
 
 test('a guest’s cart page: stepper, a refused code, remove and undo, then clear', async ({
   page,
 }) => {
   const errors = watchErrors(page)
-  await page.goto(`/product/${PRODUCT.slug}/`)
-  await shellHydrated(page)
-  // Phones buy from the bar at the bottom, wider screens from the buy box.
-  const buy = page.getByRole('region', { name: isPhone(page) ? 'نوار خرید' : 'خرید', exact: true })
-  const added = answer(page, 'POST', 'cart/item/add/')
-  await buy.getByRole('button', { name: 'افزودن به سبد خرید' }).click()
-  await expectOk(added, 'cart/item/add/')
+  await addFromProductPage(page)
 
   await page.goto('/cart/')
   await expect(page).toHaveTitle(/^سبد خرید \|/)
@@ -72,22 +57,24 @@ test('a guest’s cart page: stepper, a refused code, remove and undo, then clea
 
   // The stepper: one PUT with the final, absolute quantity after each change.
   const quantity = line.getByRole('group', { name: 'تعداد' })
-  const up = answer(page, 'PUT', `cart/item/${PRODUCT.variant}/`, quantityIs(2))
-  await line.getByRole('button', { name: 'افزایش تعداد' }).click()
-  await expectOk(up, 'quantity 2')
+  const lineWrite = { method: 'PUT', path: `cart/item/${PRODUCT.variant}/` } as const
+  await cartWrite(page, { ...lineWrite, body: quantityIs(2), label: 'quantity 2' }, () =>
+    line.getByRole('button', { name: 'افزایش تعداد' }).click(),
+  )
   await expect(quantity).toContainText('۲')
-  const down = answer(page, 'PUT', `cart/item/${PRODUCT.variant}/`, quantityIs(1))
-  await line.getByRole('button', { name: 'کاهش تعداد' }).click()
-  await expectOk(down, 'quantity 1')
+  await cartWrite(page, { ...lineWrite, body: quantityIs(1), label: 'quantity 1' }, () =>
+    line.getByRole('button', { name: 'کاهش تعداد' }).click(),
+  )
   await expect(quantity).toContainText('۱')
 
   // A code the API refuses: its own detail, under the field, the code kept.
   const field = page.getByLabel('کد تخفیف دارید؟')
   await field.fill('NO-SUCH-CODE-E2E')
-  const refused = answer(page, 'POST', 'cart/coupon/apply/')
-  await page.getByRole('button', { name: 'اعمال کد' }).click()
-  const response = await refused
-  expect(response.status()).toBe(400)
+  const response = await cartWrite(
+    page,
+    { method: 'POST', path: 'cart/coupon/apply/', status: 400, label: 'a refused code' },
+    () => page.getByRole('button', { name: 'اعمال کد' }).click(),
+  )
   const { data } = (await response.json()) as { data: { errors: { detail: string }[] } }
   const detail = data.errors[0]!.detail
   await expect(page.getByRole('alert').filter({ hasText: detail })).toBeVisible()
@@ -95,25 +82,37 @@ test('a guest’s cart page: stepper, a refused code, remove and undo, then clea
   await expect(field).toHaveValue('NO-SUCH-CODE-E2E')
 
   // Removal, then «بازگردانی»: the same product and quantity back.
-  const removed = answer(page, 'DELETE', `cart/item/${PRODUCT.variant}/remove/`)
-  await line.getByRole('button', { name: 'حذف از سبد خرید' }).click()
-  await expectOk(removed, 'remove')
+  await cartWrite(
+    page,
+    { method: 'DELETE', path: `cart/item/${PRODUCT.variant}/remove/`, label: 'remove' },
+    () => line.getByRole('button', { name: 'حذف از سبد خرید' }).click(),
+  )
   await expect(page.getByRole('heading', { name: EMPTY })).toBeVisible()
   const toast = page.locator('[data-sonner-toast]', {
     hasText: `«${PRODUCT.name}» از سبد خرید حذف شد.`,
   })
-  const readded = answer(page, 'POST', 'cart/item/add/')
-  await toast.getByRole('button', { name: 'بازگردانی' }).click()
-  await expectOk(readded, 'undo')
+  await cartWrite(
+    page,
+    { method: 'POST', path: 'cart/item/add/', label: 'undo' },
+    () => toast.getByRole('button', { name: 'بازگردانی' }).click(),
+    // The toast's undo is spent once pressed: the product goes back from its own page.
+    {
+      retry: async () => {
+        await addFromProductPage(page)
+        await page.goto('/cart/')
+      },
+    },
+  )
   await expect(lines).toHaveCount(1)
   await expect(lines.first().getByRole('link', { name: PRODUCT.name })).toBeVisible()
 
   // Clearing, after asking: the empty state, and on phones the bottom navigation back.
-  await page.getByRole('button', { name: 'حذف همه' }).click()
   const dialog = page.getByRole('dialog', { name: 'همه\u{0654} کالاها از سبد خرید حذف شوند؟' })
-  const cleared = answer(page, 'DELETE', 'cart/clear/')
-  await dialog.getByRole('button', { name: 'حذف همه' }).click()
-  await expectOk(cleared, 'cart/clear/')
+  const clear = async () => {
+    await page.getByRole('button', { name: 'حذف همه' }).click()
+    await dialog.getByRole('button', { name: 'حذف همه' }).click()
+  }
+  await cartWrite(page, { method: 'DELETE', path: 'cart/clear/', label: 'clear' }, clear)
   await expect(page.getByRole('heading', { name: EMPTY })).toBeVisible()
   await expect(page.getByRole('link', { name: 'وارد حساب شوید' })).toHaveAttribute(
     'href',
