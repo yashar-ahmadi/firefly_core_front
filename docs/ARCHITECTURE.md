@@ -284,8 +284,12 @@ signed-in header to another.
   alone (react-dom, the App Router, the Turbopack runtime) is about 140 KB of it.
 - **The guard:** `tests/e2e/catalog/budget.spec.ts` (desktop project, part of `pnpm test:e2e`)
   measures home, category, a curated list, product, search, compare, a brand and the brand index,
-  prints `[js-budget] <route>: <KB>` for each and fails a route over 250 KB. At Plan 2's end: home
-  219, category, list and brand 238, product 237, search 208, compare 214, brand index 204.
+  each twice: on the desktop page (1440 px) and in a fresh phone context (Pixel 7 at 375 px, touch,
+  mobile user agent), where code for touch phones may load. It prints
+  `[js-budget] <route> (<device>): <KB>` for each and fails a route over 250 KB on either. At Plan
+  2's end (desktop): home 219, category, list and brand 238, product 237, search 208, compare 214,
+  brand index 204. The phone figures were about 15 KB higher (category 255) until the phone search
+  overlay stopped preloading on idle.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -316,9 +320,11 @@ signed-in header to another.
   visitor taps or one focused inside the tap's own event handling. The phone header field
   (`features/search/mobile-search.tsx`) is therefore a real, writable input (never read-only
   before a tap), and on touch phones (`(pointer: coarse)` below md) the overlay's code is
-  preloaded on idle after hydration (`requestIdleCallback`, else a 1.5 s timer;
-  `features/search/overlay-loader.ts`). With the code in, a tap opens the overlay inside
-  `flushSync` and its field takes the focus before the tap's handler returns. Without it yet, the
+  preloaded at the visitor's first interaction: a touch, a scroll or a key anywhere, or the
+  field's own focus or press (`features/search/overlay-loader.ts`). Not on idle: that is about
+  15 KB gzip a page nobody touches would load anyway, and it took the phone listing routes over
+  the 250 KB budget (the budget guard measures a phone too). With the code in, a tap opens the
+  overlay inside `flushSync` and its field takes the focus before the tap's handler returns. Without it yet, the
   focus and whatever is typed stay in the header field, and the overlay opens with that text once
   the code arrives (leaving the field first cancels the opening). After closing, the focus returns
   to the header field read-only until it leaves, so the return does not raise the keyboard. If the

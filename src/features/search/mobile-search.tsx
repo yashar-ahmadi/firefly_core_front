@@ -17,7 +17,7 @@ import { useT } from '@/lib/i18n/i18n-context'
 import {
   loadOverlay,
   loadedOverlay,
-  preloadOverlayWhenIdle,
+  preloadOverlayOnFirstInteraction,
   type OverlayComponent,
 } from './overlay-loader'
 import { SEARCH_INPUT_PROPS, SearchForm, SearchSubmit } from './search-form'
@@ -41,10 +41,11 @@ interface OverlayState {
  * Once hydrated it is a real, writable field that opens SearchOverlay (`aria-haspopup="dialog"`)
  * on a tap, Enter, Space, an arrow or a typed key (the key typed is kept), and so does the
  * magnifier. The tap focuses this field inside the gesture, so iOS raises the keyboard. On touch
- * phones the overlay's code is preloaded when the page is idle after hydration; with the code in,
- * the overlay opens in the same task (`flushSync`) and its field takes the focus while the
- * gesture lasts. Without it yet, the focus stays here, what is typed lands here, and the overlay
- * opens with it once the code arrives. (The iOS behaviour is not verified on a real iPhone.)
+ * phones the overlay's code is preloaded at the visitor's first touch, scroll or key press on the
+ * page, or when this field is focused or pressed; with the code in, the overlay opens in the same
+ * task (`flushSync`) and its field takes the focus while the gesture lasts. Without it yet, the
+ * focus stays here, what is typed lands here, and the overlay opens with it once the code
+ * arrives. (The iOS behaviour is not verified on a real iPhone.)
  *
  * After the overlay closes, the focus comes back here read-only, so it does not raise the
  * keyboard again; it is writable once it loses the focus or opens again. A navigation of the
@@ -89,7 +90,7 @@ export function MobileSearch({ className }: { className?: string }) {
     if (failed) fieldRef.current?.focus()
   }, [failed])
 
-  useEffect(() => preloadOverlayWhenIdle((loaded) => setOverlay(() => loaded)), [])
+  useEffect(() => preloadOverlayOnFirstInteraction((loaded) => setOverlay(() => loaded)), [])
 
   const load = () =>
     loadOverlay().then((loaded) => {
@@ -150,6 +151,7 @@ export function MobileSearch({ className }: { className?: string }) {
           readOnly={overlay && returning}
           aria-haspopup={overlay ? 'dialog' : undefined}
           onPointerDown={overlay && !Overlay ? () => void load() : undefined}
+          onFocus={overlay && !Overlay ? () => void load() : undefined}
           onClick={overlay ? (event) => open(event.currentTarget.value) : undefined}
           onBlur={onBlur}
           onKeyDown={overlay ? onKeyDown : undefined}

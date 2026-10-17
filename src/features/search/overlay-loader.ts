@@ -1,17 +1,21 @@
 import type { ComponentType } from 'react'
 import type { SearchOverlayProps } from './search-overlay'
 
-// The phone search overlay's code, loaded once per page: on idle after hydration on touch phones,
-// on a press of the header field, or on the first opening. Kept out of mobile-search.tsx so the
-// header field knows synchronously whether the overlay can open within the tap (iOS raises the
-// keyboard only for a focus moved inside the user's gesture).
+// The phone search overlay's code, loaded once per page: on touch phones at the visitor's first
+// interaction (a touch, a scroll or a key anywhere), on the header field's focus or press, or on
+// the first opening. Not on idle: a page nobody touches does not pay for it (the phone routes'
+// JavaScript budget, P2-R4). Kept out of mobile-search.tsx so the header field knows
+// synchronously whether the overlay can open within the tap (iOS raises the keyboard only for a
+// focus moved inside the user's gesture).
 
 export type OverlayComponent = ComponentType<SearchOverlayProps>
 
 /** Touch phones: the header row with the overlay's trigger shows below md (48rem). */
 export const PHONE_TOUCH_QUERY = '(pointer: coarse) and (max-width: 47.98rem)'
-/** Where requestIdleCallback is missing (Safari before 18), the preload waits this long. */
-export const IDLE_FALLBACK_MS = 1_500
+
+/** The first of these anywhere on the page starts the preload (capture: scroll does not bubble). */
+const FIRST_INTERACTIONS = ['touchstart', 'scroll', 'keydown'] as const
+const LISTENER = { capture: true, passive: true } as const
 
 let loaded: OverlayComponent | null = null
 let loading: Promise<OverlayComponent | null> | null = null
@@ -36,29 +40,29 @@ export function loadOverlay(): Promise<OverlayComponent | null> {
 }
 
 /**
- * On a touch phone, load the overlay's code once the page is idle after hydration (with a
- * setTimeout fallback), so the first tap can open it inside the gesture. Returns a cleanup.
+ * On a touch phone, load the overlay's code at the visitor's first touch, scroll or key press
+ * anywhere on the page, so the tap on the header field that usually follows can open it inside
+ * the gesture. (The field's own focus and press load it too, see MobileSearch.) Returns a cleanup.
  */
-export function preloadOverlayWhenIdle(onLoaded: (overlay: OverlayComponent) => void): () => void {
+export function preloadOverlayOnFirstInteraction(
+  onLoaded: (overlay: OverlayComponent) => void,
+): () => void {
   if (loaded || typeof window.matchMedia !== 'function') return () => {}
   if (!window.matchMedia(PHONE_TOUCH_QUERY).matches) return () => {}
   let cancelled = false
-  const load = () => {
+  const stop = () => {
+    for (const type of FIRST_INTERACTIONS) window.removeEventListener(type, load, LISTENER)
+  }
+  function load() {
+    stop()
     void loadOverlay().then((overlay) => {
       if (overlay && !cancelled) onLoaded(overlay)
     })
   }
-  if (typeof window.requestIdleCallback === 'function') {
-    const id = window.requestIdleCallback(load, { timeout: 4_000 })
-    return () => {
-      cancelled = true
-      window.cancelIdleCallback(id)
-    }
-  }
-  const timer = setTimeout(load, IDLE_FALLBACK_MS)
+  for (const type of FIRST_INTERACTIONS) window.addEventListener(type, load, LISTENER)
   return () => {
     cancelled = true
-    clearTimeout(timer)
+    stop()
   }
 }
 
