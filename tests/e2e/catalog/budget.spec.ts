@@ -31,6 +31,9 @@ const ROUTES: BudgetRoute[] = [
   { name: 'login', path: '/login/' },
   { name: 'register', path: '/register/' },
   { name: 'forgot-password', path: '/forgot-password/' },
+  // Plan 4: the cart page's own code (coupon, notices, summary) lives on this route alone. A
+  // guest without a cart gets its empty state, with every module of the page loaded all the same.
+  { name: 'cart', path: '/cart/' },
 ]
 
 test.describe('JavaScript budget (production build)', () => {

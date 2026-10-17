@@ -10,28 +10,10 @@ import { QuantityStepper } from '@/components/ui/quantity-stepper'
 import { SmartImage } from '@/components/ui/smart-image'
 import { productPath } from '@/features/catalog/listing-routes'
 import type { CartLine } from '@/lib/api/types/cart'
-import { formatNumber } from '@/lib/format'
 import { lineLimits, useRemoveCartLine, useUpdateCartLine } from '../hooks'
+import { lineWarning } from '../line-warning'
 
 const REMOVE = 'حذف از سبد خرید'
-const UNAVAILABLE = 'این کالا در حال حاضر موجود نیست.'
-
-/** Why the line cannot be ordered as it is (digest §5.4); the quantity is never auto-clamped. */
-function lineWarning(line: CartLine): string | null {
-  const unit = line.unit_name ?? 'عدد'
-  switch (line.issue) {
-    case 'unavailable':
-      return UNAVAILABLE
-    case 'insufficient_stock':
-      return `موجودی کافی نیست؛ حداکثر ${formatNumber(line.available_quantity)} ${unit}.`
-    case 'above_order_limit':
-      return `بیشتر از سقف سفارش؛ حداکثر ${formatNumber(line.order_limit_max)} ${unit}.`
-    case 'below_order_limit':
-      return `کمتر از حداقل سفارش؛ حداقل ${formatNumber(line.order_limit_min)} ${unit}.`
-    default:
-      return line.in_stock ? null : UNAVAILABLE
-  }
-}
 
 export interface MiniCartLineProps {
   line: CartLine

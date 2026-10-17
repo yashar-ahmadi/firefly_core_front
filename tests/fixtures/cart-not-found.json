@@ -1,0 +1,14 @@
+{
+  "msg": "موردی با این مشخصات پیدا نشد.",
+  "code": 404,
+  "data": {
+    "type": "client_error",
+    "errors": [
+      {
+        "code": "cart_not_found",
+        "detail": "سبد خرید پیدا نشد.",
+        "attr": null
+      }
+    ]
+  }
+}

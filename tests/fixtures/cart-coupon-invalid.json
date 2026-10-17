@@ -1,0 +1,14 @@
+{
+  "msg": "درخواست ارسالی معتبر نیست.",
+  "code": 400,
+  "data": {
+    "type": "client_error",
+    "errors": [
+      {
+        "code": "coupon_invalid",
+        "detail": "کد تخفیف معتبر نیست.",
+        "attr": null
+      }
+    ]
+  }
+}

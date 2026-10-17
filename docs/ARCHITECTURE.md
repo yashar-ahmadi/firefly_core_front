@@ -448,6 +448,15 @@ signed-in header to another.
   `generateComponentChunks`) did not help (equal, +11 KB, +0.4 KB). A new boundary or other
   render-dependent file (error, not-found) at a segment above the shop layout must not import
   what the layout already ships.
+- **The cart page's own code stays on `/cart/` (ruling P4-R1).** `features/cart/hooks.ts`,
+  `api.ts` and `cart-cache.ts` ship with the header's badge and add-to-cart on every catalog
+  page, so the cart page's writes live in modules only it imports: `coupon-hooks.ts` (apply,
+  remove), `clear-hooks.ts`, `remove-hooks.ts` (removal with «بازگردانی»), with their own `bffFetch`
+  calls rather than new `cartApi` entries. They share the `CART_WRITES` mutation scope and
+  `storeCart`, so they wait for a stepper's PUT or a removal still on its way. The checkout
+  (Plan 4 Tasks 2–3) follows the same rule. The phone's cart bar hides the bottom navigation the
+  way the product page's buy bar does (`[data-cart-bar]` / `body[data-cart-bar-shown]` in
+  globals.css: CSS only, no catalog code).
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each

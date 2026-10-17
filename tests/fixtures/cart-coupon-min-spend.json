@@ -1,0 +1,14 @@
+{
+  "msg": "درخواست ارسالی معتبر نیست.",
+  "code": 400,
+  "data": {
+    "type": "client_error",
+    "errors": [
+      {
+        "code": "coupon_min_spend_not_met",
+        "detail": "حداقل مبلغ سبد خرید برای این کوپن ۲۰٬۰۰۰٬۰۰۰ تومان است.",
+        "attr": null
+      }
+    ]
+  }
+}

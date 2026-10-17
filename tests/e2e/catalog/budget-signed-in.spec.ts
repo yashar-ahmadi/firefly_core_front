@@ -11,7 +11,8 @@ import {
 import { signedInTest } from '../support/session'
 
 // The JavaScript budget signed in (ruling P2-R4; the measure: support/js-budget.ts): the catalog
-// as sara sees it (her header, hearts and cart) and the account pages that carry the most code.
+// as sara sees it (her header, hearts and cart), the account pages that carry the most code and
+// her cart page.
 // The project's shared session on a desktop (1440 px) and on a phone (a fresh Pixel 7 context at
 // 375 px with the same session). Runs in the desktop project only, which measures both, and
 // again in `budget-push` (a shop with web push; the same session), with push on in the browser:
@@ -24,6 +25,8 @@ const ROUTES: BudgetRoute[] = [
   { name: 'account', path: '/account/' },
   { name: 'profile', path: '/account/profile/' },
   { name: 'notifications', path: '/account/notifications/' },
+  // Sara's cart has lines: the cart page as a signed-in shopper sees it (read only).
+  { name: 'cart', path: '/cart/' },
 ]
 
 signedInTest.describe('JavaScript budget, signed in (production build)', () => {
