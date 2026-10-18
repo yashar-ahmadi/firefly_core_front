@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OpenAttempt } from '@/features/payment/open-attempt'
 import { ApiError } from '@/lib/api/errors'
 import type { OpenAttempt as Attempt } from '@/lib/api/types/payment'
@@ -65,27 +65,35 @@ describe('a verification that ends', () => {
 })
 
 describe('a handoff whose time is up', () => {
+  // The clock is the test's (the time is jumped past the handoff's end): on the real one, a
+  // handoff ending 1.5 s after the render could end before the press under a loaded run.
+  afterEach(() => vi.useRealTimers())
+  const later = () => new Date(Date.now() + 60_000).toISOString()
+  const pastIt = () => act(async () => void (await vi.advanceTimersByTimeAsync(61_000)))
+
   it('turns the bank row into «انصراف و پرداخت دوباره», said; the focus follows', async () => {
-    const user = userEvent.setup()
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     mocks.bffFetch.mockImplementation(() => new Promise(() => {}))
-    const soon = new Date(Date.now() + 1_500).toISOString()
-    const { panel, heading } = show(bankAttempt({ handoff: handoff({ expires_at: soon }) }))
+    const { panel, heading } = show(bankAttempt({ handoff: handoff({ expires_at: later() }) }))
     await user.click(within(panel).getByRole('button', { name: 'ادامه در زرین پال' }))
-    // The focus was in the panel (its pressed button, still busy): it moves to the heading.
-    await within(panel).findByRole('button', { name: 'انصراف و پرداخت دوباره' }, { timeout: 4000 })
+    // The focus is in the panel (its pressed button) when the time runs out: it moves to the heading.
+    await pastIt()
+    expect(within(panel).getByRole('button', { name: 'انصراف و پرداخت دوباره' })).toBeVisible()
     expect(within(panel).queryByRole('button', { name: /ادامه در/ })).not.toBeInTheDocument()
     expect(mocks.announce).toHaveBeenCalledWith(expect.stringContaining('مهلت انتقال به درگاه'))
     expect(heading).toHaveFocus()
   })
 
   it('never takes the focus from elsewhere on the page', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     mocks.bffFetch.mockImplementation(() => new Promise(() => {}))
-    const soon = new Date(Date.now() + 1_500).toISOString()
-    const { panel } = show(bankAttempt({ handoff: handoff({ expires_at: soon }) }))
+    const { panel } = show(bankAttempt({ handoff: handoff({ expires_at: later() }) }))
     const outside = document.createElement('button')
     document.body.append(outside)
     outside.focus()
-    await within(panel).findByRole('button', { name: 'انصراف و پرداخت دوباره' }, { timeout: 4000 })
+    await pastIt()
+    expect(within(panel).getByRole('button', { name: 'انصراف و پرداخت دوباره' })).toBeVisible()
     expect(outside).toHaveFocus()
     outside.remove()
   })
