@@ -94,7 +94,10 @@ export default defineConfig({
   ],
   // The production artifact, as the Docker image runs it: the standalone server.js with
   // .next/static and public copied next to it (scripts/start-standalone.mjs). Started one after
-  // the other: the push shop's server runs the build the first one made.
+  // the other: the push shop's server runs the build the first one made. Each server runs from
+  // its own copy of that build, complete before it starts (scripts/standalone-instance.mjs), so
+  // neither start touches the files the other serves; the global setup stops the run when a
+  // reused server serves an earlier build (support/server-build.ts).
   webServer: [
     {
       command: 'pnpm build && pnpm start:standalone',

@@ -806,7 +806,10 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   `Providers`; overlays and carousels call `stubBrowserApis()` (`tests/unit/support/dom-stubs.ts`).
 - **End-to-end** (`pnpm test:e2e`, Playwright): runs the **production artifact** — `pnpm build` then
   `pnpm start:standalone`, i.e. `.next/standalone/server.js` with `.next/static` and `public` copied
-  next to it, exactly like the Docker image — against the local backend with sample data
+  next to it, exactly like the Docker image (each server from its own copy of the build, one folder
+  per port under `node_modules/.cache/standalone-servers/`, complete before it starts: the main and
+  the push shop's server never touch each other's files, and the global setup stops a run whose
+  reused server serves an earlier build) — against the local backend with sample data
   (`http://localhost:8000`). Three projects: `mobile` (Pixel 7), `tablet` (iPad landscape, Chromium)
   and `desktop` (1440×900). Specs that hit counted endpoints or check viewport-independent behaviour
   (edge, snippets) run in one project only. A fourth, `journeys` (1440×900, one worker, 10 s action
