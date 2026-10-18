@@ -20,8 +20,8 @@ export interface WalletAccess {
   withdrawalNote: string | null
 }
 
-export const FROZEN_NO_WITHDRAWAL =
-  'کیف پول شما مسدود است؛ درخواست برداشت تازه ممکن نیست. برای درخواستی که در انتظار بررسی است لغو همچنان ممکن است.'
+/** Said only without an open request (one shown keeps its own «لغو درخواست»). */
+export const FROZEN_NO_WITHDRAWAL = 'کیف پول شما مسدود است؛ درخواست برداشت تازه ممکن نیست.'
 export const WITHDRAWAL_OFF = 'ثبت درخواست برداشت از کیف پول در حال حاضر ممکن نیست.'
 
 export function walletAccess({

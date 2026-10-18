@@ -191,7 +191,11 @@ describe('a new request', () => {
 
   it('frozen: why no new request; the list stays', async () => {
     renderTab(balance({ is_frozen: true, freeze_message: 'مسدود.' }))
-    expect(await screen.findByText(/درخواست برداشت تازه ممکن نیست/)).toBeVisible()
+    // Said only without an open request: nothing about cancelling one that is not shown.
+    expect(
+      await screen.findByText('کیف پول شما مسدود است؛ درخواست برداشت تازه ممکن نیست.'),
+    ).toBeVisible()
+    expect(screen.queryByText(/لغو همچنان ممکن است/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'درخواست برداشت جدید' })).toBeNull()
     expect(await list()).toBeVisible()
   })
