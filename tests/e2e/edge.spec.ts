@@ -1,10 +1,18 @@
 import { expect, test, type APIResponse } from '@playwright/test'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param.js'
+import { readFileSync } from 'node:fs'
 
 // Edge behaviour against the dev backend (sample data): proxy redirects and forwards, robots.txt,
 // the favicon, short links and the bank callback. Raw HTTP, no browser: every redirect is
 // observed, not followed.
 
 const API_URL = process.env.FIREFLY_API_URL ?? 'http://localhost:8000'
+
+type Shape = { headers: Record<string, string> }
+/** What the App Router really sends (captured; tests/unit/edge/proxy-rsc.test.ts reads it too). */
+const shapes = JSON.parse(
+  readFileSync(new URL('../fixtures/rsc-request-shapes.json', import.meta.url), 'utf8'),
+) as { skipProxyUrlNormalize: { treePrefetch: Shape; navigation: Shape } }
 
 function locationOf(res: APIResponse): URL {
   const location = res.headers()['location']
@@ -153,5 +161,68 @@ test.describe('edge', () => {
     const res = await request.get('/static/defaults/default.png', { maxRedirects: 0 })
     expect(res.status()).toBe(200)
     expect(res.headers()['content-type']).toBe('image/png')
+  })
+
+  // The App Router's own requests, as the browser sends them (tests/fixtures/rsc-request-
+  // shapes.json), with Next's own `_rsc` hash so its check lets them through: a prefetch is
+  // marked and nothing more (no account guard, no cookie touched, no redirect lookup); a client
+  // navigation is guarded, its Location relative. A tab whose session ended elsewhere holds only
+  // the flag cookie.
+  test.describe('router prefetches and client navigations', () => {
+    const LEFTOVER = { cookie: 'ff_auth=k3J9f0qLx2mN8pR1sT4u' }
+    const { treePrefetch, navigation } = shapes.skipProxyUrlNormalize
+    const treeHash = () =>
+      computeCacheBustingSearchParam('1', '/_tree', undefined, treePrefetch.headers['next-url'])
+
+    test('a router prefetch of an account page: no guard, no cookie touched', async ({
+      request,
+    }) => {
+      const res = await request.get(`/account/?_rsc=${await treeHash()}`, {
+        headers: { ...treePrefetch.headers, ...LEFTOVER },
+        maxRedirects: 0,
+      })
+      expect(res.status()).toBe(200)
+      expect(res.headers()['content-type']).toContain('text/x-component')
+      expect(res.headersArray().filter(({ name }) => name.toLowerCase() === 'set-cookie')).toEqual(
+        [],
+      )
+    })
+
+    test('a router prefetch of a redirect source: no redirect lookup', async ({ request }) => {
+      const res = await request.get(`/festival/?_rsc=${await treeHash()}`, {
+        headers: treePrefetch.headers,
+        maxRedirects: 0,
+      })
+      expect(res.status()).not.toBe(302)
+    })
+
+    test('a client navigation to an account page: guarded, a relative Location', async ({
+      request,
+      baseURL,
+    }) => {
+      const headers = navigation.headers
+      const rsc = await computeCacheBustingSearchParam(
+        undefined,
+        undefined,
+        headers['next-router-state-tree'],
+        headers['next-url'],
+      )
+      const res = await request.get(`/account/profile/?x=1&_rsc=${rsc}`, {
+        headers: { ...headers, ...LEFTOVER },
+        maxRedirects: 0,
+      })
+      expect(res.status()).toBe(307)
+      const sent = res.headers()['location'] ?? ''
+      expect(sent).toMatch(/^\/login\//)
+      const location = new URL(sent, baseURL)
+      expect(location.pathname).toBe('/login/')
+      expect(location.searchParams.get('next')).toBe('/account/profile/?x=1')
+      const cleared = res
+        .headersArray()
+        .filter(
+          ({ name, value }) => name.toLowerCase() === 'set-cookie' && /^ff_auth=;/.test(value),
+        )
+      expect(cleared).toHaveLength(1)
+    })
   })
 })

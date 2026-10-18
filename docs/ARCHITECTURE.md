@@ -248,8 +248,9 @@ refresh, a read of an account page without a usable refresh cookie (none, not a 
 has just rejected) answers 307 to `/login/?next=<the page and its query>` (Next's `_rsc` dropped),
 clearing leftover session cookies on the way. That covers document requests and client
 navigations alike. The account layout checks the refresh cookie again for the requests the
-proxy only marks (prefetches, see [Payment credentials in URLs](#payment-credentials-in-urls);
-Next 16 prefetches of a dynamic route only fetch its route tree), with the dashboard as `next`.
+proxy only marks (router and `Purpose` prefetches: no refresh and no guard there, so a prefetch
+in flight never sets the session cookies again after a logout in another tab; see
+[Payment credentials in URLs](#payment-credentials-in-urls)), with the dashboard as `next`.
 A redirect during a client navigation lands on login without the root layout rendering again,
 so the tab would still think it is signed in: the auth
 layout mounts `SessionCheck` (`lib/session/session-check.tsx`), which ends that stale session as
@@ -646,11 +647,23 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
 
 - **No operator code.** The proxy marks every page it serves with `x-ff-route-kind: page` or
   `credential` (overwriting whatever the visitor sent), prefetches included: its matcher takes
-  `next-router-prefetch` and `Purpose: prefetch` requests too (a prefetched document can be kept
-  and shown on the click), and for those the proxy only marks the render (`isQuietPrefetch()`:
-  no redirect lookup, which would count a hit, no session refresh; an undecodable one gets the
-  404 page). The snippet loader (`src/features/settings/snippets.tsx` through
-  `operator-code.ts`) renders only on `page`: on a credential page, and on anything the proxy
+  router prefetches (`next-router-prefetch`) and `Purpose: prefetch` requests too (a prefetched
+  document or segment can be shown on the click), and for those the proxy only marks the render
+  (`isQuietPrefetch()`: no redirect lookup, which would count a hit, no session refresh, no
+  account guard; an undecodable one gets the 404 page). The router's headers reach the proxy
+  only because `next.config.ts` sets `skipProxyUrlNormalize`: by default Next removes `rsc`,
+  `next-router-prefetch`, `next-router-segment-prefetch`, `next-router-state-tree` and the `_rsc`
+  query before the proxy runs (`next dev` and `next start` alike), so a router prefetch and a
+  client navigation arrive identical and the prefetch got the refresh and the guard (a refresh
+  answering after another tab's logout set the session cookies again). What really arrives, with
+  and without the option, is `tests/fixtures/rsc-request-shapes.json` (captured from the build).
+  With the option the URL the proxy sees may carry Next's `_rsc`, which it leaves out of every
+  URL it builds (the redirect lookup, the login's `next`). Its redirects are still built on the
+  request's own URL (the server's listening address, `0.0.0.0:3000` in the image), and Next's
+  router still makes a same-origin `Location` relative before it reaches the browser (checked on
+  the build with a `0.0.0.0` listener; `tests/e2e/edge.spec.ts`). The snippet loader
+  (`src/features/settings/snippets.tsx` through `operator-code.ts`) renders only on `page`: on a
+  credential page, and on anything the proxy
   did not mark (fail closed: the paths its matcher skips, such as an asset-like URL's 404, and
   the paths it leaves alone, where it drops a marker the visitor sent),
   there are no snippet scripts, styles, meta tags, and no HTML zones either (the top zone, the
@@ -700,6 +713,9 @@ of them.
 Tests: `tests/unit/config/credential-routes.test.ts` (the rule),
 `credential-headers.test.ts` (Next's own header matcher, the SMS link's 308 keeping the token),
 `tests/unit/edge/proxy-credential.test.ts` (the marker, prefetches included),
+`proxy-rsc.test.ts` (the captured request shapes: prefetches marked and nothing else, a client
+navigation refreshed and guarded, `_rsc` left out of what the proxy builds),
+`tests/e2e/edge.spec.ts` (the same on the running build, the Location relative),
 `proxy-matcher.test.ts` (the proxy runs on prefetches), `tests/unit/layout/snippets-credential
 .test.tsx` (nothing renders unmarked or on a credential page), `tests/unit/payment/credential-
 links.test.tsx` (full loads), `tests/e2e/snippets.spec.ts` (no snippet runs on the payment

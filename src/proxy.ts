@@ -29,11 +29,18 @@ import { isQuietPrefetch } from '@/lib/http/prefetch'
  *    with the page and its query as `next`; leftover session cookies are cleared on the way.
  *
  * Every page that renders is marked for the layouts (`x-ff-route-kind`, never the visitor's own),
- * a prefetch too (it is marked and nothing else: no redirect lookup, no session refresh):
- * `credential` when its URL holds a payment link's token or a payment's uuid (or leads back to
- * one), else `page`. Operator code renders only on `page` (see `credential-routes.ts`). A
- * credential page is never looked up as a redirect source: its path never reaches the API's
- * redirect resolver or a log line.
+ * a prefetch too (it is marked and nothing else: no redirect lookup, no session refresh, no
+ * account guard): `credential` when its URL holds a payment link's token or a payment's uuid (or
+ * leads back to one), else `page`. Operator code renders only on `page` (see
+ * `credential-routes.ts`). A credential page is never looked up as a redirect source: its path
+ * never reaches the API's redirect resolver or a log line.
+ *
+ * The proxy sees the request as the browser sent it (`skipProxyUrlNormalize`, next.config.ts):
+ * otherwise Next removes the router's flight headers before it runs, and a router prefetch could
+ * not be told from a client navigation (tests/fixtures/rsc-request-shapes.json). So the URL may
+ * carry Next's `_rsc`, left out of every URL built here. Redirects are built on the request's
+ * own URL (the server's listening address), which Next's router still turns into a relative
+ * `Location` with the option on (verified on the build).
  */
 
 const GONE_TITLE = 'این صفحه حذف شده است'
@@ -107,6 +114,7 @@ function isGuarded(request: NextRequest): boolean {
 
 /** The account guard's answer: login, with the page as `next`; `clear` drops the session cookies. */
 function toLogin(request: NextRequest, env: ServerEnv, clear: boolean): NextResponse {
+  // `accountLoginPath` leaves Next's `_rsc` out of `next`.
   const response = NextResponse.redirect(new URL(accountLoginPath(request.nextUrl), request.url))
   if (clear) {
     const jar = new CookieJar()

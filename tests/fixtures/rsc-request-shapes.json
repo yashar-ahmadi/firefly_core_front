@@ -1,0 +1,196 @@
+{
+  "_about": "What the proxy (src/proxy.ts) receives for App Router requests, captured from next 16.4.1 (the standalone build, `next start` path) on 2026-10-18 with a temporary log in the proxy, while Playwright loaded the home page (its links prefetched) and clicked a product list link (a client navigation). `default`: without `skipProxyUrlNormalize`, Next removes its flight headers (rsc, next-router-prefetch, next-router-segment-prefetch, next-router-state-tree) and the `_rsc` query before the proxy runs (server/web/adapter.js), so a prefetch and a navigation arrive identical; `next dev` does the same (checked with curl). `skipProxyUrlNormalize`: what the proxy receives with the option on (next.config.ts); its `documentPrefetch` (a `Purpose: prefetch` document request) was sent with curl, and Next leaves `Purpose` alone with or without the option. Cookies left out.",
+  "default": {
+    "routerPrefetch": {
+      "path": "/cart/",
+      "query": "",
+      "headers": {
+        "accept": "*/*",
+        "next-url": "/",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin"
+      },
+      "headerNames": [
+        "accept",
+        "accept-encoding",
+        "accept-language",
+        "connection",
+        "host",
+        "next-url",
+        "referer",
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform",
+        "sec-fetch-dest",
+        "sec-fetch-mode",
+        "sec-fetch-site",
+        "user-agent",
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-port",
+        "x-forwarded-proto"
+      ]
+    },
+    "navigation": {
+      "path": "/product/list/flagship-phones/",
+      "query": "",
+      "headers": {
+        "accept": "*/*",
+        "next-url": "/",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin"
+      },
+      "headerNames": [
+        "accept",
+        "accept-encoding",
+        "accept-language",
+        "connection",
+        "host",
+        "next-url",
+        "referer",
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform",
+        "sec-fetch-dest",
+        "sec-fetch-mode",
+        "sec-fetch-site",
+        "user-agent",
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-port",
+        "x-forwarded-proto"
+      ]
+    }
+  },
+  "skipProxyUrlNormalize": {
+    "treePrefetch": {
+      "path": "/cart/",
+      "query": "_rsc=5CB68i4pnAekjehf",
+      "headers": {
+        "accept": "*/*",
+        "next-router-prefetch": "1",
+        "next-router-segment-prefetch": "/_tree",
+        "next-url": "/",
+        "rsc": "1",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin"
+      },
+      "headerNames": [
+        "accept",
+        "accept-encoding",
+        "accept-language",
+        "connection",
+        "host",
+        "next-router-prefetch",
+        "next-router-segment-prefetch",
+        "next-url",
+        "referer",
+        "rsc",
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform",
+        "sec-fetch-dest",
+        "sec-fetch-mode",
+        "sec-fetch-site",
+        "user-agent",
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-port",
+        "x-forwarded-proto"
+      ]
+    },
+    "dynamicPrefetch": {
+      "path": "/cart/",
+      "query": "_rsc=tXyZJ52UQVBCVsD3",
+      "headers": {
+        "accept": "*/*",
+        "next-router-prefetch": "1",
+        "next-router-state-tree": "%5B%22%22%2C%7B%7D%2Cnull%2C%22metadata-only%22%5D",
+        "next-url": "/",
+        "rsc": "1",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin"
+      },
+      "headerNames": [
+        "accept",
+        "accept-encoding",
+        "accept-language",
+        "connection",
+        "host",
+        "next-router-prefetch",
+        "next-router-state-tree",
+        "next-url",
+        "referer",
+        "rsc",
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform",
+        "sec-fetch-dest",
+        "sec-fetch-mode",
+        "sec-fetch-site",
+        "user-agent",
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-port",
+        "x-forwarded-proto"
+      ]
+    },
+    "navigation": {
+      "path": "/product/list/flagship-phones/",
+      "query": "_rsc=fp__aYHM_pnZf1gD",
+      "headers": {
+        "accept": "*/*",
+        "next-router-state-tree": "%5B%22%22%2C%7B%22children%22%3A%5B%22(shop)%22%2C%7B%22children%22%3A%5B%22product%22%2C%7B%22children%22%3A%5B%22list%22%2C%7B%22children%22%3A%5B%5B%22slug%22%2C%22flagship-phones%22%2C%22d%22%2Cnull%5D%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%2Cnull%2Cnull%2C0%5D%7D%2Cnull%2Cnull%2C0%5D%7D%2Cnull%2Cnull%2C0%5D%7D%2Cnull%2C%22refetch%22%2C0%5D%7D%2Cnull%2Cnull%2C0%5D%7D%2Cnull%2Cnull%2C16%5D",
+        "next-url": "/",
+        "rsc": "1",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin"
+      },
+      "headerNames": [
+        "accept",
+        "accept-encoding",
+        "accept-language",
+        "connection",
+        "host",
+        "next-router-state-tree",
+        "next-url",
+        "referer",
+        "rsc",
+        "sec-ch-ua",
+        "sec-ch-ua-mobile",
+        "sec-ch-ua-platform",
+        "sec-fetch-dest",
+        "sec-fetch-mode",
+        "sec-fetch-site",
+        "user-agent",
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-port",
+        "x-forwarded-proto"
+      ]
+    },
+    "documentPrefetch": {
+      "path": "/cart/",
+      "query": "",
+      "headers": {
+        "accept": "*/*",
+        "purpose": "prefetch"
+      },
+      "headerNames": [
+        "accept",
+        "host",
+        "purpose",
+        "user-agent",
+        "x-forwarded-for",
+        "x-forwarded-host",
+        "x-forwarded-port",
+        "x-forwarded-proto"
+      ]
+    }
+  }
+}
