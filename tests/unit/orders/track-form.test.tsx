@@ -124,6 +124,19 @@ describe('one request per press', () => {
     expect(await screen.findByRole('heading', { name: /سفارش ۲۵۸۳۹۷۳۸۷۷/ })).toBeVisible()
   })
 
+  it('a lookup still on its way when the page goes is aborted', async () => {
+    const user = userEvent.setup()
+    serve(mocks.bffFetch, () => new Promise(() => {}))
+    const { unmount } = await renderTrack()
+    await fill(user)
+    await user.click(submit())
+    const [, init] = trackCalls(mocks.bffFetch)[0]!
+    const signal = (init as { signal?: AbortSignal }).signal
+    expect(signal?.aborted).toBe(false)
+    unmount()
+    expect(signal?.aborted).toBe(true)
+  })
+
   it('the code and the number never reach the address', async () => {
     const user = userEvent.setup()
     serve(mocks.bffFetch)

@@ -14,7 +14,10 @@ import { FORWARD_PATH, isOrderStatus, isTerminalStatus, STEP_NAMES } from './ord
 //   sale gets there that way; the channel is not told, so a counter sale still being prepared
 //   shows the step);
 // - cancelled or returned (`terminal`): the path cut after the furthest stage its stamps prove
-//   (paying proves «در حال انجام»), then the ending;
+//   (paying proves «در حال انجام»), then the ending. So a pay-on-delivery order confirmed
+//   without a payment (`paid_at` null) and cancelled while still «در حال انجام» (before packing)
+//   derives to «در انتظار پرداخت» → «لغو شده»: nothing in tracking proves it was confirmed (no
+//   `confirmed_at`), though the server's bar shows «در حال انجام» between them;
 // - «در حال انجام» is never dated (tracking has no `confirmed_at`; `paid_at` is not the same moment);
 // - a status this code does not know: one current step in the API's words, nothing guessed.
 // The current step is named by the API (`status_display`); the others by STEP_NAMES. Pure.

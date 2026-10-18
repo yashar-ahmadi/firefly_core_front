@@ -11,7 +11,7 @@ import type { OrderStatusGroup, OrderTrackingResult } from '@/lib/api/types/orde
 import { OrderProgress } from '../components/order-progress'
 import { TrackingCode } from '../components/tracking-code'
 import { findGuestOrder } from '../guest-orders'
-import { groupOf } from '../order-statuses'
+import { groupOf, isTerminalStatus } from '../order-statuses'
 import { payLinkPath } from '../pay-link'
 import { progressFromTracking } from '../progress'
 
@@ -41,7 +41,7 @@ function Note({
   payable: boolean
   support: SupportLine | null
 }) {
-  const ended = result.status === 'cancelled' || result.status === 'returned'
+  const ended = isTerminalStatus(result.status)
   const text =
     result.status === 'awaiting_payment'
       ? payable

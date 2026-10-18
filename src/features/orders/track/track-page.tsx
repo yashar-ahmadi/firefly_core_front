@@ -33,10 +33,16 @@ export function TrackPage({ support }: TrackPageProps) {
   const form = useRef<HTMLDivElement>(null)
   const guestOrders = useGuestOrders()
 
-  const trackRecent = useCallback((code: string) => {
-    setPrefill((previous) => ({ code, seq: (previous?.seq ?? 0) + 1 }))
-    form.current?.scrollIntoView?.({ block: 'nearest' })
-  }, [])
+  const { clear } = tracking
+  const trackRecent = useCallback(
+    (code: string) => {
+      // The order found before is not this one: it goes before the new code is in the form.
+      clear()
+      setPrefill((previous) => ({ code, seq: (previous?.seq ?? 0) + 1 }))
+      form.current?.scrollIntoView?.({ block: 'nearest' })
+    },
+    [clear],
+  )
   const backToForm = useCallback(() => form.current?.querySelector('input')?.focus(), [])
 
   return (

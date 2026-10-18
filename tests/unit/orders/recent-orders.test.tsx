@@ -11,6 +11,7 @@ import {
   serve,
   submit,
   trackCalls,
+  tracked,
 } from './track-support'
 
 // «سفارش‌های اخیر شما» (Plan 4 Global Constraints: the last 10 guest orders in `ff-guest-orders`):
@@ -71,6 +72,40 @@ describe('the recent guest orders of this device', () => {
     expect(mobileField()).toHaveValue('')
     await waitFor(() => expect(mobileField()).toHaveFocus())
     expect(trackCalls(mocks.bffFetch)).toHaveLength(0)
+  })
+
+  it('«پیگیری» after a lookup: the order found before goes (not shown under another code)', async () => {
+    const user = userEvent.setup()
+    keepGuestOrder()
+    await renderTrack()
+    await fill(user)
+    await user.click(submit())
+    expect(await screen.findByRole('heading', { name: /سفارش ۲۵۸۳۹۷۳۸۷۷/ })).toBeVisible()
+    await user.click(within(list()).getByRole('button', { name: /پیگیری سفارش ۳۰۶۷۵۶۲۳۵۸/ }))
+    expect(codeField()).toHaveValue('3067562358')
+    expect(screen.queryByRole('heading', { name: /سفارش ۲۵۸۳۹۷۳۸۷۷/ })).toBeNull()
+    expect(trackCalls(mocks.bffFetch)).toHaveLength(1)
+  })
+
+  it('«پیگیری» while a lookup is on its way: it is aborted, its answer never shown', async () => {
+    const user = userEvent.setup()
+    let answer: (value: unknown) => void = () => {}
+    serve(mocks.bffFetch, () => new Promise((resolve) => (answer = resolve)))
+    keepGuestOrder()
+    await renderTrack()
+    await fill(user)
+    await user.click(submit())
+    await user.click(within(list()).getByRole('button', { name: /پیگیری سفارش ۳۰۶۷۵۶۲۳۵۸/ }))
+    const [, init] = trackCalls(mocks.bffFetch)[0]!
+    expect((init as { signal: AbortSignal }).signal.aborted).toBe(true)
+    await act(async () => answer({ data: tracked('delivered'), msg: '', status: 200 }))
+    expect(screen.queryByRole('heading', { name: /سفارش ۲۵۸۳۹۷۳۸۷۷/ })).toBeNull()
+    expect(submit()).not.toHaveAttribute('aria-busy')
+    // The next press looks the tapped order up.
+    await user.clear(mobileField())
+    await user.type(mobileField(), '09121234501')
+    await user.click(submit())
+    expect(trackCalls(mocks.bffFetch)).toHaveLength(2)
   })
 
   it('«حذف از این دستگاه» forgets that one order, says so, and keeps the focus in the list', async () => {

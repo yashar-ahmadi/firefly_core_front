@@ -164,6 +164,13 @@ describe('progressFromTracking: an order that ended', () => {
       ],
     ],
     [
+      // An approximation (the server's bar has «در حال انجام» here): a pure pay-on-delivery
+      // order is confirmed without a payment, and tracking has no `confirmed_at` to prove it.
+      'confirmed on delivery (no payment), cancelled while processing',
+      { status: 'cancelled', paid_at: null, cancelled_at: T(10) },
+      ['awaiting_payment:completed', 'cancelled:current'],
+    ],
+    [
       'returned in transit',
       { status: 'returned', packed_at: T(9), dispatched_at: T(10), returned_at: T(12) },
       [
