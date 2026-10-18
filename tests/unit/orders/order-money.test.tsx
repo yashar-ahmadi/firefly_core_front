@@ -61,6 +61,19 @@ describe('OrderMoney', () => {
     expect(row(/^سود شما از این خرید/)).toHaveTextContent('۱۲ تومان')
   })
 
+  it('in the digest’s order (§6.4): packaging, tax, the pay-on-delivery fee, then the total', () => {
+    const order = detail('delivered', {
+      money: money({ packaging_cost: 5, tax_rate: '10.00', tax_amount: 33, cod_fee: 7 }),
+    })
+    render(<OrderMoney order={order} />)
+    const terms = screen
+      .getAllByRole('term')
+      .map((term) => term.textContent ?? '')
+      .filter((text) => /^(هزینهٔ بسته‌بندی|مالیات|هزینهٔ پرداخت در محل|مبلغ کل)/.test(text))
+      .map((text) => text.split(' ')[0] + ' ' + text.split(' ')[1])
+    expect(terms).toEqual(['هزینهٔ بسته‌بندی', 'مالیات بر', 'هزینهٔ پرداخت', 'مبلغ کل'])
+  })
+
   it('a free shipping says «رایگان»; no saving, discount, packaging or fee rows when zero', () => {
     render(
       <OrderMoney

@@ -8,7 +8,7 @@ import { isTerminalStatus } from '../order-statuses'
 // the cart summary's words and colours (cart-summary.tsx: savings in the sale colour, never a
 // minus sign): the goods, their discount, the coupon (its code as a chip), shipping (free said as
 // «رایگان», a fare the carrier collects as «پس‌کرایه», never «free»; the coupon's shipping saving
-// only when there is one), packaging, the pay-on-delivery fee, tax with its rate, the total and
+// only when there is one), packaging, tax with its rate, the pay-on-delivery fee, the total and
 // the savings; then how it is paid: online (A, its prepayment inside it, never added again), at
 // the door (D), what was settled each way, and what is still owed online (O; not for an order
 // that ended: the API does not zero it on cancellation). Nothing is added up here. Rows that
@@ -118,10 +118,10 @@ export function OrderMoney({ order }: { order: OrderDetail }) {
         {money.packaging_cost > 0 && (
           <Row term="هزینهٔ بسته‌بندی">{formatToman(money.packaging_cost)}</Row>
         )}
-        {money.cod_fee > 0 && <Row term="هزینهٔ پرداخت در محل">{formatToman(money.cod_fee)}</Row>}
         <Row term={`مالیات بر ارزش افزوده (${rate(money.tax_rate)})`}>
           {formatToman(money.tax_amount)}
         </Row>
+        {money.cod_fee > 0 && <Row term="هزینهٔ پرداخت در محل">{formatToman(money.cod_fee)}</Row>}
         <Row term="مبلغ کل" tone="total">
           {formatToman(money.total)}
         </Row>
