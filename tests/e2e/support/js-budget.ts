@@ -28,6 +28,32 @@ const FLAG_COOKIE = SESSION_COOKIES[2]
 export interface BudgetRoute {
   name: string
   path: string
+  /**
+   * The checkout (Plan 4): a guest's measure first puts a product in this context's own cart, so
+   * the steps show (not the empty state); a signed-in one leaves the cart as it is, and the writes
+   * the page would make by itself (the default address as the destination, the cheapest shipping
+   * option) are refused before they leave the browser: the shared account is only read.
+   */
+  checkout?: 'guest' | 'signed-in'
+}
+
+const BFF = { 'X-Requested-With': 'ff' }
+/** A simple product with stock to spare (the cart's e2e product). */
+const SEED_VARIANT = 10123
+const CHECKOUT_WRITES = /\/api\/bff\/cart\/(?:destination|shipping\/select)\/$/
+
+/** One line in this context's guest cart (once more after the dev SQLite lock's 500). */
+async function seedCart(page: Page): Promise<void> {
+  const add = () =>
+    page.request.post('/api/bff/cart/item/add/', {
+      headers: BFF,
+      data: { variant: SEED_VARIANT, quantity: 1 },
+    })
+  let response = await add()
+  if (response.status() === 500) response = await add()
+  expect(response.ok(), `cart/item/add/ for the checkout's measure: ${response.status()}`).toBe(
+    true,
+  )
 }
 
 export const BUDGET_KB = 250
@@ -132,6 +158,8 @@ export async function measure(
   { signedIn = false, push = false }: MeasureOptions = {},
 ): Promise<Measure> {
   if (route.name === 'compare') await seedCompare(page, [SAMPLE.S25, SAMPLE.A56])
+  if (route.checkout === 'guest') await seedCart(page)
+  if (route.checkout === 'signed-in') await page.route(CHECKOUT_WRITES, (write) => write.abort())
   if (push) await pushOn(page)
   const scripts = recordScripts(page)
 
@@ -163,6 +191,9 @@ export async function measure(
   expect(results.length, `${device}: scripts were recorded`).toBeGreaterThan(0)
   let bytes = 0
   for (const result of results) if (result.ok) bytes += gzipSync(result.bytes, { level: 9 }).length
+  if (route.checkout === 'guest') {
+    await page.request.delete('/api/bff/cart/clear/', { headers: BFF }).catch(() => undefined)
+  }
   const kb = bytes / 1024
   const line = `${route.name} (${device}) ${decodeURIComponent(route.path)}: ${kb.toFixed(1)} KB gzip in ${results.length} scripts (budget ${BUDGET_KB} KB)`
   return { kb, line }

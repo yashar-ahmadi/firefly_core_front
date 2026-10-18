@@ -135,10 +135,13 @@ describe('SessionSwitchSweep on a catalog page', () => {
   })
 
   it('a login elsewhere while this tab is a guest: taken, with one server render', async () => {
+    // A guest's checkout receiver kept in the tab: the guest's, not the account's.
+    sessionStorage.setItem('ff-checkout-receiver', '{"values":{},"confirmed":true}')
     const client = renderSweep(false)
     flagCookie('login-b-0123456789')
     await focus()
     expect(output('session')).toHaveTextContent('true')
+    expect(sessionStorage.getItem('ff-checkout-receiver')).toBeNull()
     expect(client.getQueryData(CART_KEY)).toBeUndefined()
     await shown()
     await focus()

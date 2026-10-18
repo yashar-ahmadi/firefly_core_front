@@ -15,7 +15,7 @@ const launchOptions = existsSync(chromiumPath) ? { executablePath: chromiumPath 
 
 const DESKTOP = { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }
 /** Specs of the `journeys` project only. */
-const JOURNEYS = /\/account\/(?:auth|account)\.spec\.ts$/
+const JOURNEYS = /\/(?:account\/(?:auth|account)|checkout\/checkout-signed-in)\.spec\.ts$/
 /** The JS budget's specs: the `desktop` project measures them, and `budget-push` again. */
 const BUDGET = /\/catalog\/budget(?:-signed-in)?\.spec\.ts$/
 
@@ -75,7 +75,8 @@ export default defineConfig({
     },
     {
       // The journeys that log in through the form or write sara's data (tests/e2e/account/
-      // auth.spec.ts, account.spec.ts): on a desktop, one at a time, after every other project
+      // auth.spec.ts, account.spec.ts) or k.yazdi's (tests/e2e/checkout/checkout-signed-in.spec.ts,
+      // ruling P4-R4): on a desktop, one at a time, after every other project
       // (no read-only spec is looking at her address book, wishlist or cart while they change, and
       // their logins come apart from the others'). Skipped when a project before them failed;
       // `pnpm test:e2e:journeys` runs them alone. A control that is not there fails in 10 s, as

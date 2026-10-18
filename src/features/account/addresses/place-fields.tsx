@@ -12,13 +12,21 @@ export interface PlaceFieldsProps {
   values: Place
   onChange: (changes: Partial<Place>) => void
   errors: FieldErrors
+  /** A guest's order needs the postal code (cart digest §7.4); the address book does not. */
+  postalRequired?: boolean
 }
 
 /**
- * Where the door is: «آدرس کامل», «پلاک» and «واحد» (as typed: «۱۲ب», «12/1»), and the optional
- * «کد پستی» (its digits normalised when sent).
+ * Where the door is: «آدرس کامل», «پلاک» and «واحد» (as typed: «۱۲ب», «12/1»), and «کد پستی»
+ * (its digits normalised when sent): optional in the address book, required with
+ * `postalRequired` (the checkout's guest receiver).
  */
-export function PlaceFields({ values, onChange, errors }: PlaceFieldsProps) {
+export function PlaceFields({
+  values,
+  onChange,
+  errors,
+  postalRequired = false,
+}: PlaceFieldsProps) {
   return (
     <>
       <Field
@@ -57,10 +65,15 @@ export function PlaceFields({ values, onChange, errors }: PlaceFieldsProps) {
       </div>
       <Field
         label={
-          <>
-            کد پستی <span className="font-normal text-ink-600">(اختیاری)</span>
-          </>
+          postalRequired ? (
+            'کد پستی'
+          ) : (
+            <>
+              کد پستی <span className="font-normal text-ink-600">(اختیاری)</span>
+            </>
+          )
         }
+        required={postalRequired}
         hint="۱۰ رقم"
         error={messagesOf(errors.postalCode)}
       >

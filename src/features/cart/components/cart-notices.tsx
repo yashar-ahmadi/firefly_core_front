@@ -46,9 +46,16 @@ function lineIssues(cart: Cart): Notice[] {
  * The cart's notices, as dismissible messages above the lines: the once-only `adjustments` and a
  * coupon's `detached_reason` stay until dismissed, whatever the next answer says; a line's
  * issue stays while the API reports it (dismissed, it stays away until the issue changes). Each
- * new notice is read out politely (the shell's live region).
+ * new notice is read out politely (the shell's live region). The last one dismissed hands the
+ * focus to `onEmpty` (the page's heading: the cart page's by default, the checkout's there).
  */
-export function CartNotices({ cart }: { cart: Cart }) {
+export function CartNotices({
+  cart,
+  onEmpty = focusCartHeading,
+}: {
+  cart: Cart
+  onEmpty?: () => void
+}) {
   const [kept, setKept] = useState<Notice[]>([])
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set())
   const [seen, setSeen] = useState<Cart | null>(null)
@@ -72,7 +79,7 @@ export function CartNotices({ cart }: { cart: Cart }) {
     const buttons = section.current?.querySelectorAll<HTMLElement>('[data-notice-dismiss]') ?? []
     const next = buttons[Math.min(index, buttons.length - 1)]
     if (next) next.focus()
-    else focusCartHeading()
+    else onEmpty()
   })
 
   // Each notice is read out once, when it first appears.

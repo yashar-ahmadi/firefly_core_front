@@ -83,9 +83,8 @@ function lengthError(value: string, max: number, name: string): string | null {
   return value.length > max ? `${name} حداکثر ${toPersianDigits(max)} نویسه است.` : null
 }
 
-/** The API's own checks, before it is asked (cart digest §7.2). */
-export function checkAddress(values: AddressValues): FieldErrors {
-  const errors: FieldErrors = {}
+/** Adds the checks' messages to `errors` (every message of a field, in order). */
+function collector(errors: FieldErrors) {
   const add = (field: AddressField, message: string | null) => {
     if (message) errors[field] = [...(errors[field] ?? []), message]
   }
@@ -96,15 +95,45 @@ export function checkAddress(values: AddressValues): FieldErrors {
     max: number,
     name: string,
   ) => add(field, value.trim() === '' ? message : lengthError(value.trim(), max, name))
+  return { add, required }
+}
 
-  required('title', values.title, 'عنوان آدرس را وارد کنید.', LIMITS.title, 'عنوان آدرس')
+/** «استان» and «شهر», both required. */
+export function checkRegion(
+  values: Pick<AddressValues, 'province' | 'city'>,
+  errors: FieldErrors = {},
+): FieldErrors {
+  const { add } = collector(errors)
   if (values.province === null) add('province', 'استان را انتخاب کنید.')
   if (values.city === null) add('city', 'شهر را انتخاب کنید.')
+  return errors
+}
+
+/**
+ * The door: «آدرس کامل» (required), «پلاک» and «واحد» (20 characters at most), «کد پستی» (10
+ * digits when given; required for a guest's order, `postalRequired`, cart digest §7.4).
+ */
+export function checkPlace(
+  values: Pick<AddressValues, 'address' | 'plaque' | 'unit' | 'postalCode'>,
+  { postalRequired = false }: { postalRequired?: boolean } = {},
+  errors: FieldErrors = {},
+): FieldErrors {
+  const { add } = collector(errors)
   if (values.address.trim() === '') add('address', 'آدرس کامل را وارد کنید.')
   add('plaque', lengthError(values.plaque.trim(), LIMITS.short, 'پلاک'))
   add('unit', lengthError(values.unit.trim(), LIMITS.short, 'واحد'))
   const postal = postalDigits(values.postalCode)
-  if (postal !== '' && !/^\d{10}$/.test(postal)) add('postalCode', 'کد پستی باید ۱۰ رقم باشد.')
+  if (postal === '' && postalRequired) add('postalCode', 'کد پستی را وارد کنید.')
+  else if (postal !== '' && !/^\d{10}$/.test(postal)) add('postalCode', 'کد پستی باید ۱۰ رقم باشد.')
+  return errors
+}
+
+/** «گیرنده»: both names (200 characters at most) and an Iranian mobile. */
+export function checkReceiver(
+  values: Pick<AddressValues, 'firstName' | 'lastName' | 'mobile'>,
+  errors: FieldErrors = {},
+): FieldErrors {
+  const { add, required } = collector(errors)
   required('firstName', values.firstName, 'نام گیرنده را وارد کنید.', LIMITS.name, 'نام گیرنده')
   required(
     'lastName',
@@ -117,6 +146,21 @@ export function checkAddress(values: AddressValues): FieldErrors {
   else if (!isIranMobile(values.mobile))
     add('mobile', 'شمارهٔ موبایل ایران را وارد کنید؛ مانند ۰۹۱۲۱۲۳۴۵۶۷.')
   return errors
+}
+
+/** The API's own checks, before it is asked (cart digest §7.2). */
+export function checkAddress(values: AddressValues): FieldErrors {
+  const errors: FieldErrors = {}
+  collector(errors).required(
+    'title',
+    values.title,
+    'عنوان آدرس را وارد کنید.',
+    LIMITS.title,
+    'عنوان آدرس',
+  )
+  checkRegion(values, errors)
+  checkPlace(values, {}, errors)
+  return checkReceiver(values, errors)
 }
 
 /** `POST account/address/create/` from checked values. */

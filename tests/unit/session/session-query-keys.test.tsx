@@ -10,8 +10,16 @@ import { wishlistListKey } from '@/features/account/wishlist/use-wishlist-list'
 import { parseWishlistParams } from '@/features/account/wishlist/wishlist-params'
 import { NOTIFICATIONS_KEY } from '@/features/notifications/notifications-api'
 import { UNREAD_NOTIFICATIONS_KEY } from '@/features/notifications/unread'
+import { SHIPPING_OPTIONS_KEY } from '@/features/checkout/use-shipping-options'
 import { WISHLIST_IDS_KEY } from '@/features/wishlist/hooks'
-import { isSessionQuery, ME_KEY, MY_COMMENTS_KEY, SUMMARY_KEY } from '@/lib/session/viewer-queries'
+import { createQueryClient } from '@/lib/query/query-client'
+import {
+  clearViewerQueries,
+  isSessionQuery,
+  ME_KEY,
+  MY_COMMENTS_KEY,
+  SUMMARY_KEY,
+} from '@/lib/session/viewer-queries'
 import { clientProviders } from '../support/providers'
 
 // The guard on the logout cleanup's registry (`SESSION_QUERIES`): a per-visitor query outside
@@ -55,6 +63,17 @@ describe('SESSION_QUERIES', () => {
     [['me-not', 'x']],
   ])('%j is not', (key) => {
     expect(isSessionQuery(key)).toBe(false)
+  })
+})
+
+describe('VIEWER_AWARE_QUERIES', () => {
+  it('the checkout’s shipping options go with the cart (read by guests too, per viewer)', async () => {
+    const client = createQueryClient()
+    const key = [...SHIPPING_OPTIONS_KEY, 'signature']
+    client.setQueryData(key, { options: [], adjustments: [] })
+    expect(isSessionQuery(key)).toBe(false)
+    await clearViewerQueries(client)
+    expect(client.getQueryData(key)).toBeUndefined()
   })
 })
 

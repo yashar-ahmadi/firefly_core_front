@@ -1,0 +1,14 @@
+{
+  "msg": "درخواست ارسالی معتبر نیست.",
+  "code": 400,
+  "data": {
+    "type": "client_error",
+    "errors": [
+      {
+        "code": "cart_cod_limit_exceeded",
+        "detail": "مبلغ قابل دریافت در محل برای این روش ارسال حداکثر ۲۰٬۰۰۰٬۰۰۰ تومان است.",
+        "attr": null
+      }
+    ]
+  }
+}

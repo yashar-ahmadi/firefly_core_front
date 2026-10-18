@@ -42,14 +42,18 @@ describe('isExpectedFailure', () => {
   })
 
   it('lets through only 404s from the routes not built yet', () => {
-    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/checkout/?_rsc=abc')).toBe(true)
-    expect(isExpectedFailure(SERVER_ERROR, 'http://localhost:3000/checkout/?_rsc=abc')).toBe(false)
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/page/terms/?_rsc=abc')).toBe(true)
+    expect(isExpectedFailure(SERVER_ERROR, 'http://localhost:3000/page/terms/?_rsc=abc')).toBe(
+      false,
+    )
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/product/x/')).toBe(false)
   })
 
-  it('reports a 404 from the cart page, which exists now (Plan 4 Task 1)', () => {
+  it('reports a 404 from the cart and checkout pages, which exist now (Plan 4 Tasks 1–2)', () => {
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/cart/?_rsc=abc')).toBe(false)
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/cart/')).toBe(false)
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/checkout/?_rsc=abc')).toBe(false)
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/checkout/')).toBe(false)
   })
 
   it('reports a 404 from the search page, which exists now', () => {

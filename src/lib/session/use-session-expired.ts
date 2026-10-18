@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useCallback } from 'react'
 import { clearPushState } from '@/features/push/push-storage'
-import { isAccountPath } from '@/lib/edge/account-guard'
+import { isSignedInContextPath } from '@/lib/edge/account-guard'
 import { loginHref } from '@/lib/links/login'
 import { useSession } from './session-context'
 import { clearViewerQueries, ME_KEY } from './viewer-queries'
@@ -25,8 +25,9 @@ export type SessionExpired = (options?: SessionExpiredOptions) => void
  *   session-only query, so nothing asks again (no loop, and no re-request per mounted heart);
  * - what this visitor saw is dropped (`clearViewerQueries`) and the profile is known to be
  *   nobody (`['me']` is null); the browser forgets its web push registration;
- * - on a page that needs a session (the account area), login replaces it, with the page as
- *   `next`; after an action of the visitor (`toLogin`), login is pushed. A background read on a
+ * - on a page that needs a session (the account area) or holds a signed-in context (the
+ *   checkout: `isSignedInContextPath`), login replaces it, with the page as `next`; after an
+ *   action of the visitor (`toLogin`), login is pushed. A background read on a
  *   public page (the hearts' wishlist ids, the header's name) only turns the page into its guest
  *   version: nobody asked to log in.
  *
@@ -52,7 +53,7 @@ export function useSessionExpired(): SessionExpired {
       const login = loginHref(`${pathname}${search}`)
       // A background read that finds the session over already says nothing new; an action that
       // needs one does, even then (the flag cookie and the session cookie can disagree).
-      if (isAccountPath(pathname)) {
+      if (isSignedInContextPath(pathname)) {
         if (first || toLogin) router.replace(login)
       } else if (toLogin) router.push(login)
     },

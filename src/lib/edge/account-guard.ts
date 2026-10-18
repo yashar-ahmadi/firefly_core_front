@@ -18,6 +18,19 @@ export function isAccountPath(pathname: string): boolean {
   return ACCOUNT_PATH.test(pathname)
 }
 
+/**
+ * Pages whose signed-in version must not outlive the session, though they need none: the
+ * account area, and the checkout (`(checkout)` pages: signed in, they show the visitor's
+ * addresses and cart). A session that ends there goes to login, the page as `next`; another
+ * visitor's session loads them again. A guest's checkout has no session to end. Not a server
+ * guard: the proxy guards the account area only (`isAccountPath`).
+ */
+const SIGNED_IN_CONTEXT = /^\/(?:account|checkout)(?:\/|$)/
+
+export function isSignedInContextPath(pathname: string): boolean {
+  return SIGNED_IN_CONTEXT.test(pathname)
+}
+
 /** Next's cache-busting parameter of a client navigation (`?_rsc=…`): never part of a page URL. */
 const RSC_PARAM = '_rsc'
 

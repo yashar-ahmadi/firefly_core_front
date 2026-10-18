@@ -34,6 +34,9 @@ const ROUTES: BudgetRoute[] = [
   // Plan 4: the cart page's own code (coupon, notices, summary) lives on this route alone. A
   // guest without a cart gets its empty state, with every module of the page loaded all the same.
   { name: 'cart', path: '/cart/' },
+  // The checkout's own code (its steps, the guest's receiver form) lives on this route alone: a
+  // guest with a product in the cart (support/js-budget.ts `checkout`).
+  { name: 'checkout', path: '/checkout/', checkout: 'guest' },
 ]
 
 test.describe('JavaScript budget (production build)', () => {

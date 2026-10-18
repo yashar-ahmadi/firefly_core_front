@@ -58,6 +58,8 @@ function hook(register?: Parameters<typeof onBeforeLogout>[0]) {
     pageParams: [1],
   })
   client.setQueryData(['search-suggest', 'گوشی'], { products: [] })
+  // A guest's checkout receiver kept in the tab before this login (Plan 4 Task 2).
+  sessionStorage.setItem('ff-checkout-receiver', '{"values":{},"confirmed":false}')
   const rendered = renderHook(() => ({ ...useLogout(), session: useSession() }), {
     wrapper: providers.wrapper,
   })
@@ -73,6 +75,7 @@ function expectSignedOut({ result: current, client }: ReturnType<typeof hook>) {
   }
   // Nothing on screen reads it: the rest of the cache goes too.
   expect(client.getQueryData(['search-suggest', 'گوشی'])).toBeUndefined()
+  expect(sessionStorage.getItem('ff-checkout-receiver')).toBeNull()
   expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/')
   expect(mocks.notify.success).toHaveBeenCalledExactlyOnceWith('از حساب خارج شدید')
 }

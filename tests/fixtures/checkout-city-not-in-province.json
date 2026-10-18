@@ -1,0 +1,14 @@
+{
+  "msg": "درخواست ارسالی معتبر نیست.",
+  "code": 400,
+  "data": {
+    "type": "client_error",
+    "errors": [
+      {
+        "code": "cart_city_not_in_province",
+        "detail": "شهر انتخاب‌شده متعلق به این استان نیست.",
+        "attr": null
+      }
+    ]
+  }
+}

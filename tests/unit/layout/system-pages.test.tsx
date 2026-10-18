@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Children, isValidElement, type ReactElement, type ReactNode } from 'react'
+import { Children, Fragment, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ShopLayout from '@/app/(shop)/layout'
@@ -10,6 +10,7 @@ import GlobalError from '@/app/global-error'
 import NotFound, { generateMetadata as notFoundMetadata } from '@/app/not-found'
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav'
 import { NotFoundView } from '@/components/layout/not-found-view'
+import { ShellFrame } from '@/components/layout/shell-frame'
 import { ShopShell } from '@/components/layout/shop-shell'
 import { SiteFooter } from '@/components/layout/site-footer'
 import { SiteHeader } from '@/components/layout/site-header'
@@ -104,8 +105,18 @@ describe('not-found.tsx and the shop shell', () => {
   })
 
   it('puts the footer between the page and the bottom navigation', () => {
-    const shell = ShopShell({ children: <p>صفحه</p> }) as ReactElement<{ children: ReactNode }>
-    const parts = Children.toArray(shell.props.children).filter(isValidElement)
+    // The shop's frame is the shell's (ShellFrame): its header and footer parts, in order.
+    const shell = ShopShell({ children: <p>صفحه</p> }) as ReactElement<
+      Parameters<typeof ShellFrame>[0]
+    >
+    const frame = ShellFrame(shell.props) as ReactElement<{ children: ReactNode }>
+    const flat = (nodes: ReactNode): ReactElement[] =>
+      Children.toArray(nodes)
+        .filter(isValidElement)
+        .flatMap((node) =>
+          node.type === Fragment ? flat((node.props as { children: ReactNode }).children) : [node],
+        )
+    const parts = flat(frame.props.children)
     // Then the shop's polite live region, which takes no space (LiveAnnouncer).
     expect(parts.map((part) => part.type).slice(-5)).toEqual([
       SiteHeader,

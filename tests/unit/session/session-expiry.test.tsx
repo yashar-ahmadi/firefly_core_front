@@ -69,6 +69,24 @@ describe('useSessionExpired', () => {
     expect(mocks.push).not.toHaveBeenCalled()
   })
 
+  it('a signed-in checkout whose session ends: login replaces it, back to the checkout after', () => {
+    window.history.replaceState(null, '', '/checkout/')
+    const { result } = renderExpiry()
+    act(() => result.current.expire())
+    expect(result.current.session.hasSession).toBe(false)
+    expect(mocks.replace).toHaveBeenCalledWith('/login/?next=/checkout/')
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('a guest’s checkout has no session to end: it stays (guest checkout)', () => {
+    window.history.replaceState(null, '', '/checkout/')
+    const providers = clientProviders({ hasSession: false })
+    const { result } = renderHook(() => useSessionExpired(), { wrapper: providers.wrapper })
+    act(() => result.current())
+    expect(mocks.replace).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
   it('is the same function across renders', () => {
     const { result, rerender } = renderExpiry()
     const first = result.current.expire

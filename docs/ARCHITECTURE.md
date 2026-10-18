@@ -218,9 +218,13 @@ Queries that only make sense signed in (`useMe` under `['me']`, the wishlist ids
 summary) are `enabled: hasSession`. When one of them answers a 401 that means the session is gone
 (`isSessionExpiredError`: not a missing API key), it calls `useSessionExpired()`
 (`lib/session/use-session-expired.ts`): `hasSession` turns false, so none of them asks again;
-`clearViewerQueries` drops what that visitor saw; `['me']` becomes null. On an account page the
-login page replaces it, with the page as `next`; after an action of the visitor (a heart) login
-is pushed; a background read on a public page only turns the page into its guest version.
+`clearViewerQueries` drops what that visitor saw; `['me']` becomes null. On an account page, or
+a checkout that held a session (`isSignedInContextPath`: `/checkout/…`, whose signed-in version
+shows the visitor's addresses; a guest's checkout has no session to end), the login page replaces
+it, with the page as `next`; after an action of the visitor (a heart) login is pushed; a
+background read on a public page only turns the page into its guest version. A guest's checkout
+receiver lives in the tab's sessionStorage (`features/checkout/receiver-draft.ts`) and is
+forgotten on any login or logout.
 `clearViewerQueries` (`lib/session/viewer-queries.ts`) also runs on login and logout: it removes
 the session-only queries (`['me']`, `['summary']`, `['wishlist', …]`) and resets the ones guests
 read too whose answers depend on the viewer (`['cart']`, and under `['product', …]` the payload's
@@ -462,6 +466,15 @@ signed-in header to another.
   (Plan 4 Tasks 2–3) follows the same rule. The phone's cart bar hides the bottom navigation the
   way the product page's buy bar does (`[data-cart-bar]` / `body[data-cart-bar-shown]` in
   globals.css: CSS only, no catalog code).
+- **The checkout's code stays in `(checkout)`.** `features/checkout/` (the steps, the guest's
+  receiver form, the shipping options, their writes in `use-checkout-writes.ts`) is imported by
+  `/checkout/` alone; the `(checkout)` layout's frame (`ShellFrame` with `CheckoutHeader` and
+  `CheckoutFooter`) leaves out the shop's header, menus, search, bottom navigation, compare bar
+  and quick view, which pays for the steps (`/checkout/` 242.5 KB, guest and signed in, desktop
+  and phone). The address book's sheet and the map still load on demand. The only shared code it
+  added is the checkout in the session-expiry path rule (`isSignedInContextPath`): a few bytes on
+  every route (home and product +5 to +14 B; category and list −0.4 KB after Turbopack
+  regrouped its chunks).
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -553,7 +566,8 @@ signed-in header to another.
 
 ```
 src/
-  app/                     routes only; (shop)/ has the header+footer layout; _shell/ holds
+  app/                     routes only; (shop)/ has the header+footer layout; (checkout)/ the
+                           quiet frame of the purchase (logo, «خرید امن», back to the cart); _shell/ holds
                            root-layout helpers (metadata, theme head); dev/ui is a dev-only showcase
                            (404 in production); api/bff, api/v1/payment/…, robots.txt, s/[code],
                            healthz
@@ -590,7 +604,10 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   and `desktop` (1440×900). Specs that hit counted endpoints or check viewport-independent behaviour
   (edge, snippets) run in one project only. A fourth, `journeys` (1440×900, one worker, 10 s action
   timeout), runs after the other three: the specs that log in through the form or write sara's
-  data (`tests/e2e/account/auth.spec.ts`, `account.spec.ts`), so no read-only spec sees that data
+  data (`tests/e2e/account/auth.spec.ts`, `account.spec.ts`), and the signed-in checkout as
+  k.yazdi (`tests/e2e/checkout/checkout-signed-in.spec.ts`, ruling P4-R4: never sara for order
+  journeys; the `kamran` guard of `tests/e2e/support/kamran-guard.ts` puts his cart's lines,
+  destination and shipping choice and his address book back exactly), so no read-only spec sees that data
   change. Playwright skips it when a project before it failed, and a filter on the command line
   does not drop its dependencies (one journey file still runs the three device suites first):
   `pnpm test:e2e:journeys` (`--project=journeys --no-deps`) runs the journeys alone. An already running server on the base URL is reused;

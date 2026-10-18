@@ -6,6 +6,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
 import { announce } from '@/components/ui/live-announcer'
 import { notify, toastRegionReady } from '@/components/ui/toaster'
+import { clearReceiverDraft } from '@/features/checkout/receiver-draft'
 import {
   abandonPushWork,
   clearPushState,
@@ -75,7 +76,8 @@ function tell(kind: 'success' | 'error', message: string): void {
  * 1. The session flag turns off at once (`flushSync`): every session-gated query on screen is
  *    disabled before anything else, so none of them asks again and meets a 401, and each counts
  *    as unobserved for the sweep below.
- * 2. `clearViewerQueries`: the registered session queries go, the cart and product payloads on
+ * 2. `clearViewerQueries`: the registered session queries go (and a checkout receiver kept in the
+ *    tab, `clearReceiverDraft`), the cart and product payloads on
  *    screen read again as a guest's (hearts, the cart badge, the comment «شما» marks).
  * 3. Every query no enabled observer reads goes. Queries still read on screen stay attached
  *    (removing an observed query would detach its component from the cache).
@@ -85,6 +87,7 @@ function tell(kind: 'success' | 'error', message: string): void {
 function forgetVisitor(client: QueryClient, setHasSession: (value: boolean) => void) {
   flushSync(() => setHasSession(false))
   const cleared = clearViewerQueries(client)
+  clearReceiverDraft()
   client.removeQueries({ type: 'inactive' })
   if (window.location.pathname !== '/') sweepAfterNavigation()
   return cleared

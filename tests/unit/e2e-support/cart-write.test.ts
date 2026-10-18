@@ -1,30 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import {
-  cartState,
-  cartWrite,
-  lockLogged,
-  type BackendLog,
-  type CartWriteSpec,
-} from '../../e2e/support/cart-write'
+import { cartWrite, type BackendLog, type CartWriteSpec } from '../../e2e/support/cart-write'
+import { cart, line, lockRecord } from './cart-write-support'
 
 // The e2e helper for cart writes driven through the UI (tests/e2e/support/cart-write.ts): the
 // dev backend's SQLite lock («database is locked», a 500) is retried once, after checking that
 // the failed write changed nothing; anything else fails the test.
 
 const ADD: CartWriteSpec = { method: 'POST', path: 'cart/item/add/', label: 'add' }
-
-/** The dev server's log record of a locked write, as /tmp/backend.log has it. */
-const lockRecord = (path: string) =>
-  [
-    `[2026-10-18 01:03:35,452] ERROR django.request Internal Server Error: /api/v1/${path}`,
-    'Traceback (most recent call last):',
-    '  File "…/django/db/backends/utils.py", line 105, in _execute',
-    'sqlite3.OperationalError: database is locked',
-    '',
-    'django.db.utils.OperationalError: database is locked',
-    `[2026-10-18 01:03:35,456] ERROR django.server "POST /api/v1/${path} HTTP/1.1" 500 79398`,
-    '',
-  ].join('\n')
 
 const NON_JSON = JSON.stringify({
   msg: 'درخواست شما انجام نشد.',
@@ -51,14 +33,6 @@ function response({ status, body, method = 'POST', path = ADD.path, data = null 
 }
 type FakeResponse = ReturnType<typeof response>
 type WritePage = Parameters<typeof cartWrite>[0]
-
-const line = (variant: number, quantity: number) => ({ variant_id: variant, quantity })
-const cart = (lines: { variant_id: number; quantity: number }[]) => ({
-  lines,
-  coupon: { code: null },
-  shipping: { code: null, is_selected: false, cash_on_delivery: false },
-  destination: null,
-})
 
 /**
  * A page whose writes answer from `planned`, one per user action, and whose cart reads answer
@@ -89,29 +63,6 @@ function fakePage(planned: Planned[], carts: unknown[]) {
 
 const noLog: BackendLog = { size: async () => 0, since: async () => '' }
 const logWith = (text: string): BackendLog => ({ size: async () => 100, since: async () => text })
-
-describe('lockLogged', () => {
-  it('finds the lock in the error record of this API path', () => {
-    expect(lockLogged(lockRecord('cart/item/add/'), 'cart/item/add/')).toBe(true)
-  })
-
-  it('ignores another path’s lock, and another error of this path', () => {
-    expect(lockLogged(lockRecord('cart/clear/'), 'cart/item/add/')).toBe(false)
-    const other = lockRecord('cart/item/add/').replaceAll('database is locked', 'no such table')
-    expect(lockLogged(other, 'cart/item/add/')).toBe(false)
-    expect(lockLogged('', 'cart/item/add/')).toBe(false)
-  })
-})
-
-describe('cartState', () => {
-  it('keeps what a write changes: lines, coupon, shipping choice, destination', () => {
-    const before = cart([line(2, 1), line(1, 2)])
-    expect(cartState(before)).toBe(cartState(cart([line(1, 2), line(2, 1)])))
-    expect(cartState(before)).not.toBe(cartState(cart([line(1, 2)])))
-    expect(cartState({ ...before, coupon: { code: 'TEA30' } })).not.toBe(cartState(before))
-    expect(cartState({ ...before, destination: { city_id: 301 } })).not.toBe(cartState(before))
-  })
-})
 
 describe('cartWrite', () => {
   it('returns the answer of a write that went through, after one action', async () => {
@@ -178,6 +129,23 @@ describe('cartWrite', () => {
     const before = cart([line(3, 1)])
     await cartWrite(page, ADD, act, { before, log: logWith(lockRecord(ADD.path)) })
     expect(page.request.get).toHaveBeenCalledTimes(1)
+    vi.restoreAllMocks()
+  })
+
+  it('or with the one a function gives once it is known (a write that follows another)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { page, act } = fakePage(
+      [
+        { status: 500, body: NON_JSON },
+        { status: 500, body: NON_JSON },
+      ],
+      [cart([line(3, 1)])],
+    )
+    const known = vi.fn(async () => cart([line(4, 1)]))
+    await expect(
+      cartWrite(page, ADD, act, { before: known, log: logWith(lockRecord(ADD.path)) }),
+    ).rejects.toThrow(/changed/)
+    expect(known).toHaveBeenCalledTimes(1)
     vi.restoreAllMocks()
   })
 

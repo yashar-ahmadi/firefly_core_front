@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ShellFrame } from '@/components/layout/shell-frame'
 import { ShopShell } from '@/components/layout/shop-shell'
 import { announce, LiveAnnouncer } from '@/components/ui/live-announcer'
 import { AddToCartButton } from '@/features/cart/components/add-to-cart-button'
@@ -56,7 +57,10 @@ describe('LiveAnnouncer', () => {
   })
 
   it('is part of the shop shell, on every page', () => {
-    expect(typesIn(ShopShell({ children: null }))).toContain(LiveAnnouncer)
+    // The shop's frame is the shell's (ShellFrame, the checkout's frame too).
+    const shell = ShopShell({ children: null }) as ReactElement<Parameters<typeof ShellFrame>[0]>
+    expect(shell.type).toBe(ShellFrame)
+    expect(typesIn(ShellFrame(shell.props))).toContain(LiveAnnouncer)
   })
 
   async function addOnce() {

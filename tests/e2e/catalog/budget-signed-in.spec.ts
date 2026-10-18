@@ -27,6 +27,8 @@ const ROUTES: BudgetRoute[] = [
   { name: 'notifications', path: '/account/notifications/' },
   // Sara's cart has lines: the cart page as a signed-in shopper sees it (read only).
   { name: 'cart', path: '/cart/' },
+  // Her checkout: the address picker and the shipping step, its own writes refused (read only).
+  { name: 'checkout', path: '/checkout/', checkout: 'signed-in' },
 ]
 
 signedInTest.describe('JavaScript budget, signed in (production build)', () => {

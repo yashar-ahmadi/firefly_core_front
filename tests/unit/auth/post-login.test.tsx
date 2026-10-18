@@ -52,8 +52,11 @@ describe('completeLogin', () => {
   it('merges the guest cart once, renews the viewer queries and goes to next', async () => {
     const merged = cart([cartLine({ quantity: 2 })])
     mocks.bffFetch.mockResolvedValue(result(merged))
+    // A guest's checkout receiver kept in the tab (Plan 4 Task 2): the guest's, not the account's.
+    sessionStorage.setItem('ff-checkout-receiver', '{"values":{},"confirmed":true}')
     const { result: hook, client } = renderComplete()
     await act(() => hook.current.complete(SIGNED_IN, '/cart/'))
+    expect(sessionStorage.getItem('ff-checkout-receiver')).toBeNull()
 
     expect(mocks.bffFetch).toHaveBeenCalledTimes(1)
     expect(mocks.bffFetch).toHaveBeenCalledWith('cart/merge/', { method: 'POST' })

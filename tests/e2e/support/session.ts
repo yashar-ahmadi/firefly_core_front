@@ -25,8 +25,9 @@ import path from 'node:path'
 // The attempts of a full run: the shared session of each project (mobile, tablet, desktop,
 // journeys: 4; budget-push reads through the desktop's); logout.spec (a login and a logout per project but journeys: 6);
 // session-restore.spec (a form login and a logout, idem: 6); auth.spec (journeys only: a wrong
-// password, a form login, its logout in another tab, kamran's login there and its logout: 5).
-// 21 in all. They come apart because Playwright, as
+// password, a form login, its logout in another tab, kamran's login there and its logout: 5);
+// checkout-signed-in.spec (journeys only: kamran's login and logout by its guard: 2). 23 in all.
+// They come apart because Playwright, as
 // configured, runs the projects one after the other (mobile, tablet, desktop, then journeys, which
 // waits for the others), each project's account specs first: measured from the backend's log
 // (Task 10), at most 5 in any minute of a run and 9 across two runs back to back. That is an

@@ -127,7 +127,11 @@ async function attempt(page: WritePage, spec: CartWriteSpec, act: () => Promise<
 export interface CartWriteOptions {
   /** Repeats the visitor's action (by default `act` again: a press, a choice). */
   retry?: () => Promise<unknown>
-  /** The cart before the write, when the test has it (else read through the BFF first). */
+  /**
+   * The cart before the write, when the test has it, or a function giving it when it is known
+   * only later (a write that follows another one by itself); else it is read through the BFF
+   * before `act`.
+   */
   before?: unknown
   log?: BackendLog
 }
@@ -144,7 +148,9 @@ export async function cartWrite(
   { retry = act, before, log = fileLog() }: CartWriteOptions = {},
 ): Promise<Response> {
   const label = spec.label ?? `${spec.method} ${spec.path}`
-  const state = cartState(before === undefined ? await readCart(page) : before)
+  const read = before === undefined ? cartState(await readCart(page)) : null
+  const state = async () =>
+    read ?? cartState(typeof before === 'function' ? await (before as () => unknown)() : before)
   const offset = await log.size()
   const first = await attempt(page, spec, act)
   if (accepted(spec, first)) return first
@@ -153,7 +159,7 @@ export async function cartWrite(
     first.status() === 500 &&
     (said.includes(DATABASE_LOCKED) || lockLogged(await log.since(offset), spec.path))
   if (!locked) throw new Error(`${label}: the BFF answered ${said}`)
-  if (cartState(await readCart(page)) !== state) {
+  if (cartState(await readCart(page)) !== (await state())) {
     throw new Error(`${label}: the cart changed although the write failed (${said})`)
   }
   console.warn(`[cart-write] ${label}: ${said}: the dev database was locked; once more`)
