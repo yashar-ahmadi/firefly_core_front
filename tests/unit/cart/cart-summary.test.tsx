@@ -124,19 +124,53 @@ describe('CartSummary', () => {
     })
   })
 
-  it('splits online and at-the-door amounts when part is paid on delivery, with the prepayment', () => {
+  it('the cart page splits online and at-the-door amounts when part is paid on delivery', () => {
     const region = renderSummary(
       itemsCartFixture({
         amount_charged_online: 84_599_000,
         amount_to_collect_on_delivery: 21_000,
         prepayment: 9_000,
       }),
-      'checkout',
     )
     expect(value(region, 'پرداخت آنلاین')).toBe(formatToman(84_599_000))
     expect(value(region, 'پرداخت در محل')).toBe(formatToman(21_000))
     expect(value(region, /^بیعانه/)).toBe(formatToman(9_000))
+  })
+
+  it('the checkout: «پرداخت آنلاین: A», «پرداخت هنگام تحویل: D» when D > 0, never P as a line', () => {
+    const chosen = {
+      ...EMPTY_SHIPPING,
+      is_selected: true,
+      is_available: true,
+      code: 'x',
+      title: 'x',
+    }
+    const region = renderSummary(
+      itemsCartFixture({
+        shipping: chosen,
+        amount_charged_online: 84_599_000,
+        amount_to_collect_on_delivery: 21_000,
+        prepayment: 9_000,
+      }),
+      'checkout',
+    )
+    expect(value(region, 'پرداخت آنلاین')).toMatch(new RegExp(`^${formatToman(84_599_000)}`))
+    expect(value(region, 'پرداخت هنگام تحویل')).toBe(formatToman(21_000))
+    // The prepayment is inside A: a note on the online row, never a row to add.
+    expect(hasRow(region, /^بیعانه/)).toBe(false)
+    expect(region).toHaveTextContent(`شامل بیعانه\u{0654} ${formatToman(9_000)}`)
     // The checkout's own summary has no cart-page note.
     expect(region).not.toHaveTextContent('به مبلغ کل افزوده می\u{200C}شود')
+
+    cleanup()
+    // All online (D = 0): the online row alone; before shipping is chosen, A is not final yet.
+    const online = renderSummary(
+      itemsCartFixture({ shipping: chosen, amount_charged_online: 2_343_000 }),
+      'checkout',
+    )
+    expect(value(online, 'پرداخت آنلاین')).toBe(formatToman(2_343_000))
+    expect(hasRow(online, 'پرداخت هنگام تحویل')).toBe(false)
+    cleanup()
+    expect(hasRow(renderSummary(itemsCartFixture(), 'checkout'), 'پرداخت آنلاین')).toBe(false)
   })
 })

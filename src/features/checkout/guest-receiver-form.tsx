@@ -23,13 +23,20 @@ import { isThrottled } from './use-checkout-writes'
 // for placement (Task 3). «ادامه» checks it all as the API will, the first field in error
 // taking the focus.
 
-const hasErrors = (errors: GuestErrors) => Object.keys(errors).length > 0
+const hasErrors = (errors: object) => Object.keys(errors).length > 0
+
+/** The API's messages (a refused placement) as the form's, field by field. */
+const asFieldErrors = (messages: Checkout['receiverErrors']): GuestErrors =>
+  Object.fromEntries(Object.entries(messages).map(([field, message]) => [field, [message]]))
 
 export function GuestReceiverForm({ checkout }: { checkout: Checkout }) {
   const values = checkout.receiver
-  const [errors, setErrors] = useState<GuestErrors>({})
+  const [local, setErrors] = useState<GuestErrors>({})
+  // The API's own messages first shown (the form came back after a refused placement); the
+  // first field in error takes the focus then.
+  const errors: GuestErrors = { ...asFieldErrors(checkout.receiverErrors), ...local }
   const [alert, setAlert] = useState<string | null>(null)
-  const [attempt, setAttempt] = useState(0)
+  const [attempt, setAttempt] = useState(() => (hasErrors(checkout.receiverErrors) ? 1 : 0))
   const [saving, setSaving] = useState(false)
   // A 429 on the destination: «ادامه» (and a new city) wait out `retry_after`.
   const [throttle, setThrottle] = useState<{ error: unknown; at: number } | null>(null)
@@ -41,8 +48,8 @@ export function GuestReceiverForm({ checkout }: { checkout: Checkout }) {
   function edit(changes: Partial<GuestReceiver>) {
     checkout.setReceiver(changes)
     const fields = Object.keys(changes) as (keyof GuestReceiver)[]
-    if (fields.some((field) => errors[field])) {
-      const next = { ...errors }
+    if (fields.some((field) => local[field])) {
+      const next = { ...local }
       for (const field of fields) delete next[field]
       setErrors(next)
     }

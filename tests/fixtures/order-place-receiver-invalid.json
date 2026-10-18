@@ -1,0 +1,24 @@
+{
+  "msg": "درخواست ارسالی معتبر نیست.",
+  "code": 400,
+  "data": {
+    "type": "validation_error",
+    "errors": [
+      {
+        "code": "invalid",
+        "detail": "یک شماره تماس معتبر وارد نمایید.",
+        "attr": "customer_mobile"
+      },
+      {
+        "code": "invalid_iranian_mobile",
+        "detail": "شمارهٔ موبایل ایران را وارد کنید؛ تلفن ثابت و شمارهٔ خارجی پذیرفته نمی‌شود.",
+        "attr": "receiver.mobile"
+      },
+      {
+        "code": "invalid",
+        "detail": "کد پستی باید دقیقاً ۱۰ رقم باشد.",
+        "attr": "receiver.postal_code"
+      }
+    ]
+  }
+}

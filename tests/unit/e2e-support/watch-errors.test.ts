@@ -141,4 +141,17 @@ describe('watchErrors', () => {
     // A page nobody watches: nothing to forget.
     expect(() => forgiveFailure({}, add)).not.toThrow()
   })
+
+  it('forgives another status when the test names it, and only that one', () => {
+    const fake = fakePage()
+    const errors = watchErrors(fake.page as never)
+    const intent = 'http://localhost:3000/api/bff/payment/link/t/intent/'
+    const unavailable =
+      'Failed to load resource: the server responded with a status of 503 (Service Unavailable)'
+    fake.consoleMessage('error', unavailable, intent)
+    forgiveFailure(fake.page, intent, 503)
+    fake.consoleMessage('error', unavailable, intent)
+    fake.consoleMessage('error', SERVER_ERROR, intent)
+    expect(errors).toEqual([`${SERVER_ERROR} (${intent})`])
+  })
 })

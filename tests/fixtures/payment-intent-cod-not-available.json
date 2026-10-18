@@ -1,0 +1,14 @@
+{
+  "msg": "این درخواست با وضعیت فعلی سازگار نیست.",
+  "code": 409,
+  "data": {
+    "type": "client_error",
+    "errors": [
+      {
+        "code": "payment_cod_not_available",
+        "detail": "پرداخت در محل برای روش ارسال این سفارش امکان‌پذیر نیست.",
+        "attr": null
+      }
+    ]
+  }
+}

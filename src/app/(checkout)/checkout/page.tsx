@@ -3,8 +3,11 @@ import { CONTAINER } from '@/components/layout/container'
 import { cn } from '@/components/ui/cn'
 import { CHECKOUT_HEADING_ID } from '@/features/checkout/checkout-heading'
 import { CheckoutPage } from '@/features/checkout/checkout-page'
+import { checkoutTerms } from '@/features/checkout/terms'
+import { getPaymentCatalog } from '@/features/payment/catalog'
 import { seoMetadata } from '@/features/seo/metadata'
 import { shopName } from '@/features/seo/shop-name'
+import { getSiteSettings } from '@/features/settings/api'
 
 const TITLE = 'تکمیل خرید'
 const PATH = '/checkout/'
@@ -22,9 +25,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * `/checkout/` (spec §8.7): the heading, then the checkout itself, read in the browser through
- * the BFF (CheckoutPage: a skeleton until the cart is there).
+ * the BFF (CheckoutPage: a skeleton until the cart is there). The payment catalog comes from the
+ * server's 60 s cache (order digest §1.6), and the operator's texts are sanitised here: neither
+ * the parser nor a per-visitor copy of the lists reaches the browser.
  */
-export default function CheckoutRoute() {
+export default async function CheckoutRoute() {
+  const [catalog, settings] = await Promise.all([getPaymentCatalog(), getSiteSettings()])
   return (
     <div className={cn(CONTAINER, 'flex flex-col gap-3 pt-4 pb-10 md:gap-4 md:pt-6 md:pb-14')}>
       <h1
@@ -34,7 +40,11 @@ export default function CheckoutRoute() {
       >
         {TITLE}
       </h1>
-      <CheckoutPage />
+      <CheckoutPage
+        catalog={catalog}
+        terms={checkoutTerms(settings)}
+        supportPhone={settings?.phone?.trim() || null}
+      />
     </div>
   )
 }

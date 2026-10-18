@@ -1,6 +1,8 @@
 'use client'
 
+import type { RouteChoiceState } from '@/features/payment/use-route-choice'
 import type { Cart } from '@/lib/api/types/cart'
+import { routeLabel } from './route-label'
 import type { Checkout } from './use-checkout'
 
 // What a done step says in a line (spec §8.7): where the order goes, and how. From the cart the
@@ -40,6 +42,21 @@ export function ShippingSummary({ cart }: { cart: Cart }) {
       </span>
       {shipping.cash_on_delivery && ' · پرداخت در محل'}
       {shipping.freight_paid_by_recipient && ' · پس\u{200C}کرایه'}
+    </p>
+  )
+}
+
+export function PaymentSummary({ payment }: { payment: RouteChoiceState }) {
+  const { chosen } = payment
+  if (!chosen) return null
+  const gateway = chosen.gateways.find((item) => item.code === payment.gateway)
+  return (
+    <p>
+      <span dir="auto" className="font-medium text-ink-900">
+        {routeLabel(chosen)}
+      </span>
+      {chosen.gateways.length > 1 && gateway ? ` · ${gateway.title}` : ''}
+      {chosen.route === 'pay_on_delivery' && ' (بدون پرداخت آنلاین)'}
     </p>
   )
 }

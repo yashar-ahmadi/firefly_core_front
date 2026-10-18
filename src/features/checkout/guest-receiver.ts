@@ -2,15 +2,18 @@ import {
   checkPlace,
   checkReceiver,
   checkRegion,
+  postalDigits,
   type AddressField,
   type AddressValues,
 } from '@/features/account/addresses/address-values'
-import { isIranMobile } from '@/lib/format'
+import type { OrderReceiverInput } from '@/lib/api/types/order'
+import { isIranMobile, normalizeIranMobile, toLatinDigits } from '@/lib/format'
 
 // A guest's receiver (cart digest §6.6, §7.4; order digest `OrderReceiverInput`): who takes the
 // parcel and where, kept by the page until placement (Task 3 sends it as `receiver`), with the
 // buyer's own mobile when someone else receives it (`customer_mobile`). The checks are the
-// address book's own (./address-values), the postal code required here. Pure.
+// address book's own (./address-values), the postal code required here. Pure. The province and
+// city are the cart's destination; the placement sends the rest (`receiverBody`).
 
 export type GuestReceiver = Pick<
   AddressValues,
@@ -70,4 +73,27 @@ export function checkGuestReceiver(values: GuestReceiver): GuestErrors {
     errors.customerMobile = ['شمارهٔ موبایل ایران را وارد کنید؛ مانند ۰۹۱۲۱۲۳۴۵۶۷.']
   }
   return errors
+}
+
+/** `09…` in Latin digits, whatever was typed (Persian digits, +98, spaces). */
+const mobileOf = (value: string) => normalizeIranMobile(value) ?? toLatinDigits(value).trim()
+
+/** The placement's `receiver` and the buyer's own mobile, from checked values. */
+export function receiverBody(values: GuestReceiver): {
+  receiver: OrderReceiverInput
+  customerMobile?: string
+} {
+  const receiver: OrderReceiverInput = {
+    first_name: values.firstName.trim(),
+    last_name: values.lastName.trim(),
+    mobile: mobileOf(values.mobile),
+    address: values.address.trim(),
+    postal_code: postalDigits(values.postalCode),
+  }
+  const plaque = values.plaque.trim()
+  const unit = values.unit.trim()
+  if (plaque) receiver.plaque = plaque
+  if (unit) receiver.unit = unit
+  const own = values.customerMobile.trim()
+  return own ? { receiver, customerMobile: mobileOf(own) } : { receiver }
 }

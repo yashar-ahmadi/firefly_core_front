@@ -11,6 +11,7 @@ import { parseWishlistParams } from '@/features/account/wishlist/wishlist-params
 import { NOTIFICATIONS_KEY } from '@/features/notifications/notifications-api'
 import { UNREAD_NOTIFICATIONS_KEY } from '@/features/notifications/unread'
 import { SHIPPING_OPTIONS_KEY } from '@/features/checkout/use-shipping-options'
+import { WALLET_BALANCE_KEY } from '@/features/payment/use-wallet'
 import { WISHLIST_IDS_KEY } from '@/features/wishlist/hooks'
 import { createQueryClient } from '@/lib/query/query-client'
 import {
@@ -45,6 +46,7 @@ const SESSION_READ_KEYS = [
   wishlistListKey(parseWishlistParams(new URLSearchParams('sort=price&page=3'))),
   NOTIFICATIONS_KEY,
   UNREAD_NOTIFICATIONS_KEY,
+  WALLET_BALANCE_KEY,
 ]
 
 describe('SESSION_QUERIES', () => {

@@ -1,0 +1,14 @@
+{
+  "msg": "درخواست ارسالی معتبر نیست.",
+  "code": 400,
+  "data": {
+    "type": "client_error",
+    "errors": [
+      {
+        "code": "order_receiver_required",
+        "detail": "اطلاعات گیرنده سفارش را کامل وارد کنید.",
+        "attr": null
+      }
+    ]
+  }
+}

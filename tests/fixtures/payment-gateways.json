@@ -1,0 +1,32 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "count": 2,
+    "total_pages": 1,
+    "current_page": 1,
+    "page_size": 20,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "code": "ZARINPAL",
+        "title": "زرین پال",
+        "logo": "/media/brands/26/09/13/gateway-zarinpal.png",
+        "logo_thumbnail": "/static/defaults/default.png",
+        "is_default": true,
+        "minimum_amount": 10000,
+        "maximum_amount": null
+      },
+      {
+        "code": "ZIBAL",
+        "title": "زیبال",
+        "logo": "/media/brands/26/09/13/gateway-zibal.png",
+        "logo_thumbnail": "/static/defaults/default.png",
+        "is_default": false,
+        "minimum_amount": 10000,
+        "maximum_amount": 500000000
+      }
+    ]
+  }
+}

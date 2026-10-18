@@ -470,13 +470,30 @@ signed-in header to another.
   receiver form, the shipping options, their writes in `use-checkout-writes.ts`) is imported by
   `/checkout/` alone; the `(checkout)` layout's frame (`ShellFrame` with `CheckoutHeader` and
   `CheckoutFooter`) leaves out the shop's header, menus, search, bottom navigation, compare bar
-  and quick view, which pays for the steps (`/checkout/` 243.7 KB, guest and signed in, desktop
-  and phone). The address book's sheet and the map still load on demand, and so does the
-  `(checkout)` error boundary's view, as the root's does (statically it cost 3.6 KB there; lazily
-  0.8 KB, its own copy of the loader and the plain fallback). The only shared code it
-  added is the checkout in the session-expiry path rule (`isSignedInContextPath`): a few bytes on
-  every route (home and product +5 to +14 B; category and list −0.4 KB after Turbopack
-  regrouped its chunks).
+  and quick view, which pays for the steps (`/checkout/` 248.6 KB, guest and signed in, desktop
+  and phone, push shop too; Plan 4 Task 3). The address book's sheet and the map still
+  load on demand, and so does the `(checkout)` error boundary's view, as the root's does
+  (statically it cost 3.6 KB there; lazily 0.8 KB, its own copy of the loader and the plain
+  fallback). The payment and review steps' UI is one lazy chunk (`lazy-steps.tsx` →
+  `later-steps.ts`): it loads when one of them shows, or as soon as the shopper works in the page
+  (a pointer over it, a focus in it), never on its own at first load. A page whose steps are all
+  done at load downloads it at once: 5.6 KB more, 254.2 KB in all, over the budget (a guest who
+  reloads at the review; a signed-in shopper whose default address and shipping the page sets by
+  itself). The budget guard's measures do not reach that state: the guest's starts at the
+  receiver, and the signed-in one refuses the page's writes. One chunk group,
+  not one per step: two groups made Turbopack regroup the shop's shared chunks (category
+  +1.8 KB). What runs only after the press loads on the press: the placement and its refusals
+  (`place-flow.ts`, whose own imports are only modules the page does not have, or the shared
+  chunks regroup again), then the placed order's payment (`placed/placed-loader.tsx` →
+  `placed-order-panel.tsx`: the intents, `goToBank` behind its own `import()`, the ways to pay
+  later), fetched ahead once the shopper reaches for the review's form (a pointer over it, a
+  focus in it), never on the step's arrival alone. The payment catalog (`payment/method/list/`, `payment/gateway/list/`) comes as props
+  from the server's 60 s cache, its operator texts sanitised there (`features/payment/catalog.ts`).
+  The only shared code the checkout added is the checkout in the session-expiry path rule
+  (`isSignedInContextPath`) and the wallet's key in `SESSION_QUERIES`. In Task 3 the catalog
+  routes grew by 343 B (home, category, list, brand, product), of which about 20 B is code (the
+  wallet's key, one shared module) and the rest Turbopack regrouping the same modules into other
+  chunks; `/cart/` grew by 430 B, as it also carries `CartSummary`'s checkout rows.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -610,7 +627,12 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   k.yazdi (`tests/e2e/checkout/checkout-signed-in.spec.ts`, ruling P4-R4: never sara for order
   journeys; the `kamran` guard of `tests/e2e/support/kamran-guard.ts` puts his cart's lines,
   destination and shipping choice and his address book back exactly), so no read-only spec sees that data
-  change. Playwright skips it when a project before it failed, and a filter on the command line
+  change. A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
+  mobile each run, for the guest's unpaid-orders ceiling; the bank intent the dev backend answers
+  `503 gateway_not_configured`, one of the 30 an hour of `payment_attempt`) and cancels it through
+  its link afterwards, whatever happened, so the dev database keeps no open unpaid order. A
+  failure the dev backend gives by design is forgiven by its status (`forgiveFailure(page, url,
+  503)` in `watch-errors.ts`). Playwright skips it when a project before it failed, and a filter on the command line
   does not drop its dependencies (one journey file still runs the three device suites first):
   `pnpm test:e2e:journeys` (`--project=journeys --no-deps`) runs the journeys alone. An already running server on the base URL is reused;
   `E2E_BASE_URL` points elsewhere. One full run makes about 220 anonymous API requests (about 400

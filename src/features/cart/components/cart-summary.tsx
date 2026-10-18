@@ -61,11 +61,38 @@ function shippingValue(cart: Cart): string {
 }
 
 /**
+ * What the shopper pays where, at the checkout (order digest §5.0), once shipping is priced
+ * (before, A is not final): «پرداخت آنلاین: A», the prepayment said inside it (never a line to
+ * add), and «پرداخت هنگام تحویل: D» when something is paid at the door.
+ */
+function CheckoutShares({ cart }: { cart: Cart }) {
+  if (!(cart.shipping.is_selected && cart.shipping.is_available)) return null
+  return (
+    <>
+      <Row
+        label="پرداخت آنلاین"
+        note={
+          cart.prepayment > 0 ? (
+            <span className="text-ink-600">{`شامل بیعانه\u{0654} ${formatToman(cart.prepayment)}`}</span>
+          ) : null
+        }
+      >
+        {formatToman(cart.amount_charged_online)}
+      </Row>
+      {cart.amount_to_collect_on_delivery > 0 && (
+        <Row label="پرداخت هنگام تحویل">{formatToman(cart.amount_to_collect_on_delivery)}</Row>
+      )}
+    </>
+  )
+}
+
+/**
  * The goods (and their count), product and coupon discounts (the code as a chip; a
  * free-shipping coupon says so), the goods after discounts, shipping (or «پس از انتخاب روش
  * ارسال»), packaging, the shipping discount, the COD fee, tax and the total; the online and
  * at-the-door shares when part is paid on delivery (with the prepayment), and «سود شما از این
- * خرید» when there is a saving. Rows the API has nothing for (0) are left out, tax excepted.
+ * خرید» when there is a saving. Rows the API has nothing for (0) are left out, tax excepted. At
+ * the checkout the online share is always said once shipping is priced (`CheckoutShares`).
  */
 export function CartSummary({ cart, variant, className }: CartSummaryProps) {
   const headingId = useId()
@@ -126,14 +153,20 @@ export function CartSummary({ cart, variant, className }: CartSummaryProps) {
         <Row label="مبلغ کل" tone="total">
           {formatToman(cart.total)}
         </Row>
-        {cart.amount_to_collect_on_delivery > 0 && (
+        {variant === 'checkout' ? (
+          <CheckoutShares cart={cart} />
+        ) : (
           <>
-            <Row label="پرداخت آنلاین">{formatToman(cart.amount_charged_online)}</Row>
-            <Row label="پرداخت در محل">{formatToman(cart.amount_to_collect_on_delivery)}</Row>
+            {cart.amount_to_collect_on_delivery > 0 && (
+              <>
+                <Row label="پرداخت آنلاین">{formatToman(cart.amount_charged_online)}</Row>
+                <Row label="پرداخت در محل">{formatToman(cart.amount_to_collect_on_delivery)}</Row>
+              </>
+            )}
+            {cart.prepayment > 0 && (
+              <Row label="بیعانه (در پرداخت آنلاین)">{formatToman(cart.prepayment)}</Row>
+            )}
           </>
-        )}
-        {cart.prepayment > 0 && (
-          <Row label="بیعانه (در پرداخت آنلاین)">{formatToman(cart.prepayment)}</Row>
         )}
         {cart.total_savings > 0 && (
           <Row label="سود شما از این خرید" tone="saving">

@@ -1,0 +1,74 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "count": 5,
+    "total_pages": 1,
+    "current_page": 1,
+    "page_size": 20,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "route": "bank_gateway",
+        "label": "درگاه بانکی",
+        "description": "پرداخت امن از طریق درگاه بانکی با تمام کارت های عضو شتاب.",
+        "instruction": "",
+        "icon": "/static/defaults/default.png",
+        "max_amount": null,
+        "requires_authentication": false,
+        "display_order": 10,
+        "is_available": true,
+        "reason": null
+      },
+      {
+        "route": "wallet",
+        "label": "کیف پول",
+        "description": "پرداخت از موجودی کیف پول؛ سریع و بدون انتقال به درگاه بانکی.",
+        "instruction": "",
+        "icon": "/static/defaults/default.png",
+        "max_amount": null,
+        "requires_authentication": true,
+        "display_order": 20,
+        "is_available": true,
+        "reason": null
+      },
+      {
+        "route": "wallet_and_gateway",
+        "label": "کیف پول و درگاه بانکی",
+        "description": "بخشی از مبلغ از کیف پول و باقی مانده از درگاه بانکی پرداخت می شود.",
+        "instruction": "",
+        "icon": "/static/defaults/default.png",
+        "max_amount": null,
+        "requires_authentication": true,
+        "display_order": 30,
+        "is_available": true,
+        "reason": null
+      },
+      {
+        "route": "card_transfer",
+        "label": "کارت به کارت",
+        "description": "واریز کارت به کارت به یکی از شماره کارت های فروشگاه.",
+        "instruction": "پس از واریز، تصویر رسید را بارگذاری کنید. سفارش شما پس از تایید کارشناس مالی پردازش می شود.",
+        "icon": "/static/defaults/default.png",
+        "max_amount": 50000000,
+        "requires_authentication": false,
+        "display_order": 40,
+        "is_available": true,
+        "reason": null
+      },
+      {
+        "route": "pay_on_delivery",
+        "label": "پرداخت در محل",
+        "description": "پرداخت وجه هنگام تحویل کالا به مامور ارسال.",
+        "instruction": "پرداخت در محل فقط برای شهر تهران و تا سقف ۲۰ میلیون تومان فعال است.",
+        "icon": "/static/defaults/default.png",
+        "max_amount": 20000000,
+        "requires_authentication": false,
+        "display_order": 50,
+        "is_available": true,
+        "reason": null
+      }
+    ]
+  }
+}

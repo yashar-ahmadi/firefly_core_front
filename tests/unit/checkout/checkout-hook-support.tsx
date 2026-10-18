@@ -41,12 +41,18 @@ export function withFeatures(hasSession = false, features: Partial<FeatureMap> =
   return { client: providers.client, wrapper }
 }
 
-export function setup(cart: Cart, hasSession: boolean, features: Partial<FeatureMap> = {}) {
+export function setup(
+  cart: Cart,
+  hasSession: boolean,
+  features: Partial<FeatureMap> = {},
+  options: { paymentReady?: boolean } = {},
+) {
   const providers = withFeatures(hasSession, features)
   providers.client.setQueryData(CART_KEY, cart)
-  const hook = renderHook(() => ({ checkout: useCheckout(), session: useSession() }), {
-    wrapper: providers.wrapper,
-  })
+  const hook = renderHook(
+    ({ paymentReady }) => ({ checkout: useCheckout({ paymentReady }), session: useSession() }),
+    { wrapper: providers.wrapper, initialProps: { paymentReady: options.paymentReady ?? false } },
+  )
   return { ...hook, client: providers.client }
 }
 

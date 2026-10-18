@@ -1,8 +1,9 @@
 import type { Cart } from '@/lib/api/types/cart'
 
 // The checkout's steps, derived from the cart the API returned (never from what the page
-// believes it sent) and the page's own state: a guest's receiver confirmed, a done step the
-// shopper reopened. Pure. Task 3 adds the payment and review steps' own conditions here.
+// believes it sent) and the page's own state: a guest's receiver confirmed, a payment route
+// the rules allow for the cart's amounts, a done step the shopper reopened. The review is the
+// last step: never done (placing the order ends the checkout). Pure.
 
 export const CHECKOUT_STEPS = ['receiver', 'shipping', 'payment', 'review'] as const
 export type CheckoutStep = (typeof CHECKOUT_STEPS)[number]
@@ -33,14 +34,17 @@ export interface StepInput {
    */
   receiver: { confirmed: boolean; valid: boolean; city: number | null }
   guestCheckout: boolean
+  /** A payment route is chosen (or chosen for the shopper) that the rules allow now. */
+  paymentReady: boolean
 }
 
-/** Each step's own condition. Task 2 builds the first two: payment and review are never done. */
+/** Each step's own condition; the review is never done. */
 export function doneSteps({
   cart,
   signedIn,
   receiver,
   guestCheckout,
+  paymentReady,
 }: StepInput): Record<CheckoutStep, boolean> {
   const guestReceiver =
     guestCheckout &&
@@ -49,7 +53,8 @@ export function doneSteps({
     receiver.city === cart.destination?.city_id
   const receiverDone = destinationReady(cart, signedIn) && (signedIn || guestReceiver)
   const shippingDone = receiverDone && shippingReady(cart)
-  return { receiver: receiverDone, shipping: shippingDone, payment: false, review: false }
+  const paymentDone = shippingDone && paymentReady
+  return { receiver: receiverDone, shipping: shippingDone, payment: paymentDone, review: false }
 }
 
 /**

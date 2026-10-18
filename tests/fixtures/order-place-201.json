@@ -1,0 +1,19 @@
+{
+  "msg": "با موفقیت ایجاد شد.",
+  "code": 201,
+  "data": {
+    "uuid": "7c43e2f6-54c6-445a-b703-a67d3ebb4f4f",
+    "order_code": "5592580094",
+    "status": "awaiting_payment",
+    "status_display": "در انتظار پرداخت",
+    "placed_at": "2026-10-18T05:38:01.111517+03:30",
+    "item_count": 1,
+    "total": 1049000,
+    "amount_charged_online": 1049000,
+    "amount_to_collect_on_delivery": 0,
+    "prepayment": 0,
+    "requires_online_payment": true,
+    "payment_url": "http://localhost:3000/order/pay/ubiClbz6wHu1G-pJ9F98soBsfDqrITpZULlnO_4bi3U",
+    "payment_expires_at": "2026-10-21T05:38:01.005632+03:30"
+  }
+}

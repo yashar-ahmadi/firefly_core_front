@@ -11,6 +11,7 @@ import { cartLine } from '../cart/support'
 import { emptyCartFixture } from '../cart/fixtures'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { clientProviders } from '../support/providers'
+import { checkoutProps } from '../payment/fixtures'
 import { address, addressCart, codCart, noDestinationCart, tehranOptions } from './fixtures'
 
 // `/checkout/` as a whole (Plan 4 Task 2): one page in numbered steps, its entry guards (an
@@ -67,7 +68,7 @@ function renderPage(cart: Cart | undefined, hasSession = true) {
         <h1 id="checkout-heading" tabIndex={-1}>
           تکمیل خرید
         </h1>
-        <CheckoutPage />
+        <CheckoutPage {...checkoutProps()} />
         <SessionSwitch />
       </>,
       { wrapper },

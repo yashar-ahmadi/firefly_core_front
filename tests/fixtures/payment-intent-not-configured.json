@@ -1,0 +1,14 @@
+{
+  "msg": "این سرویس موقتاً در دسترس نیست.",
+  "code": 503,
+  "data": {
+    "type": "server_error",
+    "errors": [
+      {
+        "code": "gateway_not_configured",
+        "detail": "درگاه پرداخت پیکربندی نشده است.",
+        "attr": null
+      }
+    ]
+  }
+}

@@ -18,6 +18,7 @@ import {
   checkGuestReceiver,
   EMPTY_RECEIVER,
   receiverFrom,
+  type GuestField,
   type GuestReceiver,
 } from './guest-receiver'
 import {
@@ -29,10 +30,10 @@ import {
 } from './receiver-draft'
 import { useDestinationWrite, useShippingWrite, type WriteOutcome } from './use-checkout-writes'
 
-// The checkout's state machine (Plan 4 Task 2; Task 3 adds payment and review): the cart as the
-// API returned it (`useCart`, the one cart query) decides what is done, the page adds only what
-// the API cannot know (a guest's receiver until placement, a step reopened with «ویرایش»), and
-// local state never overrides the cart: a write that changes the cart clears its shipping
+// The checkout's state machine (Plan 4 Tasks 2–3): the cart as the API returned it (`useCart`,
+// the one cart query) decides what is done, the page adds only what the API cannot know (a
+// guest's receiver until placement, the payment route chosen, a step reopened with «ویرایش»),
+// and local state never overrides the cart: a write that changes the cart clears its shipping
 // choice there, and the steps follow.
 
 export interface Checkout {
@@ -67,6 +68,15 @@ export interface Checkout {
   receiverConfirmed: boolean
   /** «ادامه» with a receiver the form checked. */
   confirmReceiver: () => void
+  /** The API's messages on the guest form's fields (a refused placement), until a change. */
+  receiverErrors: Partial<Record<GuestField, string>>
+  /** A placement refused the receiver: the form again, with the API's messages. */
+  reopenReceiver: (errors: Partial<Record<GuestField, string>>) => void
+}
+
+export interface CheckoutOptions {
+  /** A payment route the rules allow is chosen (`usePaymentStep`). */
+  paymentReady?: boolean
 }
 
 interface Draft {
@@ -107,13 +117,14 @@ function useSessionEnded(hasSession: boolean): boolean {
   return held && !hasSession
 }
 
-export function useCheckout(): Checkout {
+export function useCheckout({ paymentReady = false }: CheckoutOptions = {}): Checkout {
   const cartQuery = useCart()
   const cart = cartQuery.data
   const { hasSession: signedIn } = useSession()
   const sessionEnded = useSessionEnded(signedIn)
   const [draft, setDraft] = useReceiverDraft(signedIn)
   const [editing, setEditing] = useState<CheckoutStep | null>(null)
+  const [receiverErrors, setReceiverErrors] = useState<Partial<Record<GuestField, string>>>({})
   const destination = useDestinationWrite()
   const shipping = useShippingWrite()
 
@@ -128,6 +139,7 @@ export function useCheckout(): Checkout {
         signedIn,
         receiver: { confirmed: draft.confirmed, valid: receiverValid, city: draft.values.city },
         guestCheckout,
+        paymentReady,
       })
     : { receiver: false, shipping: false, payment: false, review: false }
   // A reopened step the cart no longer reaches (an earlier step undone elsewhere) is let go.
@@ -141,8 +153,17 @@ export function useCheckout(): Checkout {
 
   // Any change asks for «ادامه» again: a receiver is done only as it was checked.
   const setReceiver = useCallback(
-    (changes: Partial<GuestReceiver>) =>
-      setDraft((current) => ({ values: { ...current.values, ...changes }, confirmed: false })),
+    (changes: Partial<GuestReceiver>) => {
+      // The API's message on a field goes once the field changes.
+      setReceiverErrors((current) => {
+        const fields = Object.keys(changes).filter((field) => field in current)
+        if (fields.length === 0) return current
+        const next = { ...current }
+        for (const field of fields) delete next[field as GuestField]
+        return next
+      })
+      setDraft((current) => ({ values: { ...current.values, ...changes }, confirmed: false }))
+    },
     [setDraft],
   )
 
@@ -172,8 +193,15 @@ export function useCheckout(): Checkout {
     setReceiver,
     receiverConfirmed: draft.confirmed,
     confirmReceiver: () => {
+      setReceiverErrors({})
       setDraft((current) => ({ ...current, confirmed: true }))
       setEditing((current) => (current === 'receiver' ? null : current))
+    },
+    receiverErrors,
+    reopenReceiver: (errors) => {
+      setReceiverErrors(errors)
+      setDraft((current) => ({ ...current, confirmed: false }))
+      setEditing(null)
     },
   }
 }

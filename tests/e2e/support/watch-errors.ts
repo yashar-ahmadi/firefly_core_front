@@ -12,10 +12,19 @@ const MEDIA_PATH = /^\/(?:media|static)\//
 const NOT_YET_BUILT = /^\/(?:blog|page)\//
 
 const NOT_FOUND = /^Failed to load resource: the server responded with a status of 404\b/
-const SERVER_ERROR = /^Failed to load resource: the server responded with a status of 500\b/
+/** A failed request's console line, and its status. */
+const FAILED = /^Failed to load resource: the server responded with a status of (\d{3})\b/
 
 /** Per watched page: what it collected, and the failed requests the test accounted for. */
 const watched = new WeakMap<object, { errors: string[]; forgiven: Set<string> }>()
+
+/** A failed request the test accounted for: its status and URL. */
+const forgivenKey = (status: number | string, url: string) => `${status} ${url}`
+
+/** The status of a failed request's console line, or null for any other line. */
+function failedStatus(text: string): string | null {
+  return FAILED.exec(text)?.[1] ?? null
+}
 
 const consoleError = (text: string, url: string) => (url ? `${text} (${url})` : text)
 
@@ -54,23 +63,27 @@ export function watchErrors(page: Page): string[] {
     if (message.type() !== 'error') return
     const url = message.location().url
     if (isExpectedFailure(message.text(), url)) return
-    if (forgiven.has(url) && SERVER_ERROR.test(message.text())) return
+    const status = failedStatus(message.text())
+    if (status && forgiven.has(forgivenKey(status, url))) return
     errors.push(consoleError(message.text(), url))
   })
   return errors
 }
 
 /**
- * A request's 500 the test accounted for (a cart write that met the dev database's lock and was
- * repeated, support/cart-write.ts): its console error, logged already or still to come, is not
- * one of the page's. Nothing for a page nobody watches.
+ * A request's failure the test accounted for, by its status (500 by default: a cart write that
+ * met the dev database's lock and was repeated, support/cart-write.ts; a 503 the dev backend
+ * answers by design, such as `gateway_not_configured`): its console error, logged already or
+ * still to come, is not one of the page's. Nothing for a page nobody watches.
  */
-export function forgiveFailure(page: object, url: string): void {
+export function forgiveFailure(page: object, url: string, status = 500): void {
   const entry = watched.get(page)
   if (!entry) return
-  entry.forgiven.add(url)
+  entry.forgiven.add(forgivenKey(status, url))
   for (let index = entry.errors.length - 1; index >= 0; index--) {
     const error = entry.errors[index]!
-    if (error.endsWith(`(${url})`) && SERVER_ERROR.test(error)) entry.errors.splice(index, 1)
+    if (error.endsWith(`(${url})`) && failedStatus(error) === String(status)) {
+      entry.errors.splice(index, 1)
+    }
   }
 }

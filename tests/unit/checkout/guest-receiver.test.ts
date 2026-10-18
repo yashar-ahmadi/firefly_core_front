@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   checkGuestReceiver,
   EMPTY_RECEIVER,
+  receiverBody,
   receiverFrom,
 } from '@/features/checkout/guest-receiver'
 import {
@@ -83,5 +84,34 @@ describe('the receiver draft', () => {
     expect(receiverFrom(readReceiverDraft()?.values)).toEqual(VALID)
     expect(() => clearReceiverDraft()).not.toThrow()
     expect(readReceiverDraft()).toBeNull()
+  })
+})
+
+describe('receiverBody', () => {
+  it('the placement’s receiver: trimmed, Latin digits, 09… mobiles, optional parts left out', () => {
+    expect(
+      receiverBody({
+        province: 8,
+        city: 301,
+        firstName: ' سارا ',
+        lastName: 'احمدی',
+        mobile: '+98 912 123 4501',
+        address: ' خیابان ولیعصر ',
+        plaque: '',
+        unit: ' ۳ ',
+        postalCode: '۱۲۳۴۵-۶۷۸۹۰',
+        customerMobile: '۰۹۱۲۱۲۳۴۵۰۲',
+      }),
+    ).toEqual({
+      receiver: {
+        first_name: 'سارا',
+        last_name: 'احمدی',
+        mobile: '09121234501',
+        address: 'خیابان ولیعصر',
+        unit: '۳',
+        postal_code: '1234567890',
+      },
+      customerMobile: '09121234502',
+    })
   })
 })
