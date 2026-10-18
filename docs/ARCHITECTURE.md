@@ -470,8 +470,10 @@ signed-in header to another.
   receiver form, the shipping options, their writes in `use-checkout-writes.ts`) is imported by
   `/checkout/` alone; the `(checkout)` layout's frame (`ShellFrame` with `CheckoutHeader` and
   `CheckoutFooter`) leaves out the shop's header, menus, search, bottom navigation, compare bar
-  and quick view, which pays for the steps (`/checkout/` 242.5 KB, guest and signed in, desktop
-  and phone). The address book's sheet and the map still load on demand. The only shared code it
+  and quick view, which pays for the steps (`/checkout/` 243.7 KB, guest and signed in, desktop
+  and phone). The address book's sheet and the map still load on demand, and so does the
+  `(checkout)` error boundary's view, as the root's does (statically it cost 3.6 KB there; lazily
+  0.8 KB, its own copy of the loader and the plain fallback). The only shared code it
   added is the checkout in the session-expiry path rule (`isSignedInContextPath`): a few bytes on
   every route (home and product +5 to +14 B; category and list −0.4 KB after Turbopack
   regrouped its chunks).
@@ -623,12 +625,15 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   through the UI does it with `cartWrite` (`tests/e2e/support/cart-write.ts`): a 500 that the
   backend's log (`FIREFLY_BACKEND_LOG`, by default `/tmp/backend.log`) shows as that lock, and
   that left the cart unchanged (read again through the BFF), is logged as a warning and the
-  visitor's action is repeated once; any other failure fails the test. No retry in app code.
+  visitor's action is repeated once; any other failure fails the test. A cart write a test makes
+  itself (the checkout budget's seed line) goes through `requestCartWrite`, the same guard. No
+  retry in app code.
 - **Signed-in specs** (Plan 3). Every login, and every logout, is one `auth_attempt` at the
   backend, 20 a minute per address for the whole run (the BFF forwards the visitor's address), so
   specs never log in per test or in a loop (`tests/e2e/support/session.ts`, which counts a full
-  run's attempts: 19). Measured from the backend's log, Playwright's project-by-project order kept
-  them to at most 5 in any minute of a run and 9 across two runs back to back; that is the
+  run's attempts: 23). Measured from the backend's log, Playwright's project-by-project order kept
+  them to at most 8 in any minute of a run (Plan 4 Task 2; 5 before the journeys project gained
+  the signed-in checkout) and 9 across two runs back to back (Plan 3); that is the
   scheduler's behaviour as configured, not a guarantee, so keep the total low. A spec that only reads with a session uses
   `signedInTest` from there: its `page` shares one login per project per run (a storage-state file
   in the output folder, written by the first worker that asks for it while the others wait; if

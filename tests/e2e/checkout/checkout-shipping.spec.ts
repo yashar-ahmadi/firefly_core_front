@@ -4,13 +4,15 @@ import type { Paginated } from '@/lib/api/types/common'
 import type { City, Province } from '@/lib/api/types/geo'
 import { cartWrite } from '../support/cart-write'
 import { shellHydrated } from '../support/hydrated'
+import { chooseShipping } from '../support/shipping-choice'
 import { watchErrors } from '../support/watch-errors'
 
 // The checkout's first two steps against the dev backend (Plan 4 Task 2), as a guest: the cart
 // is the browser context's own guest cart (`ff_cart`), never a demo account's. One test per
 // project: a product in the cart, `/checkout/`, the receiver form, Tehran (the province by its
-// name, a city from the live list), the options for that destination, the cheapest available
-// one chosen for the shopper, and the summary's shipping row as the API priced it. Cart writes:
+// name, a city from the live list), the options for that destination, the operator's default
+// chosen for the shopper (or, with none, the section asking and the test choosing:
+// support/shipping-choice.ts), and the summary's shipping row as the API priced it. Cart writes:
 // an add, the destination and the shipping choice (each through `cartWrite`: the dev SQLite
 // «database is locked» is retried once, logged). Nothing is ordered (Task 3); the cart is
 // cleared at the end.
@@ -36,7 +38,7 @@ function shippingRow(cart: Cart): string {
   return cart.shipping_cost === 0 ? 'رایگان' : toman(cart.shipping_cost)
 }
 
-test('a guest checks out up to shipping: receiver, Tehran, the cheapest option chosen', async ({
+test('a guest checks out up to shipping: receiver, Tehran, the default option chosen', async ({
   page,
 }) => {
   const errors = watchErrors(page)
@@ -85,19 +87,17 @@ test('a guest checks out up to shipping: receiver, Tehran, the cheapest option c
 
     await receiver.getByLabel(/آدرس کامل/).fill('خیابان آزمون، کوچهٔ یک')
     await receiver.getByLabel(/کد پستی/).fill('۱۲۳۴۵۶۷۸۹۰')
-    // «ادامه»: the shipping step opens, and its cheapest available option is chosen.
-    const selected = await cartWrite(
-      page,
-      { method: 'POST', path: 'cart/shipping/select/', label: 'shipping' },
-      () => receiver.getByRole('button', { name: 'ادامه' }).click(),
-      { before: await cartOf(destination), retry: () => page.reload() },
-    )
-    const chosen = selected.request().postDataJSON() as { code: string; cash_on_delivery: boolean }
-    expect(chosen.cash_on_delivery).toBe(false)
+    // «ادامه»: the shipping step opens, and the operator's default is chosen (none: the test
+    // chooses once the section asks).
+    const shipping = page.getByRole('region', { name: /روش ارسال/ })
+    const { response: selected } = await chooseShipping(page, shipping, {
+      lead: () => receiver.getByRole('button', { name: 'ادامه' }).click(),
+      before: await cartOf(destination),
+      retry: () => page.reload(),
+    })
     const cart = await cartOf(selected)
     expect(cart.shipping.is_selected && cart.shipping.is_available).toBe(true)
 
-    const shipping = page.getByRole('region', { name: /روش ارسال/ })
     await expect(receiver).toHaveAttribute('data-state', 'done')
     await expect(receiver).toContainText('آزمون خودکار')
     await expect(shipping).toContainText(cart.shipping.title!)

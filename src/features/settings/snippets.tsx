@@ -73,9 +73,10 @@ export async function renderSnippetHtmlZone(
  *
  * Where operators' HTML appears:
  * - `top`: right after <body> opens, on every page (the root layout).
- * - `bottom`: inside the shop footer, as the «نمادهای اعتماد» block (site-footer.tsx). Layouts
- *   without that footer (a future checkout layout, say) must place `<SnippetHtmlZone
- *   position="bottom" />` themselves, or the seals do not show there. Their scripts still run
+ * - `bottom`: inside the shop footer, as the «نمادهای اعتماد» block (site-footer.tsx), and in the
+ *   checkout's footer the same way (checkout-footer.tsx, from the (checkout) layout). Another
+ *   layout without either footer must place `<SnippetHtmlZone position="bottom" />` itself, or
+ *   the seals do not show there. Their scripts still run
  *   from `<Snippets position="bottom_of_body">` at the end of <body> on every page.
  */
 export async function SnippetHtmlZone({

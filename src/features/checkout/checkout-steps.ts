@@ -27,24 +27,46 @@ export function shippingReady(cart: Cart): boolean {
 export interface StepInput {
   cart: Cart
   signedIn: boolean
-  /** A guest pressed «ادامه» with a receiver for the city it names. */
-  receiver: { confirmed: boolean; city: number | null }
+  /**
+   * A guest's receiver: «ادامه» pressed since its last change, its values passing the checks,
+   * for the city it names, while the shop takes guest orders (`guest_checkout`).
+   */
+  receiver: { confirmed: boolean; valid: boolean; city: number | null }
+  guestCheckout: boolean
 }
 
 /** Each step's own condition. Task 2 builds the first two: payment and review are never done. */
-export function doneSteps({ cart, signedIn, receiver }: StepInput): Record<CheckoutStep, boolean> {
-  const guestReceiver = receiver.confirmed && receiver.city === cart.destination?.city_id
+export function doneSteps({
+  cart,
+  signedIn,
+  receiver,
+  guestCheckout,
+}: StepInput): Record<CheckoutStep, boolean> {
+  const guestReceiver =
+    guestCheckout &&
+    receiver.confirmed &&
+    receiver.valid &&
+    receiver.city === cart.destination?.city_id
   const receiverDone = destinationReady(cart, signedIn) && (signedIn || guestReceiver)
   const shippingDone = receiverDone && shippingReady(cart)
   return { receiver: receiverDone, shipping: shippingDone, payment: false, review: false }
 }
 
-/** The step the shopper is on: the one reopened, else the first not done. */
+/**
+ * Whether a step can be the one reopened: every step before it is done. When the cart takes an
+ * earlier step back (a destination gone in another tab, a login that makes a guest's raw
+ * destination none), that earlier step comes first.
+ */
+export function canReopen(done: Record<CheckoutStep, boolean>, step: CheckoutStep): boolean {
+  return CHECKOUT_STEPS.slice(0, CHECKOUT_STEPS.indexOf(step)).every((before) => done[before])
+}
+
+/** The step the shopper is on: the one reopened (while it can be), else the first not done. */
 export function activeStep(
   done: Record<CheckoutStep, boolean>,
   editing: CheckoutStep | null,
 ): CheckoutStep {
-  if (editing) return editing
+  if (editing && canReopen(done, editing)) return editing
   return CHECKOUT_STEPS.find((step) => !done[step]) ?? 'review'
 }
 

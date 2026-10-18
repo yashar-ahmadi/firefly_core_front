@@ -35,7 +35,7 @@ function serve(cart: () => Cart, addresses: Address[] = [address()]) {
     if (path === 'account/address/list/') return Promise.resolve(ok(book(addresses)))
     if (path === 'cart/shipping/option/list/') return Promise.resolve(ok(tehranOptions()))
     if (path === 'cart/destination/') return Promise.resolve(ok(addressCart()))
-    // The cheapest option is chosen for the shopper (shipping-section.test.tsx).
+    // The operator's default is chosen for the shopper (shipping-auto-select.test.tsx).
     if (path === 'cart/shipping/select/') {
       return Promise.resolve(ok({ ...cart(), shipping: codCart().shipping }))
     }

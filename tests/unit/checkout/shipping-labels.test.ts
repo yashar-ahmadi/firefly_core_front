@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { cheapestAvailable, costLabel, etaLabel } from '@/features/checkout/shipping-labels'
+import { costLabel, defaultOption, etaLabel } from '@/features/checkout/shipping-labels'
 import { option, tehranOptions } from './fixtures'
 
 // What a shipping option says (cart digest §3.9, §6.7), pure: its delivery time in business
-// days, its cost from `total` (free only when it is), and which one the checkout picks itself.
+// days, its cost from `total` (free only when it is), and which one the checkout picks itself
+// (controller ruling, Task 2 fix round 1: the operator's default, never a door-paid fare).
 
 describe('etaLabel', () => {
   it('a range of business days', () => {
@@ -39,15 +40,29 @@ describe('costLabel', () => {
   })
 })
 
-describe('cheapestAvailable', () => {
-  it('the available option with the lowest total, the API’s order breaking ties', () => {
-    expect(cheapestAvailable(tehranOptions().options)?.code).toBe('hozouri')
-    const tied = [option('tipax'), option('peyk-tehran', { total: 15_000 })]
-    expect(cheapestAvailable(tied)?.code).toBe('tipax')
+describe('defaultOption', () => {
+  it('the first option in the API’s order that is available and its sender pays', () => {
+    // Tehran: peyk-tehran is listed first (the operator's `display_order`).
+    expect(defaultOption(tehranOptions().options)?.code).toBe('peyk-tehran')
   })
 
-  it('skips the ones already tried, and finds none among unavailable ones', () => {
-    expect(cheapestAvailable(tehranOptions().options, new Set(['hozouri']))?.code).toBe('tipax')
-    expect(cheapestAvailable([option('bar-sangin')])).toBeNull()
+  it('skips a cheaper door-paid (پس‌کرایه) option and an unavailable one', () => {
+    const options = [option('bar-sangin'), option('tipax'), option('post-sefareshi')]
+    expect(defaultOption(options)?.code).toBe('post-sefareshi')
+  })
+
+  it('none when only door-paid or unavailable options are left: the shopper chooses', () => {
+    expect(defaultOption([option('tipax'), option('bar-sangin')])).toBeNull()
+    expect(defaultOption([])).toBeNull()
+  })
+
+  it('a refused default gives way to the next one its sender pays', () => {
+    const options = tehranOptions().options
+    expect(defaultOption(options, new Set(['peyk-tehran']))?.code).toBe('post-pishtaz')
+  })
+
+  it('the operator’s order decides, a free option its sender pays included (no guessing)', () => {
+    const options = [option('hozouri'), option('peyk-tehran')]
+    expect(defaultOption(options)?.code).toBe('hozouri')
   })
 })

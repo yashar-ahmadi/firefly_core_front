@@ -72,6 +72,9 @@ export function address(changes: Partial<Address> = {}): Address {
   }
 }
 
+/** The address the address book's sheet saves in the tests (a new one). */
+export const NEW_ADDRESS = address({ id: 20001, title: 'محل کار', is_default: false })
+
 /** The cart with `saved` as its destination (signed in, by address). */
 export function addressCart(saved: Address = address(), changes: Partial<Cart> = {}): Cart {
   return destinationCart({

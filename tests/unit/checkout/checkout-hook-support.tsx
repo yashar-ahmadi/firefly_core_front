@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { Mock } from 'vitest'
 import { CART_KEY } from '@/features/cart/cart-cache'
 import { useCheckout } from '@/features/checkout/use-checkout'
-import { FeatureProvider } from '@/features/settings/feature-context'
+import { FeatureProvider, type FeatureMap } from '@/features/settings/feature-context'
 import type { Cart } from '@/lib/api/types/cart'
 import { useSession } from '@/lib/session/session-context'
 import { clientProviders } from '../support/providers'
@@ -30,19 +30,19 @@ export function serve(
 }
 
 /** The client contexts with the feature switches (the checkout reads `pay_on_delivery`). */
-export function withFeatures(hasSession = false) {
+export function withFeatures(hasSession = false, features: Partial<FeatureMap> = {}) {
   const providers = clientProviders({ hasSession })
   const Wrapper = providers.wrapper
   const wrapper = ({ children }: { children: ReactNode }) => (
-    <FeatureProvider initial={{}}>
+    <FeatureProvider initial={features}>
       <Wrapper>{children}</Wrapper>
     </FeatureProvider>
   )
   return { client: providers.client, wrapper }
 }
 
-export function setup(cart: Cart, hasSession: boolean) {
-  const providers = withFeatures(hasSession)
+export function setup(cart: Cart, hasSession: boolean, features: Partial<FeatureMap> = {}) {
+  const providers = withFeatures(hasSession, features)
   providers.client.setQueryData(CART_KEY, cart)
   const hook = renderHook(() => ({ checkout: useCheckout(), session: useSession() }), {
     wrapper: providers.wrapper,
@@ -58,4 +58,9 @@ export const VALID_RECEIVER = {
   city: 301,
   address: 'خیابان ولیعصر، کوچهٔ بهار',
   postalCode: '۱۲۳۴۵-۶۷۸۹۰',
+}
+
+/** The shop takes no guest orders. */
+export const GUEST_CHECKOUT_OFF: Partial<FeatureMap> = {
+  guest_checkout: { key: 'guest_checkout', name: 'خرید مهمان', enabled: false, reason: null },
 }

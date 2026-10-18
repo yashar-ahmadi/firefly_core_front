@@ -8,6 +8,7 @@ import {
   type TestInfo,
 } from '@playwright/test'
 import { gzipSync } from 'node:zlib'
+import { requestCartWrite } from './cart-write'
 import { SAMPLE, seedCompare } from './compare-seed'
 import { SESSION_COOKIES } from './session'
 
@@ -31,8 +32,8 @@ export interface BudgetRoute {
   /**
    * The checkout (Plan 4): a guest's measure first puts a product in this context's own cart, so
    * the steps show (not the empty state); a signed-in one leaves the cart as it is, and the writes
-   * the page would make by itself (the default address as the destination, the cheapest shipping
-   * option) are refused before they leave the browser: the shared account is only read.
+   * the page would make by itself (the default address as the destination, the operator's default
+   * shipping option) are refused before they leave the browser: the shared account is only read.
    */
   checkout?: 'guest' | 'signed-in'
 }
@@ -42,17 +43,20 @@ const BFF = { 'X-Requested-With': 'ff' }
 const SEED_VARIANT = 10123
 const CHECKOUT_WRITES = /\/api\/bff\/cart\/(?:destination|shipping\/select)\/$/
 
-/** One line in this context's guest cart (once more after the dev SQLite lock's 500). */
+/**
+ * One line in this context's guest cart, through the cart-write guard: the dev SQLite lock's 500
+ * (confirmed by the backend's log, the cart unchanged) is repeated once with a warning; any other
+ * failure fails the measure.
+ */
 async function seedCart(page: Page): Promise<void> {
-  const add = () =>
-    page.request.post('/api/bff/cart/item/add/', {
-      headers: BFF,
-      data: { variant: SEED_VARIANT, quantity: 1 },
-    })
-  let response = await add()
-  if (response.status() === 500) response = await add()
-  expect(response.ok(), `cart/item/add/ for the checkout's measure: ${response.status()}`).toBe(
-    true,
+  await requestCartWrite(
+    page.request,
+    { method: 'POST', path: 'cart/item/add/', label: "cart/item/add/ for the checkout's measure" },
+    () =>
+      page.request.post('/api/bff/cart/item/add/', {
+        headers: BFF,
+        data: { variant: SEED_VARIANT, quantity: 1 },
+      }),
   )
 }
 

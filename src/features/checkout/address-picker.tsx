@@ -1,9 +1,10 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { BadgeCheck, MapPin, Pencil, Plus } from 'lucide-react'
+import { MapPin, Pencil, Plus } from 'lucide-react'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
-import { Badge } from '@/components/ui/badge'
+import { FormAlert } from '@/components/form/form-alert'
+import { useSubmitWait } from '@/components/form/code-timers'
 import { Button } from '@/components/ui/button'
 import { announce } from '@/components/ui/live-announcer'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -12,12 +13,12 @@ import { WidgetBoundary } from '@/components/ui/widget-boundary'
 import { LazyAddressSheet, preloadAddressSheet } from '@/features/account/addresses/lazy-overlays'
 import { useAddresses } from '@/features/account/addresses/use-addresses'
 import { isLoadingSection } from '@/features/account/use-account-query'
-import { ListError } from '@/features/account/lists/list-error'
+import { ListError, THROTTLED_MESSAGE, throttleWait } from '@/features/account/lists/list-error'
 import { CART_KEY } from '@/features/cart/cart-cache'
-import { FormAlert } from '@/components/form/form-alert'
 import type { Address } from '@/lib/api/types/cart'
-import { formatIranMobile, toPersianDigits } from '@/lib/format'
+import { AddressDetails, AddressLabel } from './address-option'
 import type { Checkout } from './use-checkout'
+import { isThrottled } from './use-checkout-writes'
 
 // A signed-in shopper's destination (cart digest §6.6, §7.4): the address book as a radio group,
 // the cart's own address chosen, else the default (the book's first) chosen for them. A choice
@@ -27,35 +28,6 @@ import type { Checkout } from './use-checkout'
 // sheet at once.
 
 const EMPTY_BOOK = 'هنوز آدرسی ثبت نکرده\u{200C}اید. برای ارسال سفارش، آدرس تحویل را اضافه کنید.'
-
-function AddressLabel({ address }: { address: Address }) {
-  return (
-    <span className="flex flex-wrap items-center gap-2">
-      <span dir="auto" className="font-bold text-ink-900">
-        {address.title}
-      </span>
-      {address.is_default && (
-        <Badge tone="brand" size="sm">
-          <BadgeCheck aria-hidden />
-          پیش‌فرض
-        </Badge>
-      )}
-    </span>
-  )
-}
-
-function AddressDetails({ address }: { address: Address }) {
-  return (
-    <span className="flex flex-col">
-      <span>
-        {`گیرنده: ${address.receiver_full_name} · `}
-        <span dir="ltr">{formatIranMobile(address.receiver_mobile)}</span>
-      </span>
-      <span className="break-words">{address.full_address}</span>
-      {address.postal_code && <span>{`کد پستی: ${toPersianDigits(address.postal_code)}`}</span>}
-    </span>
-  )
-}
 
 export function AddressPicker({ checkout }: { checkout: Checkout }) {
   const client = useQueryClient()
@@ -68,31 +40,41 @@ export function AddressPicker({ checkout }: { checkout: Checkout }) {
   })
   const openSheet = (initial?: Address) => setSheet({ requested: true, open: true, initial })
   const [chosenId, setChosenId] = useState<number | null>(null)
-  const [failure, setFailure] = useState<string | null>(null)
+  const [failure, setFailure] = useState<{ message: string; error: unknown; at: number } | null>(
+    null,
+  )
+  // A 429: the addresses wait out `retry_after` (the choice is never sent meanwhile).
+  const lock = useSubmitWait(throttleWait(failure?.error, failure?.at ?? 0))
   const cartAddress = checkout.cart?.destination?.address?.id ?? null
   const inBook = addresses?.some((item) => item.id === cartAddress) ?? false
   const value = chosenId ?? (inBook ? cartAddress : null)
 
+  const tried = useRef(new Set<number>())
   const pick = async (address: Pick<Address, 'id' | 'title'>) => {
+    if (lock.locked) return
     setChosenId(address.id)
     setFailure(null)
     const outcome = await checkout.setDestinationByAddress(address.id)
     setChosenId(null)
     if (outcome.status === 'done') announce(`آدرس «${address.title}» برای ارسال انتخاب شد.`)
-    else if (outcome.status === 'failed' && outcome.message) setFailure(outcome.message)
+    if (outcome.status !== 'failed' || !outcome.message) return
+    const throttled = isThrottled(outcome.error)
+    // A throttled default is chosen again once the wait is over.
+    if (throttled) tried.current.delete(address.id)
+    const message = throttled ? THROTTLED_MESSAGE : outcome.message
+    setFailure({ message, error: outcome.error, at: Date.now() })
   }
 
   // A cart without a saved address as its destination: the default (first in the book) is
   // chosen, once.
-  const tried = useRef(new Set<number>())
   const preselect = useEffectEvent(() => {
     const first = addresses?.[0]
     if (!first || cartAddress !== null || chosenId !== null || checkout.destinationPending) return
-    if (tried.current.has(first.id)) return
+    if (lock.locked || tried.current.has(first.id)) return
     tried.current.add(first.id)
     void pick(first)
   })
-  useEffect(() => preselect(), [addresses, cartAddress])
+  useEffect(() => preselect(), [addresses, cartAddress, lock.locked])
 
   // An empty book: the sheet opens at once (once; closed, the button is there).
   const opened = useRef(false)
@@ -142,6 +124,8 @@ export function AddressPicker({ checkout }: { checkout: Checkout }) {
       <RadioGroup
         aria-label="آدرس ارسال"
         aria-busy={checkout.destinationPending || undefined}
+        aria-describedby={lock.locked ? lock.noteId : undefined}
+        disabled={lock.locked}
         value={value === null ? '' : String(value)}
         onValueChange={(id) => {
           const address = addresses.find((item) => String(item.id) === id)
@@ -177,8 +161,9 @@ export function AddressPicker({ checkout }: { checkout: Checkout }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {failure && <FormAlert>{failure}</FormAlert>}
+      {failure && <FormAlert key={failure.at}>{failure.message}</FormAlert>}
       {content}
+      {lock.note}
       <div className="flex flex-wrap gap-3">
         {addresses && (
           <Button

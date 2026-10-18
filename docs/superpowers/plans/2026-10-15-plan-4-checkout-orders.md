@@ -92,12 +92,12 @@ Everything in Plans 1–3's Global Constraints, plus:
 - Shipping:
   - list `cart/shipping/option/list/`;
   - each option shows title, carrier logo, cost (a fare collected at the door is labelled «پس‌کرایه» and never «رایگان»), ETA «تحویل ۲ تا ۴ روز کاری», and a COD toggle when offered;
-  - auto-select the cheapest available option when nothing is selected;
+  - when nothing is selected, auto-select the operator's default: the first option in the API's order that is available and whose sender pays (`freight_payer === 'sender'`), not one the API refused for this cart. If there is none, select nothing and ask the shopper. Never silently pick a free pickup or a door-paid fare (controller ruling, Task 2 fix round 1);
   - a 409 COD-ceiling error on select shows its detail and falls back to prepaid.
 
 - [ ] **Step 1: Write failing tests.**
   - `useCheckout` goes to `shipping` after a destination succeeds.
-  - The cheapest option is auto-selected.
+  - The operator's default (the first available, sender-paid option) is auto-selected; with none, nothing is selected and the shopper is asked.
   - A tipax-like option with cost 0 and door payment renders «پس‌کرایه», not «رایگان».
 - [ ] **Step 2:** FAIL. **Step 3:** Implement. **Step 4:** PASS. **Step 5:** Commit: `feat: checkout receiver, destination and shipping sections`.
 

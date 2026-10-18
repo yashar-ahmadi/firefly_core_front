@@ -12,17 +12,9 @@ import { BackToTop } from './back-to-top'
 import { ContactBlock } from './contact-block'
 import { CONTAINER } from './container'
 import { FooterMenu } from './footer-menu'
-import { FOOTER_HEADING } from './footer-styles'
+import { FOOTER_HEADING, TRUST_ZONE } from './footer-styles'
 import { SocialLinks } from './social-links'
 import { StoreLogo } from './store-logo'
-
-/** Each seal (one snippet's HTML) sits on its own white tile; images are kept to badge size. */
-const TRUST_ZONE = cn(
-  'mt-4 flex flex-wrap items-center gap-2',
-  '[&>div]:grid [&>div]:min-h-20 [&>div]:min-w-20 [&>div]:place-items-center [&>div]:rounded-control',
-  '[&>div]:border [&>div]:border-ink-200 [&>div]:bg-white [&>div]:p-2',
-  '[&_img]:h-auto [&_img]:max-h-24 [&_img]:w-auto [&_img]:max-w-32',
-)
 
 function TrustBadges({ zone, title }: { zone: ReactNode; title: string }) {
   return (

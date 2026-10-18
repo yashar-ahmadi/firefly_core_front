@@ -2,7 +2,8 @@ import type { ShippingOption } from '@/lib/api/types/shipping'
 import { formatPercent, formatToman, toPersianDigits } from '@/lib/format'
 
 // What a shipping option says (cart digest §3.9, §6.7, §9), and which one the checkout chooses
-// for the shopper. Every amount is the option's own field: nothing is added up here. Pure.
+// for the shopper (the operator's default). Every amount is the option's own field: nothing is
+// added up here. Pure.
 
 export const COLLECT_AT_DOOR = 'پس\u{200C}کرایه'
 export const FREE = 'رایگان'
@@ -39,18 +40,20 @@ export function prepaymentNote(option: ShippingOption): string | null {
 }
 
 /**
- * The option the checkout chooses itself when none is chosen: the available one with the lowest
- * `total`, the API's order breaking ties (its `display_order`). Never with COD. `skip` holds the
- * ones already tried for this cart (a refusal must not be tried again in a loop).
+ * The option the checkout chooses itself when none is chosen (controller ruling, Task 2 fix
+ * round 1): the operator's default, i.e. the first option in the API's order (its
+ * `display_order`) that is available and whose sender pays. Never a fare collected at the door
+ * (پس‌کرایه), never with COD; none such, null (the shopper chooses). The operator's order
+ * decides: nothing is guessed from the price or the name. `skip` holds the ones the API refused
+ * for this cart (never tried again in a loop).
  */
-export function cheapestAvailable(
+export function defaultOption(
   options: readonly ShippingOption[],
   skip: ReadonlySet<string> = new Set(),
 ): ShippingOption | null {
-  let best: ShippingOption | null = null
-  for (const option of options) {
-    if (!option.is_available || skip.has(option.code)) continue
-    if (!best || option.total < best.total) best = option
-  }
-  return best
+  return (
+    options.find(
+      (option) => option.is_available && !collectedAtDoor(option) && !skip.has(option.code),
+    ) ?? null
+  )
 }

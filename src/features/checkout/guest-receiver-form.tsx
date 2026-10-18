@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { AuthForm } from '@/components/form/auth-form'
 import { FormAlert } from '@/components/form/form-alert'
+import { useSubmitWait } from '@/components/form/code-timers'
 import { SubmitButton } from '@/components/form/submit-button'
 import { useFormFocus } from '@/components/form/use-form-focus'
 import { Field } from '@/components/ui/field'
@@ -11,8 +12,10 @@ import { announce } from '@/components/ui/live-announcer'
 import { messagesOf, RegionFields } from '@/features/account/addresses/address-fields'
 import { PlaceFields } from '@/features/account/addresses/place-fields'
 import { ReceiverFields } from '@/features/account/addresses/receiver-fields'
+import { THROTTLED_MESSAGE, throttleWait } from '@/features/account/lists/list-error'
 import { checkGuestReceiver, type GuestErrors, type GuestReceiver } from './guest-receiver'
 import type { Checkout } from './use-checkout'
+import { isThrottled } from './use-checkout-writes'
 
 // A guest's receiver (cart digest §6.6, §7.4): the address book's own fields (the receiver, the
 // province and city, the door: postal code required here) and the buyer's own mobile. The
@@ -28,6 +31,9 @@ export function GuestReceiverForm({ checkout }: { checkout: Checkout }) {
   const [alert, setAlert] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [saving, setSaving] = useState(false)
+  // A 429 on the destination: «ادامه» (and a new city) wait out `retry_after`.
+  const [throttle, setThrottle] = useState<{ error: unknown; at: number } | null>(null)
+  const lock = useSubmitWait(throttleWait(throttle?.error, throttle?.at ?? 0))
   const container = useRef<HTMLDivElement>(null)
   useFormFocus(container, attempt)
   const cartCity = checkout.cart?.destination?.city_id ?? null
@@ -44,13 +50,17 @@ export function GuestReceiverForm({ checkout }: { checkout: Checkout }) {
 
   /** `cart/destination/ {province, city}`; a stale choice (lists out of date) goes. */
   async function destination(province: number, city: number): Promise<boolean> {
+    if (lock.locked) return false
     const outcome = await checkout.setDestinationByCity(province, city)
     setAlert(null)
     if (outcome.status === 'done')
       announce('مقصد ارسال ثبت شد؛ روش\u{200C}های ارسال به\u{200C}روز شد.')
     if (outcome.status !== 'failed') return outcome.status === 'done'
     if (outcome.resetCity) edit({ city: null })
-    if (outcome.message) setAlert(outcome.message)
+    if (isThrottled(outcome.error)) {
+      setThrottle({ error: outcome.error, at: Date.now() })
+      setAlert(THROTTLED_MESSAGE)
+    } else if (outcome.message) setAlert(outcome.message)
     return false
   }
 
@@ -71,7 +81,7 @@ export function GuestReceiverForm({ checkout }: { checkout: Checkout }) {
   useEffect(() => restore(), [values.province, values.city])
 
   async function submit() {
-    if (saving) return
+    if (saving || lock.locked) return
     const invalid = checkGuestReceiver(values)
     if (hasErrors(invalid)) {
       setErrors(invalid)
@@ -134,6 +144,7 @@ export function GuestReceiverForm({ checkout }: { checkout: Checkout }) {
         </Field>
         <SubmitButton
           busy={saving || checkout.destinationPending}
+          lock={lock}
           className="sm:w-auto sm:self-start"
         >
           ادامه

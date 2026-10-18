@@ -14,6 +14,13 @@ export const lockRecord = (path: string) =>
     '',
   ].join('\n')
 
+/** The BFF's answer to the dev server's HTML error page (a locked write among others). */
+export const NON_JSON = JSON.stringify({
+  msg: 'درخواست شما انجام نشد.',
+  code: 500,
+  data: { type: 'server_error', errors: [{ code: 'non_json_response', detail: '…', attr: null }] },
+})
+
 export const line = (variant: number, quantity: number) => ({ variant_id: variant, quantity })
 export const cart = (lines: { variant_id: number; quantity: number }[]) => ({
   lines,

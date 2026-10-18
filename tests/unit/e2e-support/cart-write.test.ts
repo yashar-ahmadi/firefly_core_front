@@ -1,18 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { cartWrite, type BackendLog, type CartWriteSpec } from '../../e2e/support/cart-write'
-import { cart, line, lockRecord } from './cart-write-support'
+import { cart, line, lockRecord, NON_JSON } from './cart-write-support'
 
 // The e2e helper for cart writes driven through the UI (tests/e2e/support/cart-write.ts): the
 // dev backend's SQLite lock («database is locked», a 500) is retried once, after checking that
 // the failed write changed nothing; anything else fails the test.
 
 const ADD: CartWriteSpec = { method: 'POST', path: 'cart/item/add/', label: 'add' }
-
-const NON_JSON = JSON.stringify({
-  msg: 'درخواست شما انجام نشد.',
-  code: 500,
-  data: { type: 'server_error', errors: [{ code: 'non_json_response', detail: '…', attr: null }] },
-})
 
 interface Planned {
   status: number

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CART_KEY } from '@/features/cart/cart-cache'
 import { readReceiverDraft, RECEIVER_DRAFT_KEY } from '@/features/checkout/receiver-draft'
 import type { Cart } from '@/lib/api/types/cart'
-import { serve, setup, VALID_RECEIVER } from './checkout-hook-support'
+import { GUEST_CHECKOUT_OFF, serve, setup, VALID_RECEIVER } from './checkout-hook-support'
 import { address, addressCart, codCart, destinationCart, noDestinationCart } from './fixtures'
 
 // The checkout's state (Plan 4 Task 2): derived from the cart the API returns (destination set?
@@ -142,6 +142,75 @@ describe('useCheckout, guest', () => {
     )
     serve(mocks.bffFetch, destinationCart)
     const { result } = setup(destinationCart(), false)
+    expect(result.current.checkout.step).toBe('receiver')
+  })
+})
+
+describe('useCheckout, a reopened step and the cart', () => {
+  it('a guest choosing shipping who is signed in elsewhere: back to the receiver step', async () => {
+    // A guest's raw destination does not count for a signed-in cart (a saved address does).
+    const cart = destinationCart({ shipping: codCart().shipping })
+    serve(mocks.bffFetch, () => cart)
+    sessionStorage.setItem(
+      RECEIVER_DRAFT_KEY,
+      JSON.stringify({ values: VALID_RECEIVER, confirmed: true }),
+    )
+    const { result } = setup(cart, false)
+    await waitFor(() => expect(result.current.checkout.step).toBe('payment'))
+    act(() => result.current.checkout.edit('shipping'))
+    expect(result.current.checkout.step).toBe('shipping')
+    act(() => result.current.session.setHasSession(true))
+    expect(result.current.checkout.step).toBe('receiver')
+    expect(result.current.checkout.editing).toBeNull()
+  })
+
+  it('the destination address deleted in another tab while shipping is reopened: the receiver', async () => {
+    let cart = addressCart(address(), { shipping: codCart().shipping })
+    serve(mocks.bffFetch, () => cart)
+    const { result, client } = setup(cart, true)
+    act(() => result.current.checkout.edit('shipping'))
+    expect(result.current.checkout.step).toBe('shipping')
+    cart = noDestinationCart()
+    await act(() => client.invalidateQueries({ queryKey: CART_KEY }))
+    await waitFor(() => expect(result.current.checkout.step).toBe('receiver'))
+    expect(result.current.checkout.editing).toBeNull()
+  })
+})
+
+describe('useCheckout, a guest’s confirmed receiver', () => {
+  function confirmed() {
+    serve(mocks.bffFetch, destinationCart)
+    const hook = setup(destinationCart(), false)
+    act(() => hook.result.current.checkout.setReceiver(VALID_RECEIVER))
+    act(() => hook.result.current.checkout.confirmReceiver())
+    expect(hook.result.current.checkout.step).toBe('shipping')
+    return hook
+  }
+
+  it('any change asks for «ادامه» again (a blanked field never counts as done)', () => {
+    const { result } = confirmed()
+    act(() => result.current.checkout.setReceiver({ firstName: '' }))
+    expect(result.current.checkout.receiverConfirmed).toBe(false)
+    expect(result.current.checkout.step).toBe('receiver')
+  })
+
+  it('a confirmed draft that fails the checks is not done', () => {
+    sessionStorage.setItem(
+      RECEIVER_DRAFT_KEY,
+      JSON.stringify({ values: { ...VALID_RECEIVER, postalCode: '' }, confirmed: true }),
+    )
+    serve(mocks.bffFetch, destinationCart)
+    const { result } = setup(destinationCart(), false)
+    expect(result.current.checkout.step).toBe('receiver')
+  })
+
+  it('without guest checkout, a confirmed draft is no receiver (login is the way on)', () => {
+    sessionStorage.setItem(
+      RECEIVER_DRAFT_KEY,
+      JSON.stringify({ values: VALID_RECEIVER, confirmed: true }),
+    )
+    serve(mocks.bffFetch, destinationCart)
+    const { result } = setup(destinationCart(), false, GUEST_CHECKOUT_OFF)
     expect(result.current.checkout.step).toBe('receiver')
   })
 })

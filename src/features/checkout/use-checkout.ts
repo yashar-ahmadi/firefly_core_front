@@ -5,14 +5,21 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { useCart } from '@/features/cart/hooks'
 import type { Cart } from '@/lib/api/types/cart'
 import { useSession } from '@/lib/session/session-context'
+import { useFeature } from '@/features/settings/feature-context'
 import {
   activeStep,
+  canReopen,
   destinationReady as hasDestination,
   doneSteps,
   shippingReady as hasShipping,
   type CheckoutStep,
 } from './checkout-steps'
-import { EMPTY_RECEIVER, receiverFrom, type GuestReceiver } from './guest-receiver'
+import {
+  checkGuestReceiver,
+  EMPTY_RECEIVER,
+  receiverFrom,
+  type GuestReceiver,
+} from './guest-receiver'
 import {
   clearReceiverDraft,
   parseReceiverDraft,
@@ -110,13 +117,21 @@ export function useCheckout(): Checkout {
   const destination = useDestinationWrite()
   const shipping = useShippingWrite()
 
+  const guestCheckout = useFeature('guest_checkout').enabled
+  const receiverValid = useMemo(
+    () => Object.keys(checkGuestReceiver(draft.values)).length === 0,
+    [draft.values],
+  )
   const done = cart
     ? doneSteps({
         cart,
         signedIn,
-        receiver: { confirmed: draft.confirmed, city: draft.values.city },
+        receiver: { confirmed: draft.confirmed, valid: receiverValid, city: draft.values.city },
+        guestCheckout,
       })
     : { receiver: false, shipping: false, payment: false, review: false }
+  // A reopened step the cart no longer reaches (an earlier step undone elsewhere) is let go.
+  if (cart && editing && !canReopen(done, editing)) setEditing(null)
 
   const after = (outcome: WriteOutcome, step: CheckoutStep) => {
     // A choice made where the shopper reopened the step closes it.
@@ -124,9 +139,10 @@ export function useCheckout(): Checkout {
     return outcome
   }
 
+  // Any change asks for «ادامه» again: a receiver is done only as it was checked.
   const setReceiver = useCallback(
     (changes: Partial<GuestReceiver>) =>
-      setDraft((current) => ({ ...current, values: { ...current.values, ...changes } })),
+      setDraft((current) => ({ values: { ...current.values, ...changes }, confirmed: false })),
     [setDraft],
   )
 

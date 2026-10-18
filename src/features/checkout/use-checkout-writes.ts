@@ -105,6 +105,12 @@ export function useDestinationWrite() {
 const COD_REFUSED = new Set(['cart_cod_limit_exceeded', 'cart_cod_not_supported'])
 const OPTION_GONE = new Set(['cart_shipping_method_unavailable', 'cart_shipping_method_not_found'])
 
+/** The API refused the option itself: no longer available for this cart, or unknown. */
+export const isOptionGone = (error: unknown) => OPTION_GONE.has(codeOf(error) ?? '')
+
+/** A 429: the same request goes again once `retry_after` is over. */
+export const isThrottled = (error: unknown) => error instanceof ApiError && error.status === 429
+
 export function useShippingWrite() {
   const client = useQueryClient()
   const common = useCommonFailure()
@@ -125,7 +131,7 @@ export function useShippingWrite() {
         const prepaid = await select(code, false)
         return { ...prepaid, message: prepaid.message ?? message, codDropped: true }
       }
-      if (OPTION_GONE.has(codeOf(error) ?? '')) {
+      if (isOptionGone(error)) {
         void client.invalidateQueries({ queryKey: SHIPPING_OPTIONS_KEY })
       }
       return { status: 'failed', error, message }

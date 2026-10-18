@@ -9,17 +9,17 @@ import { RadioGroup } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ListError, THROTTLED_MESSAGE, throttleWait } from '@/features/account/lists/list-error'
 import { useFeature } from '@/features/settings/feature-context'
-import { ApiError } from '@/lib/api/errors'
 import type { ShippingOptionList } from '@/lib/api/types/shipping'
-import { cheapestAvailable } from './shipping-labels'
+import { defaultOption } from './shipping-labels'
 import { ShippingOptionRow } from './shipping-option'
 import type { Checkout } from './use-checkout'
-import type { WriteOutcome } from './use-checkout-writes'
+import { isOptionGone, isThrottled, type WriteOutcome } from './use-checkout-writes'
 import { optionsSignature, useShippingOptions } from './use-shipping-options'
 
 // «روش ارسال» (cart digest §6.7–6.8): the cart's options as a radio group; with nothing chosen,
-// the cheapest available one is chosen for the shopper (never with COD; a refused one is not
-// tried again for this cart). A choice and its COD box go to `cart/shipping/select/`; the
+// the operator's default is chosen for the shopper (the first available, sender-paid option in
+// the API's order; never with COD; a refused one is not tried again for this cart), and with no
+// default the shopper is asked. A choice and its COD box go to `cart/shipping/select/`; the
 // refusals are handled by their code (use-checkout-writes): the reason shown, the list read
 // again, COD dropped for the same method prepaid; a 429 waits out `retry_after`.
 
@@ -40,8 +40,10 @@ function OptionsSkeleton() {
 }
 
 /**
- * Chooses the cheapest available option while none is chosen; one the API refused is not tried
- * again for this cart (no loop), the next cheapest is.
+ * Chooses the operator's default while none is chosen (`defaultOption`). An option the API
+ * refused as gone is not tried again for this cart (the next default is); a throttled one goes
+ * again once the wait is over; any other failure stops the choosing for this cart (no loop: the
+ * shopper chooses, its reason on screen).
  */
 function useAutoSelect(
   checkout: Checkout,
@@ -49,19 +51,23 @@ function useAutoSelect(
   ready: boolean,
   choose: (code: string, cod: boolean, auto: boolean) => Promise<WriteOutcome>,
 ) {
-  const tried = useRef({ cart: '', codes: new Set<string>() })
+  const tried = useRef({ cart: '', gone: new Set<string>(), held: false })
   const run = useEffectEvent(() => {
     const { cart } = checkout
     if (!cart || !list || !ready || cart.shipping.is_selected || !checkout.done.receiver) return
     const signature = optionsSignature(cart)
-    if (tried.current.cart !== signature) tried.current = { cart: signature, codes: new Set() }
-    const pick = cheapestAvailable(list.options, tried.current.codes)
+    if (tried.current.cart !== signature) {
+      tried.current = { cart: signature, gone: new Set(), held: false }
+    }
+    const state = tried.current
+    const pick = state.held ? null : defaultOption(list.options, state.gone)
     if (!pick) return
-    // Only a refused option is kept out (a later clear of the choice tries it again).
-    const { codes } = tried.current
-    codes.add(pick.code)
-    void choose(pick.code, false, true).then((outcome) => {
-      if (outcome.status === 'done') codes.delete(pick.code)
+    // One at a time; held for good after a failure that is neither a refusal nor a 429.
+    state.held = true
+    void choose(pick.code, false, true).then(({ status, error }) => {
+      if (status === 'failed' && isOptionGone(error)) state.gone.add(pick.code)
+      else if (status === 'failed' && !isThrottled(error)) return
+      state.held = false
     })
   })
   useEffect(() => run(), [checkout.cart, list, ready])
@@ -90,17 +96,27 @@ export function ShippingSection({ checkout }: { checkout: Checkout }) {
       setFailure(outcome.codDropped && outcome.message ? fail(outcome.message, null) : null)
       announce(
         auto
-          ? `روش ارسال «${title}»، ارزان\u{200C}ترین روش در دسترس، انتخاب شد.`
+          ? `روش ارسال پیش\u{200C}فرض فروشگاه، «${title}»، انتخاب شد.`
           : `روش ارسال «${title}» انتخاب شد.`,
       )
     } else if (outcome.message) {
-      const throttled = outcome.error instanceof ApiError && outcome.error.status === 429
-      setFailure(fail(throttled ? THROTTLED_MESSAGE : outcome.message, outcome.error))
+      const message = isThrottled(outcome.error) ? THROTTLED_MESSAGE : outcome.message
+      setFailure(fail(message, outcome.error))
     }
     return outcome
   }
 
   useAutoSelect(checkout, list, !options.isFetching && !busy && pending === null, choose)
+
+  // A choice the API can no longer price (`is_selected && !is_available`): said, read out once.
+  const shipping = cart?.shipping
+  const stale =
+    shipping?.is_selected && !shipping.is_available
+      ? `روش ارسال «${shipping.title ?? ''}» دیگر در دسترس نیست${shipping.reason ? `: ${shipping.reason}` : '.'} روش دیگری انتخاب کنید.`
+      : null
+  useEffect(() => {
+    if (stale) announce(stale)
+  }, [stale])
 
   if (!cart) return null
   if (!list) {
@@ -117,16 +133,20 @@ export function ShippingSection({ checkout }: { checkout: Checkout }) {
     )
   }
 
-  const { shipping } = cart
-  const chosen = shipping.is_selected && shipping.is_available ? shipping.code : null
+  const chosen = cart.shipping.is_selected && cart.shipping.is_available ? cart.shipping.code : null
   const value = pending?.code ?? chosen ?? ''
-  const cashOnDelivery = pending ? pending.cod : shipping.cash_on_delivery
-  const stale = shipping.is_selected && !shipping.is_available
+  const cashOnDelivery = pending ? pending.cod : cart.shipping.cash_on_delivery
+  // Nothing chosen, and nothing to be chosen for the shopper (no default, or it failed).
+  const asking =
+    !chosen &&
+    pending === null &&
+    list.options.some((option) => option.is_available) &&
+    (defaultOption(list.options) === null || failure !== null)
   return (
     <div className="flex flex-col gap-3">
       {stale && (
         <p className="rounded-card bg-warning/10 px-4 py-3 text-base leading-7 text-ink-800">
-          {`روش ارسال «${shipping.title ?? ''}» دیگر در دسترس نیست${shipping.reason ? `: ${shipping.reason}` : '.'} روش دیگری انتخاب کنید.`}
+          {stale}
         </p>
       )}
       {failure && (
@@ -143,6 +163,9 @@ export function ShippingSection({ checkout }: { checkout: Checkout }) {
         <p className="text-base leading-7 text-ink-700">
           برای این سبد خرید و این مقصد روش ارسالی در دسترس نیست.
         </p>
+      )}
+      {asking && (
+        <p className="text-base leading-7 font-medium text-ink-800">یک روش ارسال انتخاب کنید.</p>
       )}
       <RadioGroup
         aria-label={'روش\u{200C}های ارسال'}
