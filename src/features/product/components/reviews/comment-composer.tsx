@@ -14,7 +14,7 @@ import { reloadPage } from '@/lib/navigation/hard-navigation'
 function FormLoading() {
   return (
     <div className="grid h-40 place-items-center">
-      <Spinner size="lg" label="در حال آماده\u{200C}سازی فرم" className="text-brand-600" />
+      <Spinner size="lg" label={'در حال آماده\u{200C}سازی فرم'} className="text-brand-600" />
     </div>
   )
 }

@@ -30,7 +30,7 @@ export function ClearCartButton({ onCleared }: { onCleared: () => void }) {
       <DialogContent
         size="sm"
         title={'همه\u{0654} کالاها از سبد خرید حذف شوند؟'}
-        description="کد تخفیف هم از سبد برداشته می\u{200C}شود."
+        description={'کد تخفیف هم از سبد برداشته می\u{200C}شود.'}
         onOpenAutoFocus={(event) => {
           event.preventDefault()
           cancel.current?.focus()
