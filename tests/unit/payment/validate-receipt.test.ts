@@ -52,6 +52,21 @@ describe('validateReceipt', () => {
     }
   })
 
+  it('no type, or one the browser names oddly: the bytes decide (they say JPEG, PNG or WEBP)', () => {
+    for (const type of [
+      '',
+      'application/octet-stream',
+      'image/jpg',
+      'image/pjpeg',
+      'image/x-png',
+    ]) {
+      expect(validateReceipt(valid(image({ type })), NOW).image).toBeUndefined()
+      expect(
+        validateReceipt(valid(image({ type, probe: { ok: false, reason: 'format' } })), NOW).image,
+      ).toBe(M.imageType)
+    }
+  })
+
   it('a file that only claims to be a picture (its bytes say otherwise) is refused by type', () => {
     expect(
       validateReceipt(valid(image({ probe: { ok: false, reason: 'format' } })), NOW).image,

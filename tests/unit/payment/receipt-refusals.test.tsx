@@ -105,6 +105,20 @@ describe('the server’s refusals, mapped', () => {
     expect(screen.getByRole('radiogroup')).toHaveAccessibleDescription(/دیگر پذیرفته نمی‌شود/)
   })
 
+  it('a card no longer active and the cards cannot be read again: said so, never "read again"', async () => {
+    let read = 0
+    await sendWith(
+      () => Promise.reject(new ApiError({ status: 400, code: 'payment_destination_card_invalid' })),
+      {
+        [CARDS]: () => (read++ === 0 ? ok(cards()) : Promise.reject(ApiError.network())),
+      },
+    )
+    await waitFor(() => expect(calls(mocks.bffFetch, CARDS)).toHaveLength(2))
+    const group = screen.getByRole('radiogroup')
+    await waitFor(() => expect(group).toHaveAccessibleDescription(/دوباره خوانده نشد/))
+    expect(group).not.toHaveAccessibleDescription(/فهرست کارت‌ها دوباره خوانده شد/)
+  })
+
   it('409 already submitted: «رسید قبلاً ثبت شده است» and the outcome', async () => {
     await sendWith(refuse(live.already_submitted), {
       [STATUS]: (() => {

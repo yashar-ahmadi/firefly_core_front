@@ -7,7 +7,7 @@ import type { CardTransferReceipt } from '@/lib/api/types/payment'
 import { NO_WAIT, restartWait, type Wait } from '@/lib/forms/waits'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import type { ReceiptBody } from './card-transfer-api'
-import { receiptRefusal } from './receipt-errors'
+import { CARDS_NOT_REREAD, receiptRefusal } from './receipt-errors'
 import { THROTTLED_RECEIPT, UPLOADING } from './transfer-copy'
 import {
   normalizeLastDigits,
@@ -49,8 +49,8 @@ export interface ReceiptHandlers {
   /** 400 `payment_target_invalid`: the attempt is no longer open. */
   onClosed: () => void
   onRefused: (reason: 'forbidden' | 'not_found') => void
-  /** The cards read again (a chosen card the API no longer takes). */
-  reloadCards: () => Promise<unknown>
+  /** The cards read again (a chosen card the API no longer takes); false: they could not be. */
+  reloadCards: () => Promise<boolean>
   /** Sends the receipt (the page knows whether the payment is someone else's: §11 #7). */
   upload: (body: ReceiptBody) => Promise<CardTransferReceipt>
 }
@@ -110,8 +110,9 @@ export function useReceiptSubmit(handlers: ReceiptHandlers): ReceiptSubmit {
     } catch (error) {
       const refusal = receiptRefusal(error)
       if (refusal.kind === 'fields') {
-        if (refusal.reloadCards) await handlers.reloadCards()
-        refuse(refusal.errors)
+        // Said as read again only when it was: otherwise the list on screen is the old one.
+        const reread = refusal.reloadCards ? await handlers.reloadCards() : true
+        refuse(reread ? refusal.errors : { ...refusal.errors, destination_card: CARDS_NOT_REREAD })
       } else if (refusal.kind === 'submitted') handlers.onSubmitted()
       else if (refusal.kind === 'closed') handlers.onClosed()
       else if (refusal.kind === 'refused') handlers.onRefused(refusal.reason)

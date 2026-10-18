@@ -6,14 +6,33 @@ import { STEP_CONTROLS } from '@/features/checkout/step-controls'
 import type { BankCard } from '@/lib/api/types/payment'
 import { toPersianDigits } from '@/lib/format/digits'
 import { VisuallyHidden } from '@/components/ui/visually-hidden'
-import { cardDigits } from './destination-card'
+import { cardTail } from './destination-card'
 
 // Which of the shop's cards the money went to (the receipt's `destination_card`): one radio per
-// card read, named by its bank and its last four digits; the form chooses the only card when there
+// card read, named by its bank and its last four digits (a card with no number: the sheba's, else
+// the account's, said as such, so two of them differ); the form chooses the only card when there
 // is one. The radio group comes with the checkout's set of controls (step-controls.ts: taking it
 // alone would split a chunk the catalog's filters share).
 
 const { RadioGroup, RadioGroupItem } = STEP_CONTROLS
+
+const TAIL_LABEL = { card: null, sheba: 'شبا', account: 'حساب' } as const
+
+function CardLabel({ card }: { card: BankCard }) {
+  const tail = cardTail(card)
+  const label = TAIL_LABEL[tail.kind]
+  return (
+    <>
+      {card.bank_name}
+      {label && ` (${label})`}{' '}
+      {tail.last && (
+        <bdi dir="ltr" className="tabular-nums">
+          {toPersianDigits(tail.last)}
+        </bdi>
+      )}
+    </>
+  )
+}
 
 export interface DestinationChoiceProps {
   /** The group's id (the form focuses its chosen, or first, radio). */
@@ -61,14 +80,7 @@ export function DestinationChoice({
             key={card.id}
             value={String(card.id)}
             variant="card"
-            label={
-              <>
-                {card.bank_name}{' '}
-                <bdi dir="ltr" className="tabular-nums">
-                  {toPersianDigits(`${cardDigits(card.card_number).slice(-4)}`)}
-                </bdi>
-              </>
-            }
+            label={<CardLabel card={card} />}
             description={`به نام ${card.holder_name}`}
           />
         ))}

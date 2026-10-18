@@ -22,6 +22,9 @@ import { RECEIPT_MESSAGES, type ReceiptErrors, type ReceiptField } from './valid
 export const UPLOAD_RETRY = 'ارسال رسید کامل نشد؛ دوباره تلاش کنید'
 export const CARDS_CHANGED =
   'کارت انتخاب\u{200C}شده دیگر پذیرفته نمی\u{200C}شود؛ فهرست کارت\u{200C}ها دوباره خوانده شد. کارتی را که به آن واریز کرده\u{200C}اید دوباره انتخاب کنید'
+/** The same refusal when the cards could not be read again (the list on screen is the old one). */
+export const CARDS_NOT_REREAD =
+  'کارت انتخاب\u{200C}شده دیگر پذیرفته نمی\u{200C}شود و فهرست کارت\u{200C}ها دوباره خوانده نشد. صفحه را دوباره باز کنید یا کمی بعد دوباره تلاش کنید'
 
 export type ReceiptRefusal =
   /** Under the fields; `reloadCards`: read the cards again and ask for the card again. */

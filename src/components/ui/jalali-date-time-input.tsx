@@ -104,7 +104,8 @@ export function JalaliDateTimeInput({
     ))
 
   return (
-    <fieldset className="flex min-w-0 flex-col gap-2" aria-describedby={describedBy}>
+    // The hint and the error describe each control, not the group as well (read twice).
+    <fieldset className="flex min-w-0 flex-col gap-2">
       <legend className="mb-1.5 text-base font-medium text-ink-800">
         {legend}
         {required && (

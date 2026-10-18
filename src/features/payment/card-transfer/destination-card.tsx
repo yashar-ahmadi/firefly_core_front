@@ -7,13 +7,29 @@ import { CopyValue } from './copy-value'
 // One of the shop's cards to transfer to (order digest §2 `BankCard`, §5.7 step 2): the bank's
 // name and logo (a bank icon when the API sends its placeholder), the holder, then the card
 // number in groups of four, the sheba and the account number, each left to right in Persian
-// digits with its own copy button (copied as the bare value: the digits, `IR…`).
+// digits with its own copy button (copied as the bare value: the digits, `IR…`). The model lets
+// the card number be blank when a sheba or an account number exists: no row for it then.
 
 /** The API's placeholder for a missing picture (`/static/defaults/default.png`). */
 const isPlaceholder = (url: string | null) => !url || url.includes('/static/defaults/')
 
 /** «6104-3378-1234-5678» → «6104337812345678». */
 export const cardDigits = (cardNumber: string) => cardNumber.replace(/\D/g, '')
+
+/** The sheba as copied: no spaces, upper case. */
+export const shebaOf = (card: BankCard) => card.sheba.replace(/\s+/g, '').toUpperCase()
+
+/**
+ * What tells this card apart in a list: the card number's last four, else (a card with none)
+ * the sheba's, else the account number's.
+ */
+export function cardTail(card: BankCard): { kind: 'card' | 'sheba' | 'account'; last: string } {
+  const digits = cardDigits(card.card_number)
+  if (digits) return { kind: 'card', last: digits.slice(-4) }
+  const sheba = shebaOf(card).replace(/\D/g, '')
+  if (sheba) return { kind: 'sheba', last: sheba.slice(-4) }
+  return { kind: 'account', last: cardDigits(card.account_number).slice(-4) }
+}
 
 /** In groups of four from the start: «IR62 0120 0000 …», «6104 3378 1234 5678». */
 const grouped = (value: string) => value.match(/.{1,4}/g)?.join(' ') ?? value
@@ -42,7 +58,7 @@ function BankLogo({ src }: { src: string | null }) {
 
 export function DestinationCard({ card }: { card: BankCard }) {
   const digits = cardDigits(card.card_number)
-  const sheba = card.sheba.replace(/\s+/g, '').toUpperCase()
+  const sheba = shebaOf(card)
   const headingId = `bank-card-${card.id}`
   return (
     <article
@@ -59,9 +75,11 @@ export function DestinationCard({ card }: { card: BankCard }) {
         </div>
       </div>
       <div className="flex flex-col gap-2.5">
-        <CopyValue label="شماره کارت" value={digits} what={`شماره کارت ${card.bank_name}`} large>
-          {toPersianDigits(grouped(digits))}
-        </CopyValue>
+        {digits && (
+          <CopyValue label="شماره کارت" value={digits} what={`شماره کارت ${card.bank_name}`} large>
+            {toPersianDigits(grouped(digits))}
+          </CopyValue>
+        )}
         {sheba && (
           <CopyValue label="شماره شبا" value={sheba} what={`شماره شبای ${card.bank_name}`}>
             {toPersianDigits(grouped(sheba))}

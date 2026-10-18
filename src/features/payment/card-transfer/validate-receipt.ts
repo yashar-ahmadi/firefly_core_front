@@ -80,10 +80,23 @@ export function normalizeLastDigits(value: string): string {
   return toLatinDigits(value).replace(/\s+/g, '')
 }
 
+/** Names browsers give a JPEG or PNG besides the standard ones. */
+const TYPE_ALIASES: ReadonlySet<string> = new Set(['image/jpg', 'image/pjpeg', 'image/x-png'])
+
+/**
+ * The browser names the file as another kind of picture (GIF, HEIC, BMP…). An empty or unusual
+ * type (none at all, `application/octet-stream`, an alias) says nothing: the bytes decide
+ * (`probe`: they must be a JPEG, PNG or WEBP).
+ */
+const otherPicture = (type: string) =>
+  type.startsWith('image/') &&
+  !(RECEIPT_TYPES as readonly string[]).includes(type) &&
+  !TYPE_ALIASES.has(type)
+
 /** The picture's own problem, or null (the same checks as the API, in its order). */
 export function imageError(image: ReceiptImage | null): string | null {
   if (!image) return M.imageRequired
-  if (!(RECEIPT_TYPES as readonly string[]).includes(image.type)) return M.imageType
+  if (otherPicture(image.type)) return M.imageType
   if (image.size > MAX_RECEIPT_BYTES) return M.imageSize
   const { probe } = image
   if (!probe.ok) return probe.reason === 'format' ? M.imageType : M.imageDecode

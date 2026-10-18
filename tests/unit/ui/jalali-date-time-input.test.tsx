@@ -103,12 +103,14 @@ describe('JalaliDateTimeInput', () => {
     expect(onChange).toHaveBeenLastCalledWith('2026-03-20T12:00:00+03:30')
   })
 
-  it('an error marks every control invalid and describes it', () => {
+  it('an error marks every control invalid and describes it, once (not the group too)', () => {
     render(<Harness error="زمان واریز نمی‌تواند در آینده باشد" />)
     for (const name of ['روز', 'ماه', 'سال', 'ساعت', 'دقیقه']) {
       expect(select(name)).toHaveAttribute('aria-invalid', 'true')
       expect(select(name)).toHaveAccessibleDescription(/زمان واریز نمی‌تواند در آینده باشد/)
     }
+    // Entering the group would read it, then the control again: the controls carry it alone.
+    expect(screen.getByRole('group')).not.toHaveAttribute('aria-describedby')
   })
 
   it('the time reads left to right (hour, then minute)', () => {
