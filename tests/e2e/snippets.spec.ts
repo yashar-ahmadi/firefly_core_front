@@ -54,4 +54,18 @@ test.describe('operator snippets', () => {
     await page.waitForLoadState('load')
     expect(logs.filter((text) => text === SEAL_LOG)).toHaveLength(1)
   })
+
+  test('a payment page runs no snippet and sends no referrer (its URL holds a credential)', async ({
+    page,
+  }) => {
+    const logs: string[] = []
+    page.on('console', (message) => logs.push(message.text()))
+    // Not a token's shape: the page answers 404 without asking the API (the rule is the path's).
+    const response = await page.goto('/order/pay/e2e-not-a-token/')
+    await page.waitForLoadState('load')
+    expect(response?.headers()['referrer-policy']).toBe('no-referrer')
+    expect(await page.evaluate(() => 'dataLayer' in window)).toBe(false)
+    expect(logs).not.toContain(SEAL_LOG)
+    expect(await page.locator('[data-snippet-zone]').count()).toBe(0)
+  })
 })

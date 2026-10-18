@@ -134,13 +134,10 @@ export function PlacedOrderPanel({
             <SupportPhone phone={supportPhone} label="پشتیبانی" iconLabel="تماس با پشتیبانی" />
           )}
           {error?.problem === 'attempt_open' && ctx.linkToken && (
-            <Link
-              href={payLinkPath(ctx.linkToken)}
-              prefetch={false}
-              className={buttonClasses({ variant: 'link' })}
-            >
+            // A full page load (its URL holds the token): credential-routes.ts.
+            <a href={payLinkPath(ctx.linkToken)} className={buttonClasses({ variant: 'link' })}>
               ادامه یا لغو پرداخت نیمه‌تمام
-            </Link>
+            </a>
           )}
           {/* Past its deadline (or its link gone): this order cannot be paid; a new one can. */}
           {error?.problem === 'unpayable' && (

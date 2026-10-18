@@ -60,8 +60,13 @@ const nextConfig: NextConfig = {
   // compressing proxy in front, Next's gzip still applies.
   compress: true,
   reactStrictMode: true,
-  // X-Frame-Options, CSP frame-ancestors, nosniff and Referrer-Policy on every response.
+  // X-Frame-Options, CSP frame-ancestors, nosniff and Referrer-Policy on every response
+  // (no-referrer on the pages whose URL holds a payment credential).
   headers: async () => securityHeaderRules(),
+  // `next dev` logs each request's URL; never one holding a payment link's token or a payment's
+  // uuid (src/config/credential-routes.ts), the BFF's paths to them included. Production logs no
+  // requests.
+  logging: { incomingRequests: { ignore: [/\/order\/pay\//i, /\/payment\//i] } },
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: buildRemotePatterns(),

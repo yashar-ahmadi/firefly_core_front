@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { carriesCredential, ROUTE_KIND_HEADER, type RouteKind } from '@/config/credential-routes'
 import { getServerEnv, type ServerEnv } from '@/config/env'
 import { COOKIE } from '@/lib/auth/cookies'
 import { isExpiring } from '@/lib/auth/jwt'
@@ -23,6 +24,12 @@ import { getClientIp } from '@/lib/http/client-ip'
  * 6. The account area's guard (ruling P3-R3, see `account-guard.ts`): a read of an account page
  *    without a session (no refresh cookie, or one the API has just rejected) is sent to login,
  *    with the page and its query as `next`; leftover session cookies are cleared on the way.
+ *
+ * Every page that renders is marked for the layouts (`x-ff-route-kind`, never the visitor's own):
+ * `credential` when its URL holds a payment link's token or a payment's uuid (or leads back to
+ * one), else `page`. Operator code renders only on `page` (see `credential-routes.ts`). A
+ * credential page is never looked up as a redirect source: its path never reaches the API's
+ * redirect resolver or a log line.
  */
 
 const GONE_TITLE = 'این صفحه حذف شده است'
@@ -137,15 +144,24 @@ function toLogin(request: NextRequest, env: ServerEnv, clear: boolean): NextResp
   return response
 }
 
+/** The request headers the page renders with: the visitor's, with the proxy's own route kind. */
+function pageHeaders(request: NextRequest, kind: RouteKind): Headers {
+  const headers = new Headers(request.headers)
+  headers.set(ROUTE_KIND_HEADER, kind)
+  return headers
+}
+
 async function withSession(
   request: NextRequest,
   env: ServerEnv,
   forwardedFor: string | null,
+  kind: RouteKind,
 ): Promise<NextResponse> {
   const { access, refresh, marker } = readSession(request)
   const guarded = isGuarded(request)
+  const render = () => NextResponse.next({ request: { headers: pageHeaders(request, kind) } })
   if (refresh === null) {
-    if (!guarded) return NextResponse.next()
+    if (!guarded) return render()
     // A flag or access cookie left behind would show login a session that is not there.
     return toLogin(
       request,
@@ -153,11 +169,11 @@ async function withSession(
       SESSION_COOKIES.some((name) => request.cookies.has(name)),
     )
   }
-  if (!isExpiring(access)) return NextResponse.next()
+  if (!isExpiring(access)) return render()
 
   const result = await refreshAccess(refresh, forwardedFor)
   // No answer says nothing about the session: keep the cookies and render.
-  if ('error' in result && result.error === 'network') return NextResponse.next()
+  if ('error' in result && result.error === 'network') return render()
   if (!('access' in result) && guarded) return toLogin(request, env, true)
 
   const jar = new CookieJar()
@@ -174,7 +190,7 @@ async function withSession(
   }
 
   // Server Components read the new cookies from the forwarded request.
-  const headers = new Headers(request.headers)
+  const headers = pageHeaders(request, kind)
   if (cookie) headers.set('cookie', cookie)
   else headers.delete('cookie')
   const response = NextResponse.next({ request: { headers } })
@@ -196,11 +212,12 @@ export async function proxy(request: NextRequest): Promise<Response> {
 
   const env = getServerEnv()
   const forwardedFor = getClientIp(request.headers, env.CLIENT_IP_HEADER)
-  const redirect = await redirectFor(request, forwardedFor, decodable)
+  const kind: RouteKind = carriesCredential(request.nextUrl) ? 'credential' : 'page'
+  const redirect = kind === 'page' ? await redirectFor(request, forwardedFor, decodable) : null
   if (redirect !== null) return redirect
   // No route can read it: no session refresh either.
   if (!decodable) return notFoundPage()
-  return withSession(request, env, forwardedFor)
+  return withSession(request, env, forwardedFor, kind)
 }
 
 // Next reads `config` statically at build time: literals only, no shared constants.

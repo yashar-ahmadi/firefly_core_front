@@ -4,6 +4,10 @@ import { SnippetHtmlZone, Snippets } from '@/features/settings/snippets'
 import type { Snippet } from '@/lib/api/types/settings'
 
 vi.mock('server-only', () => ({}))
+vi.mock('next/headers', () => ({
+  // An ordinary page, as the proxy marks it (operator code renders only there).
+  headers: async () => new Headers({ 'x-ff-route-kind': 'page' }),
+}))
 const api = vi.hoisted(() => ({ getSnippets: vi.fn<() => Promise<Snippet[]>>() }))
 vi.mock('@/features/settings/api', () => api)
 

@@ -1,6 +1,7 @@
 import 'server-only'
 import type { ReactNode } from 'react'
 import { getSnippets } from '@/features/settings/api'
+import { operatorCodeAllowed } from '@/features/settings/operator-code'
 import { renderSnippetNode, snippetNodes } from '@/features/settings/snippet-nodes'
 import type { SnippetNode } from '@/lib/snippets/parse'
 
@@ -19,8 +20,12 @@ const ZONE_SLOTS: Record<SnippetZone, SnippetSlot> = {
   bottom: 'bottom_of_body',
 }
 
-/** The slot's nodes in API order, keyed for React. */
+/**
+ * The slot's nodes in API order, keyed for React; none at all on a page that may not carry the
+ * operator's code (a payment page, whose URL holds a credential: `operatorCodeAllowed`).
+ */
 async function slotNodes(slot: SnippetSlot): Promise<Array<{ key: string; node: SnippetNode }>> {
+  if (!(await operatorCodeAllowed())) return []
   const positions = POSITIONS[slot]
   const placement = slot === 'in_head' ? 'head' : 'body'
   const snippets = (await getSnippets()).filter((snippet) => positions.includes(snippet.position))
@@ -70,6 +75,9 @@ export async function renderSnippetHtmlZone(
  * `top` holds `top_of_body`, `bottom` holds `bottom_of_body` and `outside_of_body`. Render each
  * zone once per page, before its slot's `<Snippets>`, so the markup exists when the scripts run.
  * Nothing is rendered without HTML; `className` replaces the default (centred row) classes.
+ *
+ * Neither the zones nor the scripts render on the payment pages (`/order/pay/…`, `/payment/…`):
+ * their URL holds a credential (src/config/credential-routes.ts).
  *
  * Where operators' HTML appears:
  * - `top`: right after <body> opens, on every page (the root layout).

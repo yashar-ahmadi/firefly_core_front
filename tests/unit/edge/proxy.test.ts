@@ -36,7 +36,10 @@ function request(path: string, init: Init = {}): NextRequest {
   return new NextRequest(`https://shop.test${path}`, { method: init.method ?? 'GET', headers })
 }
 
-/** The cookie header the proxy hands to the rendering request, or undefined when unchanged. */
+/**
+ * The cookie header the proxy hands to the rendering request, or undefined when it left the
+ * request's headers alone (a path it skips; every page it serves gets its route kind).
+ */
 function forwardedCookies(res: Response): string | null | undefined {
   const overridden = res.headers.get('x-middleware-override-headers')
   if (overridden === null) return undefined
@@ -338,7 +341,8 @@ describe('session refresh', () => {
     const { proxy } = await load()
     const res = await proxy(request('/product/x/', { cookies: { ff_rt: refresh } }))
     expect(res.headers.getSetCookie()).toEqual([])
-    expect(forwardedCookies(res)).toBeUndefined()
+    // The page renders with the browser's own cookies (only the route kind is added).
+    expect(forwardedCookies(res)).toBe(`ff_rt=${refresh}`)
   })
 
   it('leaves a fresh access token alone', async () => {

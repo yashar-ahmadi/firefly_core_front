@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { CREDENTIAL_PREFIXES, credentialQueryValue } from './credential-routes'
 
 /**
  * Baseline security headers on every response, served by `next.config.ts` (`headers()`), so they
@@ -9,6 +10,9 @@ import type { NextConfig } from 'next'
  *   style policy needs per-request nonces and is deferred (docs/DEPLOYMENT.md, «دربارهٔ CSP»).
  * - `X-Content-Type-Options: nosniff`: browsers keep the declared content types.
  * - `Referrer-Policy: strict-origin-when-cross-origin`: other sites see the origin, not the path.
+ *   The pages whose URL holds a payment credential (credential-routes.ts: `/order/pay/…`,
+ *   `/payment/…`, and a page whose `next` leads back to one) send `no-referrer` instead: a later
+ *   rule for the same header wins in Next.
  *
  * To let another domain frame the shop, an operator must change both framing headers here.
  */
@@ -21,9 +25,20 @@ export const SECURITY_HEADERS: ReadonlyArray<{ readonly key: string; readonly va
 
 type HeaderRule = Awaited<ReturnType<NonNullable<NextConfig['headers']>>>[number]
 
-/** The `headers()` rules: the baseline headers on every path (fresh objects on each call). */
+const noReferrer = () => [{ key: 'Referrer-Policy', value: 'no-referrer' }]
+
+/**
+ * The `headers()` rules (fresh objects on each call): the baseline headers on every path, then
+ * `no-referrer` on the credential pages (by path, and by a `next` that leads back to one).
+ */
 export function securityHeaderRules(): HeaderRule[] {
   return [
     { source: '/:path*', headers: SECURITY_HEADERS.map(({ key, value }) => ({ key, value })) },
+    ...CREDENTIAL_PREFIXES.map((prefix) => ({ source: `${prefix}:path*`, headers: noReferrer() })),
+    {
+      source: '/:path*',
+      has: [{ type: 'query' as const, key: 'next', value: credentialQueryValue() }],
+      headers: noReferrer(),
+    },
   ]
 }

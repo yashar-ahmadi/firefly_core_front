@@ -63,14 +63,14 @@ export function PayLater({
             تا پایان مهلت پرداخت، این سفارش را با لینک پرداخت آن هم می‌توانید پرداخت کنید؛ این لینک
             با پیامک هم برایتان فرستاده می‌شود.
           </p>
-          <Link
+          {/* A full page load (its URL holds the token): credential-routes.ts. */}
+          <a
             href={payLinkPath(linkToken)}
-            prefetch={false}
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
             <ExternalLink aria-hidden />
             لینک پرداخت سفارش
-          </Link>
+          </a>
           {expiresAt && (
             <p className="flex flex-wrap items-center gap-x-2">
               <CalendarClock aria-hidden className="size-5 text-ink-500" />

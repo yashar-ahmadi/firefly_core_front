@@ -17,16 +17,27 @@ afterEach(() => {
 // is deferred (docs/DEPLOYMENT.md), so the CSP carries `frame-ancestors` only.
 
 describe('security headers', () => {
-  it('applies the four baseline headers to every path', () => {
-    expect(securityHeaderRules()).toEqual([
+  it('applies the four baseline headers to every path, first', () => {
+    expect(securityHeaderRules()[0]).toEqual({
+      source: '/:path*',
+      headers: [
+        { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+        { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      ],
+    })
+  })
+
+  it('then sends no referrer from the pages that hold a credential (the later rule wins)', () => {
+    const noReferrer = [{ key: 'Referrer-Policy', value: 'no-referrer' }]
+    expect(securityHeaderRules().slice(1)).toEqual([
+      { source: '/order/pay/:path*', headers: noReferrer },
+      { source: '/payment/:path*', headers: noReferrer },
       {
         source: '/:path*',
-        headers: [
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-        ],
+        has: [{ type: 'query', key: 'next', value: '(?:/order/pay/|/payment/).*' }],
+        headers: noReferrer,
       },
     ])
   })

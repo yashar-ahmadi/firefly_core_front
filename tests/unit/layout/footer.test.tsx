@@ -21,6 +21,10 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('server-only', () => ({}))
+vi.mock('next/headers', () => ({
+  // An ordinary page, as the proxy marks it (operator code renders only there).
+  headers: async () => new Headers({ 'x-ff-route-kind': 'page' }),
+}))
 // The root providers' session sweep uses the App Router (mounted around them in the app).
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',

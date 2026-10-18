@@ -22,6 +22,7 @@ the API digests in [backend-integration/](backend-integration/) and
 - [Performance](#performance)
 - [Errors and degraded operation](#errors-and-degraded-operation)
 - [Operator content: sanitised HTML versus snippets](#operator-content-sanitised-html-versus-snippets)
+- [Payment credentials in URLs](#payment-credentials-in-urls)
 - [Folder conventions](#folder-conventions)
 - [Testing strategy](#testing-strategy)
 - [Adding a page, a feature or a preset](#adding-a-page-a-feature-or-a-preset)
@@ -592,6 +593,40 @@ signed-in header to another.
   early. Scripts run on the first full page load only. The only CSP today is `frame-ancestors`; a
   script/style policy must be nonce-based (Next's inline RSC scripts, the per-announcement inline
   script, snippets, the theme `<style>`).
+
+## Payment credentials in URLs
+
+The payment link's token (`/order/pay/<token>/`, a guest's only key to pay or cancel the order)
+and a payment's uuid (`/payment/callback/?payment=<uuid>`, `/payment/card-transfer/<uuid>/`) are
+bearer credentials (order digest §1.3): whoever reads the URL holds them. One rule names these
+pages, `src/config/credential-routes.ts` (`isCredentialPath`, `carriesCredential`): the two path
+prefixes, and a page whose `next` leads back to one (the payment link offers a login for the
+wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
+
+- **No operator code.** The proxy marks every page it serves with `x-ff-route-kind: page` or
+  `credential` (overwriting whatever the visitor sent). The snippet loader
+  (`src/features/settings/snippets.tsx` through `operator-code.ts`) renders only on `page`: on a
+  credential page, and on anything the proxy did not mark (fail closed), there are no snippet
+  scripts, styles, meta tags, and no HTML zones either (the top zone, the footers' trust seals:
+  their markup is unsanitised operator HTML, and `<img onerror>` would run). Analytics therefore
+  never sees these URLs (`page_location`).
+- **No referrer.** `securityHeaderRules()` (next.config.ts) sends `Referrer-Policy: no-referrer`
+  on the credential pages (a later header rule wins in Next), the SMS link's 308 included.
+- **Full page loads.** Our links to them are plain `<a>` and `loadPage()`, never the client
+  router: a script loaded on the page before (an analytics history listener) would otherwise see
+  the new URL. The reverse is harmless: from a credential page, a client navigation keeps the
+  root layout it rendered, so the pages after it show no operator code until the next full load.
+- **Never looked up or logged.** The proxy never resolves a credential page as an operator
+  redirect source (its path never reaches the redirect API nor `[redirects]` log lines); the BFF
+  logs no paths; `next dev`'s request log ignores `/order/pay/` and `/payment/` (production logs
+  no requests). Errors are logged with their status and code, never the path.
+
+Tests: `tests/unit/config/credential-routes.test.ts` (the rule),
+`credential-headers.test.ts` (Next's own header matcher, the SMS link's 308 keeping the token),
+`tests/unit/edge/proxy-credential.test.ts` (the marker), `tests/unit/layout/snippets-credential
+.test.tsx` (nothing renders unmarked or on a credential page), `tests/unit/payment/credential-
+links.test.tsx` (full loads), and `tests/e2e/snippets.spec.ts` (no snippet runs on the payment
+link's page, and its `Referrer-Policy`).
 
 ## Folder conventions
 

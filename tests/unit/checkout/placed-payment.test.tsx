@@ -28,8 +28,14 @@ import {
 // line, the other routes again, each press a new key.
 
 const LINK_INTENT = `payment/link/${LINK_TOKEN}/intent/`
-const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), push: vi.fn(), goToBank: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  bffFetch: vi.fn(),
+  push: vi.fn(),
+  goToBank: vi.fn(),
+  loadPage: vi.fn(),
+}))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
+vi.mock('@/lib/navigation/hard-navigation', () => ({ loadPage: mocks.loadPage }))
 vi.mock('next/navigation', () => ({
   usePathname: () => '/checkout/',
   useRouter: () => ({ push: mocks.push, replace: vi.fn(), refresh: vi.fn() }),
@@ -42,6 +48,7 @@ beforeEach(() => {
   mocks.bffFetch.mockReset()
   mocks.push.mockReset()
   mocks.goToBank.mockReset()
+  mocks.loadPage.mockReset()
   sessionStorage.clear()
   localStorage.clear()
 })
@@ -121,9 +128,11 @@ describe('after placement', () => {
     )
     await user.click(within(routes).getByRole('radio', { name: /کارت به کارت/ }))
     await user.click(screen.getByRole('button', { name: 'پرداخت سفارش' }))
+    // Its URL holds the payment's uuid: a full page load, never the client router.
     await waitFor(() =>
-      expect(mocks.push).toHaveBeenCalledWith(`/payment/card-transfer/${PAYMENT_UUID}/`),
+      expect(mocks.loadPage).toHaveBeenCalledWith(`/payment/card-transfer/${PAYMENT_UUID}/`),
     )
+    expect(mocks.push).not.toHaveBeenCalled()
     const [first, second] = pay.mock.calls.map(
       ([, init]) => (init as { idempotencyKey: string }).idempotencyKey,
     )

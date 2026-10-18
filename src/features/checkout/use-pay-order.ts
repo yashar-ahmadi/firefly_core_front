@@ -10,6 +10,7 @@ import { savePending } from '@/features/payment/pending-payments'
 import { BANK_ROUTES } from '@/features/payment/routes'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
 import type { PaymentRoute, RedirectPayload } from '@/lib/api/types/payment'
+import { loadPage } from '@/lib/navigation/hard-navigation'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
 import { newIdempotencyKey } from './idempotency'
@@ -91,9 +92,10 @@ export function usePayOrder(
       return toThanks()
     }
     if (route === 'card_transfer' && uuid) {
-      // Its uuid is a guest's only handle on the receipt's outcome (digest §5.7).
+      // Its uuid is a guest's only handle on the receipt's outcome (digest §5.7). The page's URL
+      // holds it: a full page load, never the client router (credential-routes.ts).
       pending()
-      return router.push(`/payment/card-transfer/${uuid}/`)
+      return loadPage(`/payment/card-transfer/${uuid}/`)
     }
     if (route === 'wallet_and_gateway') walletMoved()
     if (!uuid || !intent.handoff) throw new IntentError('other', null)

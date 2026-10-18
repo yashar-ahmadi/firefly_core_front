@@ -29,6 +29,10 @@ const SEAL =
 const mocks = vi.hoisted(() => ({ menu: [] as unknown[], snippets: [] as unknown[] }))
 
 vi.mock('server-only', () => ({}))
+vi.mock('next/headers', () => ({
+  // An ordinary page, as the proxy marks it (operator code renders only there).
+  headers: async () => new Headers({ 'x-ff-route-kind': 'page' }),
+}))
 vi.mock('@/lib/api/client', () => ({ bffFetch: () => new Promise(() => {}) }))
 vi.mock('next/navigation', () => ({
   usePathname: () => '/checkout/',
