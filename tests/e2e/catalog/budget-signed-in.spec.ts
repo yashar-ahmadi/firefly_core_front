@@ -1,4 +1,6 @@
 import { expect, type Page } from '@playwright/test'
+import type { Paginated } from '@/lib/api/types/common'
+import type { OrderListItem } from '@/lib/api/types/order-detail'
 import {
   budgetOf,
   CHECKOUT_BUDGET_KB,
@@ -20,8 +22,24 @@ import { signedInTest } from '../support/session'
 // again in `budget-push` (a shop with web push; the same session), with push on in the browser:
 // the re-register effect's chunk loads there, the costliest case.
 
-/** Sara's orders the budget reads (the dev data; tests/e2e/account/orders.spec.ts reads them too). */
-const SARA_ORDERS = { delivered: '7010868573', payable: '3067562358' } as const
+const BFF = { 'X-Requested-With': 'ff' }
+
+/** The first of sara's orders in `group` the test can use (read through the BFF), or null. */
+async function saraOrder(
+  page: Page,
+  group: 'delivered' | 'awaiting_payment',
+  usable: (order: OrderListItem) => boolean = () => true,
+): Promise<string | null> {
+  const response = await page.request.get(`/api/bff/order/list/?status_group=${group}&limit=100`, {
+    headers: BFF,
+  })
+  expect(response.ok(), `sara's ${group} orders through the BFF`).toBe(true)
+  const list = ((await response.json()) as { data: Paginated<OrderListItem> }).data
+  return list.results.find(usable)?.order_code ?? null
+}
+
+/** A route whose path is sara's data of the day (null: she has none such, the state is skipped). */
+type SignedInRoute = BudgetRoute & { resolve?: (page: Page) => Promise<string | null> }
 
 async function cardsShown(page: Page) {
   await expect(page.getByRole('article').first()).toBeVisible()
@@ -30,7 +48,7 @@ async function paymentsShown(page: Page) {
   await expect(page.getByRole('list', { name: 'پرداخت‌های سفارش' })).toBeVisible()
 }
 
-const ROUTES: BudgetRoute[] = [
+const ROUTES: SignedInRoute[] = [
   { name: 'home', path: '/' },
   { name: 'category', path: '/product-category/digital/mobile-phone/' },
   { name: 'product', path: '/product/samsung-galaxy-s25-ultra/' },
@@ -55,13 +73,21 @@ const ROUTES: BudgetRoute[] = [
   },
   {
     name: 'order-delivered',
-    path: `/account/orders/${SARA_ORDERS.delivered}/`,
+    path: '/account/orders/<delivered>/',
+    resolve: async (page) => {
+      const code = await saraOrder(page, 'delivered')
+      return code && `/account/orders/${code}/`
+    },
     budget: CHECKOUT_BUDGET_KB,
     ready: paymentsShown,
   },
   {
     name: 'order-payable',
-    path: `/account/orders/${SARA_ORDERS.payable}/`,
+    path: '/account/orders/<payable>/',
+    resolve: async (page) => {
+      const code = await saraOrder(page, 'awaiting_payment', (order) => order.is_payable)
+      return code && `/account/orders/${code}/`
+    },
     budget: CHECKOUT_BUDGET_KB,
     ready: (page) => expect(page.getByRole('button', { name: 'پرداخت' })).toBeVisible(),
   },
@@ -77,14 +103,17 @@ signedInTest.describe('JavaScript budget, signed in (production build)', () => {
       async ({ page, browser, saraState }, info) => {
         signedInTest.skip(!measuresBudget(info.project), 'measures both viewports itself')
         signedInTest.setTimeout(90_000)
+        const path = route.resolve ? await route.resolve(page) : route.path
+        signedInTest.skip(path === null, `sara has no order for ${route.name} (the dev data)`)
+        const measured: BudgetRoute = { ...route, path: path! }
         const push = pushShop(info.project)
         const label = (device: string) =>
           deviceLabel(info.project, push ? `${device}, push on` : device)
-        const desktop = await measure(page, route, label('desktop, signed in'), {
+        const desktop = await measure(page, measured, label('desktop, signed in'), {
           signedIn: true,
           push,
         })
-        const phone = await measurePhone(browser, route, {
+        const phone = await measurePhone(browser, measured, {
           storageState: saraState,
           device: label('phone, signed in'),
           signedIn: true,
