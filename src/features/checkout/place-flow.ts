@@ -3,7 +3,7 @@ import type { Cart } from '@/lib/api/types/cart'
 import type { CheckoutStep } from './checkout-steps'
 import type { GuestField } from './guest-receiver'
 import { placeOrder, PlacementError, type PlaceOrderInput } from './place-order'
-import { afterPlacement, contextOf, type PlacedContext } from './placed-order'
+import { afterPlacement, contextOf, recordEarlier, type PlacedContext } from './placed-order'
 import type { Placement, PlacementNotice } from './use-place-order'
 
 // The press's own work (order digest §5.1–5.2, §8.1), loaded on the press (the checkout's first
@@ -12,16 +12,26 @@ import type { Placement, PlacementNotice } from './use-place-order'
 // page's own state and helpers handed in: this chunk adds no module the page does not have).
 // `submitPlacement` never rejects: a refusal comes back as its `PlacementError`.
 
+/**
+ * `earlier`: a replay (200) of an order whose total is not this cart's: the key's 2xx was lost
+ * and a new purchase began in this tab. That order is recorded, never taken for this purchase.
+ */
 export type PlacementOutcome =
-  { ok: true; ctx: PlacedContext } | { ok: false; error: PlacementError }
+  | { ok: true; ctx: PlacedContext }
+  | { ok: 'earlier'; ctx: PlacedContext }
+  | { ok: false; error: PlacementError }
 
 export async function submitPlacement(
   input: PlaceOrderInput,
   { route, gatewayCode }: { route: RouteChoice['route']; gatewayCode: string | null },
 ): Promise<PlacementOutcome> {
   try {
-    const { order } = await placeOrder(input)
+    const { order, replayed } = await placeOrder(input)
     const ctx = contextOf(order, { guest: input.isGuest, route, gatewayCode })
+    if (replayed && order.total !== input.expectedTotal) {
+      recordEarlier(ctx)
+      return { ok: 'earlier', ctx }
+    }
     afterPlacement(ctx)
     return { ok: true, ctx }
   } catch (error) {
@@ -64,7 +74,7 @@ export async function handleRefusal(error: PlacementError, sent: number, deps: R
   switch (error.problem) {
     case 'total_changed': {
       const fresh = await deps.reread()
-      if (fresh) deps.setTotalChanged({ cart: fresh, previous: sent })
+      if (fresh) deps.setTotalChanged({ previous: sent })
       return
     }
     case 'session':

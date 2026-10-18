@@ -2,6 +2,7 @@
 
 import type { UseQueryResult } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { CHECKOUT_ISSUES, checkoutBlock } from '@/features/cart/checkout-block'
 import { useCart } from '@/features/cart/hooks'
 import type { Cart } from '@/lib/api/types/cart'
 import { useSession } from '@/lib/session/session-context'
@@ -83,6 +84,8 @@ export interface Checkout {
 export interface CheckoutOptions {
   /** A payment route the rules allow is chosen (`usePaymentStep`). */
   paymentReady?: boolean
+  /** The order is placed: its cart is closed, nothing more is chosen for it. */
+  halted?: boolean
 }
 
 interface Draft {
@@ -123,7 +126,10 @@ function useSessionEnded(hasSession: boolean): boolean {
   return held && !hasSession
 }
 
-export function useCheckout({ paymentReady = false }: CheckoutOptions = {}): Checkout {
+export function useCheckout({
+  paymentReady = false,
+  halted = false,
+}: CheckoutOptions = {}): Checkout {
   const cartQuery = useCart()
   const cart = cartQuery.data
   const { hasSession: signedIn } = useSession()
@@ -176,14 +182,18 @@ export function useCheckout({ paymentReady = false }: CheckoutOptions = {}): Che
   const setDestinationByAddress = async (id: number) =>
     after(await destination.setDestination({ address: id }), 'receiver')
   // The choices made for the shopper, in the page's own code (their steps' bodies load only if
-  // the shopper is asked after all).
+  // the shopper is asked after all); only while there is a purchase to make.
+  const active =
+    !!cart && !cart.is_empty && checkoutBlock(cart, false) !== CHECKOUT_ISSUES && !halted
   const autoDestination = useAutoDestination({
+    active,
     signedIn,
     cart,
     pending: destination.isPending,
     post: setDestinationByAddress,
   })
   const autoShipping = useAutoShipping({
+    active,
     cart,
     ready: done.receiver,
     pending: shipping.isPending,

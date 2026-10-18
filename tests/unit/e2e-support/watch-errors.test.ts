@@ -16,6 +16,16 @@ describe('isExpectedFailure', () => {
     )
   })
 
+  it('and the same pictures through the image optimizer (`/_next/image/?url=/media/…`)', () => {
+    const optimized = (url: string) =>
+      `http://localhost:3000/_next/image/?url=${encodeURIComponent(url)}&w=32&q=75`
+    expect(isExpectedFailure(NOT_FOUND, optimized('/media/CACHE/images/brands/a.png'))).toBe(true)
+    // Anything else it serves is still reported.
+    expect(isExpectedFailure(NOT_FOUND, optimized('/_next/static/media/a.png'))).toBe(false)
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/_next/image/?w=32')).toBe(false)
+    expect(isExpectedFailure(SERVER_ERROR, optimized('/media/a.png'))).toBe(false)
+  })
+
   it('reports a backend picture that fails any other way (a 5xx, a refused connection)', () => {
     expect(isExpectedFailure(SERVER_ERROR, 'http://localhost:8000/media/CACHE/a.jpg')).toBe(false)
     expect(

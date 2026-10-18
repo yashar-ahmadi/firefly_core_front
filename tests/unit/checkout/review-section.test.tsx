@@ -2,6 +2,7 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PLACEMENT_KEY_STORAGE } from '@/features/checkout/idempotency'
+import { ApiError } from '@/lib/api/errors'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { TERMS } from '../payment/fixtures'
 import {
@@ -42,6 +43,7 @@ beforeEach(() => {
 })
 
 const review = () => screen.getByRole('region', { name: /بازبینی و ثبت سفارش/ })
+const reviewSoon = () => screen.findByRole('region', { name: /بازبینی و ثبت سفارش/ })
 
 describe('ReviewSection', () => {
   it('shows what is ordered, where, how it is paid, and the API’s online share', async () => {
@@ -88,6 +90,28 @@ describe('ReviewSection', () => {
     )
     expect(await placeButton()).not.toHaveAttribute('aria-disabled')
   })
+
+  it('a re-read that failed never lets the press through: said, with another try', async () => {
+    const user = userEvent.setup()
+    serve(mocks.bffFetch, () => onlineCart())
+    const served = mocks.bffFetch.getMockImplementation()!
+    let fail = true
+    mocks.bffFetch.mockImplementation((path: string, init: unknown) =>
+      path === 'cart/' && fail ? Promise.reject(ApiError.network()) : served(path, init),
+    )
+    renderCheckout({ cart: onlineCart() })
+    // The read is retried as every query is (a network error), then given up.
+    const alert = await within(await reviewSoon()).findByRole('alert', {}, { timeout: 10_000 })
+    expect(alert).toHaveTextContent('سبد خرید به\u{200C}روز نشد')
+    expect(await placeButton()).toBeDisabled()
+    fail = false
+    await user.click(within(alert).getByRole('button', { name: 'تلاش دوباره' }))
+    await waitFor(() => expect(screen.queryByText(/سبد خرید به\u{200C}روز نشد/u)).toBeNull())
+    expect(await placeButton()).not.toHaveAttribute('aria-disabled')
+    expect(await placeButton()).toBeEnabled()
+    // Its amounts are named apart from the page's own summary.
+    expect(within(review()).getByRole('region', { name: 'مبالغ سفارش' })).toBeInTheDocument()
+  }, 20_000)
 
   it('fetches the placed order’s code once the shopper works in the form, not on arrival', async () => {
     // A returning shopper lands on the review with no interaction: that load stays in budget.

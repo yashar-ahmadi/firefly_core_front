@@ -84,7 +84,9 @@ describe('the checkout’s step bodies', () => {
     await user.click(within(shipping).getByRole('button', { name: /ویرایش/ }))
     await waitFor(() => expect(shipping).toHaveAttribute('data-state', 'active'))
     expect(screen.getByRole('heading', { name: /روش ارسال/ })).toHaveFocus()
-    expect(within(shipping).getByRole('status', { name: 'در حال بارگذاری' })).toBeInTheDocument()
+    const loading = within(shipping).getByRole('status', { name: 'در حال بارگذاری' })
+    // Its words inside the live region, so they are read out.
+    expect(loading).toHaveTextContent('در حال بارگذاری…')
     gate.open()
     expect(
       await within(shipping).findByRole('radiogroup', { name: 'روش\u{200C}های ارسال' }),

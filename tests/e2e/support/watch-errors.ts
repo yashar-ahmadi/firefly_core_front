@@ -28,9 +28,16 @@ function failedStatus(text: string): string | null {
 
 const consoleError = (text: string, url: string) => (url ? `${text} (${url})` : text)
 
+/**
+ * The path a failed request was for: a picture through Next's image optimizer counts as the
+ * picture it was asked for (`/_next/image/?url=/media/…`).
+ */
 function pathOf(url: string): string | null {
   try {
-    return new URL(url).pathname
+    const parsed = new URL(url)
+    if (parsed.pathname.replace(/\/$/, '') !== '/_next/image') return parsed.pathname
+    const source = parsed.searchParams.get('url')
+    return source?.startsWith('/') ? new URL(source, parsed.origin).pathname : parsed.pathname
   } catch {
     return null
   }
@@ -38,8 +45,8 @@ function pathOf(url: string): string | null {
 
 /**
  * Whether a console error is one the dev environment is expected to log: a 404 for a backend
- * picture (a path under `/media/` or `/static/`, so `/_next/static/` chunks are still reported)
- * or for a route not built yet. Any other failure there (a 5xx, a refused connection) is
+ * picture (a path under `/media/` or `/static/`, also through the image optimizer, so
+ * `/_next/static/` chunks are still reported) or for a route not built yet. Any other failure there (a 5xx, a refused connection) is
  * reported. Pure, for the unit test.
  */
 export function isExpectedFailure(text: string, url: string): boolean {

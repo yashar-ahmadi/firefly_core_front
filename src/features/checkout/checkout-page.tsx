@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ListError } from '@/features/account/lists/list-error'
 import { useCart } from '@/features/cart/hooks'
@@ -23,13 +23,16 @@ import {
   ShippingSection,
   StepLoading,
 } from './lazy-steps'
+import { readLastPlaced } from './placed/last-placed'
 import { PlacedOrderPanel } from './placed/placed-loader'
 import { ReceiverSection } from './receiver-section'
-import { stepHeadingId, StepSection } from './step-header'
+import { StepSection } from './step-header'
 import { PaymentSummary, ReceiverSummary, ShippingSummary } from './step-summaries'
+import type { PlacedContext } from './placed-order'
 import type { CheckoutTerms } from './terms-checks'
 import { useCheckout } from './use-checkout'
-import { MOVES_STEP, usePlaceOrder } from './use-place-order'
+import { saidAtTop, usePlaceOrder } from './use-place-order'
+import { useStepFocus } from './use-step-focus'
 
 // `/checkout/` (spec §8.7): one page, its steps in order (receiver and destination, shipping,
 // payment, review and placement), each a section of its own, the summary of the API's amounts
@@ -44,37 +47,6 @@ const TITLES: Record<CheckoutStep, string> = {
   shipping: 'روش ارسال',
   payment: 'پرداخت',
   review: 'بازبینی و ثبت سفارش',
-}
-
-/**
- * When the step changes while the shopper works in the page, its heading takes the focus: the
- * focus is in the page, or was until what had it went with the step that closed (a radio of the
- * receiver step). Never on its own after a load (nothing focused there yet), nor away from a
- * field of the new step that took it (a refused receiver's first field in error).
- */
-function useStepFocus(step: CheckoutStep) {
-  const page = useRef<HTMLDivElement>(null)
-  const last = useRef(step)
-  const inPage = useRef(false)
-  useEffect(() => {
-    const track = (event: FocusEvent) => {
-      const target = event.target as Node | null
-      inPage.current = !!target && (page.current?.contains(target) ?? false)
-    }
-    document.addEventListener('focusin', track)
-    return () => document.removeEventListener('focusin', track)
-  }, [])
-  useEffect(() => {
-    if (last.current === step) return
-    last.current = step
-    const active = document.activeElement
-    const lost = active === null || active === document.body
-    const heading = document.getElementById(stepHeadingId(step))
-    // Already inside the new step (its first field in error took it): it stays there.
-    if (heading?.closest('section')?.contains(active)) return
-    if (lost ? inPage.current : (page.current?.contains(active) ?? false)) heading?.focus()
-  }, [step])
-  return page
 }
 
 export interface CheckoutPageProps {
@@ -102,8 +74,10 @@ export function CheckoutPage({ catalog: initial, terms, supportPhone }: Checkout
         : null,
     isGuest: !hasSession,
   })
-  const checkout = useCheckout({ paymentReady: payment.chosen !== null })
-  const placement = usePlaceOrder(checkout, payment)
+  // Once placed, the page is the order's payment: nothing more is chosen for the closed cart.
+  const [placed, setPlaced] = useState<PlacedContext | null>(null)
+  const checkout = useCheckout({ paymentReady: payment.chosen !== null, halted: placed !== null })
+  const placement = usePlaceOrder(checkout, payment, setPlaced)
   const { cart, cartQuery, signedIn, done, step } = checkout
   const expire = useSessionExpired()
   const page = useStepFocus(step)
@@ -113,9 +87,7 @@ export function CheckoutPage({ catalog: initial, terms, supportPhone }: Checkout
     if (signedIn && isSessionExpiredError(error)) expire()
   }, [signedIn, error, expire])
 
-  if (placement.placed) {
-    return <PlacedOrderPanel ctx={placement.placed} catalog={catalog} supportPhone={supportPhone} />
-  }
+  if (placed) return <PlacedOrderPanel ctx={placed} catalog={catalog} supportPhone={supportPhone} />
   if (checkout.sessionEnded) return <SessionEnded />
   if (!cart) {
     if (!cartQuery.isError) return <CheckoutSkeleton />
@@ -129,12 +101,13 @@ export function CheckoutPage({ catalog: initial, terms, supportPhone }: Checkout
       />
     )
   }
-  if (cart.is_empty) return <EmptyCheckout />
+  // Empty after an order placed in this tab (a reload, Back from the bank): that order, first.
+  if (cart.is_empty) return <EmptyCheckout placed={readLastPlaced()} />
 
   const blocked = checkoutBlock(cart, false) === CHECKOUT_ISSUES
   // A refusal whose fix is in an earlier step is said at the top, until the review again.
   const moved =
-    placement.notice && MOVES_STEP.has(placement.notice.problem) && step !== 'review'
+    placement.notice && saidAtTop(placement.notice.problem) && step !== 'review'
       ? placement.notice
       : null
   const state = (of: CheckoutStep): StepState => (blocked ? 'locked' : stepState(of, step, done))
@@ -198,7 +171,7 @@ export function CheckoutPage({ catalog: initial, terms, supportPhone }: Checkout
           <PaymentSection
             choice={payment}
             onDelivery={cart.amount_to_collect_on_delivery}
-            catalogMissing={catalog.methods === null}
+            catalog={catalog}
             // The shopper's own choice keeps the step open (a gateway to choose, say).
             onChoose={() => checkout.edit('payment')}
             footer={

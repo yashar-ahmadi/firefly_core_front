@@ -47,6 +47,8 @@ export interface RouteChoiceState {
   walletLogin: boolean
   /** The wallet's balance (signed in), for the wallet route's line. */
   balance: number | null
+  /** The wallet's balance is still being read: its routes wait (not a refusal). */
+  pending: boolean
 }
 
 export function useRouteChoice({
@@ -104,5 +106,6 @@ export function useRouteChoice({
       })),
     walletLogin: input ? walletLoginOffered(input) : false,
     balance: wallet.data?.balance ?? null,
+    pending: walletWanted && wallet.isPending,
   }
 }

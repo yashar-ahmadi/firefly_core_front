@@ -5,6 +5,7 @@ import type { OrderPlacementResult } from '@/lib/api/types/order'
 import type { PaymentRoute } from '@/lib/api/types/payment'
 import { isRecord, readJson, writeJson } from '@/lib/store/json-storage'
 import { clearPlacementKey } from './idempotency'
+import { PLACED_KEY } from './placed/last-placed'
 import { clearReceiverDraft } from './receiver-draft'
 
 // The order just placed, as the rest of the checkout and the thanks page need it (order digest
@@ -13,7 +14,7 @@ import { clearReceiverDraft } from './receiver-draft'
 // the server answered (`outcome`), so the thanks page never claims more than the server said.
 // The order uuid and link token are credentials: kept here, never logged.
 
-export const PLACED_KEY = 'ff-checkout-placed'
+export { PLACED_KEY }
 
 /**
  * - `awaiting_payment`: nothing paid yet (or not known here);
@@ -102,23 +103,37 @@ export function updatePlaced(code: string, changes: Partial<PlacedContext>): Pla
 }
 
 /**
+ * An order a replayed key met for another cart (`submitPlacement`'s `earlier`): kept where a
+ * placed order is (the guest's recent orders, this tab's last order), and the key forgotten, so
+ * the next press places the cart on screen; the purchase itself (its draft) goes on.
+ */
+export function recordEarlier(ctx: PlacedContext): void {
+  saveGuest(ctx)
+  savePlaced(ctx)
+  clearPlacementKey()
+}
+
+function saveGuest(ctx: PlacedContext): void {
+  if (!ctx.guest || !ctx.linkToken || !ctx.paymentUrl) return
+  saveGuestOrder({
+    orderCode: ctx.orderCode,
+    linkToken: ctx.linkToken,
+    paymentUrl: ctx.paymentUrl,
+    expiresAt: ctx.expiresAt,
+    A: ctx.A,
+    D: ctx.D,
+    placedAt: ctx.placedAt,
+  })
+}
+
+/**
  * Everything a 2xx placement ends (order digest §5.1–5.2): a guest's order goes to the recent
  * guest orders (their only way back), the order to this tab's store for the thanks page, and the
  * purchase's placement key and the guest's receiver draft are forgotten. (The caller clears the
  * cart cache: the badge empties.)
  */
 export function afterPlacement(ctx: PlacedContext): void {
-  if (ctx.guest && ctx.linkToken && ctx.paymentUrl) {
-    saveGuestOrder({
-      orderCode: ctx.orderCode,
-      linkToken: ctx.linkToken,
-      paymentUrl: ctx.paymentUrl,
-      expiresAt: ctx.expiresAt,
-      A: ctx.A,
-      D: ctx.D,
-      placedAt: ctx.placedAt,
-    })
-  }
+  saveGuest(ctx)
   savePlaced(ctx)
   clearPlacementKey()
   clearReceiverDraft()

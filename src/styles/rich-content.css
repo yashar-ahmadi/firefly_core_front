@@ -198,3 +198,24 @@
   padding: 0;
   background: none;
 }
+
+/* Operator HTML inline in a sentence (a checkout term beside its checkbox, a payment route's
+   description): its links as distinguishable as an article's (underlined, never by colour alone)
+   with a visible focus ring, though the text around them is not `.rich-content`. */
+.rich-content-inline a {
+  color: var(--brand-700);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+  border-radius: 0.125rem;
+}
+
+.rich-content-inline a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.rich-content-inline a:focus-visible {
+  text-decoration-thickness: 2px;
+  outline: 2px solid var(--focus, currentcolor);
+  outline-offset: 2px;
+}

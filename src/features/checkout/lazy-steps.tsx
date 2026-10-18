@@ -36,6 +36,8 @@ const review = once(() => import('./review-section'))
 export function StepLoading({ label = 'در حال بارگذاری' }: { label?: string }) {
   return (
     <div role="status" aria-label={label} className="flex flex-col gap-3">
+      {/* Read out by the live region (its name alone is not announced). */}
+      <span className="sr-only">{`${label}…`}</span>
       <Skeleton className="h-16 rounded-card" />
       <Skeleton className="h-16 rounded-card" />
     </div>

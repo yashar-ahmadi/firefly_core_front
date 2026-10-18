@@ -1,12 +1,15 @@
 'use client'
 
-import { House, LogIn, ShoppingCart, TriangleAlert } from 'lucide-react'
+import { CircleCheck, House, LogIn, ShoppingCart, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useT } from '@/lib/i18n/i18n-context'
+import { toPersianDigits } from '@/lib/format'
 import { loginHref } from '@/lib/links/login'
+import type { LastPlaced } from './placed/last-placed'
+import { thanksPath } from './thanks-path'
 
 // The checkout's states other than the steps: loading, an empty cart, a cart that cannot be
 // ordered as it is, and a signed-in checkout whose session ended.
@@ -35,9 +38,34 @@ export function CheckoutSkeleton() {
   )
 }
 
-/** Nothing to order (an empty cart, or a guest cart that is gone): back to the cart or home. */
-export function EmptyCheckout() {
+/**
+ * Nothing to order (an empty cart, or a guest cart that is gone): back to the cart or home. After
+ * an order placed in this tab (a reload, Back from the bank: its cart is empty now), that order
+ * first, and the way to its page.
+ */
+export function EmptyCheckout({ placed = null }: { placed?: LastPlaced | null }) {
   const t = useT()
+  if (placed) {
+    return (
+      <EmptyState
+        icon={<CircleCheck />}
+        title="سفارش شما ثبت شد"
+        description={`کد سفارش: ${toPersianDigits(placed.orderCode)}`}
+        className="rounded-card bg-white shadow-card"
+        action={
+          <>
+            <Link href={thanksPath(placed.orderCode)} className={buttonClasses()}>
+              {'مشاهده\u{0654} سفارش'}
+            </Link>
+            <Link href="/" className={buttonClasses({ variant: 'outline' })}>
+              <House aria-hidden />
+              {'ادامه\u{0654} خرید'}
+            </Link>
+          </>
+        }
+      />
+    )
+  }
   return (
     <EmptyState
       icon={<ShoppingCart />}

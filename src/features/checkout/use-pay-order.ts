@@ -25,15 +25,21 @@ import { thanksPath } from './thanks-path'
 // the order, says what happened and offers the routes again (or, for a pay-on-delivery
 // confirmation, the thanks page offers to confirm again).
 
+/**
+ * - `starting`: the order's own route is about to run (the page says it is preparing);
+ * - `choosing`: the shopper chooses (the route chosen for the cart does not fit the order, or a
+ *   bank handoff expired): the routes, nothing running;
+ * - `paying`, `redirecting` (a bank took over), `failed` (its refusal on screen, the routes).
+ */
 export interface PayState {
-  phase: 'idle' | 'paying' | 'redirecting' | 'failed'
+  phase: 'starting' | 'choosing' | 'paying' | 'redirecting' | 'failed'
   error: IntentError | null
   handoff: RedirectPayload | null
   /** The redirect's code could not load (a deploy, the connection). */
   bankLoadFailed: boolean
 }
 
-const IDLE: PayState = { phase: 'idle', error: null, handoff: null, bankLoadFailed: false }
+const IDLE: PayState = { phase: 'choosing', error: null, handoff: null, bankLoadFailed: false }
 
 /** The redirect, loaded on the click that needs it. Rejects when its chunk cannot load. */
 const loadGoToBank = () => import('@/features/payment/go-to-bank').then((module) => module.goToBank)
@@ -48,7 +54,7 @@ export function usePayOrder(
   const expire = useSessionExpired()
   const markFeatureDisabled = useMarkFeatureDisabled()
   const inFlight = useRef(false)
-  const [state, setState] = useState<PayState>(IDLE)
+  const [state, setState] = useState<PayState>({ ...IDLE, phase: 'starting' })
 
   const toThanks = () => router.push(thanksPath(ctx.orderCode))
   const walletMoved = () => {
@@ -166,6 +172,7 @@ export function usePayOrder(
     pay,
     /** The manual «انتقال به درگاه» (the automatic one did not happen, or was too slow). */
     goToBankAgain: () => state.handoff && redirect(state.handoff),
-    reset: () => setState(IDLE),
+    /** The shopper chooses: after a handoff that expired, or a route that does not fit. */
+    choose: () => setState(IDLE),
   }
 }

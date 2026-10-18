@@ -75,7 +75,10 @@ describe('after placement', () => {
       amount: 1_049_000,
     })
     // The shop's default gateway: no code (the server picks it).
-    expect(pay).toHaveBeenCalledWith({ route: 'bank_gateway' }, expect.anything())
+    expect(pay).toHaveBeenCalledWith(
+      { route: 'bank_gateway', gateway_code: 'ZARINPAL' },
+      expect.anything(),
+    )
     // The manual way, for a browser that did not follow.
     await user.click(screen.getByRole('button', { name: 'انتقال به درگاه' }))
     expect(mocks.goToBank).toHaveBeenCalledTimes(2)

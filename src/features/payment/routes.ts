@@ -86,8 +86,7 @@ const NO_WALLET = 'موجودی کیف پول شما خوانده نشد.'
 const WALLET_PENDING = 'در حال خواندن موجودی کیف پول…'
 const FROZEN = 'کیف پول شما مسدود است.'
 const NO_GATEWAY = 'درگاه بانکی در دسترس نیست.'
-const NO_COD =
-  'تأیید سفارش با پرداخت در محل اکنون ممکن نیست؛ روش ارسال را بدون پرداخت در محل انتخاب کنید.'
+const CONFIRM_OFF = 'تأیید سفارش اکنون ممکن نیست.'
 
 /** The lowest amount a gateway takes. */
 export const gatewayFloor = (gateway: GatewayOption) =>
@@ -175,14 +174,14 @@ function choose<M extends RouteMethod>(method: M, input: RouteInput<M>): RouteCh
 export function availableRoutes<M extends RouteMethod>(input: RouteInput<M>): RouteChoice<M>[] {
   const sorted = [...input.methods].sort((a, b) => a.display_order - b.display_order)
   if (input.online === 0) {
-    // Nothing owed online: only the confirmation (no chooser), its ceiling against D.
+    // Nothing owed online (D at the door, or a free order): only the confirmation (no chooser),
+    // its ceiling against D. It is the order's only way on (digest §5.2 step 5), listed by the
+    // operator or not; only its switch can close it.
     const cod = sorted.find((item) => item.route === 'pay_on_delivery')
-    if (!cod) {
-      return [
-        { route: 'pay_on_delivery', enabled: false, reason: NO_COD, method: null, gateways: [] },
-      ]
-    }
-    return [choose(cod, { ...input, charged: input.onDelivery })]
+    if (cod) return [choose(cod, { ...input, charged: input.onDelivery })]
+    const { enabled, reason } = input.features.pay_on_delivery
+    const off = enabled ? {} : { reason: reason ?? CONFIRM_OFF }
+    return [{ route: 'pay_on_delivery', enabled, ...off, method: null, gateways: [] }]
   }
   return sorted
     .filter(
@@ -220,10 +219,12 @@ export function defaultGateway(gateways: GatewayOption[]): GatewayOption | null 
 }
 
 /**
- * The `gateway_code` to send (digest §3.2.2, §5.4): none for the shop's default gateway (the
- * server picks its default itself, then the first usable one: a default whose credentials
- * fail gives way), else the gateway the shopper chose in the chooser, or the only one that
- * takes the amount. Never for a route without a bank part.
+ * The `gateway_code` to send (digest §3.2.2, §5.4): the gateway shown chosen whenever the chooser
+ * shows (the shopper saw and kept it, the default included), else none for the shop's default
+ * (the server picks its default itself, then the first usable one) and the code of a lone other
+ * gateway. Never for a route without a bank part. The dev backend answers any named gateway
+ * with 400 `gateway_unknown` (its credentials cannot be read, digest §11 #3); unnamed, 503
+ * `gateway_not_configured`.
  */
 export function gatewayCodeFor<M extends RouteMethod>(
   choice: RouteChoice<M>,
@@ -231,13 +232,13 @@ export function gatewayCodeFor<M extends RouteMethod>(
   all: GatewayOption[],
 ): string | undefined {
   if (!BANK_ROUTES.includes(choice.route) || choice.gateways.length === 0) return undefined
-  const picked =
-    choice.gateways.length > 1
-      ? (choice.gateways.find((gateway) => gateway.code === chosen) ??
-        defaultGateway(choice.gateways)!)
-      : choice.gateways[0]!
-  const shopDefault = all.find((gateway) => gateway.is_default)
-  return picked.code === shopDefault?.code ? undefined : picked.code
+  if (choice.gateways.length > 1) {
+    return (
+      choice.gateways.find((gateway) => gateway.code === chosen) ?? defaultGateway(choice.gateways)!
+    ).code
+  }
+  const only = choice.gateways[0]!
+  return only.code === all.find((gateway) => gateway.is_default)?.code ? undefined : only.code
 }
 
 export const isBankRoute = (route: PaymentRoute) => BANK_ROUTES.includes(route)

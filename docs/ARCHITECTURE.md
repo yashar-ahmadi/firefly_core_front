@@ -641,10 +641,12 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   destination and shipping choice and his address book back exactly), so no read-only spec sees that data
   change. A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
   mobile each run, for the guest's unpaid-orders ceiling; the bank intent the dev backend answers
-  `503 gateway_not_configured`, one of the 30 an hour of `payment_attempt`) and cancels it through
-  its link afterwards, whatever happened, so the dev database keeps no open unpaid order. A
-  failure the dev backend gives by design is forgiven by its status (`forgiveFailure(page, url,
-  503)` in `watch-errors.ts`). Playwright skips it when a project before it failed, and a filter on the command line
+  `400 gateway_unknown` when a gateway is named (the chooser shows) or `503
+  gateway_not_configured` when none is, one of the 30 an hour of `payment_attempt`) and cancels it
+  through its link afterwards, whatever happened (the token is taken from any 2xx placement
+  before anything is asserted), so the dev database keeps no open unpaid order. A failure the
+  dev backend gives by design is forgiven by its status (`forgiveFailure(page, url, status)` in
+  `watch-errors.ts`). Playwright skips it when a project before it failed, and a filter on the command line
   does not drop its dependencies (one journey file still runs the three device suites first):
   `pnpm test:e2e:journeys` (`--project=journeys --no-deps`) runs the journeys alone. An already running server on the base URL is reused;
   `E2E_BASE_URL` points elsewhere. One full run makes about 220 anonymous API requests (about 400

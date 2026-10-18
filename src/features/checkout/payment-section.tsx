@@ -2,11 +2,11 @@
 
 import { HandCoins, LogIn, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
+import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
 import type { RouteChoiceState } from '@/features/payment/use-route-choice'
 import type { PaymentRoute } from '@/lib/api/types/payment'
 import { formatToman } from '@/lib/format'
@@ -27,8 +27,8 @@ export interface PaymentSectionProps {
   choice: RouteChoiceState
   /** Nothing owed online: a confirmation, not a choice (D, at the door). */
   onDelivery: number
-  /** The method list could not be read on the server. */
-  catalogMissing: boolean
+  /** The shop's lists (null methods: the server could not read them; «تلاش دوباره»). */
+  catalog: Pick<PaymentCatalogState, 'methods' | 'retry' | 'retrying'>
   /** A payment is on its way. */
   busy?: boolean
   /** Said when the shopper chooses (the step stays open, say). */
@@ -60,19 +60,18 @@ function Note({ tone, children }: { tone: 'info' | 'warning'; children: ReactNod
 export function PaymentSection({
   choice,
   onDelivery,
-  catalogMissing,
+  catalog,
   busy = false,
   onChoose,
   loginNext = '/checkout/',
   footer,
 }: PaymentSectionProps) {
-  const router = useRouter()
   const { routes, chosen } = choice
-  if (catalogMissing) {
+  if (catalog.methods === null) {
     return (
       <div className="flex flex-col items-start gap-3">
         <Note tone="warning">{'روش\u{200C}های پرداخت بارگذاری نشد.'}</Note>
-        <Button variant="outline" onClick={() => router.refresh()}>
+        <Button variant="outline" loading={catalog.retrying} onClick={() => void catalog.retry()}>
           تلاش دوباره
         </Button>
       </div>

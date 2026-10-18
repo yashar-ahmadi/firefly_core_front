@@ -79,27 +79,34 @@ export interface ReviewSectionProps {
 
 export function ReviewSection({ checkout, payment, placement, terms }: ReviewSectionProps) {
   const cart = checkout.cart!
-  const [verified, setVerified] = useState(false)
+  // The cart read again on arrival (prices are live): the button works once it is back; a read
+  // that failed says so, with another try (never a press on a cart not read).
+  const [check, setCheck] = useState<'reading' | 'done' | 'failed'>('reading')
+  const verify = () =>
+    checkout.cartQuery.refetch().then(({ isError }) => setCheck(isError ? 'failed' : 'done'))
   const reached = useEffectEvent(() => {
     placementKey()
-    void checkout.cartQuery.refetch().finally(() => setVerified(true))
+    void verify()
   })
   useEffect(() => reached(), [])
+  const verified = check === 'done'
 
   const [accepted, setAccepted] = useState({ accept: false, legalAge: false })
   const [termErrors, setTermErrors] = useState<TermKey[]>([])
   const form = useRef<HTMLDivElement>(null)
   const lock = useSubmitWait(throttleWait(placement.throttle?.error, placement.throttle?.at ?? 0))
 
-  function submit() {
+  /** Every confirmation, the dialog's too: the cart read, the sentences ticked, no wait. */
+  function submit(total?: number) {
     if (placement.placing || lock.locked || !verified) return
     const missing = missingTerms(terms, accepted)
     setTermErrors(missing)
     if (missing.length > 0) {
+      placement.closeTotalChanged()
       form.current?.querySelector<HTMLElement>(`[data-term="${missing[0]}"]`)?.focus()
       return
     }
-    void placement.place()
+    void placement.place(total)
   }
 
   const changed = placement.totalChanged
@@ -117,7 +124,12 @@ export function ReviewSection({ checkout, payment, placement, terms }: ReviewSec
     <div ref={form} className="flex flex-col gap-5" onPointerDown={reach} onFocus={reach}>
       <ReviewLines cart={cart} />
       <ReviewDetails checkout={checkout} payment={payment} />
-      <CartSummary cart={cart} variant="checkout" className="rounded-card bg-ink-50 p-4" />
+      <CartSummary
+        cart={cart}
+        variant="checkout"
+        title="مبالغ سفارش"
+        className="rounded-card bg-ink-50 p-4"
+      />
       <AuthForm className="gap-4" onSubmit={submit}>
         <Field
           label={
@@ -149,25 +161,43 @@ export function ReviewSection({ checkout, payment, placement, terms }: ReviewSec
           <NoticeBox notice={placement.notice} cart={cart} />
         )}
         <SubmitButton
-          busy={placement.placing || !verified}
+          busy={placement.placing || check === 'reading'}
+          disabled={check === 'failed'}
           lock={lock}
           className="sm:w-auto sm:self-start"
         >
           {online ? 'ثبت سفارش و پرداخت' : 'ثبت و تأیید سفارش'}
         </SubmitButton>
-        {!verified && (
+        {check === 'reading' && (
           <p role="status" className="text-sm leading-6 text-ink-600">
             {'در حال به\u{200C}روزرسانی سبد خرید…'}
           </p>
         )}
+        {check === 'failed' && (
+          <div role="alert" className="flex flex-wrap items-center gap-3 text-base leading-7">
+            <span className="text-danger">
+              {'سبد خرید به\u{200C}روز نشد؛ پیش از ثبت سفارش دوباره تلاش کنید.'}
+            </span>
+            <button
+              type="button"
+              className={buttonClasses({ variant: 'outline', size: 'sm' })}
+              onClick={() => {
+                setCheck('reading')
+                void verify()
+              }}
+            >
+              تلاش دوباره
+            </button>
+          </div>
+        )}
       </AuthForm>
       {changed && (
         <TotalChangedDialog
-          cart={changed.cart}
+          cart={cart}
           previous={changed.previous}
-          canConfirm={checkout.step === 'review' && payment.chosen !== null}
+          canConfirm={payment.chosen !== null}
           onReview={placement.closeTotalChanged}
-          onConfirm={(total) => void placement.place(total)}
+          onConfirm={submit}
         />
       )}
     </div>

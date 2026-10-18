@@ -11,7 +11,9 @@ import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
 import { intentMessage } from '@/features/payment/intent-messages'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
-import { useRouteChoice } from '@/features/payment/use-route-choice'
+import { useRouteChoice, type RouteChoiceState } from '@/features/payment/use-route-choice'
+import type { PaymentRoute } from '@/lib/api/types/payment'
+import { formatToman } from '@/lib/format'
 import { PaymentSection } from '../payment-section'
 import type { PlacedContext } from '../placed-order'
 import { thanksPath } from '../thanks-path'
@@ -20,11 +22,24 @@ import { BankHandoff } from './bank-handoff'
 import { OrderCode } from './order-code'
 import { PayLater } from './pay-later'
 
-// The order is placed (order digest §5.1–5.2): the checkout becomes its payment. The route the
-// shopper chose runs at once (one press placed and paid); while it runs the page says so, a bank
-// takes over the page (`BankHandoff`), and a refusal leaves the order here with what happened,
-// the routes again for the order's own amounts (A: nothing is settled yet) and how to pay later.
-// Never lost: the code is on screen from the first moment, the thanks page a link away.
+// The order is placed (order digest §5.1–5.2): the checkout becomes its payment. The order's
+// route runs at once (one press placed and paid), decided by the ORDER, not by the cart it was
+// chosen for (its online share A can differ): nothing owed online → the confirmation
+// (`pay_on_delivery`); the route chosen still allowed for A → that route; otherwise the shopper
+// chooses among the routes for the order (no doomed intent). While a route runs the page says so,
+// a bank takes over the page (`BankHandoff`), and a refusal leaves the order here with what
+// happened, the routes again for the order's own amounts and how to pay later. Never lost: the
+// code is on screen from the first moment, the thanks page a link away.
+
+/** The route to run at once for the order; null: the shopper chooses; undefined: not known yet. */
+function orderRoute(ctx: PlacedContext, choice: RouteChoiceState): PaymentRoute | null | undefined {
+  if (ctx.A === 0) return 'pay_on_delivery'
+  if (ctx.route === 'pay_on_delivery') return null
+  if (choice.pending) return undefined
+  return choice.routes.some((route) => route.route === ctx.route && route.enabled)
+    ? ctx.route
+    : null
+}
 
 export function PlacedOrderPanel({
   ctx,
@@ -43,14 +58,16 @@ export function PlacedOrderPanel({
   })
   const payment = usePayOrder(ctx, catalog, { suggest: choice.choose })
   const [expired, setExpired] = useState(false)
+  const planned = orderRoute(ctx, choice)
   // The press that placed the order pays it too (once, whatever re-renders).
   const started = useRef(false)
   const start = useEffectEvent(() => {
-    if (started.current) return
+    if (started.current || planned === undefined) return
     started.current = true
-    void payment.pay(ctx.route, ctx.gatewayCode ?? undefined)
+    if (planned === null) return payment.choose()
+    void payment.pay(planned, planned === ctx.route ? (ctx.gatewayCode ?? undefined) : undefined)
   })
-  useEffect(() => start(), [])
+  useEffect(() => start(), [planned])
 
   const { state } = payment
   if (state.phase === 'redirecting' && state.handoff) {
@@ -61,13 +78,15 @@ export function PlacedOrderPanel({
         onGo={payment.goToBankAgain}
         onExpired={() => {
           setExpired(true)
-          payment.reset()
+          payment.choose()
         }}
       />
     )
   }
-  const paying = state.phase === 'paying' || state.phase === 'idle'
+  const paying = state.phase === 'paying' || state.phase === 'starting'
   const error = state.error
+  // The route chosen for the cart does not fit the order: said, the shopper chooses.
+  const differs = state.phase === 'choosing' && !expired
   return (
     <section
       aria-labelledby="placed-heading"
@@ -87,7 +106,7 @@ export function PlacedOrderPanel({
       {paying && (
         <p role="status" className="flex items-center gap-2 text-base leading-7 text-ink-700">
           <Spinner aria-hidden />
-          {ctx.route === 'pay_on_delivery'
+          {planned === 'pay_on_delivery'
             ? 'در حال تأیید سفارش…'
             : 'در حال آماده\u{200C}سازی پرداخت…'}
         </p>
@@ -120,13 +139,20 @@ export function PlacedOrderPanel({
           )}
         </div>
       )}
-      {state.phase === 'failed' || expired ? (
+      {differs && (
+        <p className="rounded-card bg-warning/10 px-4 py-3 text-base leading-7 text-ink-800">
+          {ctx.route === 'pay_on_delivery'
+            ? `این سفارش ${formatToman(ctx.A)} پرداخت آنلاین دارد؛ روش پرداخت آن را انتخاب کنید.`
+            : 'روش پرداخت انتخابی شما برای مبلغ این سفارش در دسترس نیست؛ روش دیگری انتخاب کنید.'}
+        </p>
+      )}
+      {state.phase === 'failed' || state.phase === 'choosing' ? (
         <div className="flex flex-col gap-4">
           <h3 className="text-lg leading-8 font-bold text-ink-900">پرداخت سفارش</h3>
           <PaymentSection
             choice={choice}
             onDelivery={ctx.D}
-            catalogMissing={catalog.methods === null}
+            catalog={catalog}
             busy={paying}
             loginNext={thanksPath(ctx.orderCode)}
             footer={

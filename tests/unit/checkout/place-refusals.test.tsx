@@ -6,8 +6,11 @@ import { ApiError } from '@/lib/api/errors'
 import receiverInvalid from '../../fixtures/order-place-receiver-invalid.json'
 import totalChanged from '../../fixtures/order-place-total-changed.json'
 import { stubBrowserApis } from '../support/dom-stubs'
+import { TERMS } from '../payment/fixtures'
+import { destinationCart } from './fixtures'
 import {
   calls,
+  ok,
   onlineCart,
   PLACE,
   placeButton,
@@ -45,6 +48,7 @@ const ready = async () => {
   return button
 }
 const keys = () => calls(mocks.bffFetch, PLACE).map(([, init]) => init.idempotencyKey)
+const review = () => screen.getByRole('region', { name: /بازبینی و ثبت سفارش/ })
 
 describe('placement refusals', () => {
   it('the total changed: a dialog with the new total; the receiver and the note stay', async () => {
@@ -107,6 +111,63 @@ describe('placement refusals', () => {
     await waitFor(() => expect(place).toHaveBeenCalledTimes(2))
     expect(place.mock.calls[1]![0]).toMatchObject({ expected_total: 2_500_000 })
     expect(await screen.findByRole('heading', { name: 'سفارش شما ثبت شد' })).toBeInTheDocument()
+  })
+
+  it('a total change that took the shipping away: back at the review, no old dialog, the sentences again', async () => {
+    const user = userEvent.setup()
+    let cart = onlineCart()
+    const place = vi.fn().mockImplementation(async () => {
+      // Meanwhile the shipping choice went (a price change cleared it): the 409's re-read says so.
+      cart = destinationCart({ total: 2_520_000 })
+      throw ApiError.fromBody(409, totalChanged)
+    })
+    serve(mocks.bffFetch, () => cart, {
+      [PLACE]: place,
+      // The operator's default chosen again by the page: the review comes back.
+      'cart/shipping/select/': async () => {
+        cart = onlineCart({ total: 2_520_000, amount_charged_online: 2_520_000 })
+        return ok(cart)
+      },
+    })
+    renderCheckout({ cart, props: { terms: TERMS } })
+    const button = await ready()
+    for (const box of within(review()).getAllByRole('checkbox')) await user.click(box)
+    await user.click(button)
+    await waitFor(() => expect(place).toHaveBeenCalledTimes(1))
+    // The review closes for the shipping step, then opens again with the new cart.
+    await waitFor(() => expect(calls(mocks.bffFetch, 'cart/shipping/select/')).toHaveLength(1))
+    const again = await ready()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(review()).toHaveTextContent('۲٬۵۲۰٬۰۰۰ تومان')
+    // What happened is said there too.
+    expect(review()).toHaveTextContent('مبلغ سفارش تغییر کرد.')
+    // A new confirmation: the operator's sentences are to be ticked again.
+    await user.click(again)
+    expect(place).toHaveBeenCalledTimes(1)
+    expect(within(review()).getAllByRole('checkbox')[0]).toHaveAttribute('aria-invalid', 'true')
+  })
+
+  it('the dialog’s own confirmation goes through the review’s checks (the cart read, the sentences)', async () => {
+    const user = userEvent.setup()
+    let cart = onlineCart()
+    const place = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        cart = onlineCart({ total: 2_500_000, amount_charged_online: 2_500_000 })
+        throw ApiError.fromBody(409, totalChanged)
+      })
+      .mockImplementationOnce(placed())
+    serve(mocks.bffFetch, () => cart, { [PLACE]: place })
+    renderCheckout({ cart, props: { terms: TERMS } })
+    const button = await ready()
+    for (const box of within(review()).getAllByRole('checkbox')) await user.click(box)
+    await user.click(button)
+    const dialog = await screen.findByRole('dialog', { name: 'مبلغ سفارش تغییر کرد' })
+    // The live cart's amounts, not a snapshot.
+    expect(dialog).toHaveTextContent('۲٬۵۰۰٬۰۰۰ تومان')
+    await user.click(within(dialog).getByRole('button', { name: 'ثبت سفارش با مبلغ جدید' }))
+    await waitFor(() => expect(place).toHaveBeenCalledTimes(2))
+    expect(place.mock.calls[1]![0]).toMatchObject({ expected_total: 2_500_000 })
   })
 
   it('the API’s receiver checks: the form again, its messages on the fields, the first focused', async () => {

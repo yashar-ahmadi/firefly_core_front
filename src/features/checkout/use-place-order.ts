@@ -8,7 +8,7 @@ import { CART_KEY } from '@/features/cart/cart-cache'
 import { useMarkFeatureDisabled } from '@/features/settings/feature-context'
 import type { RouteChoiceState } from '@/features/payment/use-route-choice'
 import { NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
-import type { Cart, CartAdjustment } from '@/lib/api/types/cart'
+import type { CartAdjustment } from '@/lib/api/types/cart'
 import type { OrderItemUnavailable } from '@/lib/api/types/order'
 import { toPersianDigits } from '@/lib/format'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
@@ -17,6 +17,7 @@ import { receiverBody } from './guest-receiver'
 import { clearPlacementKey, placementKey } from './idempotency'
 import type { PlacementProblem } from './place-order'
 import type { PlacedContext } from './placed-order'
+import { thanksPath } from './thanks-path'
 import type { Checkout } from './use-checkout'
 import { SHIPPING_OPTIONS_KEY } from './use-shipping-options'
 
@@ -46,13 +47,19 @@ export interface Placement {
   notice: PlacementNotice | null
   /** A 429's wait (`throttleWait`). */
   throttle: { error: unknown; at: number } | null
-  /** The cart read again after `order_total_changed`, and the total confirmed before. */
-  totalChanged: { cart: Cart; previous: number } | null
+  /**
+   * After `order_total_changed`, while the review stays open: the total confirmed before (the
+   * dialog shows the cart as it is now). Gone once the review closes.
+   */
+  totalChanged: { previous: number } | null
   closeTotalChanged: () => void
-  placed: PlacedContext | null
   /** Places with the cart's `total` (or the new one the dialog confirmed). */
   place: (expectedTotal?: number) => Promise<void>
 }
+
+/** A total change that took the shopper back to an earlier step: said until the review again. */
+const TOTAL_MOVED =
+  'مبلغ سفارش تغییر کرد. مرحله\u{0654} باز را کامل کنید و سفارش را با مبلغ جدید دوباره بازبینی کنید.'
 
 /** Problems whose fix is elsewhere on the page (the notice shows at its top). */
 export const MOVES_STEP: ReadonlySet<PlacementProblem> = new Set([
@@ -62,7 +69,15 @@ export const MOVES_STEP: ReadonlySet<PlacementProblem> = new Set([
   'guest_closed',
 ])
 
-export function usePlaceOrder(checkout: Checkout, payment: RouteChoiceState): Placement {
+/** Said at the top while the shopper is away from the review (the review says it too). */
+export const saidAtTop = (problem: PlacementProblem) =>
+  MOVES_STEP.has(problem) || problem === 'total_changed'
+
+export function usePlaceOrder(
+  checkout: Checkout,
+  payment: RouteChoiceState,
+  onPlaced: (ctx: PlacedContext) => void,
+): Placement {
   const client = useQueryClient()
   const expire = useSessionExpired()
   const markFeatureDisabled = useMarkFeatureDisabled()
@@ -73,7 +88,12 @@ export function usePlaceOrder(checkout: Checkout, payment: RouteChoiceState): Pl
   const [notice, setNotice] = useState<PlacementNotice | null>(null)
   const [throttle, setThrottle] = useState<Placement['throttle']>(null)
   const [totalChanged, setTotalChanged] = useState<Placement['totalChanged']>(null)
-  const [placed, setPlaced] = useState<PlacedContext | null>(null)
+  // The new cart took the shopper back to a step (its shipping cleared, the route over its
+  // ceiling): the question is over. The next confirmation is the review's own, with its checks.
+  if (totalChanged && checkout.step !== 'review') {
+    setTotalChanged(null)
+    setNotice({ message: TOTAL_MOVED, problem: 'total_changed' })
+  }
 
   const reread = () => checkout.cartQuery.refetch().then(({ data }) => data ?? null)
 
@@ -103,7 +123,7 @@ export function usePlaceOrder(checkout: Checkout, payment: RouteChoiceState): Pl
         },
         { route, gatewayCode: payment.gatewayCode ?? null },
       )
-      if (!outcome.ok) {
+      if (outcome.ok === false) {
         await handleRefusal(outcome.error, sent, {
           reread,
           invalidateShipping: () =>
@@ -122,10 +142,21 @@ export function usePlaceOrder(checkout: Checkout, payment: RouteChoiceState): Pl
         })
         return
       }
+      const code = toPersianDigits(outcome.ctx.orderCode)
+      if (outcome.ok === 'earlier') {
+        // A key whose 2xx was lost met its order again, for another cart: that order is said,
+        // never taken for this purchase (the next press places this cart, a new key).
+        setNotice({
+          message: `سفارش ${code} پیش\u{200C}تر با همین خرید ثبت شده بود؛ سبد کنونی هنوز ثبت نشده است.`,
+          problem: 'earlier',
+          link: { href: thanksPath(outcome.ctx.orderCode), label: 'مشاهده\u{0654} آن سفارش' },
+        })
+        return
+      }
       void client.invalidateQueries({ queryKey: CART_KEY })
       if (!guest) void client.invalidateQueries({ queryKey: SUMMARY_KEY })
-      announce(`سفارش ${toPersianDigits(outcome.ctx.orderCode)} ثبت شد.`)
-      setPlaced(outcome.ctx)
+      announce(`سفارش ${code} ثبت شد.`)
+      onPlaced(outcome.ctx)
     } catch {
       // The press's code could not load (a deploy, the connection): nothing was sent.
       setNotice({ message: NETWORK_ERROR_DETAIL, problem: 'other' })
@@ -147,7 +178,6 @@ export function usePlaceOrder(checkout: Checkout, payment: RouteChoiceState): Pl
     throttle,
     totalChanged,
     closeTotalChanged: () => setTotalChanged(null),
-    placed,
     place,
   }
 }

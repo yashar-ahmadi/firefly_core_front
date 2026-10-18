@@ -56,6 +56,8 @@ function useThrottleWait(failure: AutoFailure | null): boolean {
 }
 
 export interface DestinationInput {
+  /** A purchase to make: a cart with lines that can be ordered, not placed yet. */
+  active: boolean
   signedIn: boolean
   cart: Cart | undefined
   pending: boolean
@@ -66,12 +68,9 @@ export interface DestinationInput {
  * Signed in, a cart without a saved address as its destination: the book's first address is
  * posted for the shopper, once per address (a throttled one again once the wait is over).
  */
-export function useAutoDestination({
-  signedIn,
-  cart,
-  pending,
-  post,
-}: DestinationInput): AutoChoice {
+export function useAutoDestination(input: DestinationInput): AutoChoice {
+  const { cart, pending, post } = input
+  const signedIn = input.active && input.signedIn
   const cartAddress = cart?.destination?.address?.id ?? null
   // The address book's own query (`useAddresses`), read only while a destination is wanted.
   const expire = useSessionExpired()
@@ -124,6 +123,8 @@ export function useAutoDestination({
 }
 
 export interface ShippingInput {
+  /** A purchase to make: a cart with lines that can be ordered, not placed yet. */
+  active: boolean
   cart: Cart | undefined
   /** The receiver step is done (the destination set, the guest's receiver confirmed). */
   ready: boolean
@@ -137,8 +138,14 @@ export interface ShippingInput {
  * goes again once the wait is over; any other failure stops the choosing for this cart (no loop:
  * the shopper chooses, its reason on screen).
  */
-export function useAutoShipping({ cart, ready, pending, select }: ShippingInput): AutoChoice {
-  const wanted = ready && cart !== undefined && !cart.shipping.is_selected
+export function useAutoShipping({
+  active,
+  cart,
+  ready,
+  pending,
+  select,
+}: ShippingInput): AutoChoice {
+  const wanted = active && ready && cart !== undefined && !cart.shipping.is_selected
   const options = useShippingOptions(cart, wanted)
   const list = options.data
   const signature = cart ? optionsSignature(cart) : ''

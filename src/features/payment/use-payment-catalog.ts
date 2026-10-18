@@ -21,6 +21,9 @@ export interface PaymentCatalogState {
   withdraw: (routes: readonly PaymentRoute[]) => void
   refreshMethods: () => Promise<void>
   refreshGateways: () => Promise<void>
+  /** Both lists read through the BFF (the server's copy failed): «تلاش دوباره». */
+  retry: () => Promise<void>
+  retrying: boolean
 }
 
 function merge(
@@ -41,17 +44,33 @@ export function usePaymentCatalog(initial: PaymentCatalog): PaymentCatalogState 
   const [methods, setMethods] = useState(initial.methods)
   const [gateways, setGateways] = useState<GatewayOption[]>(initial.gateways ?? [])
   const [withdrawn, setWithdrawn] = useState<readonly PaymentRoute[]>([])
+  const [retrying, setRetrying] = useState(false)
+  // The server's copy again (its props changed: a refresh of the page): it is the newest.
+  const [source, setSource] = useState(initial)
+  if (source !== initial) {
+    setSource(initial)
+    setMethods(initial.methods)
+    setGateways(initial.gateways ?? [])
+  }
+  // A failed read keeps what the page had: the refusal on screen says what to do.
+  const refreshMethods = () =>
+    paymentApi.methods().then(
+      (fresh) => setMethods((current) => merge(current, fresh)),
+      () => undefined,
+    )
+  const refreshGateways = () => paymentApi.gateways().then(setGateways, () => undefined)
   return {
     methods,
     gateways,
     withdrawn,
     withdraw: (routes) => setWithdrawn((current) => [...new Set([...current, ...routes])]),
-    // A failed read keeps what the page had: the refusal on screen says what to do.
-    refreshMethods: () =>
-      paymentApi.methods().then(
-        (fresh) => setMethods((current) => merge(current, fresh)),
-        () => undefined,
-      ),
-    refreshGateways: () => paymentApi.gateways().then(setGateways, () => undefined),
+    refreshMethods,
+    refreshGateways,
+    retry: async () => {
+      setRetrying(true)
+      await Promise.all([refreshMethods(), refreshGateways()])
+      setRetrying(false)
+    },
+    retrying,
   }
 }

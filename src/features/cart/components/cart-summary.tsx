@@ -15,6 +15,8 @@ export interface CartSummaryProps {
   cart: Cart
   variant: 'cart' | 'checkout'
   className?: string
+  /** Its heading, when the page shows it twice (the checkout's review: «مبالغ سفارش»). */
+  title?: string
 }
 
 function Row({
@@ -94,7 +96,7 @@ function CheckoutShares({ cart }: { cart: Cart }) {
  * خرید» when there is a saving. Rows the API has nothing for (0) are left out, tax excepted. At
  * the checkout the online share is always said once shipping is priced (`CheckoutShares`).
  */
-export function CartSummary({ cart, variant, className }: CartSummaryProps) {
+export function CartSummary({ cart, variant, className, title }: CartSummaryProps) {
   const headingId = useId()
   const { coupon, shipping } = cart
   const applied = couponApplied(coupon)
@@ -103,7 +105,7 @@ export function CartSummary({ cart, variant, className }: CartSummaryProps) {
   return (
     <section aria-labelledby={headingId} className={className}>
       <h2 id={headingId} className="text-lg leading-8 font-bold text-ink-900">
-        {variant === 'cart' ? 'خلاصه\u{0654} سبد خرید' : 'خلاصه\u{0654} سفارش'}
+        {title ?? (variant === 'cart' ? 'خلاصه\u{0654} سبد خرید' : 'خلاصه\u{0654} سفارش')}
       </h2>
       <dl className="mt-2 text-base">
         <Row label={`قیمت کالاها (${formatNumber(cart.item_count)})`}>

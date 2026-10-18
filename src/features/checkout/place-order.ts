@@ -21,6 +21,8 @@ import type { GuestField } from './guest-receiver'
 export type PlacementProblem =
   /** 409 `order_total_changed`: re-read the cart, confirm the new total. */
   | 'total_changed'
+  /** A replay (200) of an earlier order, for another cart (place-flow's `earlier`). */
+  | 'earlier'
   /** `order_cart_empty`: back to the cart. */
   | 'cart_empty'
   /** `order_destination_required`: the receiver step. */

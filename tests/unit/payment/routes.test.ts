@@ -47,7 +47,7 @@ describe('availableRoutes', () => {
     })
   })
 
-  it('COD past its ceiling, switched off, or not offered: disabled with a reason', () => {
+  it('the confirmation past its ceiling or switched off: disabled with a reason', () => {
     const over = routeOf({ online: 0, onDelivery: 25_000_000 }, 'pay_on_delivery')!
     expect(over.enabled).toBe(false)
     expect(over.reason).toBe('مبلغ این سفارش از سقف این روش (۲۰٬۰۰۰٬۰۰۰ تومان) بیشتر است.')
@@ -60,12 +60,20 @@ describe('availableRoutes', () => {
       'pay_on_delivery',
     )!
     expect(off).toMatchObject({ enabled: false, reason: 'تعطیل است.' })
-    const missing = availableRoutes(
-      input({ online: 0, onDelivery: 100, methods: methods().slice(0, 4) }),
-    )
-    expect(missing).toHaveLength(1)
-    expect(missing[0]).toMatchObject({ route: 'pay_on_delivery', enabled: false })
-    expect(missing[0]!.reason).toBeTruthy()
+  })
+
+  it('nothing owed online and no pay-on-delivery listed: the confirmation all the same', () => {
+    // A free order (or one paid at the door) has no other way on; the operator's list is not
+    // asked (digest §5.2 step 5), only the switch.
+    const unlisted = { online: 0, onDelivery: 0, methods: methods().slice(0, 4) }
+    expect(availableRoutes(input(unlisted))).toEqual([
+      { route: 'pay_on_delivery', enabled: true, method: null, gateways: [] },
+    ])
+    const off = { ...FEATURES_ON, pay_on_delivery: { enabled: false, reason: null } }
+    expect(availableRoutes(input({ ...unlisted, features: off }))[0]).toMatchObject({
+      enabled: false,
+      reason: 'تأیید سفارش اکنون ممکن نیست.',
+    })
   })
 
   it('hides the wallet routes for a guest (and offers a login instead)', () => {
@@ -185,12 +193,12 @@ describe('defaultRoute and gatewayCodeFor', () => {
     expect(defaultRoute(availableRoutes(input({ online: 0 })))?.route).toBe('pay_on_delivery')
   })
 
-  it('a gateway code only for a gateway other than the shop’s default (the server picks that one)', () => {
+  it('the gateway shown chosen whenever the chooser shows; no code for a lone default', () => {
     const bank = routeOf({}, 'bank_gateway')!
     expect(gatewayCodeFor(bank, 'ZIBAL', gateways())).toBe('ZIBAL')
-    // The default kept: no code (the server's default, then the first usable one).
-    expect(gatewayCodeFor(bank, null, gateways())).toBeUndefined()
-    expect(gatewayCodeFor(bank, 'ZARINPAL', gateways())).toBeUndefined()
+    // The chooser showed: the shopper kept (or picked) the default, its code is sent.
+    expect(gatewayCodeFor(bank, null, gateways())).toBe('ZARINPAL')
+    expect(gatewayCodeFor(bank, 'ZARINPAL', gateways())).toBe('ZARINPAL')
     const [only] = gateways()
     expect(
       gatewayCodeFor(routeOf({ gateways: [only!] }, 'bank_gateway')!, null, [only!]),
