@@ -6,6 +6,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
+import { focusWasIn } from '@/components/ui/focus-guard'
 import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
 import type { AttemptResolution } from '@/features/payment/open-attempt'
@@ -66,7 +67,8 @@ export function PlacedOrderPanel({
   const [resumed, setResumed] = useState(false)
   const door = doorOf(ctx)
   // The resume UI gone (its pressed control with it): the routes' heading takes the focus, or
-  // the order's own while the route runs again.
+  // the order's own while the route runs again; only when the focus was in it (or nowhere).
+  const attemptBox = useRef<HTMLDivElement>(null)
   const headings = useRef<{ order: HTMLHeadingElement | null; routes: HTMLHeadingElement | null }>({
     order: null,
     routes: null,
@@ -78,7 +80,7 @@ export function PlacedOrderPanel({
   const resolved = (resolution: AttemptResolution) => {
     if (resolution.kind === 'settled') return payment.settled()
     setResumed(true)
-    setRefocus((count) => count + 1)
+    if (focusWasIn(attemptBox.current)) setRefocus((count) => count + 1)
     setAttemptNotice(resolution.kind === 'cancelled' ? (resolution.notice ?? null) : null)
     // Abandoned to pay again: the route runs again, with a new key (`pay`).
     if (resolution.kind === 'cancelled' && resolution.repay && choice.chosen) {
@@ -152,13 +154,15 @@ export function PlacedOrderPanel({
         </p>
       )}
       {open && door && (
-        <OpenAttemptLoader
-          attempt={open}
-          door={door}
-          orderCode={ctx.orderCode}
-          fallbackHref={ctx.linkToken ? payLinkPath(ctx.linkToken) : undefined}
-          onResolved={resolved}
-        />
+        <div ref={attemptBox}>
+          <OpenAttemptLoader
+            attempt={open}
+            door={door}
+            orderCode={ctx.orderCode}
+            fallbackHref={ctx.linkToken ? payLinkPath(ctx.linkToken) : undefined}
+            onResolved={resolved}
+          />
+        </div>
       )}
       {attemptNotice && !open && (
         <p className="rounded-card bg-warning/10 px-4 py-3 text-base leading-7 text-ink-800">

@@ -2,6 +2,7 @@
 
 import { TriangleAlert } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { focusWasIn } from '@/components/ui/focus-guard'
 import { payLinkPath } from '@/features/orders/pay-link'
 import type { OrderPaymentLink } from '@/lib/api/types/order'
 import type { OpenAttempt, PaymentRoute } from '@/lib/api/types/payment'
@@ -89,7 +90,9 @@ export function PayLinkPage({
     onAttemptOpen: setAttempt,
     onStale: () => void reread(),
   })
-  // The resume UI gone (its pressed control with it): the routes' heading takes the focus.
+  // The resume UI gone (its pressed control with it): the routes' heading takes the focus, only
+  // when the focus was in it (or nowhere).
+  const attemptBox = useRef<HTMLDivElement>(null)
   const routesHeading = useRef<HTMLHeadingElement>(null)
   const [refocus, setRefocus] = useState(0)
   useEffect(() => {
@@ -100,7 +103,7 @@ export function PayLinkPage({
     setAttempt(null)
     if (resolution.kind === 'settled')
       return setView({ kind: 'done', outcome: { kind: 'settled' } })
-    setRefocus((count) => count + 1)
+    if (focusWasIn(attemptBox.current)) setRefocus((count) => count + 1)
     if (resolution.kind === 'ended') return void reread()
     setNotice(resolution.notice ?? null)
     // «انصراف و پرداخت دوباره»: the same kind of route again, with a new key (`pay`).
@@ -154,13 +157,15 @@ export function PayLinkPage({
           </p>
         )}
         {attempt ? (
-          <OpenAttemptLoader
-            attempt={attempt}
-            door={{ kind: 'link', token }}
-            orderCode={link.order_code}
-            fallbackHref={payLinkPath(token)}
-            onResolved={resolved}
-          />
+          <div ref={attemptBox}>
+            <OpenAttemptLoader
+              attempt={attempt}
+              door={{ kind: 'link', token }}
+              orderCode={link.order_code}
+              fallbackHref={payLinkPath(token)}
+              onResolved={resolved}
+            />
+          </div>
         ) : (
           <PayLinkPay
             token={token}
