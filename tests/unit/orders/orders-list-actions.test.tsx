@@ -90,6 +90,18 @@ describe('the card actions', () => {
     expect(within(sheet).getAllByText(/هنگام تحویل پرداخت می/)).toHaveLength(1)
   })
 
+  it('another card’s question does not re-open the closed sheet for that order (no extra read)', async () => {
+    const user = renderOrders()
+    await user.click(within(await card(A)).getByRole('button', { name: 'پرداخت' }))
+    const sheet = await screen.findByRole('dialog', { name: /پرداخت سفارش/ })
+    expect(await within(sheet).findByText('مبلغ قابل پرداخت آنلاین')).toBeVisible()
+    await user.click(within(sheet).getByRole('button', { name: 'بستن' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await user.click(within(await card(B)).getByRole('button', { name: 'لغو سفارش' }))
+    expect(await screen.findByRole('dialog', { name: 'لغو سفارش' })).toHaveTextContent('۱۲۳۴۵۶۷۸۹۰')
+    expect(calls(mocks.bffFetch, `order/${B}/`)).toHaveLength(0)
+  })
+
   it('each order’s question is its own: nothing of another order’s is left in it', async () => {
     const user = renderOrders()
     await user.click(within(await card(A)).getByRole('button', { name: 'لغو سفارش' }))

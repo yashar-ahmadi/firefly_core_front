@@ -74,10 +74,12 @@ export function OrdersPage({
 
   const pay = useOverlay()
   const cancel = useOverlay()
-  const [selected, setSelected] = useState<string | null>(null)
+  // Each overlay its own order: opening one never re-keys the other (a closed sheet read again).
+  const [paying, setPaying] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState<string | null>(null)
   const cancelled = useRef<string | null>(null)
-  const open = (overlay: typeof pay) => (code: string) => {
-    setSelected(code)
+  const open = (overlay: typeof pay, select: (code: string) => void) => (code: string) => {
+    select(code)
     overlay.show()
   }
 
@@ -117,7 +119,11 @@ export function OrdersPage({
         >
           {rows.map((order) => (
             <li key={order.order_code}>
-              <OrderCard order={order} onPay={open(pay)} onCancel={open(cancel)} />
+              <OrderCard
+                order={order}
+                onPay={open(pay, setPaying)}
+                onCancel={open(cancel, setCancelling)}
+              />
             </li>
           ))}
         </ul>
@@ -152,27 +158,27 @@ export function OrdersPage({
       {body}
       {/* One sheet and one question for every card, each order's own (keyed by its code: nothing
           another order left in them, a reason typed, a refusal, an open attempt, stays). */}
-      {pay.requested && selected && (
+      {pay.requested && paying && (
         <LazyPaySheet
-          key={selected}
-          code={selected}
+          key={paying}
+          code={paying}
           catalog={catalog}
           supportPhone={supportPhone}
           open={pay.open}
           onOpenChange={pay.setOpen}
         />
       )}
-      {cancel.requested && selected && (
+      {cancel.requested && cancelling && (
         <LazyCancelDialog
-          key={selected}
-          code={selected}
+          key={cancelling}
+          code={cancelling}
           open={cancel.open}
           onOpenChange={cancel.setOpen}
           onCancelled={(order) => {
             cancelled.current = order.order_code
             ordersChanged(client, { code: order.order_code, order, wallet: true })
           }}
-          onStale={() => ordersChanged(client, { code: selected })}
+          onStale={() => ordersChanged(client, { code: cancelling })}
           onCloseAutoFocus={(event) => {
             // Its card's «لغو سفارش» goes with the cancellation: the focus to the card's heading.
             const code = cancelled.current
