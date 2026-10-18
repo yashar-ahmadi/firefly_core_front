@@ -2,6 +2,7 @@
 
 import { CircleCheck, CircleX, CreditCard } from 'lucide-react'
 import Link from 'next/link'
+import { useRef } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
@@ -10,6 +11,7 @@ import { formatJalaliDate, formatNumber, formatToman, toPersianDigits } from '@/
 import { TrackingCode } from '../components/tracking-code'
 import { statusTone } from '../status-tone'
 import { CopyCode } from './copy-code'
+import { useFocusWhenGone } from './gone-trigger'
 import { MiniProgress } from './mini-progress'
 import { orderActions } from './order-action-rules'
 import { OrderThumbs } from './order-thumbs'
@@ -19,10 +21,15 @@ import { OrderThumbs } from './order-thumbs'
 // many units, the first lines' pictures, the server's progress, the API's total, the shipping
 // method and where it goes (`address_summary`), the parcel's tracking code when it has one. ONE main action: «پرداخت» (it owes online
 // money) or «تأیید سفارش» (pure pay on delivery awaiting its confirmation), both the pay sheet;
-// otherwise «جزئیات سفارش». «لغو سفارش» beside it while it may be cancelled.
+// otherwise «جزئیات سفارش». «لغو سفارش» beside it while it may be cancelled. An action that went
+// while it held the focus (the order read again after its overlay closed) gives the focus to the
+// card's heading, never to <body>.
 
 export const orderPath = (code: string) => `/account/orders/${code}/`
 export const cardHeadingId = (code: string) => `order-card-${code}`
+/** A card's button that opens an overlay, found again by its order and action as that closes. */
+export type CardAction = 'pay' | 'cancel'
+export const cardActionSelector = (action: CardAction) => `[data-card-action="${action}"]`
 
 export interface OrderCardProps {
   order: OrderListItem
@@ -34,6 +41,9 @@ export function OrderCard({ order, onPay, onCancel }: OrderCardProps) {
   const code = order.order_code
   const headingId = cardHeadingId(code)
   const rules = orderActions(order)
+  const headingLink = useRef<HTMLAnchorElement>(null)
+  useFocusWhenGone(rules.pay || rules.confirm, headingLink)
+  useFocusWhenGone(rules.cancel, headingLink)
   const label = (
     <>
       <span>سفارش</span>{' '}
@@ -51,6 +61,7 @@ export function OrderCard({ order, onPay, onCancel }: OrderCardProps) {
         <div className="flex items-center gap-1">
           <h2 id={headingId} className="text-lg leading-8 font-bold text-ink-900">
             <Link
+              ref={headingLink}
               href={orderPath(code)}
               className="inline-flex min-h-11 items-center gap-1.5 rounded-control hover:text-brand-700"
             >
@@ -94,6 +105,7 @@ export function OrderCard({ order, onPay, onCancel }: OrderCardProps) {
           <Button
             aria-haspopup="dialog"
             aria-describedby={headingId}
+            data-card-action="pay"
             iconStart={<CreditCard aria-hidden />}
             onClick={() => onPay(code)}
           >
@@ -103,6 +115,7 @@ export function OrderCard({ order, onPay, onCancel }: OrderCardProps) {
           <Button
             aria-haspopup="dialog"
             aria-describedby={headingId}
+            data-card-action="pay"
             iconStart={<CircleCheck aria-hidden />}
             onClick={() => onPay(code)}
           >
@@ -118,6 +131,7 @@ export function OrderCard({ order, onPay, onCancel }: OrderCardProps) {
             variant="ghost"
             aria-haspopup="dialog"
             aria-describedby={headingId}
+            data-card-action="cancel"
             className="text-danger hover:bg-danger/10"
             iconStart={<CircleX aria-hidden />}
             onClick={() => onCancel(code)}

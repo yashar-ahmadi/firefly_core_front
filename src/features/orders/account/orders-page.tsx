@@ -10,7 +10,8 @@ import { usePageFallback } from '@/features/account/lists/use-page-fallback'
 import { useListUrl } from '@/features/account/lists/use-list-url'
 import { isLoadingSection } from '@/features/account/use-account-query'
 import type { PaymentCatalog } from '@/features/payment/catalog'
-import { cardHeadingId, OrderCard } from './order-card'
+import { focusInsteadOfGone, useFocusWhenGone } from './gone-trigger'
+import { cardActionSelector, cardHeadingId, OrderCard, type CardAction } from './order-card'
 import { LazyCancelDialog, LazyPaySheet, useOverlay } from './order-overlays'
 import { OrdersEmpty, OrdersSkeleton } from './orders-states'
 import { OrdersTabs } from './orders-tabs'
@@ -25,6 +26,23 @@ import {
 import { fetchOrders, ordersChanged, ordersListKey, useOrders } from './orders-api'
 
 export const ORDERS_PATH = '/account/orders/'
+
+/**
+ * A card's overlay closes: its button still there → back to it (the overlay's own way); gone with
+ * what was done (paid, confirmed, cancelled) → the card's heading; the card gone too (its tab no
+ * longer holds the order) → the page's heading. Never <body>.
+ */
+function focusAfterCardOverlay(
+  event: Event,
+  code: string,
+  action: CardAction,
+  pageHeading: HTMLElement | null,
+): void {
+  const card = document.getElementById(cardHeadingId(code))?.closest('article') ?? null
+  const opener = card?.querySelector<HTMLElement>(cardActionSelector(action)) ?? null
+  const heading = card?.querySelector<HTMLElement>('h2 a') ?? pageHeading
+  focusInsteadOfGone(event, opener, heading)
+}
 
 /**
  * `/account/orders/` «سفارش‌های من» (order digest §3.1.2, §6.3; dashboard digest §3.2–3.4): the
@@ -77,15 +95,21 @@ export function OrdersPage({
   // Each overlay its own order: opening one never re-keys the other (a closed sheet read again).
   const [paying, setPaying] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState<string | null>(null)
-  const cancelled = useRef<string | null>(null)
+  // The order the last overlay was opened for: when it leaves the list (read again after the
+  // overlay closed; its tab no longer holds it) with the focus on its card, the page's heading
+  // takes the focus (a card that stays sees to its own).
+  const [acted, setActed] = useState<string | null>(null)
   const open = (overlay: typeof pay, select: (code: string) => void) => (code: string) => {
     select(code)
+    setActed(code)
     overlay.show()
   }
+  const pageHeading = useRef<HTMLHeadingElement>(null)
 
   const current = group.kind === 'group' ? group.key : null
   const data = group.kind === 'pending' ? undefined : list.data
   const rows = data?.results ?? []
+  useFocusWhenGone(acted !== null && rows.some((order) => order.order_code === acted), pageHeading)
   let body
   if (list.isError && !data && !leaving && !isLoadingSection(list)) {
     body = (
@@ -140,7 +164,7 @@ export function OrdersPage({
 
   return (
     <>
-      <AccountPageHeader title={title} />
+      <AccountPageHeader title={title} headingRef={pageHeading} />
       <OrdersTabs
         groups={summaryKeys === null ? null : groups}
         total={summary.data?.orders.total}
@@ -166,6 +190,9 @@ export function OrdersPage({
           supportPhone={supportPhone}
           open={pay.open}
           onOpenChange={pay.setOpen}
+          onCloseAutoFocus={(event) =>
+            focusAfterCardOverlay(event, paying, 'pay', pageHeading.current)
+          }
         />
       )}
       {cancel.requested && cancelling && (
@@ -174,20 +201,13 @@ export function OrdersPage({
           code={cancelling}
           open={cancel.open}
           onOpenChange={cancel.setOpen}
-          onCancelled={(order) => {
-            cancelled.current = order.order_code
+          onCancelled={(order) =>
             ordersChanged(client, { code: order.order_code, order, wallet: true })
-          }}
+          }
           onStale={() => ordersChanged(client, { code: cancelling })}
-          onCloseAutoFocus={(event) => {
-            // Its card's «لغو سفارش» goes with the cancellation: the focus to the card's heading.
-            const code = cancelled.current
-            cancelled.current = null
-            const link = code && document.getElementById(cardHeadingId(code))?.querySelector('a')
-            if (!link) return
-            event.preventDefault()
-            link.focus()
-          }}
+          onCloseAutoFocus={(event) =>
+            focusAfterCardOverlay(event, cancelling, 'cancel', pageHeading.current)
+          }
         />
       )}
     </>
