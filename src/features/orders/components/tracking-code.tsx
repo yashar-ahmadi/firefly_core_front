@@ -10,7 +10,8 @@ import { toPersianDigits } from '@/lib/format'
 // to right in Persian digits, copied as it is (the carrier's site wants its own digits), with a
 // hint of where to use it. Without a clipboard the code is selected for the shopper to copy. The
 // carrier is not named here: tracking does not say it (the account's order shows the shipping
-// method beside it).
+// method beside it). Its size follows the box it is in, not the screen (a 24-digit post code on
+// one line in the account order's side column too).
 
 const SHOWN_MS = 2_000
 
@@ -37,7 +38,7 @@ export function TrackingCode({ code, hint = true }: { code: string; hint?: boole
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-card border border-ink-200 p-4">
+    <div className="@container flex flex-col gap-2 rounded-card border border-ink-200 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-base leading-7 font-medium text-ink-800">کد رهگیری مرسوله</span>
         <Button
@@ -52,7 +53,7 @@ export function TrackingCode({ code, hint = true }: { code: string; hint?: boole
       <bdi
         ref={value}
         dir="ltr"
-        className="self-start text-base font-bold break-all text-ink-900 tabular-nums select-all sm:text-lg sm:tracking-wide"
+        className="self-start text-base font-bold break-all text-ink-900 tabular-nums select-all @sm:text-lg @sm:tracking-wide"
       >
         {toPersianDigits(code)}
       </bdi>

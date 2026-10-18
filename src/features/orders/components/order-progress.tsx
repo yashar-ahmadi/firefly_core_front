@@ -11,13 +11,13 @@ import type { ProgressState, ProgressView } from '../progress'
 // said as such («پایان سفارش»). Down the page on a phone, across it from `md`; the line between
 // two steps is coloured once the first is done. No state: a server component as well.
 
-const STATE_TEXT: Record<ProgressState, string> = {
+export const STATE_TEXT: Record<ProgressState, string> = {
   completed: 'انجام شده',
   current: 'مرحلهٔ کنونی',
   upcoming: 'پیش رو',
 }
 
-const ENDING_TEXT = 'پایان سفارش'
+export const ENDING_TEXT = 'پایان سفارش'
 
 function Marker({ state, ending }: { state: ProgressState; ending: boolean }) {
   const base =

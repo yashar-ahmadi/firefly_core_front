@@ -1,18 +1,14 @@
 import type { Metadata } from 'next'
-import { ComingSoon } from '@/features/account/layout/coming-soon'
+import { AwaitingReviewsPage } from '@/features/orders/reviews/awaiting-reviews-page'
 
-// A placeholder (noindex and per visitor, like every account page: see the account layout).
-// Plan 4 replaces this file with the purchases awaiting a review.
+// «در انتظار دیدگاه» (noindex, per visitor, never cached: the account layout; no loading.tsx).
+// The purchases are read and reviewed in the browser through the BFF. (The title lives here: a
+// constant imported from a client module would reach this server file as a client reference.)
 
 const TITLE = 'در انتظار دیدگاه'
 
 export const metadata: Metadata = { title: TITLE }
 
-export default function AwaitingReviewPage() {
-  return (
-    <ComingSoon
-      title={TITLE}
-      description="به‌زودی کالاهایی را که خریده‌اید همین‌جا می‌بینید تا درباره‌شان دیدگاه بنویسید."
-    />
-  )
+export default function AccountReviewsPage() {
+  return <AwaitingReviewsPage title={TITLE} />
 }

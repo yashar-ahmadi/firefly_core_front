@@ -1,0 +1,10 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "order_code": "7010868573",
+    "encoded_value": "7010868573",
+    "content_type": "image/png",
+    "qr_code": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASIAAAEiAQAAAAB1xeIbAAABkUlEQVR4nO2YwW3cMBBF30QE9igBW8CWQnaQmlJSOpBKcQfi0QAXPwdSiu0EsC8rrkXOgRCJB/Bj8DUYjonPY/nxBQg61alOdapTz05ZCQfLdDcLcTsJVXU1QXlJ0goQHZoZJEl6Tx2vqwkqFo9bGBP5y8zV19USpXlbjrqxU3v4l4ssHHljs9RWVkYBEWBM+eTto+tZ1Z+CWszMbAIL0QHcc5tTW9epqez7Nx5fbq9WfoOaulqgcu4NhlRMHh1abEgQr6marsYozaNKV+9XYLml/1DH6zo75fVqEM0gOkqTH3u9fyi19TlxwhhXYEyIeE0CMD/X0dUCRa4yc+4sh73mDPq71fys6r83VXK/R/b9PKbyuPU99w+j9j4HgCHhfzsgOsglqJKuFihKkclzzEF4JfLj1it13x9BbXNMFnNojg79skufIT+Sch/2Il4Tfp0A7qZaulqkLAAWRskCwzbRrK/rjNS/c0xAxAktP1e67x9P7XNMAGy3vIW6uk5NfZxjCtK+0H3fqU51qlNnof4AN9654nJJuWgAAAAASUVORK5CYII="
+  }
+}

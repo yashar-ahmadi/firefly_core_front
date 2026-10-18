@@ -104,7 +104,7 @@ describe('useLinkPayment, card to card, the page did not leave after all', () =>
       </FeatureProvider>
     )
     const options = {
-      token: LINK_TOKEN,
+      door: { kind: 'link', token: LINK_TOKEN } as const,
       orderCode: '5592580094',
       catalog,
       suggest: vi.fn(),

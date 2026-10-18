@@ -1,0 +1,28 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "count": 1,
+    "total_pages": 1,
+    "current_page": 1,
+    "page_size": 20,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "uuid": "0a8e0011-0000-4000-8000-000000000011",
+        "method": "pay_on_delivery",
+        "method_display": "پرداخت در محل",
+        "status": "pending",
+        "status_display": "در انتظار پرداخت",
+        "applies_to": "delivery_collection",
+        "applies_to_display": "دریافت در محل",
+        "amount": 7670000,
+        "order_code": "5210924113",
+        "settled_at": null,
+        "created": "2026-09-09T17:00:00+03:30",
+        "receipt": null
+      }
+    ]
+  }
+}

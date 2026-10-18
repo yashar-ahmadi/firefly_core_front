@@ -1,0 +1,162 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "uuid": "0a8e0002-0000-4000-8000-000000000002",
+    "order_code": "5210924113",
+    "status": "processing",
+    "status_display": "در حال انجام",
+    "status_group": "in_progress",
+    "progress": {
+      "is_terminal": false,
+      "steps": [
+        {
+          "status": "awaiting_payment",
+          "label": "در انتظار پرداخت",
+          "state": "completed",
+          "reached_at": "2026-09-09T15:00:00+03:30"
+        },
+        {
+          "status": "processing",
+          "label": "در حال انجام",
+          "state": "current",
+          "reached_at": "2026-09-10T01:00:00+03:30"
+        },
+        {
+          "status": "packing",
+          "label": "بسته‌بندی",
+          "state": "upcoming",
+          "reached_at": null
+        },
+        {
+          "status": "sent",
+          "label": "ارسال شده",
+          "state": "upcoming",
+          "reached_at": null
+        },
+        {
+          "status": "delivered",
+          "label": "تکمیل شده",
+          "state": "upcoming",
+          "reached_at": null
+        }
+      ]
+    },
+    "address_summary": "تهران، تهران، خیابان ولیعصر، بالاتر از میدان ونک، کوچه نگار",
+    "placed_at": "2026-09-09T15:00:00+03:30",
+    "paid_at": null,
+    "is_confirmed": true,
+    "is_fully_paid": false,
+    "total": 7670000,
+    "item_count": 2,
+    "shipping_method_title": "پیک موتوری تهران",
+    "postal_tracking_code": null,
+    "is_payable": false,
+    "payment_url": "http://localhost:3000/order/pay/accountLinkToken521092411300000000000000000",
+    "can_cancel": false,
+    "channel": "website",
+    "customer_note": null,
+    "delivery_min_days": 0,
+    "delivery_max_days": 1,
+    "freight_paid_by_recipient": false,
+    "cash_on_delivery": true,
+    "milestones": {
+      "confirmed_at": "2026-09-10T01:00:00+03:30",
+      "packed_at": null,
+      "dispatched_at": null,
+      "delivered_at": null,
+      "cancelled_at": null,
+      "returned_at": null
+    },
+    "money": {
+      "goods_subtotal": 7340000,
+      "item_discount": 390000,
+      "goods_total": 6950000,
+      "coupon_discount": 0,
+      "goods_payable": 6950000,
+      "shipping_cost": 0,
+      "packaging_cost": 0,
+      "shipping_discount": 0,
+      "tax_rate": "10.00",
+      "tax_amount": 695000,
+      "cod_fee": 25000,
+      "total": 7670000,
+      "total_savings": 390000,
+      "prepayment": 0,
+      "amount_charged_online": 0,
+      "amount_to_collect_on_delivery": 7670000,
+      "amount_settled_online": 0,
+      "amount_settled_on_delivery": 0,
+      "amount_outstanding_online": 0
+    },
+    "coupon": {
+      "code": null,
+      "title": null,
+      "discount_type": null,
+      "max_discount_amount": null
+    },
+    "receiver": {
+      "receiver_full_name": "سارا احمدی",
+      "receiver_mobile": "+989121234501",
+      "receiver_email": null,
+      "province_name": "تهران",
+      "city_name": "تهران",
+      "address": "خیابان ولیعصر، بالاتر از میدان ونک، کوچه نگار",
+      "plaque": "۱۲",
+      "unit": "۴",
+      "postal_code": "1969734563",
+      "latitude": "35.756400",
+      "longitude": "51.410000"
+    },
+    "lines": [
+      {
+        "product_name": "پاوربانک انکر ۲۰۰۰۰ میلی آمپرساعت",
+        "variant_name": null,
+        "sku": "AK-PB20K-65W",
+        "brand_name": "انکر",
+        "unit_name": "عدد",
+        "product_slug": "anker-powerbank-20000",
+        "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/anker-powerbank-20000/864531fb8152c111dd4edb372d02c171.jpg",
+        "quantity": 1,
+        "unit_price": 3890000,
+        "unit_discount": 390000,
+        "unit_final_price": 3500000,
+        "line_subtotal": 3890000,
+        "line_discount": 390000,
+        "line_total": 3500000,
+        "weight_grams": 430,
+        "review_state": "unavailable"
+      },
+      {
+        "product_name": "هدفون انکر Soundcore Life Q30",
+        "variant_name": null,
+        "sku": "AK-Q30",
+        "brand_name": "انکر",
+        "unit_name": "عدد",
+        "product_slug": "anker-soundcore-life-q30",
+        "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/anker-soundcore-life-q30/a5e8edcfa77ff3cfbcf7677563bbac8f.jpg",
+        "quantity": 1,
+        "unit_price": 3450000,
+        "unit_discount": 0,
+        "unit_final_price": 3450000,
+        "line_subtotal": 3450000,
+        "line_discount": 0,
+        "line_total": 3450000,
+        "weight_grams": 260,
+        "review_state": "unavailable"
+      }
+    ],
+    "timeline": [
+      {
+        "to_status": "awaiting_payment",
+        "to_status_display": "در انتظار پرداخت",
+        "created": "2026-09-09T17:00:00+03:30"
+      },
+      {
+        "to_status": "processing",
+        "to_status_display": "در حال انجام",
+        "created": "2026-09-10T01:00:00+03:30"
+      }
+    ]
+  }
+}

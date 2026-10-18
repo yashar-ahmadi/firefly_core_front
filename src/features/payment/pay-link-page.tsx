@@ -82,7 +82,7 @@ export function PayLinkPage({
     setAttempt(read.link.open_attempt)
   }
   const payment = useLinkPayment({
-    token,
+    door: { kind: 'link', token },
     orderCode: link.order_code,
     catalog,
     suggest: choice.choose,
@@ -169,7 +169,7 @@ export function PayLinkPage({
           </div>
         ) : (
           <PayLinkPay
-            token={token}
+            loginNext={payLinkPath(token)}
             choice={choice}
             catalog={catalog}
             onDelivery={link.amount_to_collect_on_delivery}

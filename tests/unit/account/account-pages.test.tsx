@@ -10,7 +10,7 @@ import { resolveServerTree } from '../support/server-tree'
 import { banner, ok, page, PURCHASES, summary } from './fixtures'
 
 // The account pages inside their shell: the dashboard (the hub below lg) and the «به‌زودی»
-// placeholders of the pages later plans build.
+// placeholders of the pages later plans build (the orders and reviews are built: Plan 4 Task 8).
 
 const mocks = vi.hoisted(() => ({ pathname: '/account/', banners: vi.fn() }))
 vi.mock('server-only', () => ({}))
@@ -73,9 +73,9 @@ const holder = (nav: HTMLElement) => nav.closest('.lg\\:hidden, .lg\\:block')
 
 describe('the account shell', () => {
   it('puts the account card (who is signed in, the navigation) in a side column from lg', async () => {
-    mocks.pathname = '/account/orders/'
-    const { default: OrdersPage } = await import('@/app/(shop)/account/orders/page')
-    await renderInShell(<OrdersPage />)
+    mocks.pathname = '/account/reading-list/'
+    const { default: ReadingListPage } = await import('@/app/(shop)/account/reading-list/page')
+    await renderInShell(<ReadingListPage />)
     const navs = screen.getAllByRole('navigation', { name: 'حساب کاربری' })
     expect(navs).toHaveLength(1)
     const side = holder(navs[0]!)!
@@ -83,7 +83,7 @@ describe('the account shell', () => {
     expect(side.className).toContain('lg:block')
     expect(await within(side as HTMLElement).findByText('سارا احمدی')).toBeInTheDocument()
     expect(within(side as HTMLElement).getByText('sara.ahmadi@example.com')).toBeInTheDocument()
-    expect(within(navs[0]!).getByRole('link', { name: /^سفارش‌ها/ })).toHaveAttribute(
+    expect(within(navs[0]!).getByRole('link', { name: /^لیست مطالعه/ })).toHaveAttribute(
       'aria-current',
       'page',
     )
@@ -160,8 +160,6 @@ describe('the dashboard', () => {
 
 describe('the placeholders', () => {
   it.each([
-    ['orders', 'سفارش‌ها'],
-    ['reviews', 'در انتظار دیدگاه'],
     ['reading-list', 'لیست مطالعه'],
     ['wallet', 'کیف پول'],
   ])(

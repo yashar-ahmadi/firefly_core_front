@@ -1,5 +1,7 @@
+import { expect, type Page } from '@playwright/test'
 import {
   budgetOf,
+  CHECKOUT_BUDGET_KB,
   deviceLabel,
   enforce,
   measure,
@@ -11,12 +13,22 @@ import {
 import { signedInTest } from '../support/session'
 
 // The JavaScript budget signed in (ruling P2-R4; the measure: support/js-budget.ts): the catalog
-// as sara sees it (her header, hearts and cart), the account pages that carry the most code and
-// her cart page.
+// as sara sees it (her header, hearts and cart), the account pages that carry the most code, her
+// cart page, her checkout and her orders.
 // The project's shared session on a desktop (1440 px) and on a phone (a fresh Pixel 7 context at
 // 375 px with the same session). Runs in the desktop project only, which measures both, and
 // again in `budget-push` (a shop with web push; the same session), with push on in the browser:
 // the re-register effect's chunk loads there, the costliest case.
+
+/** Sara's orders the budget reads (the dev data; tests/e2e/account/orders.spec.ts reads them too). */
+const SARA_ORDERS = { delivered: '7010868573', payable: '3067562358' } as const
+
+async function cardsShown(page: Page) {
+  await expect(page.getByRole('article').first()).toBeVisible()
+}
+async function paymentsShown(page: Page) {
+  await expect(page.getByRole('list', { name: 'پرداخت‌های سفارش' })).toBeVisible()
+}
 
 const ROUTES: BudgetRoute[] = [
   { name: 'home', path: '/' },
@@ -30,6 +42,30 @@ const ROUTES: BudgetRoute[] = [
   // Her checkout: the address picker and the shipping step, its own writes refused (read only).
   // At the review signed in: k.yazdi's journey measures it (checkout/checkout-signed-in.spec.ts).
   { name: 'checkout', path: '/checkout/', checkout: 'signed-in' },
+  // Her orders (Plan 4 Task 8, read only; held to the checkout's 246 KB): every order, a group
+  // she has none in (its empty state), a delivered order (tracking code, payments, reviews), the
+  // order awaiting her payment (pay and cancel offered: their code loads on the press only), and
+  // her purchases awaiting a review.
+  { name: 'orders', path: '/account/orders/', budget: CHECKOUT_BUDGET_KB, ready: cardsShown },
+  {
+    name: 'orders-empty-group',
+    path: '/account/orders/?group=returned',
+    budget: CHECKOUT_BUDGET_KB,
+    ready: (page) => expect(page.getByRole('heading', { name: /سفارشی در/ })).toBeVisible(),
+  },
+  {
+    name: 'order-delivered',
+    path: `/account/orders/${SARA_ORDERS.delivered}/`,
+    budget: CHECKOUT_BUDGET_KB,
+    ready: paymentsShown,
+  },
+  {
+    name: 'order-payable',
+    path: `/account/orders/${SARA_ORDERS.payable}/`,
+    budget: CHECKOUT_BUDGET_KB,
+    ready: (page) => expect(page.getByRole('button', { name: 'پرداخت' })).toBeVisible(),
+  },
+  { name: 'reviews', path: '/account/reviews/', budget: CHECKOUT_BUDGET_KB, ready: cardsShown },
 ]
 
 signedInTest.describe('JavaScript budget, signed in (production build)', () => {

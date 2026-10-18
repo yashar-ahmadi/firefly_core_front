@@ -1,18 +1,21 @@
 import type { Metadata } from 'next'
-import { ComingSoon } from '@/features/account/layout/coming-soon'
+import { OrdersPage } from '@/features/orders/account/orders-page'
+import { getPaymentCatalog } from '@/features/payment/catalog'
+import { getSiteSettings } from '@/features/settings/api'
 
-// A placeholder (noindex and per visitor, like every account page: see the account layout).
-// Plan 4 replaces this file with the orders page (tabs from the summary's `orders.groups`).
+// «سفارش‌های من» (noindex, per visitor, never cached: the account layout; no loading.tsx). The
+// orders are read in the browser through the BFF (the URL's tabs, sort, search and page); the
+// payment catalog (anonymous, the server's 60 s cache, its route texts sanitised there) and the
+// support line come from here for the pay sheet. (The title lives here: a constant imported from
+// a client module would reach this server file as a client reference.)
 
-const TITLE = 'سفارش‌ها'
+const TITLE = 'سفارش‌های من'
 
 export const metadata: Metadata = { title: TITLE }
 
-export default function OrdersPage() {
+export default async function AccountOrdersPage() {
+  const [catalog, settings] = await Promise.all([getPaymentCatalog(), getSiteSettings()])
   return (
-    <ComingSoon
-      title={TITLE}
-      description="به‌زودی سفارش‌هایتان را همین‌جا می‌بینید و وضعیت هر کدام را دنبال می‌کنید."
-    />
+    <OrdersPage title={TITLE} catalog={catalog} supportPhone={settings?.phone?.trim() || null} />
   )
 }

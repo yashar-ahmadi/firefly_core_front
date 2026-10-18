@@ -172,6 +172,37 @@ export interface CardTransferReceipt {
   reviewed_at: string | null
 }
 
+/** The bank's receipt of a captured and booked card payment. */
+export interface PaymentReceipt {
+  gateway_title: string
+  /** Digits: keep as a string (leading zeros). */
+  tracking_code: string
+  settlement_reference: string
+  /** «6087****9827». */
+  card_pan_masked: string
+}
+
+/**
+ * One row of `GET payment/history/` (signed in, newest first; `?order_code=` for one order's):
+ * each online leg, door collections, top-ups and refunds. Unknown methods (`pos`, `cash`,
+ * `manual_transfer`: payments the shop recorded) are legitimate.
+ */
+export interface PaymentHistoryItem {
+  /** A bearer credential: never logged. */
+  uuid: string
+  method: PaymentMethodName | string
+  method_display: string
+  status: PaymentStatus | string
+  status_display: string
+  applies_to: PaymentStatusInfo['applies_to'] | string
+  applies_to_display: string
+  amount: Toman
+  order_code: string | null
+  settled_at: string | null
+  created: string
+  receipt: PaymentReceipt | null
+}
+
 /** `GET payment/history/<uuid>/` (signed in, the payment's owner): the fields read here. */
 export interface PaymentHistoryDetail {
   uuid: string

@@ -212,3 +212,19 @@ export interface CartItemAddRequest {
 export interface CartItemQuantityRequest {
   quantity: number
 }
+
+/** A line of the old order that is no longer sold (deleted variant, unpublished product). */
+export interface ReorderSkippedLine {
+  product_name: string
+  variant_name: string | null
+}
+
+/**
+ * `POST cart/reorder/` (signed in, 10/min, NOT idempotent: cart digest §3.12): the cart after the
+ * order's lines were added. `added_lines` counts the variants whose quantity grew (build the
+ * sentence from it, never from `msg`); `adjustments` and `reorder_skipped` come back once only.
+ */
+export interface CartReorderResult extends Cart {
+  added_lines: number
+  reorder_skipped: ReorderSkippedLine[]
+}

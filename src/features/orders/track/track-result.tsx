@@ -2,18 +2,19 @@
 
 import { CalendarClock, CreditCard } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
-import { Badge, type BadgeTone } from '@/components/ui/badge'
+import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button-styles'
 import type { SupportLine } from '@/features/payment/result-actions'
 import { formatJalaliDate, formatToman, toPersianDigits } from '@/lib/format'
 import { formatJalaliDateTime } from '@/lib/format/date-time'
-import type { OrderStatusGroup, OrderTrackingResult } from '@/lib/api/types/order-detail'
+import type { OrderTrackingResult } from '@/lib/api/types/order-detail'
 import { OrderProgress } from '../components/order-progress'
 import { TrackingCode } from '../components/tracking-code'
 import { findGuestOrder } from '../guest-orders'
-import { groupOf, isTerminalStatus } from '../order-statuses'
+import { isTerminalStatus } from '../order-statuses'
 import { payLinkPath } from '../pay-link'
 import { progressFromTracking } from '../progress'
+import { statusTone } from '../status-tone'
 
 // What tracking found (order digest §3.1.8; the answer has no address, lines, money breakdown,
 // progress or timeline, by design): the status in the API's words (`status_display`), when the
@@ -23,14 +24,6 @@ import { progressFromTracking } from '../progress'
 // the API never returns it) while the order awaits payment: a full page load (its URL holds the
 // token). The heading names the order and its status and takes the focus when the result
 // appears, which says it once (never the live region as well).
-
-const TONES: Record<OrderStatusGroup, BadgeTone> = {
-  awaiting_payment: 'warning',
-  in_progress: 'info',
-  delivered: 'success',
-  returned: 'neutral',
-  cancelled: 'danger',
-}
 
 function Note({
   result,
@@ -86,7 +79,6 @@ export function TrackResult({ result, support }: TrackResultProps) {
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => heading.current?.focus(), [])
   const progress = useMemo(() => progressFromTracking(result), [result])
-  const group = groupOf(result.status)
   // This device's own link for the order, while it awaits payment.
   const kept = result.status === 'awaiting_payment' ? findGuestOrder(result.order_code) : null
   const facts: Array<[string, string, string?]> = [
@@ -120,7 +112,7 @@ export function TrackResult({ result, support }: TrackResultProps) {
             {toPersianDigits(result.order_code)}
           </bdi>
         </span>
-        <Badge tone={group ? TONES[group] : 'neutral'}>{result.status_display}</Badge>
+        <Badge tone={statusTone(result.status)}>{result.status_display}</Badge>
       </h2>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
         {facts.map(([term, value, iso]) => (

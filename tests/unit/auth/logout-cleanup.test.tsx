@@ -74,7 +74,7 @@ afterEach(() => {
 
 /** A query an account page reads, keyed outside the cleanup registry, not gated on the session. */
 function OrdersPage() {
-  const { data } = useQuery({ queryKey: ['orders', 'list'], queryFn: async () => ['#1001'] })
+  const { data } = useQuery({ queryKey: ['unregistered', 'list'], queryFn: async () => ['#1001'] })
   return <p>orders: {data?.join(',')}</p>
 }
 
@@ -137,11 +137,11 @@ describe('after a logout, without a reload', () => {
     // Session-gated and on screen: the flag went off first, so the first sweep took it.
     expect(client.getQueryData(['addresses'])).toBeUndefined()
     // The account page is still on screen: its query is still observed.
-    expect(client.getQueryData(['orders', 'list'])).toEqual(['#1001'])
+    expect(client.getQueryData(['unregistered', 'list'])).toEqual(['#1001'])
 
     act(() => nav.state.commit('/'))
     expect(screen.getByText('home')).toBeInTheDocument()
-    expect(client.getQueryData(['orders', 'list'])).toBeUndefined()
+    expect(client.getQueryData(['unregistered', 'list'])).toBeUndefined()
     // The layout's public query stayed, and still updates what is on screen.
     expect(client.getQueryData(['categories', 'tree'])).toBe('tree-1')
     act(() => client.setQueryData(['categories', 'tree'], 'tree-2'))

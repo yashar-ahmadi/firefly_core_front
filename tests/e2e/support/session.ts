@@ -26,7 +26,8 @@ import path from 'node:path'
 // journeys: 4; budget-push reads through the desktop's); logout.spec (a login and a logout per project but journeys: 6);
 // session-restore.spec (a form login and a logout, idem: 6); auth.spec (journeys only: a wrong
 // password, a form login, its logout in another tab, kamran's login there and its logout: 5);
-// checkout-signed-in.spec (journeys only: kamran's login and logout by its guard: 2). 23 in all.
+// checkout-signed-in.spec and orders-journey.spec (journeys only: kamran's login and logout by
+// their guard: 2 each). 25 in all.
 // They come apart because Playwright, as
 // configured, runs the projects one after the other (mobile, tablet, desktop, then journeys, which
 // waits for the others), each project's account specs first: measured from the backend's log,

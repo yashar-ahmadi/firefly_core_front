@@ -1,0 +1,139 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "uuid": "0a8e0001-0000-4000-8000-000000000001",
+    "order_code": "3067562358",
+    "status": "awaiting_payment",
+    "status_display": "در انتظار پرداخت",
+    "status_group": "awaiting_payment",
+    "progress": {
+      "is_terminal": false,
+      "steps": [
+        {
+          "status": "awaiting_payment",
+          "label": "در انتظار پرداخت",
+          "state": "current",
+          "reached_at": "2026-09-13T15:00:00+03:30"
+        },
+        {
+          "status": "processing",
+          "label": "در حال انجام",
+          "state": "upcoming",
+          "reached_at": null
+        },
+        {
+          "status": "packing",
+          "label": "بسته‌بندی",
+          "state": "upcoming",
+          "reached_at": null
+        },
+        {
+          "status": "sent",
+          "label": "ارسال شده",
+          "state": "upcoming",
+          "reached_at": null
+        },
+        {
+          "status": "delivered",
+          "label": "تکمیل شده",
+          "state": "upcoming",
+          "reached_at": null
+        }
+      ]
+    },
+    "address_summary": "تهران، تهران، خیابان مطهری، نبش کوچه میرعماد، ساختمان آفتاب",
+    "placed_at": "2026-09-13T15:00:00+03:30",
+    "paid_at": null,
+    "is_confirmed": false,
+    "is_fully_paid": false,
+    "total": 53790000,
+    "item_count": 1,
+    "shipping_method_title": "پیک موتوری تهران",
+    "postal_tracking_code": null,
+    "is_payable": true,
+    "payment_url": "http://localhost:3000/order/pay/accountLinkToken306756235800000000000000000",
+    "can_cancel": true,
+    "channel": "website",
+    "customer_note": null,
+    "delivery_min_days": 0,
+    "delivery_max_days": 1,
+    "freight_paid_by_recipient": false,
+    "cash_on_delivery": false,
+    "milestones": {
+      "confirmed_at": null,
+      "packed_at": null,
+      "dispatched_at": null,
+      "delivered_at": null,
+      "cancelled_at": null,
+      "returned_at": null
+    },
+    "money": {
+      "goods_subtotal": 48900000,
+      "item_discount": 0,
+      "goods_total": 48900000,
+      "coupon_discount": 0,
+      "goods_payable": 48900000,
+      "shipping_cost": 0,
+      "packaging_cost": 0,
+      "shipping_discount": 0,
+      "tax_rate": "10.00",
+      "tax_amount": 4890000,
+      "cod_fee": 0,
+      "total": 53790000,
+      "total_savings": 0,
+      "prepayment": 0,
+      "amount_charged_online": 53790000,
+      "amount_to_collect_on_delivery": 0,
+      "amount_settled_online": 0,
+      "amount_settled_on_delivery": 0,
+      "amount_outstanding_online": 53790000
+    },
+    "coupon": {
+      "code": null,
+      "title": null,
+      "discount_type": null,
+      "max_discount_amount": null
+    },
+    "receiver": {
+      "receiver_full_name": "سارا احمدی",
+      "receiver_mobile": "+989121234501",
+      "receiver_email": null,
+      "province_name": "تهران",
+      "city_name": "تهران",
+      "address": "خیابان مطهری، نبش کوچه میرعماد، ساختمان آفتاب",
+      "plaque": "۸۸",
+      "unit": "۱۱",
+      "postal_code": "1587634121",
+      "latitude": null,
+      "longitude": null
+    },
+    "lines": [
+      {
+        "product_name": "تبلت اپل آیپد ایر ۱۱ اینچ",
+        "variant_name": "رنگ: خاکستری | حافظه داخلی: ۱۲۸ گیگابایت",
+        "sku": "AP-IPA11-GRY-128",
+        "brand_name": "اپل",
+        "unit_name": "عدد",
+        "product_slug": "apple-ipad-air-11",
+        "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/apple-ipad-air-11-1/bef5d97dde6b0e645e01de9bd318543a.jpg",
+        "quantity": 1,
+        "unit_price": 48900000,
+        "unit_discount": 0,
+        "unit_final_price": 48900000,
+        "line_subtotal": 48900000,
+        "line_discount": 0,
+        "line_total": 48900000,
+        "weight_grams": 460,
+        "review_state": "unavailable"
+      }
+    ],
+    "timeline": [
+      {
+        "to_status": "awaiting_payment",
+        "to_status_display": "در انتظار پرداخت",
+        "created": "2026-09-13T15:00:00+03:30"
+      }
+    ]
+  }
+}

@@ -10,15 +10,16 @@ import { loadPage } from '@/lib/navigation/hard-navigation'
 import { useReleaseIfStillHere } from '@/lib/navigation/leaving'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
-import { IntentError, startPayment, type PaymentIntentResult } from './api'
+import { IntentError, startPayment, type PaymentDoor, type PaymentIntentResult } from './api'
 import { intentMessage } from './intent-messages'
 import { applyIntentRefusal } from './intent-refusal'
 import { savePending } from './pending-payments'
 import type { PaymentCatalogState } from './use-payment-catalog'
 
-// Paying an order through its payment link (order digest §3.2.4, §5.4–5.8): the link door
+// Paying a placed order (order digest §3.2.3–3.2.4, §5.4–5.8) through its door: the link
 // (`payment/link/<token>/intent/`; anyone with the link may pay, the wallet routes need the
-// account). One intent per press however fast the presses (an in-flight guard), a new
+// account), or the signed-in owner's uuid (`payment/order/<uuid>/intent/`: the account's order
+// pages). One intent per press however fast the presses (an in-flight guard), a new
 // Idempotency-Key per press (the API's own "still starting" retries keep it, `startPayment`; a
 // replayed key whose handoff expired gets a new one). Then by route: confirmed at the door or
 // paid by the wallet → said on the page; card to card → its page (a full page load: its URL
@@ -41,7 +42,8 @@ const IDLE: LinkPayState = { phase: 'idle', error: null, handoff: null, bankLoad
 const loadGoToBank = () => import('./go-to-bank').then((module) => module.goToBank)
 
 export interface LinkPaymentOptions {
-  token: string
+  /** The order's door: kept with a pending payment, for the result page to pay again. */
+  door: PaymentDoor
   orderCode: string
   catalog: PaymentCatalogState
   suggest: (route: PaymentRoute) => void
@@ -52,7 +54,7 @@ export interface LinkPaymentOptions {
 }
 
 export function useLinkPayment(options: LinkPaymentOptions) {
-  const { token, orderCode, catalog, suggest, onPaid, onAttemptOpen, onStale } = options
+  const { door, orderCode, catalog, suggest, onPaid, onAttemptOpen, onStale } = options
   const client = useQueryClient()
   const expire = useSessionExpired()
   const markFeatureDisabled = useMarkFeatureDisabled()
@@ -82,7 +84,7 @@ export function useLinkPayment(options: LinkPaymentOptions) {
       savePending(payment.uuid, {
         kind: 'order',
         orderCode,
-        linkToken: token,
+        ...(door.kind === 'link' ? { linkToken: door.token } : { orderUuid: door.orderUuid }),
         route,
         amount: payment.amount,
         startedAt: Date.now(),
@@ -142,7 +144,6 @@ export function useLinkPayment(options: LinkPaymentOptions) {
     announce(
       route === 'pay_on_delivery' ? 'در حال تأیید سفارش…' : 'در حال آماده\u{200C}سازی پرداخت…',
     )
-    const door = { kind: 'link', token } as const
     const send = () => startPayment({ door, route, gatewayCode, key: newIdempotencyKey() })
     let leaving = false
     try {

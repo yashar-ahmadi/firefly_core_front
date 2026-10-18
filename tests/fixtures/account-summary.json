@@ -1,0 +1,91 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "wallet": {
+      "balance": 3031000,
+      "is_frozen": false
+    },
+    "orders": {
+      "total": 6,
+      "groups": [
+        {
+          "key": "awaiting_payment",
+          "label": "در انتظار پرداخت",
+          "statuses": ["awaiting_payment"],
+          "count": 1
+        },
+        {
+          "key": "in_progress",
+          "label": "جاری",
+          "statuses": ["awaiting_review", "processing", "packing", "sent"],
+          "count": 1
+        },
+        {
+          "key": "delivered",
+          "label": "تحویل داده شده",
+          "statuses": ["delivered"],
+          "count": 4
+        },
+        {
+          "key": "returned",
+          "label": "مرجوعی",
+          "statuses": ["returned"],
+          "count": 0
+        },
+        {
+          "key": "cancelled",
+          "label": "لغو شده",
+          "statuses": ["cancelled"],
+          "count": 0
+        }
+      ],
+      "statuses": [
+        {
+          "status": "awaiting_payment",
+          "label": "در انتظار پرداخت",
+          "count": 1
+        },
+        {
+          "status": "awaiting_review",
+          "label": "در انتظار بررسی",
+          "count": 0
+        },
+        {
+          "status": "processing",
+          "label": "در حال انجام",
+          "count": 1
+        },
+        {
+          "status": "packing",
+          "label": "بسته‌بندی",
+          "count": 0
+        },
+        {
+          "status": "sent",
+          "label": "ارسال شده",
+          "count": 0
+        },
+        {
+          "status": "delivered",
+          "label": "تکمیل شده",
+          "count": 4
+        },
+        {
+          "status": "returned",
+          "label": "مسترد شده",
+          "count": 0
+        },
+        {
+          "status": "cancelled",
+          "label": "لغو شده",
+          "count": 0
+        }
+      ]
+    },
+    "awaiting_review_count": 7,
+    "wishlist_count": 0,
+    "reading_list_count": 0,
+    "comment_count": 4
+  }
+}

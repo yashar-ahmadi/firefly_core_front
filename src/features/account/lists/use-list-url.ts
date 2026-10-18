@@ -23,6 +23,11 @@ export interface ListUrl<P> {
    */
   replace: (next: P) => void
   /**
+   * Shows `next` as a new history entry (a search sent: Back returns to the list before). Not
+   * while the visitor is on the way to another page (see `replace`).
+   */
+  push: (next: P) => void
+  /**
    * A filter link's click: its URL as a new history entry (Back returns to the filter before).
    * A click that opens a new tab or window is left to the browser, like the link without script.
    */
@@ -64,6 +69,10 @@ export function useListUrl<P>(
       replace: (next) => {
         if (leaving || search(next) === search(params)) return
         window.history.replaceState(null, '', href(next))
+      },
+      push: (next) => {
+        if (leaving || search(next) === search(params)) return
+        window.history.pushState(null, '', href(next))
       },
       follow: (event) => void push(event),
       followPage: (event) => {

@@ -9,6 +9,14 @@ import { useAccountQuery } from '@/features/account/use-account-query'
 import { wishlistListKey } from '@/features/account/wishlist/use-wishlist-list'
 import { parseWishlistParams } from '@/features/account/wishlist/wishlist-params'
 import { NOTIFICATIONS_KEY } from '@/features/notifications/notifications-api'
+import {
+  orderKey,
+  orderPaymentsKey,
+  orderQrKey,
+  ordersListKey,
+  paymentDetailKey,
+} from '@/features/orders/account/orders-api'
+import { awaitingReviewsKey } from '@/features/orders/reviews/reviews-api'
 import { UNREAD_NOTIFICATIONS_KEY } from '@/features/notifications/unread'
 import { SHIPPING_OPTIONS_KEY } from '@/features/checkout/use-shipping-options'
 import { WALLET_BALANCE_KEY } from '@/features/payment/use-wallet'
@@ -19,6 +27,7 @@ import {
   isSessionQuery,
   ME_KEY,
   MY_COMMENTS_KEY,
+  ORDERS_KEY,
   SUMMARY_KEY,
 } from '@/lib/session/viewer-queries'
 import { clientProviders } from '../support/providers'
@@ -47,6 +56,15 @@ const SESSION_READ_KEYS = [
   NOTIFICATIONS_KEY,
   UNREAD_NOTIFICATIONS_KEY,
   WALLET_BALANCE_KEY,
+  // The account's orders (Plan 4 Task 8): the lists, an order, its payments, a payment's detail,
+  // its QR code, the purchases awaiting a review.
+  ORDERS_KEY,
+  ordersListKey({ status_group: 'in_progress', sort: 'total-desc', page: 2 }),
+  orderKey('3067562358'),
+  orderPaymentsKey('3067562358'),
+  paymentDetailKey('0b6f5a9e-3c1d-4f7a-9e2b-1a2b3c4d5e6f'),
+  orderQrKey('3067562358'),
+  awaitingReviewsKey(2),
 ]
 
 describe('SESSION_QUERIES', () => {
@@ -60,7 +78,8 @@ describe('SESSION_QUERIES', () => {
   it.each([
     [['cart']],
     [['product', 'samsung-galaxy-s25-ultra']],
-    [['orders', 'list']],
+    [['purchases', 'list']],
+    [['orders-archive', 'x']],
     [['geo', 'provinces']],
     [['me-not', 'x']],
   ])('%j is not', (key) => {
@@ -84,10 +103,11 @@ describe('useAccountQuery', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const { wrapper } = clientProviders({ hasSession: true })
     expect(() =>
-      renderHook(() => useAccountQuery({ queryKey: ['orders', 'list'], queryFn: async () => [] }), {
-        wrapper,
-      }),
-    ).toThrow(/\["orders","list"\].*SESSION_QUERIES.*viewer-queries\.ts/)
+      renderHook(
+        () => useAccountQuery({ queryKey: ['purchases', 'list'], queryFn: async () => [] }),
+        { wrapper },
+      ),
+    ).toThrow(/\["purchases","list"\].*SESSION_QUERIES.*viewer-queries\.ts/)
   })
 
   it('takes a registered one', () => {

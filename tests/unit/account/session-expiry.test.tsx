@@ -82,12 +82,12 @@ describe('a session that ends on an account page', () => {
   })
 
   it('a placeholder page with a query: back to it after login', async () => {
-    const { default: OrdersPage } = await import('@/app/(shop)/account/orders/page')
-    await openPage('/account/orders/?group=delivered', <OrdersPage />)
+    const { default: ReadingListPage } = await import('@/app/(shop)/account/reading-list/page')
+    await openPage('/account/reading-list/?page=2', <ReadingListPage />)
     await waitFor(() => expect(mocks.replace).toHaveBeenCalled())
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(
-      '/login/?next=/account/orders/%3Fgroup%3Ddelivered',
+      '/login/?next=/account/reading-list/%3Fpage%3D2',
     )
   })
 
@@ -107,8 +107,8 @@ describe('a session that ends on an account page', () => {
     mocks.bffFetch.mockImplementation(() =>
       Promise.reject(new ApiError({ status: 401, code: 'api_key_invalid' })),
     )
-    const { default: OrdersPage } = await import('@/app/(shop)/account/orders/page')
-    await openPage('/account/orders/', <OrdersPage />)
+    const { default: ReadingListPage } = await import('@/app/(shop)/account/reading-list/page')
+    await openPage('/account/reading-list/', <ReadingListPage />)
     await waitFor(() => expect(reads().length).toBeGreaterThanOrEqual(2))
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(mocks.replace).not.toHaveBeenCalled()

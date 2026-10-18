@@ -27,13 +27,20 @@ export const WALLET_KEY = ['wallet'] as const
 export const MY_COMMENTS_KEY = ['dashboard', 'comments'] as const
 
 /**
+ * The account's orders and everything read with them (under `['orders']`): the lists, an
+ * order's detail, its payments, its QR code, the purchases awaiting a review. Invalidate the
+ * lists and the order after a payment, a cancellation or a review.
+ */
+export const ORDERS_KEY = ['orders'] as const
+
+/**
  * Read only with a session (each query is `enabled: hasSession`), so nothing of them is right
  * for anyone else: removed. The profile, the account summary, the wallet, everything under `['dashboard']`
  * (the dashboard's lists, `MY_COMMENTS_KEY`), under `['wishlist']` (`WISHLIST_IDS_KEY`, the
  * wishlist page's lists), under `['notifications']` (the inbox and its unread count,
- * `UNREAD_NOTIFICATIONS_KEY`) and the address book (`['addresses']`).
+ * `UNREAD_NOTIFICATIONS_KEY`), the address book (`['addresses']`) and the orders (`ORDERS_KEY`).
  *
- * Every new per-visitor query (orders, the wallet, the reading list…) goes under one of these
+ * Every new per-visitor query (the wallet's lists, the reading list…) goes under one of these
  * prefixes, or adds its own here: `useAccountQuery` refuses any other key (`isSessionQuery`), and
  * tests/unit/session/session-query-keys.test.tsx lists the keys of the other session-only reads.
  */
@@ -45,6 +52,7 @@ const SESSION_QUERIES: readonly QueryKey[] = [
   ['wishlist'],
   ['notifications'],
   ['addresses'],
+  ORDERS_KEY,
 ]
 
 /** Whether `queryKey` is under a `SESSION_QUERIES` prefix: a logout removes it. */

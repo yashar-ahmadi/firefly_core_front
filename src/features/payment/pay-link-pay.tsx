@@ -7,14 +7,14 @@ import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { PaymentSection } from '@/features/checkout/lazy-steps'
 import type { BankHandoffProps } from '@/features/checkout/placed/bank-handoff'
-import { payLinkPath } from '@/features/orders/pay-link'
 import { BANK_UNUSABLE, intentMessage } from './intent-messages'
 import type { useLinkPayment } from './use-link-payment'
 import type { PaymentCatalogState } from './use-payment-catalog'
 import type { RouteChoiceState } from './use-route-choice'
 
-// The payment link's routes (order digest §5.3 with the link's amounts: O owed online, D at the
-// door): the same route rules and radio group as the checkout (`availableRoutes`,
+// A placed order's routes (order digest §5.3 with the order's amounts: O owed online, D at the
+// door; the payment link's page and the account's order pages): the same route rules and radio
+// group as the checkout (`availableRoutes`,
 // PaymentSection), «ورود برای استفاده از کیف پول» for a guest (back to this page after the
 // login), and one press. Nothing owed online (a pure pay-on-delivery order awaiting its
 // confirmation): no chooser, «تأیید سفارش» alone. A refusal is said over the routes (the bank
@@ -40,7 +40,8 @@ function HandoffUnavailable({ onGo }: BankHandoffProps) {
 }
 
 export interface PayLinkPayProps {
-  token: string
+  /** Where a guest's «ورود برای استفاده از کیف پول» comes back to (the page itself). */
+  loginNext: string
   choice: RouteChoiceState
   catalog: PaymentCatalogState
   onDelivery: number
@@ -49,7 +50,7 @@ export interface PayLinkPayProps {
 }
 
 export function PayLinkPay({
-  token,
+  loginNext,
   choice,
   catalog,
   onDelivery,
@@ -91,7 +92,7 @@ export function PayLinkPay({
         onDelivery={onDelivery}
         catalog={catalog}
         busy={busy}
-        loginNext={payLinkPath(token)}
+        loginNext={loginNext}
         placed
         footer={
           <Button

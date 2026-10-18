@@ -138,26 +138,62 @@ export interface OrderDestination {
   longitude: string | null
 }
 
-/** `GET order/<code>/` (the account's own orders only: 404 otherwise). */
-export interface OrderDetail {
+/** What the account's list and an order's detail both say of an order (§2 `OrderSummaryBase`). */
+export interface OrderSummaryBase {
+  /** For `payment/order/<uuid>/intent/` only (a bearer credential: never logged). */
   uuid: string
   order_code: string
   status: OrderStatus
   status_display: string
   status_group: OrderStatusGroup
   progress: Progress
+  /** «province، city، address» (no plaque, unit or postal code). */
   address_summary: string
   placed_at: string
+  /** Online money fully arrived; null for a confirmed pure pay-on-delivery order. */
   paid_at: string | null
   is_confirmed: boolean
   is_fully_paid: boolean
   total: Toman
+  /** The units ordered (Σ quantities), not the lines. */
   item_count: number
   shipping_method_title: string
   postal_tracking_code: string | null
+  /** Owes online money now (the deadline is not checked). */
   is_payable: boolean
+  /** Present until cancelled, even after payment or expiry; holds the link token. */
   payment_url: string | null
+  /** status === awaiting_payment. */
   can_cancel: boolean
+}
+
+/** One of an order's first lines, as the list shows it. */
+export interface OrderLinePreview {
+  product_name: string
+  variant_name: string | null
+  image: string | null
+}
+
+/** `GET order/list/` (paginated): no money breakdown, no payment deadline. */
+export interface OrderListItem extends OrderSummaryBase {
+  /** The first three lines at most. */
+  item_preview: OrderLinePreview[]
+}
+
+/** `GET order/list/`'s orders (`sort`; anything else is a 400 `invalid_choice`). */
+export type OrderSort = 'date-desc' | 'date-asc' | 'total-desc' | 'total-asc'
+
+/** `GET order/<code>/qr-code/`: the bare order code, as a PNG data URL. */
+export interface OrderQRCode {
+  order_code: string
+  encoded_value: string
+  content_type: 'image/png'
+  /** `data:image/png;base64,…` */
+  qr_code: string
+}
+
+/** `GET order/<code>/` (the account's own orders only: 404 otherwise). */
+export interface OrderDetail extends OrderSummaryBase {
   channel: OrderChannel
   customer_note: string | null
   delivery_min_days: number | null

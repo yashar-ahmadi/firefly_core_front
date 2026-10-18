@@ -1,0 +1,33 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "count": 1,
+    "total_pages": 1,
+    "current_page": 1,
+    "page_size": 20,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "uuid": "0a8e0010-0000-4000-8000-000000000010",
+        "method": "bank_gateway",
+        "method_display": "درگاه بانکی",
+        "status": "settled",
+        "status_display": "تسویه شده",
+        "applies_to": "online_charge",
+        "applies_to_display": "پرداخت آنلاین سفارش",
+        "amount": 6212000,
+        "order_code": "7010868573",
+        "settled_at": "2026-08-11T17:00:00+03:30",
+        "created": "2026-08-11T17:00:00+03:30",
+        "receipt": {
+          "gateway_title": "زرین پال",
+          "tracking_code": "669615880975812510",
+          "settlement_reference": "3284796090",
+          "card_pan_masked": "6071****7851"
+        }
+      }
+    ]
+  }
+}
