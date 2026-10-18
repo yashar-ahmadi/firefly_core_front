@@ -89,6 +89,27 @@ describe('the bank callback proxy', () => {
     expect(res.headers.get('location')).toBe(RESULT)
   })
 
+  it('a backend that does not answer: 503, logged without anything that names the token', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const cause = Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' })
+    const failure = new TypeError(
+      'fetch failed: https://api.test/api/v1/payment/gateway/callback/MELLAT/cb-token-43/',
+      { cause },
+    )
+    fetchSpy.mockRejectedValue(failure)
+    const res = await callback('GET', undefined, '?RefId=7&ResCode=0')
+    expect(res.status).toBe(503)
+    expect(log).toHaveBeenCalledTimes(1)
+    const logged = log.mock.calls[0]!
+    // Strings only (an error object prints its message, its cause and their URLs).
+    expect(logged.every((part) => typeof part === 'string')).toBe(true)
+    expect(logged.join(' ')).toMatch(/^\[payment-callback\] backend unreachable/)
+    expect(logged.join(' ')).toContain('TypeError')
+    expect(logged.join(' ')).toContain('ECONNREFUSED')
+    expect(logged.join(' ')).not.toContain('cb-token-43')
+    expect(logged.join(' ')).not.toContain('RefId')
+  })
+
   it('a URL without its trailing slash is sent on with a 308 (the POST and its body kept)', async () => {
     vi.stubEnv('FIREFLY_API_URL', 'https://api.shop.ir')
     vi.resetModules()

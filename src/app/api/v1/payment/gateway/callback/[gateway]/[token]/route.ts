@@ -87,7 +87,9 @@ async function handle(req: NextRequest, { params }: Context): Promise<Response> 
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
   } catch (error) {
-    console.error('[payment-callback] backend unreachable', error)
+    // A fixed sentence and the failure's kind only: the error's message, its cause and their
+    // stacks can carry the upstream URL, which holds the callback token.
+    console.error('[payment-callback] backend unreachable:', failureKind(error))
     // The payment still settles: the backend reconciles open payments with the bank.
     return statusPage(
       503,
@@ -103,6 +105,15 @@ async function handle(req: NextRequest, { params }: Context): Promise<Response> 
   }
   const relayBody = NULL_BODY_STATUSES.has(upstream.status) ? null : upstream.body
   return new Response(relayBody, { status: upstream.status, headers: out })
+}
+
+/** `TypeError (ECONNREFUSED)`, `TimeoutError`: the error's name and its cause's code, nothing else. */
+function failureKind(error: unknown): string {
+  const name = error instanceof Error && /^[A-Za-z]{1,40}$/.test(error.name) ? error.name : 'Error'
+  const cause = error instanceof Error ? (error.cause as { code?: unknown } | undefined) : undefined
+  const code =
+    typeof cause?.code === 'string' && /^[A-Z_]{2,40}$/.test(cause.code) ? cause.code : ''
+  return code ? `${name} (${code})` : name
 }
 
 export { handle as GET, handle as POST }
