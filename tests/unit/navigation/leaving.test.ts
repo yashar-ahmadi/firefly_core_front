@@ -1,8 +1,15 @@
+import { renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LEAVING_MS, releaseIfStillHere } from '@/lib/navigation/leaving'
+import {
+  BANK_LEAVING_MS,
+  LEAVING_MS,
+  releaseIfStillHere,
+  useReleaseIfStillHere,
+} from '@/lib/navigation/leaving'
 
 // A press that started a full page load is given back when the browser did not leave after all:
-// after a bounded wait, or at once when the page is restored from the back-forward cache.
+// after a bounded wait, or at once when the page is restored from the back-forward cache. One of
+// our own pages (the card page) loads within the short bound; a bank's page gets a longer one.
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
@@ -38,5 +45,26 @@ describe('releaseIfStillHere', () => {
     pageshow(true)
     vi.advanceTimersByTime(LEAVING_MS)
     expect(release).not.toHaveBeenCalled()
+  })
+})
+
+describe('a bank’s page', () => {
+  it('waits longer than one of our pages', () => {
+    expect(BANK_LEAVING_MS).toBeGreaterThanOrEqual(3 * LEAVING_MS)
+    const release = vi.fn()
+    const { result } = renderHook(() => useReleaseIfStillHere(BANK_LEAVING_MS))
+    result.current(release)
+    vi.advanceTimersByTime(BANK_LEAVING_MS - 1)
+    expect(release).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(release).toHaveBeenCalledTimes(1)
+  })
+
+  it('the hook’s default is the short bound', () => {
+    const release = vi.fn()
+    const { result } = renderHook(() => useReleaseIfStillHere())
+    result.current(release)
+    vi.advanceTimersByTime(LEAVING_MS)
+    expect(release).toHaveBeenCalledTimes(1)
   })
 })

@@ -149,7 +149,9 @@ re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
   goes with no bearer, no cart token, no refresh and no cookie change, and without the flag
   (`lib/bff/anonymous.ts`). The API refuses a signed-in visitor another account's payment (403
   `payment_forbidden`, a guest order paid through its link) but answers the same read made
-  anonymously (order digest §11 #7); the result page retries with the flag. On any other path the
+  anonymously (order digest §11 #7); the result page retries with the flag, and treats a payment
+  answered only that way as not this account's (`foreign`): its payer is offered tracking or the
+  order's link page, never the account's order pages or the order lookup. On any other path the
   flag is an ordinary query parameter (forwarded, the session attached).
 
 **Visitor IP.** The API throttles guests per IP and all storefront traffic comes from one host,
@@ -543,7 +545,7 @@ signed-in header to another.
   polling (`use-payment-status.ts`) and «پرداخت دوباره» are in it, the bank redirect and the
   confetti load only when used. Measured from a mocked status
   (`tests/e2e/checkout/payment-result.spec.ts`, held to `CHECKOUT_BUDGET_KB`): checking, failed
-  and an invalid return 219.0 KB, success 219.8 KB with the confetti (desktop and phone alike).
+  and an invalid return 219.1 KB, success 220.0 KB with the confetti (desktop and phone alike).
   A third lesson for keeping the shop's other pages byte for byte: importing the phone formatter
   (`lib/format/phone.ts`, directly or through the shell's `SupportPhone`) into the island regrouped
   two of the product page's chunks (+110 B there, measured by bisecting builds); the route formats
@@ -647,7 +649,8 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
 
 - **No operator code.** The proxy marks every page it serves with `x-ff-route-kind: page` or
   `credential` (overwriting whatever the visitor sent), prefetches included: its matcher takes
-  router prefetches (`next-router-prefetch`) and `Purpose: prefetch` requests too (a prefetched
+  router prefetches (an RSC request, `rsc: 1`, with `next-router-prefetch`; the prefetch header on
+  a document request is treated as a visit) and `Purpose: prefetch` requests too (a prefetched
   document or segment can be shown on the click), and for those the proxy only marks the render
   (`isQuietPrefetch()`: no redirect lookup, which would count a hit, no session refresh, no
   account guard; an undecodable one gets the 404 page). The router's headers reach the proxy

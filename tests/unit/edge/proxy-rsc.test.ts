@@ -115,6 +115,15 @@ describe('a router prefetch', () => {
     },
   )
 
+  it('its header without `rsc` (no request of the router’s): a visit, guarded', async () => {
+    const proxy = await load()
+    const headers: Record<string, string> = { ...real.treePrefetch.headers }
+    delete headers.rsc
+    const res = await proxy(sent({ query: '', headers }, '/account/profile/', LEFTOVER))
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toMatch(/\/login\/\?next=/)
+  })
+
   it('of a payment page: marked as a credential page', async () => {
     const proxy = await load()
     const res = await proxy(sent(real.treePrefetch, '/payment/callback/?result=success'))

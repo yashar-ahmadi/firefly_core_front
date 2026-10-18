@@ -10,11 +10,12 @@ import { readPaymentStatus } from './status-api'
 // apart from there, within 15 minutes of the first (the 240/h `payment_status` budget is shared
 // with the payment lists); then it stops (`stopped`), and «بررسی دوباره» reads once more
 // (`check`), never a new schedule. One read in flight at a time. While the page is hidden the
-// reads wait; shown again, one reads at once and the schedule goes on where it was. A 429 waits
-// its `retry_after`; no answer, the schedule goes on. With the session first: a signed-in
-// visitor refused another account's payment (403 `payment_forbidden`, a guest order paid through
-// its link) reads it again, and from then on, without the session (`?anon=1`, §11 #7). The uuid
-// is a credential: in the path only, never in a log.
+// reads wait; shown again, one reads at once and the schedule goes on where it was (shown after
+// the 15 minutes, it stops without reading). A 429 waits its `retry_after`; no answer, the
+// schedule goes on. With the session first: a signed-in visitor refused another account's
+// payment (403 `payment_forbidden`, a guest order paid through its link) reads it again, and from
+// then on, without the session (`?anon=1`, §11 #7); the payment is then `foreign`. The uuid is a
+// credential: in the path only, never in a log.
 
 /** The waits after each read: 15 s ×4, 30 s ×4, then 60 s. */
 export function pollDelay(readsDone: number): number {
@@ -35,6 +36,11 @@ export interface PaymentStatusState {
   stopped: boolean
   /** It cannot be read here: no such payment (404), or refused even without the session. */
   unreadable: boolean
+  /**
+   * Not this account's payment: refused with the session, answered without it (another
+   * account's order, or a guest's, paid through its link). The account's pages hold no such order.
+   */
+  foreign: boolean
   /** A read is on its way. */
   reading: boolean
   /** One more read once the reads have stopped (none while one is on its way). */
@@ -49,6 +55,7 @@ const idle = (uuid: string | null): Snapshot => ({
   final: false,
   stopped: false,
   unreadable: false,
+  foreign: false,
   reading: false,
 })
 
@@ -97,8 +104,10 @@ export function usePaymentStatus(uuid: string | null): PaymentStatusState {
         inFlight = false
         if (controller.signal.aborted) return
         readsDone++
-        if (FINAL.has(info.status)) return stop({ info, final: true, stopped: false })
-        patch({ info, reading: false })
+        // Answered only without the session: someone else's payment.
+        const foreign = anonymous
+        if (FINAL.has(info.status)) return stop({ info, foreign, final: true, stopped: false })
+        patch({ info, foreign, reading: false })
         later(pollDelay(readsDone))
       } catch (error) {
         inFlight = false
@@ -123,6 +132,8 @@ export function usePaymentStatus(uuid: string | null): PaymentStatusState {
     const onVisible = () => {
       if (document.hidden || !parked) return
       parked = false
+      // Hidden past the window: no read is due any more.
+      if (Date.now() - (started ?? Date.now()) > POLL_LIMIT_MS) return stop({ stopped: true })
       void read()
     }
     checkOnce.current = () => {
@@ -144,6 +155,7 @@ export function usePaymentStatus(uuid: string | null): PaymentStatusState {
     final: current.final,
     stopped: current.stopped,
     unreadable: current.unreadable,
+    foreign: current.foreign,
     reading: current.reading,
     check: () => checkOnce.current(),
   }

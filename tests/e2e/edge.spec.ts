@@ -193,7 +193,9 @@ test.describe('edge', () => {
         headers: treePrefetch.headers,
         maxRedirects: 0,
       })
-      expect(res.status()).not.toBe(302)
+      // No such page, and no redirect: the lookup never ran.
+      expect(res.status()).toBe(404)
+      expect(res.headers()['location']).toBeUndefined()
     })
 
     test('a client navigation to an account page: guarded, a relative Location', async ({

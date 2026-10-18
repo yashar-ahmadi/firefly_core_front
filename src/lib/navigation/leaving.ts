@@ -5,10 +5,17 @@ import { useCallback, useEffect, useRef } from 'react'
 // the browser may not leave after all: the visitor pressed Esc, the load failed and they came
 // Back, or this very page comes back from the back-forward cache with its old state. Nothing
 // tells the page about an aborted load, so the press comes back after a bounded wait, and at
-// once when the page is restored from the cache (`pageshow` with `persisted`).
+// once when the page is restored from the cache (`pageshow` with `persisted`). The wait depends
+// on where the browser goes: one of our own pages (the card page) answers within seconds, a
+// bank's payment page often takes far longer (Iranian gateways can be slow to answer the form),
+// and a press given back while it still loads invites a second one, which would only meet the
+// attempt the first just opened.
 
-/** How long a press that started a full page load stays taken, at most. */
+/** How long a press that started a full page load of one of our pages stays taken, at most. */
 export const LEAVING_MS = 4_000
+
+/** The same for a bank's payment page (`goToBank`): its gateway is often slow to answer. */
+export const BANK_LEAVING_MS = 12_000
 
 /**
  * Calls `release` after `ms`, or at once on a back-forward cache restore, whichever comes first,
@@ -32,17 +39,20 @@ export function releaseIfStillHere(release: () => void, ms: number = LEAVING_MS)
 }
 
 /**
- * `releaseIfStillHere` for a component: `hold(release)` starts one (a new one replaces the last),
- * and an unmount cancels it.
+ * `releaseIfStillHere` for a component, waiting `ms` at most (`BANK_LEAVING_MS` for a bank's
+ * page): `hold(release)` starts one (a new one replaces the last), and an unmount cancels it.
  */
-export function useReleaseIfStillHere(): (release: () => void) => void {
+export function useReleaseIfStillHere(ms: number = LEAVING_MS): (release: () => void) => void {
   const stop = useRef<(() => void) | null>(null)
   useEffect(() => () => stop.current?.(), [])
-  return useCallback((release: () => void) => {
-    stop.current?.()
-    stop.current = releaseIfStillHere(() => {
-      stop.current = null
-      release()
-    })
-  }, [])
+  return useCallback(
+    (release: () => void) => {
+      stop.current?.()
+      stop.current = releaseIfStillHere(() => {
+        stop.current = null
+        release()
+      }, ms)
+    },
+    [ms],
+  )
 }

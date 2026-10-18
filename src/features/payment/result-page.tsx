@@ -30,6 +30,8 @@ import { useWalletBalance } from './use-wallet'
 // address bar (result-return.ts); nothing here logs it. The heading takes the focus on arrival;
 // later changes are said once, politely. A payment that went through forgets its pending entry,
 // reads the account's figures again and throws a little confetti (never under reduced motion).
+// A signed-in payer of someone else's order (its status answered only without the session,
+// `foreign`) is offered none of the account's pages for it: tracking, or the order's link.
 
 export interface PaymentResultPageProps {
   support: SupportLine | null
@@ -39,7 +41,8 @@ function pickCopy(ret: PaymentReturn | null, status: PaymentStatusState): Result
   if (ret === null) return CHECKING
   if (!ret.payment) return INVALID_RETURN
   if (status.unreadable) return UNREADABLE
-  if (!status.info) return CHECKING
+  // Stopped before any read answered: no more checking, and «بررسی دوباره» to read once more.
+  if (!status.info) return status.stopped ? STOPPED : CHECKING
   const copy = resultCopy({ ...status.info, result: ret.result }, ret.code)
   return status.stopped && copy.tone === 'pending' ? STOPPED : copy
 }
@@ -65,7 +68,8 @@ export function PaymentResultPage({ support }: PaymentResultPageProps) {
   const pending = useMemo(() => (uuid ? getPending(uuid) : null), [uuid])
   const copy = pickCopy(ret, status)
   const orderCode = info?.order_code ?? null
-  const payAgain = usePayAgain({ orderCode, pending, hasSession })
+  const owner = hasSession && !status.foreign
+  const payAgain = usePayAgain({ orderCode, pending, hasSession, owner })
   const topUpSettled = info?.status === 'settled' && info.applies_to === 'wallet_topup'
   const balance = useWalletBalance(topUpSettled)
 
@@ -94,7 +98,6 @@ export function PaymentResultPage({ support }: PaymentResultPageProps) {
   return (
     <section
       aria-labelledby="payment-result-heading"
-      aria-busy={copy === CHECKING || undefined}
       className="mx-auto flex w-full max-w-2xl flex-col items-center gap-5 rounded-card bg-white px-5 py-8 text-center shadow-card md:px-10 md:py-12"
     >
       <ResultIcon tone={copy.tone} />
@@ -151,7 +154,7 @@ export function PaymentResultPage({ support }: PaymentResultPageProps) {
       <ResultActions
         actions={copy.actions}
         orderCode={orderCode}
-        hasSession={hasSession}
+        owner={owner}
         linkToken={payAgain.linkToken}
         payAgain={payAgain}
         support={support}

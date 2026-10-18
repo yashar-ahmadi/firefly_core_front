@@ -90,19 +90,19 @@ describe('undecodable paths', () => {
 
   // Prefetches reach the proxy now (to be marked): an undecodable one gets the same 404 page
   // instead of failing in Next, still without a lookup or a refresh.
-  it.each<Record<string, string>>([{ 'next-router-prefetch': '1' }, { purpose: 'prefetch' }])(
-    'answers an undecodable prefetch (%o) with the 404 page too',
-    async (headers) => {
-      const { proxy } = await load()
-      const res = await proxy(
-        request('/product/x%ZZ.png', { headers, cookies: { ff_rt: jwtExpiringIn(-60) } }),
-      )
-      expect(res.status).toBe(404)
-      expect(await res.text()).toContain('<title>صفحه پیدا نشد</title>')
-      expect(knownSources).not.toHaveBeenCalled()
-      expect(refreshAccess).not.toHaveBeenCalled()
-    },
-  )
+  it.each<Record<string, string>>([
+    { rsc: '1', 'next-router-prefetch': '1' },
+    { purpose: 'prefetch' },
+  ])('answers an undecodable prefetch (%o) with the 404 page too', async (headers) => {
+    const { proxy } = await load()
+    const res = await proxy(
+      request('/product/x%ZZ.png', { headers, cookies: { ff_rt: jwtExpiringIn(-60) } }),
+    )
+    expect(res.status).toBe(404)
+    expect(await res.text()).toContain('<title>صفحه پیدا نشد</title>')
+    expect(knownSources).not.toHaveBeenCalled()
+    expect(refreshAccess).not.toHaveBeenCalled()
+  })
 
   it('answers an undecodable media path with a 404 page instead of forwarding it', async () => {
     const { proxy } = await load()

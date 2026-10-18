@@ -9,7 +9,7 @@ import { PAYMENT_UUID } from './fixtures'
 // then 15 s ×4, 30 s ×4 and 60 s on; stopped after 15 minutes; paused while the page is hidden
 // (resumed where it was); a 429's `retry_after` honoured; over at a final status; one read in
 // flight at a time. With the session first; refused it (403 `payment_forbidden`), the same read
-// again without it (`?anon=1`, §11 #7).
+// again without it (`?anon=1`, §11 #7), and the payment is someone else's (`foreign`).
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
@@ -45,7 +45,7 @@ describe('the schedule', () => {
     const { result } = renderHook(() => usePaymentStatus(PAYMENT_UUID))
     await flush()
     expect(reads()).toHaveLength(1)
-    expect(result.current).toMatchObject({ stopped: false, final: false })
+    expect(result.current).toMatchObject({ stopped: false, final: false, foreign: false })
     expect(result.current.info?.status).toBe('pending')
     for (let read = 2; read <= 5; read++) {
       await seconds(14.999)
@@ -130,6 +130,22 @@ describe('a hidden page', () => {
     await seconds(15)
     expect(reads()).toHaveLength(7)
   })
+
+  it('hidden past the 15 minutes: shown again, it stops without reading', async () => {
+    const { result } = renderHook(() => usePaymentStatus(PAYMENT_UUID))
+    await flush()
+    await seconds(60)
+    expect(reads()).toHaveLength(5)
+    await show(true)
+    await seconds(20 * 60)
+    await show(false)
+    expect(reads()).toHaveLength(5)
+    expect(result.current.stopped).toBe(true)
+    // «بررسی دوباره» still reads once.
+    act(() => result.current.check())
+    await flush()
+    expect(reads()).toHaveLength(6)
+  })
 })
 
 describe('refusals', () => {
@@ -158,6 +174,8 @@ describe('refusals', () => {
     expect(first?.[1]?.query).toBeUndefined()
     expect(second?.[1]?.query).toEqual({ anon: '1' })
     expect(result.current.info?.status).toBe('pending')
+    // Another account's payment, or a guest's: the page offers this payer no account page.
+    expect(result.current.foreign).toBe(true)
     await seconds(15)
     expect(reads()[2]?.[1]?.query).toEqual({ anon: '1' })
   })

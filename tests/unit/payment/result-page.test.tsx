@@ -62,11 +62,12 @@ describe('the status is the truth (Review Focus #3)', () => {
     expect(statusReads(mocks.bffFetch)).toHaveLength(3)
   })
 
-  it('the heading takes the focus on arrival', async () => {
+  it('the heading takes the focus on arrival; the page is not marked busy (its words say it)', async () => {
     serve(mocks.bffFetch, [status()])
     arrive(`?result=pending&payment=${PAYMENT_UUID}&code=gateway_verification_pending`)
     await renderResult()
     expect(heading()).toHaveFocus()
+    expect(heading().closest('section')).not.toHaveAttribute('aria-busy')
   })
 
   it('failed + gateway_capture_not_bookable: the exact sentence, the order, its amount', async () => {
@@ -173,5 +174,18 @@ describe('after 15 minutes', () => {
     expect(statusReads(mocks.bffFetch)).toHaveLength(reads + 1)
     await wait(15 * 60_000)
     expect(statusReads(mocks.bffFetch)).toHaveLength(reads + 1)
+  })
+
+  it('no read ever answered: stopped all the same, with «بررسی دوباره» and no "checks itself"', async () => {
+    vi.useFakeTimers()
+    serve(mocks.bffFetch, [new ApiError({ status: 0, code: 'network_error' })])
+    arrive(`?result=success&payment=${PAYMENT_UUID}`)
+    await renderResult()
+    expect(heading()).toHaveTextContent('در حال بررسی پرداخت')
+    await wait(15 * 60_000)
+    expect(heading()).toHaveTextContent('بررسی خودکار متوقف شد')
+    expect(document.body).toHaveTextContent(COPY.stopped)
+    expect(document.body).not.toHaveTextContent('خودکار دوباره بررسی می')
+    expect(screen.getByRole('button', { name: 'بررسی دوباره' })).toBeInTheDocument()
   })
 })

@@ -10,11 +10,13 @@ import type { ResultAction } from './result-copy'
 import type { PayAgainState } from './use-pay-again'
 
 // What the result page offers next (order digest §5.10): the table's actions made into links
-// for this visitor. The order: its page when signed in (`/account/orders/<code>/`), tracking for
-// a guest (`/order/track/`). «پرداخت دوباره» only through a door this device knows; without one
-// the shopper is told where to pay (the SMS link, tracking, the order's page), never given a
-// made-up door. Another route: the order's payment page (a guest's link page is a full page
-// load: its URL holds the token, credential-routes.ts). The first offer is the primary one.
+// for this visitor. The order: its page for its owner (`/account/orders/<code>/`), tracking for
+// anyone else (`/order/track/`): a guest, or a signed-in payer of another account's order or a
+// guest's (§11 #7), whose account holds no such order. «پرداخت دوباره» only through a door this
+// device knows; without one the shopper is told where to pay (the SMS link, tracking, the
+// order's page), never given a made-up door. Another route: the order's page for its owner, else
+// the order's link page when this device knows it (a full page load: its URL holds the token,
+// credential-routes.ts). The first offer is the primary one.
 
 /** The shop's support line: `tel:` ready, and as shown (formatted on the server). */
 export interface SupportLine {
@@ -25,8 +27,9 @@ export interface SupportLine {
 export interface ResultActionsProps {
   actions: ResultAction[]
   orderCode: string | null
-  hasSession: boolean
-  /** The order's link token, when this device knows it (another route, for a guest). */
+  /** Signed in as the payment's owner (read with the session): the account's order pages. */
+  owner: boolean
+  /** The order's link token, when this device knows it (another route, not the owner). */
   linkToken: string | null
   payAgain: PayAgainState
   support: SupportLine | null
@@ -47,12 +50,12 @@ const NO_DOOR_USER = 'برای پرداخت دوباره به صفحهٔ سفا�
 export function ResultActions({
   actions,
   orderCode,
-  hasSession,
+  owner,
   linkToken,
   payAgain,
   support,
 }: ResultActionsProps) {
-  const orderPage = hasSession && orderCode ? `/account/orders/${orderCode}/` : null
+  const orderPage = owner && orderCode ? `/account/orders/${orderCode}/` : null
   const offers: Offer[] = []
   const add = (offer: Offer) => {
     if (!offers.some((other) => other.href === offer.href)) offers.push(offer)
@@ -77,7 +80,7 @@ export function ResultActions({
         })
     }
     if (action === 'orders') {
-      if (hasSession) add({ key: 'orders', href: '/account/orders/', label: 'سفارش\u{200C}های من' })
+      if (owner) add({ key: 'orders', href: '/account/orders/', label: 'سفارش\u{200C}های من' })
       add({ key: 'track', href: '/order/track/', label: 'پیگیری سفارش' })
     }
   }
@@ -117,7 +120,7 @@ export function ResultActions({
       </div>
       {wantsAgain && !again && (
         <p className="text-center text-base leading-7 text-ink-700">
-          {hasSession ? NO_DOOR_USER : NO_DOOR_GUEST}
+          {owner ? NO_DOOR_USER : NO_DOOR_GUEST}
         </p>
       )}
       {payAgain.error && (

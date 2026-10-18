@@ -1,9 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { OpenAttempt, type OpenAttemptProps } from '@/features/payment/open-attempt'
 import { getPending } from '@/features/payment/pending-payments'
 import { ApiError } from '@/lib/api/errors'
+import { BANK_LEAVING_MS, LEAVING_MS } from '@/lib/navigation/leaving'
 import type { OpenAttempt as Attempt } from '@/lib/api/types/payment'
 import cancelled from '../../fixtures/payment-attempt-cancel.json'
 import { clientProviders } from '../support/providers'
@@ -83,6 +84,24 @@ describe('a bank attempt whose handoff is still valid', () => {
       amount: 1_049_000,
     })
     expect(mocks.bffFetch).not.toHaveBeenCalled()
+  })
+
+  it('«ادامه در …» stays taken while the bank’s page loads, for the bank’s longer bound', async () => {
+    vi.useFakeTimers()
+    try {
+      const { panel } = show(bankAttempt())
+      const go = within(panel).getByRole('button', { name: 'ادامه در زرین پال' })
+      const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)))
+      act(() => go.click())
+      for (let i = 0; i < 20 && mocks.goToBank.mock.calls.length === 0; i++) await tick(1)
+      expect(mocks.goToBank).toHaveBeenCalledTimes(1)
+      await tick(LEAVING_MS + 1_000)
+      expect(go).toHaveAttribute('aria-disabled', 'true')
+      await tick(BANK_LEAVING_MS - LEAVING_MS)
+      expect(go).not.toHaveAttribute('aria-disabled')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('«انصراف» cancels the attempt once and gives the order back (no payment yet)', async () => {

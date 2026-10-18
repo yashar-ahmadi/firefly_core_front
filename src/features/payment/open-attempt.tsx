@@ -10,7 +10,7 @@ import { Spinner } from '@/components/ui/spinner'
 import type { OpenAttempt as Attempt, PaymentRoute } from '@/lib/api/types/payment'
 import { formatToman } from '@/lib/format'
 import { formatJalaliDateTime } from '@/lib/format/date-time'
-import { useReleaseIfStillHere } from '@/lib/navigation/leaving'
+import { BANK_LEAVING_MS, useReleaseIfStillHere } from '@/lib/navigation/leaving'
 import type { PaymentDoor } from './api'
 import { cancelAttempt } from './attempt-api'
 import { attemptRow, type AttemptRow } from './attempt-row'
@@ -76,7 +76,8 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<'cancel' | 'bank' | null>(null)
   const inFlight = useRef(false)
-  const holdWhileLeaving = useReleaseIfStillHere()
+  // Its only full page load is the bank's («ادامه در …»): the card page is a plain link.
+  const holdWhileLeaving = useReleaseIfStillHere(BANK_LEAVING_MS)
   const own = attemptRow(attempt)
   const row: AttemptRow = underReview ? 'review' : own === 'bank' && handoffGone ? 'expired' : own
   // The verification's outcome, read under the polling policy (usePaymentStatus).

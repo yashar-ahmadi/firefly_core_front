@@ -36,19 +36,28 @@ describe('prefetchKind', () => {
 })
 
 describe('isQuietPrefetch', () => {
+  // The router's prefetches as they arrive (tests/fixtures/rsc-request-shapes.json): an RSC
+  // request (`rsc: 1`) with `next-router-prefetch`.
   it.each([
-    [{ 'next-router-prefetch': '1' }],
+    [{ rsc: '1', 'next-router-prefetch': '1' }],
+    [{ rsc: '1', 'next-router-prefetch': '1', 'next-router-segment-prefetch': '/_tree' }],
     [{ purpose: 'prefetch' }],
     [{ Purpose: 'Prefetch' }],
   ])('a router prefetch or a `Purpose: prefetch` (%o): the proxy only marks it', (headers) => {
     expect(isQuietPrefetch(new Headers(headers))).toBe(true)
   })
 
-  // `Sec-Purpose` prefetches are kept and shown on the click: they get the redirect lookup.
-  it.each([[{}], [{ 'sec-purpose': 'prefetch' }], [{ 'sec-purpose': 'prefetch;prerender' }]])(
-    'not %o',
-    (headers) => {
-      expect(isQuietPrefetch(new Headers(headers))).toBe(false)
-    },
-  )
+  // `Sec-Purpose` prefetches are kept and shown on the click: they get the redirect lookup. The
+  // router's prefetch header without `rsc` is no request of the router's (a document is asked
+  // for): it is a visit.
+  it.each([
+    [{}],
+    [{ 'sec-purpose': 'prefetch' }],
+    [{ 'sec-purpose': 'prefetch;prerender' }],
+    [{ 'next-router-prefetch': '1' }],
+    [{ rsc: '0', 'next-router-prefetch': '1' }],
+    [{ rsc: '1' }],
+  ])('not %o', (headers) => {
+    expect(isQuietPrefetch(new Headers(headers))).toBe(false)
+  })
 })

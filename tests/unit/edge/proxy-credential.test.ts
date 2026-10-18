@@ -102,7 +102,7 @@ describe('the route kind', () => {
   // Nothing else runs for a prefetch: no redirect lookup, no session refresh.
   it.each<[string, Record<string, string>]>([
     ['a browser prefetch', { purpose: 'prefetch' }],
-    ['a router prefetch', { 'next-router-prefetch': '1' }],
+    ['a router prefetch', { rsc: '1', 'next-router-prefetch': '1' }],
   ])('marks %s like the visit, and does nothing else', async (_, headers) => {
     refreshAccess.mockResolvedValue({ access: jwtExpiringIn(900) })
     const { proxy } = await load()

@@ -25,15 +25,17 @@ export function prefetchKind(headers: Headers): PrefetchKind | null {
 /**
  * Whether the proxy only marks this request's render with its route kind, and does nothing else
  * (no redirect lookup, which would count a hit, no session refresh, no account guard): a router
- * prefetch or a browser's `Purpose: prefetch`. Not `Sec-Purpose: prefetch`: those go through the
- * redirect lookup like a visit, which a speculative prefetch of a redirected URL needs (its
- * answer is shown on the click). The router's headers reach the proxy only because of
- * `skipProxyUrlNormalize` (next.config.ts); tests/fixtures/rsc-request-shapes.json holds what
- * really arrives, with and without it.
+ * prefetch or a browser's `Purpose: prefetch`. A router prefetch is an RSC request (`rsc: 1`)
+ * with `next-router-prefetch`, as the router sends both; the prefetch header on a document
+ * request is no prefetch of the router's, and gets what a visit gets. Not `Sec-Purpose:
+ * prefetch`: those go through the redirect lookup like a visit, which a speculative prefetch of a
+ * redirected URL needs (its answer is shown on the click). The router's headers reach the proxy
+ * only because of `skipProxyUrlNormalize` (next.config.ts); tests/fixtures/rsc-request-
+ * shapes.json holds what really arrives, with and without it.
  */
 export function isQuietPrefetch(headers: Headers): boolean {
   return (
-    headers.has('next-router-prefetch') ||
+    (headers.get('rsc') === '1' && headers.has('next-router-prefetch')) ||
     headers.get('purpose')?.trim().toLowerCase() === 'prefetch'
   )
 }

@@ -1,9 +1,10 @@
 import { act, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getPending, savePending, type PendingPayment } from '@/features/payment/pending-payments'
 import { saveGuestOrder } from '@/features/orders/guest-orders'
 import { ApiError } from '@/lib/api/errors'
+import { BANK_LEAVING_MS, LEAVING_MS } from '@/lib/navigation/leaving'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { handoff, intent, LINK_TOKEN, PAYMENT_UUID } from './fixtures'
 import { arrive, ok, renderResult, serve, status } from './result-support'
@@ -34,6 +35,7 @@ beforeEach(() => {
   localStorage.clear()
   sessionStorage.clear()
 })
+afterEach(() => vi.useRealTimers())
 
 const NEW_UUID = '5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9'
 const ORDER_UUID = '9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d'
@@ -130,6 +132,46 @@ describe('a door this device knows', () => {
     await user.click(payAgain())
     expect(pay).toHaveBeenCalledTimes(1)
     expect(getPending(NEW_UUID)).toMatchObject({ orderUuid: ORDER_UUID })
+  })
+
+  it('the lookup finds the session gone: it ends here (a guest’s page), nothing else is said', async () => {
+    const user = userEvent.setup()
+    const gone = () => Promise.reject(new ApiError({ status: 401, code: 'token_not_valid' }))
+    serve(mocks.bffFetch, [rejected()], { 'order/1411635340/': gone })
+    arrive(`?result=failed&payment=${PAYMENT_UUID}&code=gateway_rejected`)
+    await renderResult({ hasSession: true })
+    await user.click(payAgain())
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'پرداخت دوباره' })).not.toBeInTheDocument()
+    expect(document.body).toHaveTextContent('لینک پرداختی را که با پیامک')
+  })
+
+  it('the lookup fails otherwise: said on the page', async () => {
+    const user = userEvent.setup()
+    const missing = () => Promise.reject(new ApiError({ status: 404, code: 'order_not_found' }))
+    serve(mocks.bffFetch, [rejected()], { 'order/1411635340/': missing })
+    arrive(`?result=failed&payment=${PAYMENT_UUID}&code=gateway_rejected`)
+    await renderResult({ hasSession: true })
+    await user.click(payAgain())
+    expect(await screen.findByRole('alert')).toHaveTextContent('این سفارش در حساب شما خوانده نشد')
+  })
+})
+
+describe('while the bank’s page loads', () => {
+  it('the press stays taken for the bank’s longer bound, then comes back', async () => {
+    vi.useFakeTimers()
+    keep({ linkToken: LINK_TOKEN })
+    serve(mocks.bffFetch, [rejected()], { [LINK_INTENT]: async () => opened() })
+    arrive(`?result=failed&payment=${PAYMENT_UUID}&code=gateway_rejected`)
+    await renderResult()
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)))
+    act(() => payAgain().click())
+    for (let i = 0; i < 20 && mocks.goToBank.mock.calls.length === 0; i++) await tick(1)
+    expect(mocks.goToBank).toHaveBeenCalledTimes(1)
+    await tick(LEAVING_MS + 1_000)
+    expect(payAgain()).toHaveAttribute('aria-disabled', 'true')
+    await tick(BANK_LEAVING_MS - LEAVING_MS)
+    expect(payAgain()).not.toHaveAttribute('aria-disabled')
   })
 })
 
