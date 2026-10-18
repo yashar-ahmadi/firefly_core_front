@@ -131,6 +131,7 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
             go({ kind: 'refused', refusal: { kind: reason, retryAfter: null } })
           }
           reloadCards={reads.reloadCards}
+          upload={reads.upload}
           onCancelled={(outcome) => void cancelled(outcome)}
         />
       ) : phase.kind === 'outcome' ? (

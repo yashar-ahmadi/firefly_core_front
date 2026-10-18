@@ -6,7 +6,7 @@ import { announce } from '@/components/ui/live-announcer'
 import type { CardTransferReceipt } from '@/lib/api/types/payment'
 import { NO_WAIT, restartWait, type Wait } from '@/lib/forms/waits'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
-import { submitReceipt } from './card-transfer-api'
+import type { ReceiptBody } from './card-transfer-api'
 import { receiptRefusal } from './receipt-errors'
 import { THROTTLED_RECEIPT, UPLOADING } from './transfer-copy'
 import {
@@ -51,6 +51,8 @@ export interface ReceiptHandlers {
   onRefused: (reason: 'forbidden' | 'not_found') => void
   /** The cards read again (a chosen card the API no longer takes). */
   reloadCards: () => Promise<unknown>
+  /** Sends the receipt (the page knows whether the payment is someone else's: §11 #7). */
+  upload: (body: ReceiptBody) => Promise<CardTransferReceipt>
 }
 
 export interface ReceiptSubmit {
@@ -66,7 +68,7 @@ export interface ReceiptSubmit {
   setFieldError: (field: ReceiptField, message?: string) => void
 }
 
-export function useReceiptSubmit(uuid: string, handlers: ReceiptHandlers): ReceiptSubmit {
+export function useReceiptSubmit(handlers: ReceiptHandlers): ReceiptSubmit {
   const expire = useSessionExpired()
   const [errors, setErrors] = useState<ReceiptErrors>({})
   const [alert, setAlert] = useState<string | null>(null)
@@ -96,7 +98,7 @@ export function useReceiptSubmit(uuid: string, handlers: ReceiptHandlers): Recei
       setErrors({})
       setBusy(true)
       announce(UPLOADING)
-      const receipt = await submitReceipt(uuid, {
+      const receipt = await handlers.upload({
         image: draft.image!.file,
         payerName: draft.payerName,
         lastDigits: normalizeLastDigits(draft.lastDigits),

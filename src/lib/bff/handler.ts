@@ -6,7 +6,7 @@ import { GENERIC_ERROR_DETAIL, NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
 import { isExpiring } from '@/lib/auth/jwt'
 import { refreshAccess } from '@/lib/auth/refresh'
 import { isAllowed } from '@/lib/bff/allowlist'
-import { NO_SESSION, isAnonymousRead, withoutAnonFlag } from '@/lib/bff/anonymous'
+import { NO_SESSION, isAnonymousCall, withoutAnonFlag } from '@/lib/bff/anonymous'
 import { anonymousCartBody, isAnonymousCartRead } from '@/lib/bff/guest-cart'
 import {
   RequestTooLargeError,
@@ -138,8 +138,9 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
     if (text !== null) return serialisedJsonResponse(text)
   }
 
-  // A payment's status read asked without the session: none of it goes, nothing of it changes.
-  const anonymous = isAnonymousRead(req, method, path)
+  // A payment call asked without the session (`anonymous.ts`): none of it goes, none of it
+  // changes.
+  const anonymous = isAnonymousCall(req, method, path)
   const query = anonymous ? withoutAnonFlag(queryOf(req)) : queryOf(req)
   const url = `${env.FIREFLY_API_URL}/api/v1/${apiPath(path, query)}`
   const forwardedFor = getClientIp(req.headers, env.CLIENT_IP_HEADER)

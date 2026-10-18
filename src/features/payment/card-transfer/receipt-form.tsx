@@ -42,13 +42,12 @@ const ORDER: ReceiptField[] = [
 ]
 
 export interface ReceiptFormProps extends ReceiptHandlers {
-  uuid: string
   cards: BankCard[]
   /** The upload is on its way (the attempt's «انصراف» waits for it). */
   onBusyChange?: (busy: boolean) => void
 }
 
-export function ReceiptForm({ uuid, cards, onBusyChange, ...handlers }: ReceiptFormProps) {
+export function ReceiptForm({ cards, onBusyChange, ...handlers }: ReceiptFormProps) {
   const baseId = useId()
   const ids: Record<ReceiptField, string> = {
     image: `${baseId}image`,
@@ -65,10 +64,7 @@ export function ReceiptForm({ uuid, cards, onBusyChange, ...handlers }: ReceiptF
   const [paidAt, setPaidAt] = useState(() => tehranIso(tehranDateTime(new Date())))
   const [chosen, setChosen] = useState<number | null>(null)
   const [bankReference, setBankReference] = useState('')
-  const { errors, alert, busy, attempt, lock, submit, setFieldError } = useReceiptSubmit(
-    uuid,
-    handlers,
-  )
+  const { errors, alert, busy, attempt, lock, submit, setFieldError } = useReceiptSubmit(handlers)
   // A card the cards read no longer has is chosen no more; a single card is chosen already.
   const destinationCard = cards.some((card) => card.id === chosen)
     ? chosen

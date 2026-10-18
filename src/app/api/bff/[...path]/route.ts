@@ -12,10 +12,11 @@ import { handleBff } from '@/lib/bff/handler'
  * - Answers with the API's status, JSON envelope and `Retry-After`; never with its cookies.
  * - Answers a guest's `GET cart/` (no cart or session cookie) from a shared copy of the empty
  *   cart, refreshed every 60 s (`@/lib/bff/guest-cart`).
- * - `GET payment/<uuid>/status/?anon=1` goes without the session (no bearer, no cart token, no
- *   refresh, no cookie change) and without the flag: the API refuses a signed-in visitor another
- *   account's payment but answers it anonymously (`@/lib/bff/anonymous`). Elsewhere the flag is
- *   an ordinary query parameter.
+ * - `GET payment/<uuid>/status/`, `GET payment/<uuid>/card-transfer/` and
+ *   `POST payment/<uuid>/card-transfer/receipt/` with `?anon=1` go without the session (no bearer,
+ *   no cart token, no refresh, no cookie change) and without the flag: the API refuses a signed-in
+ *   visitor another account's payment but answers it anonymously (`@/lib/bff/anonymous`).
+ *   Elsewhere the flag is an ordinary query parameter.
  */
 export const dynamic = 'force-dynamic'
 

@@ -145,14 +145,15 @@ re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
   `Cache-Control: no-store`, sets no cookie and is
   byte-for-byte the body the proxied read would give. Cost: the empty-cart shape may be up to 60 s
   stale;
-- sends a payment's status read without the session when asked: `GET payment/<uuid>/status/?anon=1`
-  goes with no bearer, no cart token, no refresh and no cookie change, and without the flag
+- sends exactly three payment calls without the session when asked with `?anon=1`:
+  `GET payment/<uuid>/status/`, `GET payment/<uuid>/card-transfer/` (the cards) and
+  `POST payment/<uuid>/card-transfer/receipt/` (multipart, still streamed under the 6 MiB cap).
+  They go with no bearer, no cart token, no refresh and no cookie change, and without the flag
   (`lib/bff/anonymous.ts`). The API refuses a signed-in visitor another account's payment (403
-  `payment_forbidden`, a guest order paid through its link) but answers the same read made
-  anonymously (order digest §11 #7); the result page retries with the flag, and treats a payment
-  answered only that way as not this account's (`foreign`): its payer is offered tracking or the
-  order's link page, never the account's order pages or the order lookup. On any other path the
-  flag is an ordinary query parameter (forwarded, the session attached).
+  `payment_forbidden`) but answers the same call made anonymously (order digest §11 #7); the
+  result and card-transfer pages retry with the flag after that 403 (and from then on), and treat
+  a payment answered only that way as not this account's (`foreign`). On any other path the flag
+  is an ordinary query parameter (forwarded, the session attached).
 
 **Visitor IP.** The API throttles guests per IP and all storefront traffic comes from one host,
 so uncached calls (BFF, redirect resolution, short links, token refresh, bank callback) send

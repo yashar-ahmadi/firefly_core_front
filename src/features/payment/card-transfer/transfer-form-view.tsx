@@ -66,12 +66,7 @@ export function TransferFormView({
           <SupportNote support={support} />
         </div>
       ) : (
-        <ReceiptForm
-          uuid={uuid}
-          cards={data.destination_cards}
-          onBusyChange={setUploading}
-          {...handlers}
-        />
+        <ReceiptForm cards={data.destination_cards} onBusyChange={setUploading} {...handlers} />
       )}
       <CancelTransfer uuid={uuid} held={uploading} onDone={onCancelled} />
     </>

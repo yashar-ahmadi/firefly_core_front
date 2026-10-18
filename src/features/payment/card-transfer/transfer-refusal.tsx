@@ -5,14 +5,17 @@ import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import { toPersianDigits } from '@/lib/format/digits'
 import type { SupportLine } from '../result-actions'
+import { CopyPageLink } from './copy-page-link'
 import { HEADING_ID } from './transfer-copy'
 import { SupportNote } from './support-note'
 import type { TransferRefusal as Refusal, TransferRefusalKind } from './use-transfer-reads'
 
 // The card-transfer page when it cannot show the payment (order digest §3.2.7: 404, 403; a
 // wait; no answer): a calm page, never an error screen, with what to do next (the order's
-// tracking, the shop, the support line) and, for a wait or a lost answer, a read again. Also the
-// segment's not-found page (a uuid of the wrong shape), rendered on the server, with no retry.
+// tracking, the shop, the support line) and, for a wait or a lost answer, a read again; refused
+// even without the session (another account's payment), a copy of the page's link to open it
+// where the shopper is not signed in. Also the segment's not-found page (a uuid of the wrong
+// shape), rendered on the server, with no retry.
 
 const COPY: Record<TransferRefusalKind, { title: string; body: string }> = {
   not_found: {
@@ -87,6 +90,7 @@ export function TransferRefusal({ refusal, support, headingRef, onRetry }: Trans
           <House aria-hidden />
           صفحهٔ اصلی فروشگاه
         </Link>
+        {refusal.kind === 'forbidden' && <CopyPageLink />}
       </div>
       <div className="self-stretch border-t border-ink-100 pt-4">
         <SupportNote support={support} />
