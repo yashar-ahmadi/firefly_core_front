@@ -140,7 +140,10 @@ export interface OrderDestination {
 
 /** What the account's list and an order's detail both say of an order (§2 `OrderSummaryBase`). */
 export interface OrderSummaryBase {
-  /** For `payment/order/<uuid>/intent/` only (a bearer credential: never logged). */
+  /**
+   * For `payment/order/<uuid>/intent/` only: owner-scoped (the API answers it to this account's
+   * session only), not a bearer credential; never logged all the same.
+   */
   uuid: string
   order_code: string
   status: OrderStatus
@@ -161,7 +164,10 @@ export interface OrderSummaryBase {
   postal_tracking_code: string | null
   /** Owes online money now (the deadline is not checked). */
   is_payable: boolean
-  /** Present until cancelled, even after payment or expiry; holds the link token. */
+  /**
+   * Present until cancelled, even after payment or expiry; holds the link token (a bearer
+   * credential). The account order's first render carries a marker instead (order-read.ts).
+   */
   payment_url: string | null
   /** status === awaiting_payment. */
   can_cancel: boolean

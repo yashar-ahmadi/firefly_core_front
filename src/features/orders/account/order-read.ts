@@ -17,12 +17,25 @@ import { getClientIp } from '@/lib/http/client-ip'
 // - missing: the API answered 404 (not this account's, or none): the page is a real 404;
 // - unknown: no usable token here, or no answer: the page reads it in the browser (through the
 //   BFF, which refreshes the session), and a 404 there is said in the page.
-// The order's uuid and link are credentials: a failure is logged with its status and code only.
+// The first render's order goes into the page's HTML (its RSC payload) on a page where operator
+// snippets run: its `payment_url` holds the payment link's token (a bearer credential, §1.3), so
+// it is replaced by a marker that says only that a link exists (all the account pages read of it:
+// order-action-rules.ts); null stays null. The browser's own reads carry the real link (in this
+// tab's memory only; docs/ARCHITECTURE.md). The order's uuid stays: the owner's door, which the
+// API answers to this account's session only. A failure is logged with its status and code only.
 
 export type AccountOrderRead =
   { kind: 'found'; order: OrderDetail } | { kind: 'missing' } | { kind: 'unknown' }
 
 const TIMEOUT_MS = 8_000
+
+/** What stands for a payment link in the server-rendered order (no token: not a credential). */
+export const PAYMENT_LINK_WITHHELD = 'withheld:payment-link'
+
+/** The order as the first render may carry it: its link's token left out. */
+export function withoutLinkToken(order: OrderDetail): OrderDetail {
+  return order.payment_url === null ? order : { ...order, payment_url: PAYMENT_LINK_WITHHELD }
+}
 
 export const readAccountOrder = cache(async (code: string): Promise<AccountOrderRead> => {
   const [cookieStore, headerList] = await Promise.all([cookies(), headers()])
@@ -34,7 +47,7 @@ export const readAccountOrder = cache(async (code: string): Promise<AccountOrder
       forwardedFor: getClientIp(headerList, getServerEnv().CLIENT_IP_HEADER),
       timeoutMs: TIMEOUT_MS,
     })
-    return { kind: 'found', order: data }
+    return { kind: 'found', order: withoutLinkToken(data) }
   } catch (error) {
     if (isApiNotFound(error)) return { kind: 'missing' }
     if (!(error instanceof ApiError && error.status === 401)) {

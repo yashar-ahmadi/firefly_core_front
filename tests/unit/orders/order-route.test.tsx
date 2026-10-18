@@ -1,13 +1,15 @@
 import { render, screen } from '@testing-library/react'
 import { existsSync } from 'node:fs'
+import type { ReactElement } from 'react'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import OrderNotFound from '@/app/(shop)/account/orders/[code]/not-found'
 import OrderRoute, { dynamic, generateMetadata } from '@/app/(shop)/account/orders/[code]/page'
 import { ApiError } from '@/lib/api/errors'
+import type { OrderDetail } from '@/lib/api/types/order-detail'
 import { catalog } from '../payment/fixtures'
 import { resolveServerTree } from '../support/server-tree'
-import { detail, renderAccount } from './account-support'
+import { detail, renderAccount, unconfirmedCod } from './account-support'
 
 // `/account/orders/<code>/` on the server (order digest §3.1.3; R9): the order read once per
 // request (shared with the metadata) with the session's token and the visitor's IP, never
@@ -77,6 +79,29 @@ describe('/account/orders/<code>/', () => {
     expect((await generateMetadata(params())).title).toMatchObject({
       absolute: expect.stringContaining('فایرفلای'),
     })
+  })
+
+  it('the first render’s data holds no payment link token (operator snippets run here)', async () => {
+    const cod = unconfirmedCod()
+    mocks.apiFetch.mockResolvedValue({ data: cod, msg: '', status: 200 })
+    const tree = (await OrderRoute(params())) as ReactElement<{ initial: OrderDetail | null }>
+    const initial = tree.props.initial!
+    expect(cod.payment_url).toContain('/order/pay/')
+    expect(JSON.stringify(initial)).not.toContain('accountLinkToken')
+    expect(initial.payment_url).not.toBeNull()
+    // The owner's door stays (owner-scoped, not a bearer credential); the rest as the API said.
+    expect(initial.uuid).toBe(cod.uuid)
+    expect({ ...initial, payment_url: cod.payment_url }).toEqual(cod)
+    // «تأیید سفارش» reads only whether a link exists.
+    renderAccount(await resolveServerTree(tree))
+    expect(screen.getByRole('button', { name: 'تأیید سفارش' })).toBeVisible()
+  })
+
+  it('no link (cancelled): null stays null', async () => {
+    const cancelled = detail('delivered', { status: 'cancelled', payment_url: null })
+    mocks.apiFetch.mockResolvedValue({ data: cancelled, msg: '', status: 200 })
+    const tree = (await OrderRoute(params())) as ReactElement<{ initial: OrderDetail | null }>
+    expect(tree.props.initial!.payment_url).toBeNull()
   })
 
   it('a code of the wrong shape: a 404, the API never asked', async () => {

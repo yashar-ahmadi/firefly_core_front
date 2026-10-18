@@ -15,9 +15,10 @@ import type { PaymentHistoryDetail, PaymentHistoryItem } from '@/lib/api/types/p
 import { ORDERS_KEY, SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
 
 // The account's order reads through the BFF, with the session only (order digest §3.1.2–3.1.5,
-// §3.2.9–3.2.10), every key under `ORDERS_KEY` (SESSION_QUERIES: a logout removes them). The
-// order's uuid and a payment's uuid are bearer credentials: in paths and in this tab's memory
-// only, never logged.
+// §3.2.9–3.2.10), every key under `ORDERS_KEY` (SESSION_QUERIES: a logout removes them). A
+// payment's uuid and the order's `payment_url` (its link's token) are bearer credentials: in
+// paths and in this tab's memory only, never logged. The order's uuid is not one (the API
+// answers it to the owner's session only) but is never logged either.
 
 export type OrdersPage = Paginated<OrderListItem>
 export type PaymentsPage = Paginated<PaymentHistoryItem>

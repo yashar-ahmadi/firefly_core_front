@@ -749,6 +749,13 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
   (`/payment/card-transfer/<uuid>/`) as `href`s. Nothing sends them anywhere, but a session
   replay or heatmap snippet records the DOM: CUSTOMIZATION.md tells operators to mask link URLs
   (or not to record `/checkout/`). They stay links (copy, open in a new tab).
+- **The account order's first render carries no link token.** `/account/orders/<code>/` (a
+  `page`: snippets run) hands the order it read on the server to the browser in the page's RSC
+  payload, so `readAccountOrder` replaces its `payment_url` with a marker first (the page only
+  needs whether a link exists; null stays null). The browser's own reads (`GET order/<code>/`
+  again, and `order/list/`) still bring the real `payment_url` into the tab's query cache:
+  memory only, never rendered, sent or logged, the same trade-off as the checkout's placement
+  answer.
 
 **The bank's return page** (`/payment/callback/?result=…&payment=<uuid>&code=…`) never reads the
 query on the server (its HTML is the same for every return). In the browser it reads the uuid
