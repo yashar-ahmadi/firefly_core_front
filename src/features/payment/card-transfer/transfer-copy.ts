@@ -64,10 +64,13 @@ export const CANCELLED_TITLE = 'پرداخت کارت به کارت لغو شد'
 export const CANCELLED_BODY =
   'این پرداخت کارت به کارت بسته شد. برای پرداخت سفارش، پرداخت تازه\u{200C}ای آغاز کنید یا روش دیگری انتخاب کنید.'
 
-/** The shop gave the money back (`refunded`): nothing to pay again here. */
+/**
+ * The shop gave the money back (`refunded`): nothing to pay again here. Who gave it back, never
+ * where it went (a wallet or a bank account: not told) nor which page to open (the offers below
+ * say that: the order's page for its confirmed owner, tracking for anyone else).
+ */
 export const REFUNDED_TITLE = 'مبلغ این پرداخت بازگردانده شد'
-export const REFUNDED_BODY =
-  'مبلغ این پرداخت کارت به کارت از سوی فروشگاه به حساب شما بازگردانده شده است. وضعیت سفارش را در «پیگیری سفارش» ببینید و اگر پرسشی دارید با پشتیبانی تماس بگیرید.'
+export const REFUNDED_BODY = 'مبلغ این پرداخت از سوی فروشگاه بازگردانده شده است.'
 export const CANCEL_LABEL = 'انصراف از کارت به کارت'
 export const CANCEL_TITLE = 'از پرداخت کارت به کارت انصراف می\u{200C}دهید؟'
 export const CANCEL_PAID_NOTE =

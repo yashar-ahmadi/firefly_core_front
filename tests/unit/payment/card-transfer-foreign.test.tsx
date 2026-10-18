@@ -156,7 +156,8 @@ describe('refused with the session, answered without it', () => {
       screen.getByRole('heading', { level: 1, name: 'این پرداخت از حساب کاربری دیگری است' }),
     ).toBeVisible()
     expect(anonCalls(CARDS)).toHaveLength(1)
-    await user.click(screen.getByRole('button', { name: /کپی لینک این صفحه/ }))
+    // Its own chunk, fetched for this refusal only.
+    await user.click(await screen.findByRole('button', { name: /کپی لینک این صفحه/ }))
     expect(await navigator.clipboard.readText()).toBe(window.location.href)
     expect(screen.getByRole('button', { name: /کپی شد/ })).toBeVisible()
   })

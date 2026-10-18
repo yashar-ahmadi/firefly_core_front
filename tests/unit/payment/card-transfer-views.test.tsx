@@ -16,7 +16,8 @@ import { LINK_TOKEN, PAYMENT_UUID } from './fixtures'
 
 // What the card-transfer page reads and says on its views other than the form (order digest
 // §5.7): the attempt's own cut-off is only the form's (no link-page read on the review, rejected
-// or closed views), and a refunded payment is said as what it is, with no «پرداخت دوباره».
+// or closed views), and a refunded payment is said as what it is (the shop gave it back), with
+// no «پرداخت دوباره»: the order's page for its confirmed owner, tracking for anyone else.
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), loadPage: vi.fn(), probe: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
@@ -33,6 +34,8 @@ vi.mock('next/navigation', () => ({
 stubTransferApis()
 
 const LINK = `order/pay/${LINK_TOKEN}/`
+const ORDER = 'order/1411635340/'
+const ORDER_UUID = '5e1c0a2b-3d4e-4f60-8a1b-2c3d4e5f6a7b'
 
 beforeEach(() => {
   localStorage.clear()
@@ -78,7 +81,9 @@ describe('a refunded payment', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'مبلغ این پرداخت بازگردانده شد' }),
     ).toBeVisible()
-    expect(document.body).toHaveTextContent('به حساب شما بازگردانده شده است')
+    // Who gave it back, and nothing of where it went or where to look (the offers say that).
+    const body = screen.getByText(/بازگردانده شده است/)
+    expect(body).toHaveTextContent(/^مبلغ این پرداخت از سوی فروشگاه بازگردانده شده است\.?$/)
     expect(screen.queryByRole('button', { name: 'پرداخت دوباره' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'پرداخت با روش دیگر' })).toBeNull()
     expect(screen.getByRole('link', { name: 'پیگیری سفارش' })).toHaveAttribute(
@@ -86,6 +91,21 @@ describe('a refunded payment', () => {
       '/order/track/',
     )
     expect(screen.getByRole('link', { name: '۰۲۱ ۹۱۰۰ ۰۰۰۰' })).toBeVisible()
+  })
+
+  it('its confirmed owner is offered the order’s own page, not tracking', async () => {
+    serve(mocks.bffFetch, {
+      [STATUS]: () => ok(status({ status: 'refunded' })),
+      [ORDER]: () => ok({ uuid: ORDER_UUID, payment_url: null }),
+    })
+    await renderTransfer({ hasSession: true })
+    await act(async () => {})
+    expect(screen.getByRole('link', { name: 'مشاهدهٔ سفارش' })).toHaveAttribute(
+      'href',
+      '/account/orders/1411635340/',
+    )
+    expect(screen.queryByRole('link', { name: 'پیگیری سفارش' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'پرداخت دوباره' })).toBeNull()
   })
 
   it('reached while the receipt was under review: the same, said once', async () => {

@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useRef } from 'react'
 import { announce } from '@/components/ui/live-announcer'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -11,7 +12,6 @@ import type { CancelOutcome } from '../attempt-api'
 import { getPending, removePending } from '../pending-payments'
 import type { SupportLine } from '../result-actions'
 import { ownOrderOf, useOrderOwnership } from '../use-order-ownership'
-import { CopyPageLink } from './copy-page-link'
 import { ReceiptOutcome } from './receipt-outcome'
 import { HEADING_ID, PAGE_TITLE, UNDER_REVIEW_NO_CANCEL } from './transfer-copy'
 import { TransferClosed } from './transfer-closed'
@@ -30,6 +30,13 @@ import { useTransferReads } from './use-transfer-reads'
 // guest's order); only its confirmed owner is offered the account's pages and the owner's door.
 // Each later view takes the focus on its heading and is said once, politely. The uuid is a
 // credential: nothing here logs it.
+
+// «کپی لینک این صفحه» is offered on one refusal only (another account's payment): its own chunk,
+// fetched then, never on an ordinary visit. A chunk that cannot load leaves the address bar.
+const CopyPageLink = dynamic(
+  () => import('./copy-page-link').then((module) => module.CopyPageLink).catch(() => () => null),
+  { ssr: false },
+)
 
 export interface CardTransferPageProps {
   uuid: string
@@ -56,7 +63,11 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
   const { phase, status } = reads
   const { hasSession } = useSession()
   const orderCode = status?.info.order_code ?? null
-  const ownership = useOrderOwnership(orderCode, hasSession && !reads.foreign)
+  // Not for a refused page: the calm page offers nothing that depends on the order's owner.
+  const ownership = useOrderOwnership(
+    orderCode,
+    hasSession && !reads.foreign && phase.kind !== 'refused',
+  )
   const own = ownOrderOf(ownership)
   const linkToken = orderLinkToken({ uuid, orderCode, own })
   const heading = useRef<HTMLHeadingElement>(null)
