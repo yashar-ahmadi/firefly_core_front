@@ -157,6 +157,18 @@ describe('the cards', () => {
     expect(within(card).getByRole('button', { name: 'لغو سفارش' })).toBeVisible()
   })
 
+  it('three pictures at most, no «+n» tile (the preview has no quantities); the units in words', async () => {
+    const orders = ORDERS()
+    const first = orders.results[0]!
+    const line = first.item_preview[0]!
+    orders.results[0] = { ...first, item_count: 9, item_preview: [line, line, line] }
+    listAnswer = () => ok(orders)
+    renderOrders()
+    const card = await screen.findByRole('article', { name: /سفارش ۳۰۶۷۵۶۲۳۵۸/ })
+    expect(card).toHaveTextContent('۹ کالا')
+    expect(card).not.toHaveTextContent('+')
+  })
+
   it('a delivered order: its details as the action, and its postal tracking code', async () => {
     renderOrders()
     const card = await screen.findByRole('article', { name: /سفارش ۷۰۱۰۸۶۸۵۷۳/ })

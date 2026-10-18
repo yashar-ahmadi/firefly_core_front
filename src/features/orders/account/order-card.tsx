@@ -66,7 +66,7 @@ export function OrderCard({ order, onPay, onCancel }: OrderCardProps) {
         <time dateTime={order.placed_at}>{formatJalaliDate(order.placed_at)}</time>
         <span>{`${formatNumber(order.item_count)} کالا`}</span>
       </p>
-      <OrderThumbs preview={order.item_preview} itemCount={order.item_count} />
+      <OrderThumbs preview={order.item_preview} />
       <MiniProgress progress={order.progress} />
       <dl className="grid gap-x-6 gap-y-1 text-base leading-7 sm:grid-cols-2">
         <div className="flex flex-wrap gap-x-2">
