@@ -640,9 +640,11 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   journeys; the `kamran` guard of `tests/e2e/support/kamran-guard.ts` puts his cart's lines,
   destination and shipping choice and his address book back exactly), so no read-only spec sees that data
   change. A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
-  mobile each run, for the guest's unpaid-orders ceiling; the bank intent the dev backend answers
-  `400 gateway_unknown` when a gateway is named (the chooser shows) or `503
-  gateway_not_configured` when none is, one of the 30 an hour of `payment_attempt`) and cancels it
+  mobile each run, for the guest's unpaid-orders ceiling; the dev backend answers a bank intent
+  `400 gateway_unknown` when a gateway is named (the chooser shows), and the page withdraws that
+  gateway for itself and tries the other with a press, refused too, until the bank routes close;
+  `503 gateway_not_configured` when none is named; two of the 30 an hour of `payment_attempt`)
+  and cancels it
   through its link afterwards, whatever happened (the token is taken from any 2xx placement
   before anything is asserted), so the dev database keeps no open unpaid order. A failure the
   dev backend gives by design is forgiven by its status (`forgiveFailure(page, url, status)` in

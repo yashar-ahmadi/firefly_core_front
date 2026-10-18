@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@/lib/api/errors'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { catalog, gateways, methods } from '../payment/fixtures'
 import { calls, ok, onlineCart, placeButton, renderCheckout, serve } from './place-support'
@@ -34,6 +35,24 @@ const page = <T,>(results: T[]) => ({
 })
 
 describe('the payment lists the server could not read', () => {
+  it('a read that fails again says so, and the button stays', async () => {
+    const user = userEvent.setup()
+    serve(mocks.bffFetch, () => onlineCart(), {
+      'payment/method/list/': () => Promise.reject(ApiError.network()),
+      'payment/gateway/list/': () => Promise.reject(ApiError.network()),
+    })
+    renderCheckout({
+      cart: onlineCart(),
+      props: { catalog: catalog({ methods: null, gateways: null }) },
+    })
+    const step = screen.getByRole('region', { name: /۳.*پرداخت/ })
+    await user.click(await within(step).findByRole('button', { name: 'تلاش دوباره' }))
+    await waitFor(() =>
+      expect(within(step).getByRole('status')).toHaveTextContent('باز هم بارگذاری نشد'),
+    )
+    expect(within(step).getByRole('button', { name: 'تلاش دوباره' })).toBeEnabled()
+  })
+
   it('«تلاش دوباره» reads them again; the routes show, the shop’s default chosen', async () => {
     const user = userEvent.setup()
     serve(mocks.bffFetch, () => onlineCart(), {

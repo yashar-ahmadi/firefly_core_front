@@ -170,6 +170,34 @@ describe('placement refusals', () => {
     expect(place.mock.calls[1]![0]).toMatchObject({ expected_total: 2_500_000 })
   })
 
+  it('a total change whose cart cannot be read again: said, with a read; then the dialog', async () => {
+    const user = userEvent.setup()
+    let cart = onlineCart()
+    let readable = true
+    const place = vi.fn().mockImplementationOnce(async () => {
+      cart = onlineCart({ total: 2_500_000, amount_charged_online: 2_500_000 })
+      readable = false
+      throw ApiError.fromBody(409, totalChanged)
+    })
+    serve(mocks.bffFetch, () => cart, { [PLACE]: place })
+    const served = mocks.bffFetch.getMockImplementation()!
+    mocks.bffFetch.mockImplementation((path: string, init: unknown) =>
+      path === 'cart/' && !readable
+        ? Promise.reject(new ApiError({ status: 400, code: 'bad_request', detail: 'خطا.' }))
+        : served(path, init),
+    )
+    renderCheckout({ cart })
+    await user.click(await ready())
+    // Never the old amounts: what happened, and a way to read the cart again.
+    const notice = await within(review()).findByRole('alert')
+    expect(notice).toHaveTextContent('مبلغ سفارش تغییر کرد')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    readable = true
+    await user.click(within(notice).getByRole('button', { name: 'خواندن دوباره\u{0654} سبد خرید' }))
+    const dialog = await screen.findByRole('dialog', { name: 'مبلغ سفارش تغییر کرد' })
+    expect(dialog).toHaveTextContent('۲٬۵۰۰٬۰۰۰ تومان')
+  })
+
   it('the API’s receiver checks: the form again, its messages on the fields, the first focused', async () => {
     const user = userEvent.setup()
     serve(mocks.bffFetch, () => onlineCart(), {

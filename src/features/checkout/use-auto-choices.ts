@@ -110,7 +110,7 @@ export function useAutoDestination(input: DestinationInput): AutoChoice {
     // After this effect: its state changes are the choice's, not the render's.
     queueMicrotask(() => void choose(first))
   })
-  useEffect(() => run(), [addresses, cartAddress, waiting, pending, tried])
+  useEffect(() => run(), [signedIn, addresses, cartAddress, waiting, pending, tried])
 
   const loading = book.data === undefined && !book.isError
   const working =

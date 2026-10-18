@@ -1,6 +1,8 @@
 import { act, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ADDRESSES_KEY } from '@/features/account/addresses/use-addresses'
+import { CART_KEY } from '@/features/cart/cart-cache'
 import type { Cart } from '@/lib/api/types/cart'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { emptyCartFixture } from '../cart/fixtures'
@@ -77,6 +79,24 @@ describe('the choices made for the shopper', () => {
     await settle()
     await settle()
     expect(writes()).toBe(0)
+  })
+
+  it('a blocked cart put right while the page is open: the choice is made then', async () => {
+    const blocked = () =>
+      noDestinationCart({
+        is_orderable: false,
+        lines: [cartLine({ issue: 'insufficient_stock', available_quantity: 1, quantity: 3 })],
+      })
+    let cart = blocked()
+    serve(() => cart)
+    const { client } = renderCheckout({ cart, hasSession: true })
+    // The address book already read (another page of this visit, say).
+    client.setQueryData(ADDRESSES_KEY, book([address()]))
+    await settle()
+    expect(writes()).toBe(0)
+    cart = noDestinationCart()
+    act(() => client.setQueryData(CART_KEY, cart))
+    await waitFor(() => expect(calls(mocks.bffFetch, 'cart/destination/')).toHaveLength(1))
   })
 
   it('none once the order is placed (its cart is closed)', async () => {

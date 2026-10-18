@@ -55,6 +55,15 @@ export function NoticeBox({ notice, cart }: { notice: PlacementNotice; cart?: Ca
       {notice.adjustments && notice.adjustments.length > 0 && (
         <p className="ms-7 text-ink-800">{notice.adjustments.map(adjustmentText).join(' ')}</p>
       )}
+      {notice.retry && (
+        <button
+          type="button"
+          onClick={notice.retry.run}
+          className={`${buttonClasses({ variant: 'outline', size: 'sm' })} self-start`}
+        >
+          {notice.retry.label}
+        </button>
+      )}
       {notice.link && (
         <Link
           href={notice.link.href}

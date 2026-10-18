@@ -43,6 +43,8 @@ export async function submitPlacement(
 }
 
 const CART_LINK = { href: '/cart/', label: 'بازگشت به سبد خرید' }
+const TOTAL_UNREAD =
+  'مبلغ سفارش تغییر کرد، ولی سبد خرید دوباره خوانده نشد. سبد را دوباره بخوانید تا مبلغ جدید را ببینید.'
 
 /** What a refusal may change on the page (use-place-order's state, the checkout's steps). */
 export interface RefusalDeps {
@@ -57,7 +59,7 @@ export interface RefusalDeps {
   /** Forgets the placement key (one the API refused as malformed). */
   clearKey: () => void
   throttledMessage: string
-  setNotice: (notice: PlacementNotice) => void
+  setNotice: (notice: PlacementNotice | null) => void
   setNoteError: (message: string) => void
   setThrottle: (throttle: Placement['throttle']) => void
   setTotalChanged: (changed: Placement['totalChanged']) => void
@@ -73,9 +75,20 @@ export async function handleRefusal(error: PlacementError, sent: number, deps: R
     deps.setNotice({ message: error.detail, problem: error.problem, ...extra })
   switch (error.problem) {
     case 'total_changed': {
-      const fresh = await deps.reread()
-      if (fresh) deps.setTotalChanged({ previous: sent })
-      return
+      // The dialog asks about the cart as it is now, so only once it is read; a read that fails
+      // says what happened and offers to read it again (never the old amounts in a dialog).
+      const ask = async () => {
+        if (!(await deps.reread())) return false
+        deps.setNotice(null)
+        deps.setTotalChanged({ previous: sent })
+        return true
+      }
+      if (await ask()) return
+      return deps.setNotice({
+        message: TOTAL_UNREAD,
+        problem: 'total_changed',
+        retry: { label: 'خواندن دوباره\u{0654} سبد خرید', run: () => void ask() },
+      })
     }
     case 'session':
       deps.expire()

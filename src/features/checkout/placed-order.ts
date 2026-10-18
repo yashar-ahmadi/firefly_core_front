@@ -83,8 +83,9 @@ const isContext = (value: unknown): value is PlacedContext =>
   typeof value.guest === 'boolean' &&
   typeof value.outcome === 'string'
 
+/** Stored with when it was written (`savedAt`: the checkout shows a recent one only). */
 export function savePlaced(ctx: PlacedContext): void {
-  writeJson('session', PLACED_KEY, ctx)
+  writeJson('session', PLACED_KEY, { ...ctx, savedAt: Date.now() })
 }
 
 /** The order placed in this tab, if it is `code`'s. */

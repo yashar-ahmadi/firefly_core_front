@@ -15,11 +15,12 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // intent goes through the guest's link door. The dev backend cannot run a gateway (digest §11
 // #3): a named gateway (the chooser shows, so its gateway is sent) answers `400 gateway_unknown`,
 // an unnamed one `503 gateway_not_configured`. Either way the page must not navigate, must say
-// so and keep the order with its routes. Whatever happens, the order is cancelled through its
+// so and keep the order with its routes. Named: that gateway is withdrawn, the other one is tried
+// with a press and refused too, and the bank routes close (two intents). Whatever happens, the order is cancelled through its
 // link (`POST order/pay/<token>/cancel/`, allowed while it awaits payment): the token is taken
 // from any 2xx placement the page receives, before anything is asserted, so a failure after the
-// order exists still cancels it. Per run: 1 placement, 1 payment intent (the 30/h
-// `payment_attempt` budget), 1 cancellation; the receiver's mobile is new for each run (the
+// order exists still cancels it. Per run: 1 placement, 2 payment intents (1 when the dev bank
+// answers unnamed; the 30/h `payment_attempt` budget), 1 cancellation; the receiver's mobile is new for each run (the
 // guest's unpaid-orders ceiling counts per mobile). Cart writes go through `cartWrite` (the dev
 // SQLite lock is repeated once, logged).
 
@@ -33,6 +34,9 @@ async function geo<T>(page: Page, path: string): Promise<T[]> {
 }
 
 const cartOf = async (response: Response) => ((await response.json()) as { data: Cart }).data
+/** The order's payment intents, through the guest's link door. */
+const isIntent = (response: Response) =>
+  /\/api\/bff\/payment\/link\/[^/]+\/intent\/$/.test(new URL(response.url()).pathname)
 
 /** A mobile of this run: 0912 and 7 digits from the clock. */
 const runMobile = () => `0912${String(Date.now()).slice(-7)}`
@@ -112,9 +116,7 @@ test('a guest places an order; the dev bank is not configured: no navigation, th
       (response) =>
         response.url().includes('/api/bff/order/place/') && response.request().method() === 'POST',
     )
-    const intent = page.waitForResponse((response) =>
-      /\/api\/bff\/payment\/link\/[^/]+\/intent\/$/.test(new URL(response.url()).pathname),
-    )
+    const intent = page.waitForResponse(isIntent)
     await place.click()
     const placement = await placed
     await reading
@@ -139,9 +141,23 @@ test('a guest places an order; the dev bank is not configured: no navigation, th
     const routes = page.getByRole('radiogroup', { name: 'روش\u{200C}های پرداخت' })
     await expect(routes.getByRole('radio', { name: /کارت به کارت/ })).toBeVisible()
     if (named) {
-      // The gateway list is read again; the bank stays offered (another gateway, later).
-      await expect(alert).toContainText('درگاه پرداخت انتخاب\u{200C}شده در دسترس نیست')
-      await expect(routes.getByRole('radio', { name: /درگاه بانکی/ })).toBeVisible()
+      // The gateway tried is withdrawn for the page (the list read again); the bank stays
+      // offered with the other one, which a press tries. Refused too, none is left: the bank
+      // routes close with their reason, and the support line.
+      await expect(alert).toContainText('این درگاه در حال حاضر در دسترس نیست')
+      const bankRoute = routes.getByRole('radio', { name: /درگاه بانکی/ })
+      await expect(bankRoute).toBeEnabled()
+      const again = page.waitForResponse(isIntent)
+      await placedOrder.getByRole('button', { name: 'پرداخت سفارش' }).click()
+      const second = await again
+      const tried = (response: Response) =>
+        (response.request().postDataJSON() as { gateway_code?: string }).gateway_code
+      expect(tried(second), 'never the withdrawn gateway again').not.toBe(tried(bank))
+      expect(second.status()).toBe(400)
+      forgiveFailure(page, second.url(), 400)
+      await expect(alert).toContainText('پرداخت با درگاه بانکی در این فروشگاه اکنون ممکن نیست')
+      await expect(alert.getByRole('link', { name: /پشتیبانی/ })).toBeVisible()
+      await expect(bankRoute).toBeDisabled()
     } else {
       // The bank routes gone, the support line.
       await expect(alert).toContainText('پرداخت با درگاه بانکی در این فروشگاه اکنون ممکن نیست')

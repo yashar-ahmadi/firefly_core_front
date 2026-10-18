@@ -35,6 +35,8 @@ export interface PlacementNotice {
   problem: PlacementProblem
   /** A way out: the cart, the orders waiting for payment, login. */
   link?: { href: string; label: string }
+  /** Something to try again here (the cart read again after a total change). */
+  retry?: { label: string; run: () => void }
   items?: OrderItemUnavailable[]
   adjustments?: CartAdjustment[]
 }
@@ -95,7 +97,9 @@ export function usePlaceOrder(
     setNotice({ message: TOTAL_MOVED, problem: 'total_changed' })
   }
 
-  const reread = () => checkout.cartQuery.refetch().then(({ data }) => data ?? null)
+  // The cart read again; null when that read failed (never the old cart in its place).
+  const reread = () =>
+    checkout.cartQuery.refetch().then(({ data, isError }) => (isError ? null : (data ?? null)))
 
   const place = async (expectedTotal?: number) => {
     const cart = checkout.cart

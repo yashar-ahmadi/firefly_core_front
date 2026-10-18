@@ -9,6 +9,7 @@ import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
+import { IntentError } from '@/features/payment/api'
 import { intentMessage } from '@/features/payment/intent-messages'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
 import { useRouteChoice, type RouteChoiceState } from '@/features/payment/use-route-choice'
@@ -65,7 +66,9 @@ export function PlacedOrderPanel({
     if (started.current || planned === undefined) return
     started.current = true
     if (planned === null) return payment.choose()
-    void payment.pay(planned, planned === ctx.route ? (ctx.gatewayCode ?? undefined) : undefined)
+    // The gateway as the choice has it for the ORDER's amount (the one chosen for the cart, while
+    // it still takes A; else the one that does).
+    void payment.pay(planned, planned === ctx.route ? choice.gatewayCode : undefined)
   })
   useEffect(() => start(), [planned])
 
@@ -85,6 +88,11 @@ export function PlacedOrderPanel({
   }
   const paying = state.phase === 'paying' || state.phase === 'starting'
   const error = state.error
+  // The bank cannot be used here at all (not configured, or every gateway withdrawn): said as
+  // such, with the support line; the bank routes say why they are closed.
+  const bankGone =
+    error?.problem === 'gateway_broken' ||
+    (error?.problem === 'gateway_refresh' && catalog.gateways.length === 0)
   // The route chosen for the cart does not fit the order: said, the shopper chooses.
   const differs = state.phase === 'choosing' && !expired
   return (
@@ -116,10 +124,12 @@ export function PlacedOrderPanel({
           <p className="flex items-start gap-2 text-base leading-7 font-medium text-ink-900">
             <CircleAlert aria-hidden className="mt-1 size-5 shrink-0 text-danger" />
             <span>
-              {error ? intentMessage(error) : 'مهلت انتقال به درگاه تمام شد؛ دوباره پرداخت کنید.'}
+              {error
+                ? intentMessage(bankGone ? new IntentError('gateway_broken', error.cause) : error)
+                : 'مهلت انتقال به درگاه تمام شد؛ دوباره پرداخت کنید.'}
             </span>
           </p>
-          {error?.problem === 'gateway_broken' && supportPhone && (
+          {bankGone && supportPhone && (
             <SupportPhone phone={supportPhone} label="پشتیبانی" iconLabel="تماس با پشتیبانی" />
           )}
           {error?.problem === 'attempt_open' && ctx.linkToken && (

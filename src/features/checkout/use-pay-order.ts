@@ -102,16 +102,23 @@ export function usePayOrder(
     redirect(intent.handoff)
   }
 
-  function failed(error: IntentError, route: PaymentRoute) {
+  function failed(error: IntentError, route: PaymentRoute, gatewayCode: string | undefined) {
     switch (error.problem) {
       case 'session':
         return expire()
       case 'gateway_broken':
         catalog.withdraw(BANK_ROUTES)
         break
-      case 'gateway_refresh':
+      case 'gateway_refresh': {
+        // The gateway tried (no code: the shop's default) is left out for this page, and the
+        // list read again; with none left, the bank routes close with their reason.
+        const tried =
+          gatewayCode ??
+          (catalog.gateways.find((gateway) => gateway.is_default) ?? catalog.gateways[0])?.code
+        if (tried) catalog.withdrawGateway(tried)
         void catalog.refreshGateways()
         break
+      }
       case 'feature_off':
         if (error.feature) markFeatureDisabled(error.feature, error.detail)
         void catalog.refreshMethods()
@@ -161,7 +168,11 @@ export function usePayOrder(
       }
       succeeded(intent, route)
     } catch (error) {
-      failed(error instanceof IntentError ? error : new IntentError('other', error), route)
+      failed(
+        error instanceof IntentError ? error : new IntentError('other', error),
+        route,
+        gatewayCode,
+      )
     } finally {
       inFlight.current = false
     }

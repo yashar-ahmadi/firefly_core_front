@@ -67,6 +67,29 @@ describe('the route after placement follows the order', () => {
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith('/checkout/thanks/5592580094/'))
   })
 
+  it('the gateway chosen for the cart does not take the order’s amount: the one that does', async () => {
+    const user = userEvent.setup()
+    const pay = vi.fn<(body: unknown, init: unknown) => Promise<unknown>>(async () =>
+      ok(intent('bank_gateway'), 201),
+    )
+    serve(mocks.bffFetch, () => onlineCart(), {
+      // Over ZIBAL's ceiling (500,000,000): only ZARINPAL takes the order's A.
+      [PLACE]: async () =>
+        ok(placement({ amount_charged_online: 600_000_000, total: 600_000_000 }), 201),
+      [LINK_INTENT]: pay,
+    })
+    renderCheckout({ cart: onlineCart() })
+    await placeButton()
+    const step = screen.getByRole('region', { name: /۳.*پرداخت/ })
+    await user.click(within(step).getByRole('button', { name: /ویرایش/ }))
+    await user.click(await within(step).findByRole('radio', { name: /زیبال/ }))
+    await user.click(within(step).getByRole('button', { name: 'ادامه با این روش پرداخت' }))
+    await placeNow(user)
+    await waitFor(() => expect(pay).toHaveBeenCalledTimes(1))
+    // The shop's default, the only one that takes it: no code (the server picks it).
+    expect(pay.mock.calls[0]![0]).toEqual({ route: 'bank_gateway' })
+  })
+
   it('a bank handoff that expired: the routes again, nothing running, a new press pays', async () => {
     const user = userEvent.setup()
     const expired = new Date(Date.now() - 1000).toISOString()

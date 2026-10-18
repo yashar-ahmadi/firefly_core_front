@@ -28,7 +28,7 @@ export interface PaymentSectionProps {
   /** Nothing owed online: a confirmation, not a choice (D, at the door). */
   onDelivery: number
   /** The shop's lists (null methods: the server could not read them; «تلاش دوباره»). */
-  catalog: Pick<PaymentCatalogState, 'methods' | 'retry' | 'retrying'>
+  catalog: Pick<PaymentCatalogState, 'methods' | 'retry' | 'retrying' | 'retryFailed'>
   /** A payment is on its way. */
   busy?: boolean
   /** Said when the shopper chooses (the step stays open, say). */
@@ -74,6 +74,11 @@ export function PaymentSection({
         <Button variant="outline" loading={catalog.retrying} onClick={() => void catalog.retry()}>
           تلاش دوباره
         </Button>
+        <p role="status" className="text-sm leading-6 text-ink-700">
+          {catalog.retryFailed
+            ? 'روش\u{200C}های پرداخت باز هم بارگذاری نشد؛ کمی بعد دوباره تلاش کنید.'
+            : ''}
+        </p>
       </div>
     )
   }

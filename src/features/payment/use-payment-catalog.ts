@@ -16,14 +16,23 @@ import type { PaymentCatalog, PaymentMethodView } from './catalog'
 export interface PaymentCatalogState {
   /** null: the server could not read them (the step offers to read them again). */
   methods: PaymentMethodView[] | null
+  /** The gateways this page may still use (those it withdrew left out). */
   gateways: GatewayOption[]
   withdrawn: readonly PaymentRoute[]
   withdraw: (routes: readonly PaymentRoute[]) => void
-  refreshMethods: () => Promise<void>
+  /**
+   * A gateway the shop lists but could not use (`gateway_unknown`; `gateway_amount_not_supported`
+   * for the order's amount): left out for this page, never tried again.
+   */
+  withdrawGateway: (code: string) => void
+  /** Resolves true once read (false: the read failed; the page keeps what it had). */
+  refreshMethods: () => Promise<boolean>
   refreshGateways: () => Promise<void>
   /** Both lists read through the BFF (the server's copy failed): «تلاش دوباره». */
   retry: () => Promise<void>
   retrying: boolean
+  /** That read failed too: said (politely), the button stays. */
+  retryFailed: boolean
 }
 
 function merge(
@@ -44,7 +53,9 @@ export function usePaymentCatalog(initial: PaymentCatalog): PaymentCatalogState 
   const [methods, setMethods] = useState(initial.methods)
   const [gateways, setGateways] = useState<GatewayOption[]>(initial.gateways ?? [])
   const [withdrawn, setWithdrawn] = useState<readonly PaymentRoute[]>([])
+  const [unusable, setUnusable] = useState<readonly string[]>([])
   const [retrying, setRetrying] = useState(false)
+  const [retryFailed, setRetryFailed] = useState(false)
   // The server's copy again (its props changed: a refresh of the page): it is the newest.
   const [source, setSource] = useState(initial)
   if (source !== initial) {
@@ -55,22 +66,30 @@ export function usePaymentCatalog(initial: PaymentCatalog): PaymentCatalogState 
   // A failed read keeps what the page had: the refusal on screen says what to do.
   const refreshMethods = () =>
     paymentApi.methods().then(
-      (fresh) => setMethods((current) => merge(current, fresh)),
-      () => undefined,
+      (fresh) => {
+        setMethods((current) => merge(current, fresh))
+        return true
+      },
+      () => false,
     )
   const refreshGateways = () => paymentApi.gateways().then(setGateways, () => undefined)
   return {
     methods,
-    gateways,
+    gateways: gateways.filter((gateway) => !unusable.includes(gateway.code)),
     withdrawn,
     withdraw: (routes) => setWithdrawn((current) => [...new Set([...current, ...routes])]),
+    withdrawGateway: (code) =>
+      setUnusable((current) => (current.includes(code) ? current : [...current, code])),
     refreshMethods,
     refreshGateways,
     retry: async () => {
       setRetrying(true)
-      await Promise.all([refreshMethods(), refreshGateways()])
+      setRetryFailed(false)
+      const [read] = await Promise.all([refreshMethods(), refreshGateways()])
       setRetrying(false)
+      setRetryFailed(!read)
     },
     retrying,
+    retryFailed,
   }
 }

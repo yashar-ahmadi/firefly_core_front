@@ -7,6 +7,7 @@ import type { IntentError } from './api'
 const FIXED: Partial<Record<IntentError['problem'], string>> = {
   gateway_rejected: 'بانک تراکنش را نپذیرفت. می\u{200C}توانید با درگاه یا روش دیگری پرداخت کنید.',
   gateway_unavailable: 'درگاه بانک پاسخ نداد؛ کمی بعد دوباره تلاش کنید.',
+  gateway_refresh: 'این درگاه در حال حاضر در دسترس نیست؛ درگاه یا روش دیگری را انتخاب کنید.',
   gateway_broken:
     'پرداخت با درگاه بانکی در این فروشگاه اکنون ممکن نیست. با روش دیگری پرداخت کنید یا با پشتیبانی تماس بگیرید.',
   attempt_open: 'یک پرداخت نیمه\u{200C}تمام برای این سفارش دارید.',

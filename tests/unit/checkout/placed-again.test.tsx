@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PLACEMENT_KEY_STORAGE } from '@/features/checkout/idempotency'
 import { contextOf, readPlaced, savePlaced } from '@/features/checkout/placed-order'
+import { PLACED_KEY, RECENT_MS } from '@/features/checkout/placed/last-placed'
 import { findGuestOrder } from '@/features/orders/guest-orders'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { emptyCartFixture } from '../cart/fixtures'
@@ -43,6 +44,19 @@ describe('an order placed in this tab, met again', () => {
       '/checkout/thanks/5592580094/',
     )
     expect(screen.queryByText('سبد خرید شما خالی است')).not.toBeInTheDocument()
+  })
+
+  it('an old record (over half an hour): the empty cart as it is', async () => {
+    savePlaced(contextOf(placement(), { guest: true, route: 'bank_gateway', gatewayCode: null }))
+    const stored = JSON.parse(sessionStorage.getItem(PLACED_KEY)!) as { savedAt: number }
+    sessionStorage.setItem(
+      PLACED_KEY,
+      JSON.stringify({ ...stored, savedAt: Date.now() - RECENT_MS - 60_000 }),
+    )
+    serve(mocks.bffFetch, emptyCartFixture)
+    renderCheckout({ cart: emptyCartFixture(), draft: false })
+    expect(await screen.findByText('سبد خرید شما خالی است')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'سفارش شما ثبت شد' })).not.toBeInTheDocument()
   })
 
   it('a replay of an earlier order for another cart: said, recorded, the next press places this cart', async () => {
