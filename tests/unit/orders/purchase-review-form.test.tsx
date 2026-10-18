@@ -185,6 +185,22 @@ describe('the API’s answers', () => {
     expect(text()).toHaveValue('متن')
   })
 
+  it('503 feature_disabled of another feature: said, the submit stays (comments are not off)', async () => {
+    serve(mocks.bffFetch, {
+      [REVIEW]: () =>
+        refuse(503, 'feature_disabled', 'این بخش موقتاً بسته است.', {
+          feature: 'wallet',
+          feature_name: 'کیف پول',
+        }),
+    })
+    const { user } = renderForm()
+    await user.click(star('۲'))
+    await user.type(text(), 'متن')
+    await user.click(submit())
+    expect(await screen.findByText('این بخش موقتاً بسته است.')).toBeVisible()
+    expect(submit()).toBeEnabled()
+  })
+
   it('product comments already off: the submit is disabled from the start, with the reason', () => {
     renderForm({
       product_comments: { key: 'product_comments', enabled: false, reason: 'دیدگاه‌ها بسته است.' },

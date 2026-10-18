@@ -11,7 +11,21 @@ export interface ReviewsParams {
 }
 
 const ORDER = /^\d{10}$/
-const SLUG = /^[\p{L}\p{N}][\p{L}\p{N}_-]{0,199}$/u
+
+/**
+ * Any slug a product page takes (`productPath`: one path segment, so Persian with its ZWNJ and
+ * combining marks too): not empty, no `/`, not `.` or `..`, encodable (no lone surrogate).
+ */
+function isProductSlug(value: string): boolean {
+  if (value === '' || value === '.' || value === '..' || value.length > 255) return false
+  if (value.includes('/')) return false
+  try {
+    encodeURIComponent(value)
+    return true
+  } catch {
+    return false
+  }
+}
 
 type Search = Pick<URLSearchParams, 'get'>
 
@@ -20,7 +34,7 @@ export function parseReviewsParams(search: Search): ReviewsParams {
   const product = search.get('product') ?? ''
   return {
     page: parsePage(search.get('page')),
-    target: ORDER.test(order) && SLUG.test(product) ? { order, product } : null,
+    target: ORDER.test(order) && isProductSlug(product) ? { order, product } : null,
   }
 }
 

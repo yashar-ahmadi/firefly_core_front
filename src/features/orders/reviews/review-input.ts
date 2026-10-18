@@ -95,7 +95,9 @@ export function reviewRefusal(error: unknown): ReviewRefusal {
   const stale = STALE[error.code]
   if (stale && (error.status === 404 || error.status === 409))
     return { kind: 'stale', message: stale }
-  if (error.isFeatureDisabled()) return { kind: 'feature_off', reason: error.detail }
+  // Only the product comments' switch closes the form (another feature's 503 is a refusal).
+  if (error.isFeatureDisabled() && error.feature === 'product_comments')
+    return { kind: 'feature_off', reason: error.detail }
   if (error.status === 429) return { kind: 'throttled', retryAfter: error.retryAfter ?? 60 }
   if (error.status === 400) {
     const errors: ReviewErrors = {}

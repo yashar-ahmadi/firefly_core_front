@@ -16,9 +16,9 @@ import { ListError } from '@/features/account/lists/list-error'
 import { usePageFallback } from '@/features/account/lists/use-page-fallback'
 import { useListUrl } from '@/features/account/lists/use-list-url'
 import { isLoadingSection } from '@/features/account/use-account-query'
-import type { AwaitingReviewOrder, AwaitingReviewProduct } from '@/lib/api/types/order-review'
 import { useOverlay } from '../account/order-overlays'
 import { ordersChanged } from '../account/orders-api'
+import { pairAfter, pairsOf, targetMissingText, without, type Pair } from './awaiting-pairs'
 import { AwaitingReviewCard, reviewCardId } from './awaiting-review-card'
 import type { ReviewDialogProps } from './review-dialog'
 import { parseReviewsParams, reviewsSearch } from './reviews-params'
@@ -49,20 +49,6 @@ const ReviewDialog = dynamic<ReviewDialogProps>(
       ),
   { ssr: false },
 )
-
-type Pair = { order: AwaitingReviewOrder; product: AwaitingReviewProduct }
-
-/** The page without one purchase (and without its order once nothing of it is left). */
-function without(page: AwaitingPage, { order, product }: Pair): AwaitingPage {
-  const results = page.results
-    .map((entry) =>
-      entry.order_code === order.order_code
-        ? { ...entry, products: entry.products.filter((item) => item.id !== product.id) }
-        : entry,
-    )
-    .filter((entry) => entry.products.length > 0)
-  return { ...page, count: Math.max(0, page.count - 1), results }
-}
 
 /**
  * `/account/reviews/` «در انتظار دیدگاه» (order digest §3.1.6–3.1.7, §6.5): a card per purchase
@@ -95,12 +81,19 @@ export function AwaitingReviewsPage({ title }: { title: string }) {
   /** Where the focus goes once the dialog has closed (a card that went with it). */
   const nextFocus = useRef<string | null>(null)
   const data = query.data
-  const pairs: Pair[] = (data?.results ?? []).flatMap((order) =>
-    order.products.map((product) => ({ order, product })),
-  )
+  const pairs = pairsOf(data)
   const isTarget = ({ order, product }: Pair) =>
     params.target?.order === order.order_code && params.target.product === product.slug
   const targetShown = pairs.some(isTarget)
+  // Whether the order page's purchase was on the page it landed on: decided once, on the first
+  // answer (a review sent later takes it off the list; that is no "missing").
+  const [landing, setLanding] = useState<'looking' | 'found' | 'missing'>('looking')
+  if (landing === 'looking' && data && !query.isPlaceholderData)
+    setLanding(targetShown ? 'found' : 'missing')
+  const missing =
+    landing === 'missing' && params.target !== null && data
+      ? targetMissingText(data.total_pages > 1)
+      : null
 
   // The purchase the order's page sent the shopper to: its button takes the focus, once.
   const focused = useRef(false)
@@ -118,10 +111,7 @@ export function AwaitingReviewsPage({ title }: { title: string }) {
     dialog.setOpen(false)
   }
   const submitted = (pair: Pair, message: string) => {
-    const index = pairs.findIndex(
-      (item) => item.order === pair.order && item.product.id === pair.product.id,
-    )
-    const next = pairs[index + 1] ?? pairs[index - 1]
+    const next = pairAfter(pairs, pair)
     client.setQueryData<AwaitingPage>(awaitingReviewsKey(params.page), (page) =>
       page ? without(page, pair) : page,
     )
@@ -201,10 +191,10 @@ export function AwaitingReviewsPage({ title }: { title: string }) {
     <>
       <AccountPageHeader title={title} headingRef={heading} />
       <p role="status" className="empty:hidden">
-        {notice && (
+        {(notice ?? missing) && (
           <span className="mb-4 flex items-start gap-2 rounded-card bg-info/10 px-4 py-3 text-base leading-7 text-ink-800">
             <Info aria-hidden className="mt-1 size-5 shrink-0 text-info" />
-            {notice}
+            {notice ?? missing}
           </span>
         )}
       </p>
