@@ -9,6 +9,7 @@ import { accountLoginPath, isAccountPath } from '@/lib/edge/account-guard'
 import { knownSources, resolveRedirect, ruleSpelling } from '@/lib/edge/redirects'
 import { statusPage } from '@/lib/edge/status-page'
 import { getClientIp } from '@/lib/http/client-ip'
+import { isQuietPrefetch } from '@/lib/http/prefetch'
 
 /**
  * Runs before every page (Node.js runtime), in this order:
@@ -25,7 +26,8 @@ import { getClientIp } from '@/lib/http/client-ip'
  *    without a session (no refresh cookie, or one the API has just rejected) is sent to login,
  *    with the page and its query as `next`; leftover session cookies are cleared on the way.
  *
- * Every page that renders is marked for the layouts (`x-ff-route-kind`, never the visitor's own):
+ * Every page that renders is marked for the layouts (`x-ff-route-kind`, never the visitor's own),
+ * a prefetch too (it is marked and nothing else: no redirect lookup, no session refresh):
  * `credential` when its URL holds a payment link's token or a payment's uuid (or leads back to
  * one), else `page`. Operator code renders only on `page` (see `credential-routes.ts`). A
  * credential page is never looked up as a redirect source: its path never reaches the API's
@@ -210,9 +212,16 @@ export async function proxy(request: NextRequest): Promise<Response> {
   // Skipped paths never read the environment, so the health probe reports a broken one itself.
   if (isSkipped(pathname, decodable)) return NextResponse.next()
 
+  const kind: RouteKind = carriesCredential(request.nextUrl) ? 'credential' : 'page'
+  // A prefetch is marked like the visit (a kept document is shown on the click, and the snippet
+  // gate fails closed) and nothing more: no redirect lookup (it would count a hit), no refresh.
+  if (isQuietPrefetch(request.headers)) {
+    if (!decodable) return notFoundPage()
+    return NextResponse.next({ request: { headers: pageHeaders(request, kind) } })
+  }
+
   const env = getServerEnv()
   const forwardedFor = getClientIp(request.headers, env.CLIENT_IP_HEADER)
-  const kind: RouteKind = carriesCredential(request.nextUrl) ? 'credential' : 'page'
   const redirect = kind === 'page' ? await redirectFor(request, forwardedFor, decodable) : null
   if (redirect !== null) return redirect
   // No route can read it: no session refresh either.
@@ -226,22 +235,14 @@ export const config = {
     {
       // Pages only: no Next internals, route handlers, robots.txt, the health check, icons or
       // asset files (`.xml` and legacy page extensions are kept, as in ASSET_FILE). Prefetches
-      // skip the proxy so they never count a redirect hit.
+      // too: each render is marked with its route kind, and nothing else (`isQuietPrefetch`).
       source:
         '/((?!_next/|api/|s/|icons/|favicon\\.ico|robots\\.txt|healthz/?$|.*\\.(?!xml$|html?$|php$|aspx?$)[^/.]+$).*)',
-      missing: [
-        { type: 'header', key: 'next-router-prefetch' },
-        { type: 'header', key: 'purpose', value: 'prefetch' },
-      ],
     },
     {
       // Catalog paths with an extension too (`/product/x%ZZ.png`): no file lives there, and an
       // undecodable one must reach the 404 guard instead of failing in Next with a 500.
       source: '/(product-category|brand|product)/:path*',
-      missing: [
-        { type: 'header', key: 'next-router-prefetch' },
-        { type: 'header', key: 'purpose', value: 'prefetch' },
-      ],
     },
     '/media/:path*',
     '/static/:path*',

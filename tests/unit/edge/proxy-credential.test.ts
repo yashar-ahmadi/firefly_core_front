@@ -93,4 +93,27 @@ describe('the route kind', () => {
     expect(resolveRedirect).not.toHaveBeenCalled()
     expect(res.headers.get('location')).toBeNull()
   })
+
+  // A prefetched document can be kept and shown on the click (a browser's `Purpose: prefetch`,
+  // an operator's instant.page), and the router may prefetch a page's segments: each is marked
+  // like the visit, so a normal page keeps its operator code and a payment page never gets it.
+  // Nothing else runs for a prefetch: no redirect lookup, no session refresh.
+  it.each<[string, Record<string, string>]>([
+    ['a browser prefetch', { purpose: 'prefetch' }],
+    ['a router prefetch', { 'next-router-prefetch': '1' }],
+  ])('marks %s like the visit, and does nothing else', async (_, headers) => {
+    refreshAccess.mockResolvedValue({ access: jwtExpiringIn(900) })
+    const { proxy } = await load()
+    const cookie = `ff_rt=${jwtExpiringIn(86_400)}`
+    const page = await proxy(request('/festival/', headers, cookie))
+    expect(kindOf(page)).toBe('page')
+    expect(page.headers.get('location')).toBeNull()
+    expect(kindOf(await proxy(request(`/order/pay/${TOKEN}/`, headers, cookie)))).toBe('credential')
+    expect(kindOf(await proxy(request('/', { ...headers, 'x-ff-route-kind': 'credential' })))).toBe(
+      'page',
+    )
+    expect(knownSources).not.toHaveBeenCalled()
+    expect(resolveRedirect).not.toHaveBeenCalled()
+    expect(refreshAccess).not.toHaveBeenCalled()
+  })
 })

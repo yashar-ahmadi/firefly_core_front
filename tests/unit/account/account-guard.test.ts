@@ -7,7 +7,7 @@ import { jwtExpiringIn } from '../support/jwt'
 // The account area's session guard (ruling P3-R3). The proxy sees every page request and
 // client navigation with its full URL, after its own token refresh: a visitor without a session
 // is sent to login there, the page and its query as `next`. The account layout checks the
-// refresh cookie again for the requests the proxy's matcher skips (router prefetches).
+// refresh cookie again for the requests the proxy only marks (prefetches: no guard there).
 
 const refreshAccess = vi.fn()
 const resolveRedirect = vi.fn()

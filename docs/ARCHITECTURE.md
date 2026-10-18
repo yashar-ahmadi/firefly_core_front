@@ -242,9 +242,10 @@ refresh, a read of an account page without a usable refresh cookie (none, not a 
 has just rejected) answers 307 to `/login/?next=<the page and its query>` (Next's `_rsc` dropped),
 clearing leftover session cookies on the way. That covers document requests and client
 navigations alike. The account layout checks the refresh cookie again for the requests the
-proxy's matcher skips (router prefetches; Next 16 prefetches of a dynamic route only fetch its
-route tree), with the dashboard as `next`. A redirect during a client navigation lands on login
-without the root layout rendering again, so the tab would still think it is signed in: the auth
+proxy only marks (prefetches, see [Payment credentials in URLs](#payment-credentials-in-urls);
+Next 16 prefetches of a dynamic route only fetch its route tree), with the dashboard as `next`.
+A redirect during a client navigation lands on login without the root layout rendering again,
+so the tab would still think it is signed in: the auth
 layout mounts `SessionCheck` (`lib/session/session-check.tsx`), which ends that stale session as
 `useSessionExpired` does (no navigation) when the `ff_auth` cookie is gone. It reads the cookie
 itself: the layout's own value of it may be old, since a back/forward visit replays an earlier
@@ -627,12 +628,23 @@ prefixes, and a page whose `next` leads back to one (the payment link offers a l
 wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
 
 - **No operator code.** The proxy marks every page it serves with `x-ff-route-kind: page` or
-  `credential` (overwriting whatever the visitor sent). The snippet loader
-  (`src/features/settings/snippets.tsx` through `operator-code.ts`) renders only on `page`: on a
-  credential page, and on anything the proxy did not mark (fail closed), there are no snippet
-  scripts, styles, meta tags, and no HTML zones either (the top zone, the footers' trust seals:
-  their markup is unsanitised operator HTML, and `<img onerror>` would run). Analytics therefore
-  never sees these URLs (`page_location`).
+  `credential` (overwriting whatever the visitor sent), prefetches included: its matcher takes
+  `next-router-prefetch` and `Purpose: prefetch` requests too (a prefetched document can be kept
+  and shown on the click), and for those the proxy only marks the render (`isQuietPrefetch()`:
+  no redirect lookup, which would count a hit, no session refresh; an undecodable one gets the
+  404 page). The snippet loader (`src/features/settings/snippets.tsx` through
+  `operator-code.ts`) renders only on `page`: on a credential page, and on anything the proxy
+  did not mark (fail closed: the paths its matcher skips, such as an asset-like URL's 404),
+  there are no snippet scripts, styles, meta tags, and no HTML zones either (the top zone, the
+  footers' trust seals: their markup is unsanitised operator HTML, and `<img onerror>` would
+  run). Analytics therefore never sees these URLs (`page_location`).
+- **One third-party script stays: Google login.** The login that leads back to the payment link
+  (`/login/?next=/order/pay/<token>/`) is a credential page, but Google Identity Services still
+  loads there while Google login is on (`google-button.tsx`): it is the login itself, not
+  operator code and not analytics, and with `no-referrer` neither its script nor its button's
+  frame is sent the page's URL as a Referer. Like any script in the page it could read the URL;
+  that is accepted for the login provider the shopper chose. No other third-party script may
+  load on a credential page.
 - **No referrer.** `securityHeaderRules()` (next.config.ts) sends `Referrer-Policy: no-referrer`
   on the credential pages (a later header rule wins in Next). The SMS link's trailing-slash 308
   is answered by Next before any header rule (it carries none, the baseline ones included); the
@@ -645,13 +657,26 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
   redirect source (its path never reaches the redirect API nor `[redirects]` log lines); the BFF
   logs no paths; `next dev`'s request log ignores `/order/pay/` and `/payment/` (production logs
   no requests). Errors are logged with their status and code, never the path.
+- **The shop's own pages still hold them in the DOM.** The checkout (a `page`: snippets run)
+  shows the pay-later link (`/order/pay/<token>/`) and an open card attempt's link
+  (`/payment/card-transfer/<uuid>/`) as `href`s. Nothing sends them anywhere, but a session
+  replay or heatmap snippet records the DOM: CUSTOMIZATION.md tells operators to mask link URLs
+  (or not to record `/checkout/`). They stay links (copy, open in a new tab).
+
+**A new route whose URL carries a payment link's token or a payment's uuid** (in its path or its
+query) must sit under one of `CREDENTIAL_PREFIXES` (`credential-routes.ts`), or add its prefix
+there in the same change. Every safeguard above follows from that list alone (the marker, the
+snippet gate, the referrer rule, the redirect lookup, the dev log); a route outside it gets none
+of them.
 
 Tests: `tests/unit/config/credential-routes.test.ts` (the rule),
 `credential-headers.test.ts` (Next's own header matcher, the SMS link's 308 keeping the token),
-`tests/unit/edge/proxy-credential.test.ts` (the marker), `tests/unit/layout/snippets-credential
+`tests/unit/edge/proxy-credential.test.ts` (the marker, prefetches included),
+`proxy-matcher.test.ts` (the proxy runs on prefetches), `tests/unit/layout/snippets-credential
 .test.tsx` (nothing renders unmarked or on a credential page), `tests/unit/payment/credential-
-links.test.tsx` (full loads), and `tests/e2e/snippets.spec.ts` (no snippet runs on the payment
-link's page, and its `Referrer-Policy`).
+links.test.tsx` (full loads), `tests/e2e/snippets.spec.ts` (no snippet runs on the payment
+link's not-found page, and its `Referrer-Policy`) and `tests/e2e/checkout/pay-link.spec.ts` (nor
+on a real link's page).
 
 ## Folder conventions
 

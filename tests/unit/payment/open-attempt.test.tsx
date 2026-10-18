@@ -184,6 +184,21 @@ describe('a cancellation the server refuses', () => {
     },
   )
 
+  it('payment_forbidden (another account’s attempt): explained with a way out, never re-offered', async () => {
+    const user = userEvent.setup()
+    mocks.bffFetch.mockRejectedValue(
+      new ApiError({ status: 403, code: 'payment_forbidden', detail: 'اجازه ندارید.' }),
+    )
+    const { panel, onResolved } = show(expiredAttempt())
+    await user.click(within(panel).getByRole('button', { name: 'انصراف و پرداخت دوباره' }))
+    const alert = await within(panel).findByRole('alert')
+    expect(alert).toHaveTextContent('حساب کاربری دیگری')
+    expect(alert).toHaveTextContent('بدون ورود')
+    expect(within(panel).queryByRole('button', { name: /انصراف/ })).not.toBeInTheDocument()
+    expect(cancels()).toHaveLength(1)
+    expect(onResolved).not.toHaveBeenCalled()
+  })
+
   it('a lost answer: said, and «انصراف» can be pressed again', async () => {
     const user = userEvent.setup()
     mocks.bffFetch.mockRejectedValueOnce(ApiError.network())

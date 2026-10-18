@@ -1,15 +1,13 @@
 'use client'
 
-import { CircleAlert, CircleCheck } from 'lucide-react'
+import { CircleCheck } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
-import { SupportPhone } from '@/components/layout/support-phone'
 import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
-import { BANK_UNUSABLE, intentMessage } from '@/features/payment/intent-messages'
 import type { AttemptResolution } from '@/features/payment/open-attempt'
 import { OpenAttemptLoader } from '@/features/payment/open-attempt-loader'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
@@ -23,6 +21,7 @@ import { usePayOrder } from '../use-pay-order'
 import { BankHandoff } from './bank-handoff'
 import { OrderCode } from './order-code'
 import { PayLater } from './pay-later'
+import { PlacedAlert } from './placed-alert'
 
 // The order is placed (order digest §5.1–5.2): the checkout becomes its payment. The order's
 // route runs at once (one press placed and paid), decided by the ORDER, not by the cart it was
@@ -66,9 +65,20 @@ export function PlacedOrderPanel({
   const [attemptNotice, setAttemptNotice] = useState<string | null>(null)
   const [resumed, setResumed] = useState(false)
   const door = doorOf(ctx)
+  // The resume UI gone (its pressed control with it): the routes' heading takes the focus, or
+  // the order's own while the route runs again.
+  const headings = useRef<{ order: HTMLHeadingElement | null; routes: HTMLHeadingElement | null }>({
+    order: null,
+    routes: null,
+  })
+  const [refocus, setRefocus] = useState(0)
+  useEffect(() => {
+    if (refocus > 0) (headings.current.routes ?? headings.current.order)?.focus()
+  }, [refocus])
   const resolved = (resolution: AttemptResolution) => {
     if (resolution.kind === 'settled') return payment.settled()
     setResumed(true)
+    setRefocus((count) => count + 1)
     setAttemptNotice(resolution.kind === 'cancelled' ? (resolution.notice ?? null) : null)
     // Abandoned to pay again: the route runs again, with a new key (`pay`).
     if (resolution.kind === 'cancelled' && resolution.repay && choice.chosen) {
@@ -121,6 +131,9 @@ export function PlacedOrderPanel({
     >
       <div className="flex flex-col gap-2">
         <h2
+          ref={(element) => {
+            headings.current.order = element
+          }}
           id="placed-heading"
           tabIndex={-1}
           className="flex items-center gap-2 text-xl leading-9 font-bold text-ink-900 outline-none"
@@ -153,33 +166,12 @@ export function PlacedOrderPanel({
         </p>
       )}
       {(error || expired) && !open && (
-        <div role="alert" className="flex flex-col gap-2 rounded-card bg-danger/10 px-4 py-3">
-          <p className="flex items-start gap-2 text-base leading-7 font-medium text-ink-900">
-            <CircleAlert aria-hidden className="mt-1 size-5 shrink-0 text-danger" />
-            <span>
-              {bankGone
-                ? BANK_UNUSABLE
-                : error
-                  ? intentMessage(error)
-                  : 'مهلت انتقال به درگاه تمام شد؛ دوباره پرداخت کنید.'}
-            </span>
-          </p>
-          {bankGone && supportPhone && (
-            <SupportPhone phone={supportPhone} label="پشتیبانی" iconLabel="تماس با پشتیبانی" />
-          )}
-          {error?.problem === 'attempt_open' && ctx.linkToken && (
-            // No attempt in the answer: the payment link's page reads it (a full page load).
-            <a href={payLinkPath(ctx.linkToken)} className={buttonClasses({ variant: 'link' })}>
-              ادامه یا لغو پرداخت نیمه‌تمام
-            </a>
-          )}
-          {/* Past its deadline (or its link gone): this order cannot be paid; a new one can. */}
-          {error?.problem === 'unpayable' && (
-            <Link href="/" className={buttonClasses({ variant: 'link' })}>
-              ادامهٔ خرید و ثبت سفارش تازه
-            </Link>
-          )}
-        </div>
+        <PlacedAlert
+          error={error}
+          bankGone={bankGone}
+          linkToken={ctx.linkToken}
+          supportPhone={supportPhone}
+        />
       )}
       {differs && (
         <p className="rounded-card bg-warning/10 px-4 py-3 text-base leading-7 text-ink-800">
@@ -192,7 +184,15 @@ export function PlacedOrderPanel({
         <div className="flex flex-col gap-4">
           {!open && (
             <>
-              <h3 className="text-lg leading-8 font-bold text-ink-900">پرداخت سفارش</h3>
+              <h3
+                ref={(element) => {
+                  headings.current.routes = element
+                }}
+                tabIndex={-1}
+                className="text-lg leading-8 font-bold text-ink-900 outline-none"
+              >
+                پرداخت سفارش
+              </h3>
               <PaymentSection
                 choice={choice}
                 onDelivery={ctx.D}

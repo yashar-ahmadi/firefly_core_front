@@ -7,8 +7,8 @@ import { loginHref } from '@/lib/links/login'
 // it guards. The proxy can: it sees every page request and client navigation with its full URL,
 // after its own token refresh. It sends a visitor without a session to login there, with the
 // page and its query as `next` (`accountLoginPath`). The account layout checks the refresh
-// cookie again for the requests the proxy's matcher skips (router prefetches), which are never
-// shown as they are: their `next` is the dashboard.
+// cookie again for the requests the proxy only marks with their route kind (prefetches), which
+// are never shown as they are: their `next` is the dashboard.
 
 /** Pages that are nothing without a session: the account area (ruling P3-R1). */
 const ACCOUNT_PATH = /^\/account(?:\/|$)/

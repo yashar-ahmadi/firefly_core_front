@@ -5,6 +5,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import { Countdown } from '@/components/ui/countdown'
+import { announce } from '@/components/ui/live-announcer'
 import { Spinner } from '@/components/ui/spinner'
 import type { OpenAttempt as Attempt, PaymentRoute } from '@/lib/api/types/payment'
 import { formatToman } from '@/lib/format'
@@ -17,12 +18,18 @@ import {
   AttemptError,
   AttemptNote,
   BANK_LOAD_FAILED,
+  CANCEL_FORBIDDEN,
+  CANCELLED,
+  CANCELLED_REPAY,
+  ENDED,
+  HANDOFF_ENDED,
   PARKED_NOTE,
   POLL_EXHAUSTED,
   POLL_UNREADABLE,
   ROW_TEXTS,
   ROW_TITLES,
   SMS_NOTE,
+  UNDER_REVIEW,
 } from './open-attempt-parts'
 import { savePending } from './pending-payments'
 import { useAttemptStatus } from './use-attempt-status'
@@ -57,6 +64,17 @@ const LEAVING_MS = 4_000
 export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemptProps) {
   const [underReview, setUnderReview] = useState(false)
   const [handoffGone, setHandoffGone] = useState(false)
+  const [forbidden, setForbidden] = useState(false)
+  const panel = useRef<HTMLElement>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
+  // The focused control went away with a swap: the heading takes the focus (after the render).
+  const [refocus, setRefocus] = useState(0)
+  useEffect(() => {
+    if (refocus > 0) heading.current?.focus()
+  }, [refocus])
+  const focusIfInside = () => {
+    if (panel.current?.contains(document.activeElement)) setRefocus((count) => count + 1)
+  }
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<'cancel' | 'bank' | null>(null)
   const inFlight = useRef(false)
@@ -86,16 +104,32 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
     setError(null)
     const outcome = await cancelAttempt(attempt.payment)
     setBusy(null)
-    // Handed back (cancelled, or not open any more): never a second cancel from this panel.
+    // Handed back (cancelled, or not open any more): never a second cancel from this panel. Said
+    // here; the host then shows its routes (or pays again) and takes the focus there.
     if (outcome.ok) {
       if (outcome.status === 'settled') return onResolved({ kind: 'settled' })
-      if (outcome.parked)
+      if (outcome.parked) {
+        announce(outcome.parked)
         return onResolved({ kind: 'cancelled', repay: false, notice: outcome.parked })
+      }
+      announce(repay ? CANCELLED_REPAY : CANCELLED)
       return onResolved({ kind: 'cancelled', repay })
     }
-    if (outcome.problem === 'stale') return onResolved({ kind: 'ended' })
+    if (outcome.problem === 'stale') {
+      announce(ENDED)
+      return onResolved({ kind: 'ended' })
+    }
+    // Another account's attempt: explained with the way out, the press never offered again.
+    if (outcome.problem === 'forbidden') {
+      setForbidden(true)
+      return focusIfInside()
+    }
     inFlight.current = false
-    if (outcome.problem === 'under_review') return setUnderReview(true)
+    if (outcome.problem === 'under_review') {
+      setUnderReview(true)
+      announce(UNDER_REVIEW)
+      return focusIfInside()
+    }
     setError(outcome.detail)
   }
 
@@ -128,10 +162,15 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
   )
   return (
     <section
+      ref={panel}
       aria-label="پرداخت باز این سفارش"
       className="flex flex-col gap-3 rounded-card border border-warning/40 bg-warning/5 p-4 md:p-5"
     >
-      <h3 className="flex items-center gap-2 text-lg leading-8 font-bold text-ink-900">
+      <h3
+        ref={heading}
+        tabIndex={-1}
+        className="flex items-center gap-2 text-lg leading-8 font-bold text-ink-900 outline-none"
+      >
         {row === 'verifying' && <Spinner aria-hidden />}
         {ROW_TITLES[row]}
       </h3>
@@ -143,7 +182,14 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
       {row === 'bank' && attempt.handoff?.expires_at && (
         <p className="text-sm leading-6 text-ink-700">
           {'مهلت انتقال به درگاه: '}
-          <Countdown endsAt={attempt.handoff.expires_at} onEnd={() => setHandoffGone(true)} />
+          <Countdown
+            endsAt={attempt.handoff.expires_at}
+            onEnd={() => {
+              focusIfInside()
+              setHandoffGone(true)
+              announce(HANDOFF_ENDED)
+            }}
+          />
         </p>
       )}
       {(row === 'expired' || row === 'card') && attempt.expires_at && (
@@ -174,13 +220,18 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
               ادامهٔ کارت به کارت و ثبت رسید
             </a>
           )}
-          {row === 'expired' ? cancelButton('انصراف و پرداخت دوباره', true) : cancelButton()}
+          {forbidden
+            ? null
+            : row === 'expired'
+              ? cancelButton('انصراف و پرداخت دوباره', true)
+              : cancelButton()}
         </div>
       )}
-      {(row === 'bank' || row === 'expired' || row === 'card') && (
+      {(row === 'bank' || row === 'expired' || row === 'card') && !forbidden && (
         <AttemptNote>{SMS_NOTE}</AttemptNote>
       )}
       {row === 'verifying' && <AttemptNote>{PARKED_NOTE}</AttemptNote>}
+      {forbidden && <AttemptError>{CANCEL_FORBIDDEN}</AttemptError>}
       {error && <AttemptError>{error}</AttemptError>}
       {row === 'verifying' && (
         <p role="status" className="text-sm leading-6 text-ink-700 empty:-mt-3">

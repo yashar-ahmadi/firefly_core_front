@@ -13,19 +13,22 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // The payment link from the SMS (Plan 4 Task 4), in the `journeys` project (ruling P4-R4: a
 // guest, one at a time): a guest order left awaiting payment (placed through the BFF, no intent),
 // opened as the SMS spells it, WITHOUT the trailing slash (308 to the page, the token kept, no
-// referrer). The page shows the order and its routes. The dev backend cannot run a bank (digest
-// §11 #3): a named gateway answers 400 `gateway_unknown` (withdrawn, the other one tried with a
-// press), an unnamed one 503 `gateway_not_configured`; either way the page says the bank cannot
-// be used here, with support, and never navigates. Card to card opens an attempt (its page is
-// Task 6's, a 404 until then); back on the link the attempt's resume UI shows instead of the
-// routes, and its «انصراف» cancels it. The order is then cancelled through the page's dialog
-// (this is the cleanup; a guard cancels it through the API if the test ends earlier). The JS
-// budget of the link's pages is measured on the way: payable, with an open attempt, refused.
+// referrer, no operator snippet). The page shows the order and its routes. The dev backend cannot
+// run a bank (digest §11 #3): a named gateway answers 400 `gateway_unknown` (withdrawn, the other
+// one tried with a press), an unnamed one 503 `gateway_not_configured`; either way the page says
+// the bank cannot be used here, with support, and never navigates. Card to card opens an attempt
+// (its page is Task 6's, a 404 until then); back on the link the attempt's resume UI shows
+// instead of the routes, and its «انصراف» cancels it. The order is then cancelled through the
+// page's dialog (this is the cleanup; a guard cancels it through the API if the test ends
+// earlier). The JS budget of the link's pages is measured on the way: payable, with an open
+// attempt, refused.
 // Per run: 1 placement; 2-3 `payment_attempt` calls for the bank and the card, 1 attempt cancel
 // (of 30/h); about 9 `order_payment_link` reads and the cancel (of 30/min). Never printed: the
 // token (`<token>` in the budget lines).
 
 const SHOWN = '/order/pay/<token>/'
+/** The sample data's end-of-body snippet (snippets.spec.ts). */
+const SEAL_LOG = 'enamad placeholder'
 const isIntent = (response: Response) =>
   /\/api\/bff\/payment\/link\/[^/]+\/intent\/$/.test(new URL(response.url()).pathname)
 
@@ -51,10 +54,18 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
     const sms = await page.request.get(`/order/pay/${order.token}`, { maxRedirects: 0 })
     expect(sms.status(), 'the SMS link is sent on').toBe(308)
     expect(new URL(sms.headers()['location']!, 'http://shop.invalid').pathname).toBe(path)
+    const logs: string[] = []
+    page.on('console', (message) => logs.push(message.text()))
     const opened = await page.goto(`/order/pay/${order.token}`)
     expect(new URL(page.url()).pathname, 'the page, its token kept').toBe(path)
     expect(opened?.status()).toBe(200)
     expect(opened?.headers()['referrer-policy']).toBe('no-referrer')
+    // A real link's page runs none of the operator's snippets (snippets.spec.ts: they run on the
+    // shop's other pages): no <head> analytics, no end-of-body seal, no snippet zone at all.
+    await page.waitForLoadState('load')
+    expect(await page.evaluate(() => 'dataLayer' in window), 'no <head> snippet').toBe(false)
+    expect(logs, 'no end-of-body snippet').not.toContain(SEAL_LOG)
+    expect(await page.locator('[data-snippet-zone]').count(), 'no snippet zone').toBe(0)
     await expect(page).toHaveTitle(new RegExp(`پرداخت سفارش ${toPersianDigits(order.orderCode)}`))
     await expect(page.getByRole('heading', { level: 1, name: 'پرداخت سفارش' })).toBeVisible()
     await expect(page.getByText(toPersianDigits(order.orderCode)).first()).toBeVisible()

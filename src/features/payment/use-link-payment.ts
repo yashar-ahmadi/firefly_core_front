@@ -69,7 +69,8 @@ export function useLinkPayment(options: LinkPaymentOptions) {
       .catch(() => setState({ ...IDLE, phase: 'redirecting', handoff, bankLoadFailed: true }))
   }
 
-  function succeeded(intent: PaymentIntentResult, route: PaymentRoute) {
+  /** True when the page is leaving (card to card): the press stays taken until it has gone. */
+  function succeeded(intent: PaymentIntentResult, route: PaymentRoute): boolean {
     const payment = intent.payment
     const pending = () =>
       payment &&
@@ -81,20 +82,31 @@ export function useLinkPayment(options: LinkPaymentOptions) {
         amount: payment.amount,
         startedAt: Date.now(),
       })
-    if (route === 'pay_on_delivery') return onPaid({ kind: 'confirmed', free: payment === null })
+    if (route === 'pay_on_delivery') {
+      onPaid({ kind: 'confirmed', free: payment === null })
+      return false
+    }
     if (route === 'wallet') {
       walletMoved()
-      return payment?.status === 'settled' ? onPaid({ kind: 'paid' }) : onStale()
+      if (payment?.status === 'settled') onPaid({ kind: 'paid' })
+      else {
+        // Not settled at once: the order says what it came to; the press is given back.
+        setState(IDLE)
+        onStale()
+      }
+      return false
     }
     if (route === 'card_transfer' && payment) {
       pending()
-      return loadPage(`/payment/card-transfer/${payment.uuid}/`)
+      loadPage(`/payment/card-transfer/${payment.uuid}/`)
+      return true
     }
     if (route === 'wallet_and_gateway') walletMoved()
     if (!payment || !intent.handoff) throw new IntentError('other', null)
     // Saved before the browser leaves: the result page finds the order from it.
     pending()
     redirect(intent.handoff)
+    return false
   }
 
   function failed(error: IntentError, gatewayCode: string | undefined) {
@@ -122,6 +134,7 @@ export function useLinkPayment(options: LinkPaymentOptions) {
     )
     const door = { kind: 'link', token } as const
     const send = () => startPayment({ door, route, gatewayCode, key: newIdempotencyKey() })
+    let leaving = false
     try {
       let intent: PaymentIntentResult
       try {
@@ -131,11 +144,12 @@ export function useLinkPayment(options: LinkPaymentOptions) {
         if (!(error instanceof IntentError && error.problem === 'token_expired')) throw error
         intent = await send()
       }
-      succeeded(intent, route)
+      leaving = succeeded(intent, route)
     } catch (error) {
       failed(error instanceof IntentError ? error : new IntentError('other', error), gatewayCode)
     } finally {
-      inFlight.current = false
+      // While the browser loads the next page, a press would only meet the attempt just opened.
+      if (!leaving) inFlight.current = false
     }
   }
 

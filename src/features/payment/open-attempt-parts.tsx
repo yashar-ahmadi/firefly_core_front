@@ -33,11 +33,27 @@ export const SMS_NOTE =
 export const PARKED_NOTE =
   'انصراف فقط این تلاش را می\u{200C}بندد: اگر بانک مبلغی از حساب شما برداشته باشد، آن مبلغ خودبه\u{200C}خود برنمی\u{200C}گردد و فروشگاه آن را پیگیری می\u{200C}کند.'
 
+/** Said politely as the panel changes (the visible text says it too). */
+export const CANCELLED = 'پرداخت نیمه\u{200C}تمام لغو شد؛ روش پرداخت را انتخاب کنید.'
+export const CANCELLED_REPAY = 'پرداخت نیمه\u{200C}تمام لغو شد؛ پرداخت دوباره آغاز می\u{200C}شود.'
+export const ENDED = 'این پرداخت نیمه\u{200C}تمام دیگر باز نیست.'
+export const UNDER_REVIEW = 'رسید این پرداخت در حال بررسی است؛ امکان انصراف نیست.'
+export const HANDOFF_ENDED =
+  'مهلت انتقال به درگاه تمام شد؛ برای پرداخت، از این تلاش انصراف دهید و دوباره پرداخت کنید.'
+
 export const POLL_EXHAUSTED =
   'نتیجهٔ این پرداخت هنوز مشخص نیست؛ کمی بعد این صفحه را دوباره باز کنید.'
 export const POLL_UNREADABLE =
   'وضعیت این پرداخت اینجا خوانده نشد؛ کمی بعد این صفحه را دوباره باز کنید.'
 export const BANK_LOAD_FAILED = 'انتقال به درگاه انجام نشد؛ دوباره تلاش کنید.'
+
+/**
+ * A cancellation refused with 403 `payment_forbidden`: signed in, this attempt is another
+ * account's (anyone with the link may pay a guest order); the API lets the same request through
+ * without a session (digest §11 #7), so the way out is the link without signing in.
+ */
+export const CANCEL_FORBIDDEN =
+  'این پرداخت از حساب کاربری دیگری آغاز شده است و با این حساب نمی\u{200C}توان از آن انصراف داد. برای انصراف، این لینک را بدون ورود به حساب کاربری (مثلاً در پنجره\u{0654} ناشناس مرورگر) باز کنید یا با پشتیبانی تماس بگیرید.'
 
 export function AttemptNote({ children }: { children: ReactNode }) {
   return (

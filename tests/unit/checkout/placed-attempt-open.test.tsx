@@ -88,6 +88,8 @@ describe('an attempt still open after placement', () => {
     await user.click(within(panel).getByRole('button', { name: 'انصراف' }))
     expect(await screen.findByRole('button', { name: 'پرداخت سفارش' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'پرداخت باز این سفارش' })).not.toBeInTheDocument()
+    // The pressed control went away with the panel: the routes' heading takes the focus.
+    expect(screen.getByRole('heading', { level: 3, name: 'پرداخت سفارش' })).toHaveFocus()
     expect(document.body).not.toHaveTextContent('روش پرداخت انتخابی شما برای مبلغ این سفارش')
     expect(pay).toHaveBeenCalledTimes(1)
     expect(mocks.goToBank).not.toHaveBeenCalled()

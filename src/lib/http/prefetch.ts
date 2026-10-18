@@ -21,3 +21,17 @@ export function prefetchKind(headers: Headers): PrefetchKind | null {
     .some((item) => item.split(';', 1)[0]?.trim().toLowerCase() === 'prefetch')
   return prefetch ? 'speculative' : null
 }
+
+/**
+ * Whether the proxy only marks this request's render with its route kind, and does nothing else
+ * (no redirect lookup, which would count a hit, no session refresh): a router prefetch or a
+ * browser's `Purpose: prefetch`. Not `Sec-Purpose: prefetch`: those go through the redirect
+ * lookup like a visit, which a speculative prefetch of a redirected URL needs (its answer is
+ * shown on the click).
+ */
+export function isQuietPrefetch(headers: Headers): boolean {
+  return (
+    headers.has('next-router-prefetch') ||
+    headers.get('purpose')?.trim().toLowerCase() === 'prefetch'
+  )
+}

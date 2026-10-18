@@ -17,7 +17,7 @@ export const metadata: Metadata = { robots: { index: false, follow: false } }
 /**
  * The session guard and the account shell. The proxy has already sent a visitor without a
  * session to login, with the page and its query as `next` (it sees the URL; a layout does not:
- * see `account-guard.ts`). This check covers the requests the proxy skips (router prefetches).
+ * see `account-guard.ts`). This check covers the requests the proxy only marks (prefetches).
  */
 export default async function AccountLayout({ children }: { children: ReactNode }) {
   const refresh = (await cookies()).get(COOKIE.refresh)?.value

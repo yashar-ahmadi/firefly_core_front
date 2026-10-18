@@ -74,7 +74,8 @@ export function usePayOrder(
       .catch(() => setState({ ...IDLE, phase: 'redirecting', handoff, bankLoadFailed: true }))
   }
 
-  function succeeded(intent: PaymentIntentResult, route: PaymentRoute) {
+  /** True when the page is leaving (another page loads): the press stays taken meanwhile. */
+  function succeeded(intent: PaymentIntentResult, route: PaymentRoute): boolean {
     const uuid = intent.payment?.uuid
     const pending = () =>
       uuid &&
@@ -88,24 +89,28 @@ export function usePayOrder(
       })
     if (route === 'pay_on_delivery') {
       updatePlaced(ctx.orderCode, { outcome: 'confirmed', free: intent.payment === null })
-      return toThanks()
+      toThanks()
+      return true
     }
     if (route === 'wallet') {
       walletMoved()
       if (intent.payment?.status === 'settled') updatePlaced(ctx.orderCode, { outcome: 'paid' })
-      return toThanks()
+      toThanks()
+      return true
     }
     if (route === 'card_transfer' && uuid) {
       // Its uuid is a guest's only handle on the receipt's outcome (digest §5.7). The page's URL
       // holds it: a full page load, never the client router (credential-routes.ts).
       pending()
-      return loadPage(`/payment/card-transfer/${uuid}/`)
+      loadPage(`/payment/card-transfer/${uuid}/`)
+      return true
     }
     if (route === 'wallet_and_gateway') walletMoved()
     if (!uuid || !intent.handoff) throw new IntentError('other', null)
     // Saved before the browser leaves: the result page finds the order from it.
     pending()
     redirect(intent.handoff)
+    return false
   }
 
   function failed(error: IntentError, route: PaymentRoute, gatewayCode: string | undefined) {
@@ -134,6 +139,7 @@ export function usePayOrder(
       route === 'pay_on_delivery' ? 'در حال تأیید سفارش…' : 'در حال آماده\u{200C}سازی پرداخت…',
     )
     const send = () => startPayment({ door, route, gatewayCode, key: newIdempotencyKey() })
+    let leaving = false
     try {
       let intent: PaymentIntentResult
       try {
@@ -143,7 +149,7 @@ export function usePayOrder(
         if (!(error instanceof IntentError && error.problem === 'token_expired')) throw error
         intent = await send()
       }
-      succeeded(intent, route)
+      leaving = succeeded(intent, route)
     } catch (error) {
       failed(
         error instanceof IntentError ? error : new IntentError('other', error),
@@ -151,7 +157,8 @@ export function usePayOrder(
         gatewayCode,
       )
     } finally {
-      inFlight.current = false
+      // While the next page loads, a press would only meet the attempt (or order) just paid.
+      if (!leaving) inFlight.current = false
     }
   }
 

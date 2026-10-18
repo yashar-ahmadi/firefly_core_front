@@ -3,8 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api/errors'
 import cancelledLink from '../../fixtures/order-pay-link-cancelled.json'
+import cancelledAttempt from '../../fixtures/payment-attempt-cancel.json'
 import { stubBrowserApis } from '../support/dom-stubs'
-import { LINK_TOKEN } from './fixtures'
+import { LINK_TOKEN, PAYMENT_UUID } from './fixtures'
+import { bankAttempt, payLink } from './link-fixtures'
 import {
   LINK_CANCEL,
   LINK_INTENT,
@@ -130,5 +132,19 @@ describe('an order that moved on meanwhile', () => {
       '/order/track/',
     )
     expect(mocks.bffFetch.mock.calls.filter(([path]) => path === LINK_READ)).toHaveLength(1)
+  })
+})
+
+describe('after an open attempt is abandoned', () => {
+  it('the routes take its place and the focus goes to their heading', async () => {
+    const user = userEvent.setup()
+    serve(mocks.bffFetch, {
+      [`payment/${PAYMENT_UUID}/cancel/`]: async () => ok(cancelledAttempt.data),
+    })
+    renderLink({ link: payLink({ open_attempt: bankAttempt() }) })
+    const panel = await screen.findByRole('region', { name: 'پرداخت باز این سفارش' })
+    await user.click(within(panel).getByRole('button', { name: 'انصراف' }))
+    await routesReady()
+    expect(screen.getByRole('heading', { level: 2, name: 'روش پرداخت' })).toHaveFocus()
   })
 })

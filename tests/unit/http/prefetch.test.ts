@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { prefetchKind } from '@/lib/http/prefetch'
+import { isQuietPrefetch, prefetchKind } from '@/lib/http/prefetch'
 
 describe('prefetchKind', () => {
   it.each([
@@ -33,4 +33,22 @@ describe('prefetchKind', () => {
   ])('treats %o as a real visit', (headers) => {
     expect(prefetchKind(new Headers(headers))).toBeNull()
   })
+})
+
+describe('isQuietPrefetch', () => {
+  it.each([
+    [{ 'next-router-prefetch': '1' }],
+    [{ purpose: 'prefetch' }],
+    [{ Purpose: 'Prefetch' }],
+  ])('a router prefetch or a `Purpose: prefetch` (%o): the proxy only marks it', (headers) => {
+    expect(isQuietPrefetch(new Headers(headers))).toBe(true)
+  })
+
+  // `Sec-Purpose` prefetches are kept and shown on the click: they get the redirect lookup.
+  it.each([[{}], [{ 'sec-purpose': 'prefetch' }], [{ 'sec-purpose': 'prefetch;prerender' }]])(
+    'not %o',
+    (headers) => {
+      expect(isQuietPrefetch(new Headers(headers))).toBe(false)
+    },
+  )
 })

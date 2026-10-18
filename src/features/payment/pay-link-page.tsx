@@ -1,7 +1,7 @@
 'use client'
 
 import { TriangleAlert } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { payLinkPath } from '@/features/orders/pay-link'
 import type { OrderPaymentLink } from '@/lib/api/types/order'
 import type { OpenAttempt, PaymentRoute } from '@/lib/api/types/payment'
@@ -89,11 +89,18 @@ export function PayLinkPage({
     onAttemptOpen: setAttempt,
     onStale: () => void reread(),
   })
+  // The resume UI gone (its pressed control with it): the routes' heading takes the focus.
+  const routesHeading = useRef<HTMLHeadingElement>(null)
+  const [refocus, setRefocus] = useState(0)
+  useEffect(() => {
+    if (refocus > 0) routesHeading.current?.focus()
+  }, [refocus])
   const resolved = (resolution: AttemptResolution) => {
     const previous = attempt
     setAttempt(null)
     if (resolution.kind === 'settled')
       return setView({ kind: 'done', outcome: { kind: 'settled' } })
+    setRefocus((count) => count + 1)
     if (resolution.kind === 'ended') return void reread()
     setNotice(resolution.notice ?? null)
     // «انصراف و پرداخت دوباره»: the same kind of route again, with a new key (`pay`).
@@ -132,7 +139,12 @@ export function PayLinkPage({
         )}
       </section>
       <section aria-labelledby="pay-link-routes" className={`${CARD} flex flex-col gap-4`}>
-        <h2 id="pay-link-routes" className="text-lg leading-8 font-bold text-ink-900">
+        <h2
+          ref={routesHeading}
+          id="pay-link-routes"
+          tabIndex={-1}
+          className="text-lg leading-8 font-bold text-ink-900 outline-none"
+        >
           {attempt ? 'پرداخت' : online ? 'روش پرداخت' : 'تأیید و پرداخت هنگام تحویل'}
         </h2>
         {notice && (
