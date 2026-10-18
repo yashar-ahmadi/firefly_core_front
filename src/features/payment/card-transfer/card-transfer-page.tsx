@@ -9,11 +9,12 @@ import { useSession } from '@/lib/session/session-context'
 import type { CancelOutcome } from '../attempt-api'
 import { removePending } from '../pending-payments'
 import type { SupportLine } from '../result-actions'
+import { ownOrderOf, useOrderOwnership } from '../use-order-ownership'
 import { ReceiptOutcome } from './receipt-outcome'
 import { HEADING_ID, PAGE_TITLE, UNDER_REVIEW_NO_CANCEL } from './transfer-copy'
 import { TransferClosed } from './transfer-closed'
+import { orderLinkToken } from './transfer-door'
 import { TransferFormView } from './transfer-form-view'
-import { findLinkToken } from './transfer-door'
 import { TransferRefusal } from './transfer-refusal'
 import { useAttemptCutoff } from './use-attempt-cutoff'
 import { useTransferReads } from './use-transfer-reads'
@@ -23,8 +24,11 @@ import { useTransferReads } from './use-transfer-reads'
 // and where (transfer-details.tsx), the receipt form, and «انصراف» before any receipt. Then the
 // outcome (receipt-outcome.tsx), a closed attempt (a new one), or the calm page. Cancelled here:
 // back to the order's route choice (its link page, a full load: its URL holds the token) when
-// this device can find it. Each later view takes the focus on its heading and is said once,
-// politely. The uuid is a credential: nothing here logs it.
+// this device can find it. Whether the order is this account's is read once for the page
+// (use-order-ownership.ts: a signed-in visitor answered with the session may still be paying a
+// guest's order); only its confirmed owner is offered the account's pages and the owner's door.
+// Each later view takes the focus on its heading and is said once, politely. The uuid is a
+// credential: nothing here logs it.
 
 export interface CardTransferPageProps {
   uuid: string
@@ -50,12 +54,13 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
   const reads = useTransferReads(uuid)
   const { phase, status } = reads
   const { hasSession } = useSession()
-  const owner = hasSession && !(status?.foreign ?? false)
   const orderCode = status?.info.order_code ?? null
+  const ownership = useOrderOwnership(orderCode, hasSession && !reads.foreign)
+  const own = ownOrderOf(ownership)
+  const linkToken = orderLinkToken({ uuid, orderCode, own })
   const cutoff = useAttemptCutoff({
     uuid,
-    orderCode,
-    owner,
+    linkToken,
     orderDeadline: reads.instruction?.expires_at ?? null,
   })
   const heading = useRef<HTMLHeadingElement>(null)
@@ -72,7 +77,7 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
   // Said by its heading, which takes the focus (never by the live region as well).
   const sent = useCallback(() => go({ kind: 'outcome', notice: 'sent' }), [go])
 
-  async function cancelled(outcome: CancelOutcome) {
+  function cancelled(outcome: CancelOutcome) {
     if (!outcome.ok) {
       if (outcome.problem === 'under_review') {
         announce(UNDER_REVIEW_NO_CANCEL)
@@ -83,9 +88,8 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
     if (outcome.status === 'settled') return go({ kind: 'outcome', notice: null })
     // Back to the order's route choice, when this device can find the order's link; the
     // cancelled attempt's pending entry goes (its uuid leads nowhere now).
-    const token = await findLinkToken({ uuid, orderCode, owner }).catch(() => null)
     removePending(uuid)
-    if (token) return loadPage(payLinkPath(token))
+    if (linkToken) return loadPage(payLinkPath(linkToken))
     go({ kind: 'cancelled' })
   }
 
@@ -132,13 +136,14 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
           }
           reloadCards={reads.reloadCards}
           upload={reads.upload}
-          onCancelled={(outcome) => void cancelled(outcome)}
+          onCancelled={cancelled}
         />
       ) : phase.kind === 'outcome' ? (
         <ReceiptOutcome
           uuid={uuid}
           initial={status}
           notice={phase.notice}
+          ownership={ownership}
           support={support}
           headingRef={heading}
         />
@@ -146,7 +151,7 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
         <TransferClosed
           uuid={uuid}
           orderCode={orderCode}
-          owner={owner}
+          ownership={ownership}
           support={support}
           headingRef={heading}
           cancelled={phase.kind === 'cancelled'}

@@ -11,8 +11,8 @@ import { arrive, ok, renderResult, serve, status } from './result-support'
 
 // «پرداخت دوباره» after a failed bank payment (order digest §5.10 step 4): a NEW attempt with a
 // new Idempotency-Key per press, through the door this device knows (the pending payment's link
-// token or order uuid, a recent guest order's token, or, signed in, the order looked up by its
-// code); the pending payment saved before the bank. No door known: never made up, the shopper is
+// token, a recent guest order's token, or, for the order's confirmed owner, its uuid read on
+// arrival: result-ownership.test.tsx); the pending payment saved before the bank. No door known: never made up, the shopper is
 // sent to tracking or the SMS link. A payment that went through forgets its pending entry and
 // throws confetti, never under reduced motion.
 
@@ -120,40 +120,19 @@ describe('a door this device knows', () => {
     expect(pay).toHaveBeenCalledTimes(1)
   })
 
-  it('signed in with nothing kept here: the order looked up by its code, the owner’s door', async () => {
+  it('signed in, the order this account’s: the owner’s door, its uuid from the read on arrival', async () => {
     const user = userEvent.setup()
     const pay = vi.fn(async () => opened())
     serve(mocks.bffFetch, [rejected()], {
-      'order/1411635340/': async () => ok({ uuid: ORDER_UUID, code: '1411635340' }),
+      'order/1411635340/': async () => ok({ uuid: ORDER_UUID, payment_url: null }),
       [`payment/order/${ORDER_UUID}/intent/`]: pay,
     })
     arrive(`?result=failed&payment=${PAYMENT_UUID}&code=gateway_rejected`)
     await renderResult({ hasSession: true })
+    await act(async () => {})
     await user.click(payAgain())
     expect(pay).toHaveBeenCalledTimes(1)
     expect(getPending(NEW_UUID)).toMatchObject({ orderUuid: ORDER_UUID })
-  })
-
-  it('the lookup finds the session gone: it ends here (a guest’s page), nothing else is said', async () => {
-    const user = userEvent.setup()
-    const gone = () => Promise.reject(new ApiError({ status: 401, code: 'token_not_valid' }))
-    serve(mocks.bffFetch, [rejected()], { 'order/1411635340/': gone })
-    arrive(`?result=failed&payment=${PAYMENT_UUID}&code=gateway_rejected`)
-    await renderResult({ hasSession: true })
-    await user.click(payAgain())
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'پرداخت دوباره' })).not.toBeInTheDocument()
-    expect(document.body).toHaveTextContent('لینک پرداختی را که با پیامک')
-  })
-
-  it('the lookup fails otherwise: said on the page', async () => {
-    const user = userEvent.setup()
-    const missing = () => Promise.reject(new ApiError({ status: 404, code: 'order_not_found' }))
-    serve(mocks.bffFetch, [rejected()], { 'order/1411635340/': missing })
-    arrive(`?result=failed&payment=${PAYMENT_UUID}&code=gateway_rejected`)
-    await renderResult({ hasSession: true })
-    await user.click(payAgain())
-    expect(await screen.findByRole('alert')).toHaveTextContent('این سفارش در حساب شما خوانده نشد')
   })
 })
 
@@ -203,7 +182,9 @@ describe('a payment that went through', () => {
 
   it('no confetti under reduced motion (its code is not even loaded)', async () => {
     media.set((query) => query.includes('prefers-reduced-motion'))
-    serve(mocks.bffFetch, [status({ status: 'settled' })])
+    serve(mocks.bffFetch, [status({ status: 'settled' })], {
+      'order/1411635340/': async () => ok({ uuid: ORDER_UUID, payment_url: null }),
+    })
     arrive(`?result=success&payment=${PAYMENT_UUID}`)
     await renderResult({ hasSession: true })
     await act(async () => {})

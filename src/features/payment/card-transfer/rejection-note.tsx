@@ -4,13 +4,22 @@ import { MessageSquareText } from 'lucide-react'
 import { REJECTED_GUEST, REJECTED_REASON, REJECTION_LABELS } from './transfer-copy'
 import { useRejectionReason } from './use-rejection-reason'
 
-// Why the receipt was turned down (order digest §5.7 step 5): its signed-in owner reads the
-// code and the sentence the shop sent (`GET payment/history/<uuid>/`); a guest, or an owner whose
-// detail could not be read, is told honestly that the reason came by SMS, with the support line
-// beside it (TransferActions).
+// Why the receipt was turned down (order digest §5.7 step 5): the order's confirmed owner (its
+// order read for this account; `pending` while that read is on its way) reads the code and the
+// sentence the shop sent (`GET payment/history/<uuid>/`); anyone else, or an owner whose detail
+// could not be read, is told honestly that the reason came by SMS, with the support line beside
+// it (TransferActions).
 
-export function RejectionNote({ uuid, owner }: { uuid: string; owner: boolean }) {
-  const reason = useRejectionReason(uuid, owner)
+export interface RejectionNoteProps {
+  uuid: string
+  owner: boolean
+  /** Whether the order is this account's is not known yet. */
+  pending?: boolean
+}
+
+export function RejectionNote({ uuid, owner, pending = false }: RejectionNoteProps) {
+  const read = useRejectionReason(uuid, owner)
+  const reason = pending ? ({ state: 'loading' } as const) : read
   const box = 'flex w-full items-start gap-3 rounded-card bg-ink-50 p-4 text-base leading-7'
   if (reason.state === 'read') {
     const label = reason.code ? REJECTION_LABELS[reason.code] : null

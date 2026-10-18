@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { announce } from '@/components/ui/live-announcer'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { useHydrated, usePrefersReducedMotion } from '@/components/ui/use-media-query'
 import { OrderCode } from '@/features/checkout/placed/order-code'
@@ -18,6 +19,7 @@ import { CHECKING, INVALID_RETURN, resultCopy, STOPPED, UNREADABLE } from './res
 import type { ResultCopy } from './result-copy'
 import { ResultIcon } from './result-icon'
 import { readReturn, rememberReturn, scrubbedPath, type PaymentReturn } from './result-return'
+import { ownOrderOf, useOrderOwnership } from './use-order-ownership'
 import { usePayAgain } from './use-pay-again'
 import { usePaymentStatus, type PaymentStatusState } from './use-payment-status'
 import { useWalletBalance } from './use-wallet'
@@ -30,8 +32,10 @@ import { useWalletBalance } from './use-wallet'
 // address bar (result-return.ts); nothing here logs it. The heading takes the focus on arrival;
 // later changes are said once, politely. A payment that went through forgets its pending entry,
 // reads the account's figures again and throws a little confetti (never under reduced motion).
-// A signed-in payer of someone else's order (its status answered only without the session,
-// `foreign`) is offered none of the account's pages for it: tracking, or the order's link.
+// The account's pages for the order, and the owner's door, only for its confirmed owner (its order
+// read for this account, use-order-ownership.ts): a signed-in payer of someone else's order (its
+// status answered only without the session, `foreign`) or of a guest's (answered with it: a guest
+// order's payment has no owner) is offered tracking, or the order's link.
 
 export interface PaymentResultPageProps {
   support: SupportLine | null
@@ -68,8 +72,9 @@ export function PaymentResultPage({ support }: PaymentResultPageProps) {
   const pending = useMemo(() => (uuid ? getPending(uuid) : null), [uuid])
   const copy = pickCopy(ret, status)
   const orderCode = info?.order_code ?? null
-  const owner = hasSession && !status.foreign
-  const payAgain = usePayAgain({ orderCode, pending, hasSession, owner })
+  const ownership = useOrderOwnership(orderCode, hasSession && !status.foreign)
+  const own = ownOrderOf(ownership)
+  const payAgain = usePayAgain({ orderCode, pending, hasSession, own })
   const topUpSettled = info?.status === 'settled' && info.applies_to === 'wallet_topup'
   const balance = useWalletBalance(topUpSettled)
 
@@ -151,14 +156,20 @@ export function PaymentResultPage({ support }: PaymentResultPageProps) {
           بررسی دوباره
         </Button>
       )}
-      <ResultActions
-        actions={copy.actions}
-        orderCode={orderCode}
-        owner={owner}
-        linkToken={payAgain.linkToken}
-        payAgain={payAgain}
-        support={support}
-      />
+      {ownership.state === 'checking' ? (
+        // Whose order it is decides the offers: none before the order's read answers.
+        <Skeleton className="h-12 w-full max-w-sm rounded-control" />
+      ) : (
+        <ResultActions
+          actions={copy.actions}
+          orderCode={orderCode}
+          owner={own !== null}
+          listOrders={hasSession && !status.foreign}
+          linkToken={payAgain.linkToken}
+          payAgain={payAgain}
+          support={support}
+        />
+      )}
       <Link
         href="/"
         className="inline-flex min-h-11 items-center text-base font-medium text-brand-700 hover:underline"

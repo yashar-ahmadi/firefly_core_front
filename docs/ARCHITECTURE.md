@@ -153,7 +153,13 @@ re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
   `payment_forbidden`) but answers the same call made anonymously (order digest §11 #7); the
   result and card-transfer pages retry with the flag after that 403 (and from then on), and treat
   a payment answered only that way as not this account's (`foreign`). On any other path the flag
-  is an ordinary query parameter (forwarded, the session attached).
+  is an ordinary query parameter (forwarded, the session attached). Being answered with the
+  session is not ownership either: a guest order's payment has no owner, so the API answers it to
+  any signed-in visitor. Both pages offer the account's order pages, the owner's door (the order's
+  uuid) and the owner-only reads (a rejected receipt's reason) only once `GET order/<code>/`
+  answered for this account (`features/payment/use-order-ownership.ts`, one read per page, which
+  also gives the order's link for the card transfer's cut-off and cancel); otherwise tracking or
+  the order's link page.
 
 **Visitor IP.** The API throttles guests per IP and all storefront traffic comes from one host,
 so uncached calls (BFF, redirect resolution, short links, token refresh, bank callback) send

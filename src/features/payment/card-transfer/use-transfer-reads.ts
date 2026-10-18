@@ -55,6 +55,8 @@ export interface TransferReads {
   phase: TransferPhase
   instruction: CardTransferInstruction | null
   status: TransferStatus | null
+  /** Answered only without the session: another account's payment (§11 #7). */
+  foreign: boolean
   go: (phase: TransferPhase) => void
   /** Both reads again (from the calm page). */
   retry: () => void
@@ -94,13 +96,17 @@ export function useTransferReads(uuid: string): TransferReads {
   const [round, setRound] = useState(0)
   // Refused with the session, answered without it: every later call goes without it at once.
   const anonymous = useRef(false)
+  const [foreign, setForeign] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
     const { signal } = controller
     const answered = <T>(call: (anon: boolean) => Promise<T>) =>
       sessionFirst(call, anonymous.current).then((answer) => {
-        if (answer.foreign) anonymous.current = true
+        if (answer.foreign) {
+          anonymous.current = true
+          setForeign(true)
+        }
         return answer
       })
     void Promise.allSettled([
@@ -139,7 +145,10 @@ export function useTransferReads(uuid: string): TransferReads {
   /** `call` with the session unless the payment is known to be someone else's (then without). */
   const answered = useCallback(async <T>(call: (anon: boolean) => Promise<T>): Promise<T> => {
     const answer = await sessionFirst(call, anonymous.current)
-    if (answer.foreign) anonymous.current = true
+    if (answer.foreign) {
+      anonymous.current = true
+      setForeign(true)
+    }
     return answer.value
   }, [])
 
@@ -157,5 +166,5 @@ export function useTransferReads(uuid: string): TransferReads {
     [uuid, answered],
   )
 
-  return { phase, instruction, status, go: setPhase, retry, reloadCards, upload }
+  return { phase, instruction, status, foreign, go: setPhase, retry, reloadCards, upload }
 }

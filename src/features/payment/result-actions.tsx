@@ -6,18 +6,18 @@ import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
-import { NO_DOOR_GUEST, NO_DOOR_USER } from './pay-again'
+import { NO_DOOR_GUEST } from './pay-again'
 import type { ResultAction } from './result-copy'
 import type { PayAgainState } from './use-pay-again'
 
 // What the result page offers next (order digest §5.10): the table's actions made into links
-// for this visitor. The order: its page for its owner (`/account/orders/<code>/`), tracking for
-// anyone else (`/order/track/`): a guest, or a signed-in payer of another account's order or a
-// guest's (§11 #7), whose account holds no such order. «پرداخت دوباره» only through a door this
-// device knows; without one the shopper is told where to pay (the SMS link, tracking, the
-// order's page), never given a made-up door. Another route: the order's page for its owner, else
-// the order's link page when this device knows it (a full page load: its URL holds the token,
-// credential-routes.ts). The first offer is the primary one.
+// for this visitor. The order: its page for its confirmed owner (`/account/orders/<code>/`, its
+// order read for this account), tracking for anyone else (`/order/track/`): a guest, or a
+// signed-in payer of another account's order or a guest's (§11 #7), whose account holds no such
+// order. «پرداخت دوباره» only through a door this device knows; without one the shopper is told
+// where to pay (the SMS link, tracking), never given a made-up door. Another route: the order's
+// page for its owner, else the order's link page when this device knows it (a full page load:
+// its URL holds the token, credential-routes.ts). The first offer is the primary one.
 
 /** The shop's support line: `tel:` ready, and as shown (formatted on the server). */
 export interface SupportLine {
@@ -28,8 +28,10 @@ export interface SupportLine {
 export interface ResultActionsProps {
   actions: ResultAction[]
   orderCode: string | null
-  /** Signed in as the payment's owner (read with the session): the account's order pages. */
+  /** The order's confirmed owner (its order read for this account): its account page. */
   owner: boolean
+  /** Signed in, and the payment not someone else's: the account's own list of orders. */
+  listOrders: boolean
   /** The order's link token, when this device knows it (another route, not the owner). */
   linkToken: string | null
   payAgain: PayAgainState
@@ -48,6 +50,7 @@ export function ResultActions({
   actions,
   orderCode,
   owner,
+  listOrders,
   linkToken,
   payAgain,
   support,
@@ -77,7 +80,7 @@ export function ResultActions({
         })
     }
     if (action === 'orders') {
-      if (owner) add({ key: 'orders', href: '/account/orders/', label: 'سفارش\u{200C}های من' })
+      if (listOrders) add({ key: 'orders', href: '/account/orders/', label: 'سفارش\u{200C}های من' })
       add({ key: 'track', href: '/order/track/', label: 'پیگیری سفارش' })
     }
   }
@@ -116,9 +119,7 @@ export function ResultActions({
         })}
       </div>
       {wantsAgain && !again && (
-        <p className="text-center text-base leading-7 text-ink-700">
-          {owner ? NO_DOOR_USER : NO_DOOR_GUEST}
-        </p>
+        <p className="text-center text-base leading-7 text-ink-700">{NO_DOOR_GUEST}</p>
       )}
       {payAgain.error && (
         <p role="alert" className="text-center text-base leading-7 text-danger">

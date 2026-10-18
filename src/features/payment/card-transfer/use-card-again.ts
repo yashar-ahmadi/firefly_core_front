@@ -8,7 +8,6 @@ import { useReleaseIfStillHere } from '@/lib/navigation/leaving'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { IntentError, startPayment, type PaymentDoor } from '../api'
 import { intentMessage } from '../intent-messages'
-import { LOOKUP_FAILED, LookupError, lookupDoor } from '../order-lookup'
 import { savePending } from '../pending-payments'
 import { ATTEMPT_OPEN_OTHER } from './transfer-copy'
 import { storedLinkToken, transferDoor, type TransferOrder } from './transfer-door'
@@ -21,7 +20,7 @@ import { storedLinkToken, transferDoor, type TransferOrder } from './transfer-do
 // says what to do. No door known: nothing is offered (the page says where to pay instead).
 
 export interface CardAgainState {
-  /** A door is known (or can be looked up). */
+  /** A door is known. */
   available: boolean
   busy: boolean
   error: string | null
@@ -34,7 +33,7 @@ const doorFields = (door: PaymentDoor) =>
   door.kind === 'uuid' ? { orderUuid: door.orderUuid } : { linkToken: door.token }
 
 export function useCardAgain(order: TransferOrder): CardAgainState {
-  const { uuid, orderCode, owner } = order
+  const { uuid, orderCode, own } = order
   const expire = useSessionExpired()
   // Our own page loads: the default wait (`LEAVING_MS`). Not imported by name: that export of the
   // shared module grew a lazy chunk of /checkout/ (measured: +4 B gzip there).
@@ -42,11 +41,8 @@ export function useCardAgain(order: TransferOrder): CardAgainState {
   const inFlight = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const door = useMemo(() => transferDoor({ uuid, orderCode, owner }), [uuid, orderCode, owner])
-  const linkToken = useMemo(
-    () => storedLinkToken({ uuid, orderCode, owner }),
-    [uuid, orderCode, owner],
-  )
+  const door = useMemo(() => transferDoor({ uuid, orderCode, own }), [uuid, orderCode, own])
+  const linkToken = useMemo(() => storedLinkToken({ uuid, orderCode, own }), [uuid, orderCode, own])
 
   async function run() {
     if (inFlight.current || door.kind === 'none' || !orderCode) return
@@ -56,7 +52,7 @@ export function useCardAgain(order: TransferOrder): CardAgainState {
     announce('در حال آماده\u{200C}سازی پرداخت…')
     let leaving = false
     try {
-      const target = door.kind === 'known' ? door.door : await lookupDoor(door.orderCode)
+      const target = door.door
       let next: { uuid: string; amount: number }
       try {
         const intent = await startPayment({
@@ -88,7 +84,6 @@ export function useCardAgain(order: TransferOrder): CardAgainState {
         setBusy(false)
       })
     } catch (failure) {
-      if (failure instanceof LookupError) return setError(LOOKUP_FAILED)
       const refusal = failure instanceof IntentError ? failure : new IntentError('other', failure)
       if (refusal.problem === 'session') return expire()
       setError(refusal.problem === 'attempt_open' ? ATTEMPT_OPEN_OTHER : intentMessage(refusal))

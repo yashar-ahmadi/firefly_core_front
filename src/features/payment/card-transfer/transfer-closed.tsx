@@ -3,8 +3,9 @@
 import type { Ref } from 'react'
 import { ResultIcon } from '../result-icon'
 import type { SupportLine } from '../result-actions'
+import { ownOrderOf, type Ownership } from '../use-order-ownership'
 import { CANCELLED_TITLE, CLOSED_BODY, CLOSED_TITLE, HEADING_ID } from './transfer-copy'
-import { TransferActions } from './transfer-actions'
+import { TransferActions, TransferActionsPlaceholder } from './transfer-actions'
 import { useCardAgain } from './use-card-again'
 
 // A card transfer that is no longer open (order digest §3.2.7–3.2.8: `payment_target_invalid`;
@@ -16,7 +17,8 @@ import { useCardAgain } from './use-card-again'
 export interface TransferClosedProps {
   uuid: string
   orderCode: string | null
-  owner: boolean
+  /** Whether the order is this account's (read once by the page). */
+  ownership: Ownership
   support: SupportLine | null
   headingRef: Ref<HTMLHeadingElement>
   /** Cancelled here, a moment ago. */
@@ -26,12 +28,13 @@ export interface TransferClosedProps {
 export function TransferClosed({
   uuid,
   orderCode,
-  owner,
+  ownership,
   support,
   headingRef,
   cancelled = false,
 }: TransferClosedProps) {
-  const again = useCardAgain({ uuid, orderCode, owner })
+  const own = ownOrderOf(ownership)
+  const again = useCardAgain({ uuid, orderCode, own })
   return (
     <div className="flex flex-col items-start gap-5">
       <ResultIcon tone="info" />
@@ -50,7 +53,16 @@ export function TransferClosed({
             : CLOSED_BODY}
         </p>
       </div>
-      <TransferActions orderCode={orderCode} owner={owner} again={again} support={support} />
+      {ownership.state === 'checking' ? (
+        <TransferActionsPlaceholder />
+      ) : (
+        <TransferActions
+          orderCode={orderCode}
+          owner={own !== null}
+          again={again}
+          support={support}
+        />
+      )}
     </div>
   )
 }

@@ -36,6 +36,9 @@ const NEW_UUID = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d'
 const HISTORY = `payment/history/${PAYMENT_UUID}/`
 const INTENT = `payment/order/${ORDER_UUID}/intent/`
 const isRejected = () => ok(rejected.data)
+/** The order, read for this account: the signed-in visitor is its owner. */
+const ORDER = 'order/1411635340/'
+const mine = () => ok({ uuid: ORDER_UUID, payment_url: null })
 
 const keepOrderDoor = () =>
   savePending(PAYMENT_UUID, {
@@ -104,6 +107,7 @@ describe('rejected', () => {
     keepOrderDoor()
     serve(mocks.bffFetch, {
       [STATUS]: isRejected,
+      [ORDER]: mine,
       [HISTORY]: () =>
         ok(
           detail({
@@ -138,6 +142,7 @@ describe('rejected', () => {
   it('signed in, a receipt with neither a code nor a sentence: the SMS sentence', async () => {
     serve(mocks.bffFetch, {
       [STATUS]: isRejected,
+      [ORDER]: mine,
       [HISTORY]: () =>
         ok(detail({ status: 'rejected', rejection_reason_code: null, rejection_reason: ' ' })),
     })
@@ -153,6 +158,7 @@ describe('rejected', () => {
     let intents = 0
     serve(mocks.bffFetch, {
       [STATUS]: isRejected,
+      [ORDER]: mine,
       [HISTORY]: () => ok(detail(null)),
       [INTENT]: () =>
         intents++ === 0
@@ -169,6 +175,7 @@ describe('rejected', () => {
             ),
     })
     await renderTransfer({ hasSession: true })
+    await act(async () => {})
     await user.click(screen.getByRole('button', { name: 'پرداخت دوباره' }))
     expect(await screen.findByRole('alert')).toBeVisible()
     await user.dblClick(screen.getByRole('button', { name: 'پرداخت دوباره' }))
@@ -188,6 +195,7 @@ describe('rejected', () => {
     keepOrderDoor()
     serve(mocks.bffFetch, {
       [STATUS]: isRejected,
+      [ORDER]: mine,
       [HISTORY]: () => ok(detail(null)),
       [INTENT]: () =>
         Promise.reject(
@@ -211,6 +219,7 @@ describe('rejected', () => {
         ),
     })
     await renderTransfer({ hasSession: true })
+    await act(async () => {})
     await user.click(screen.getByRole('button', { name: 'پرداخت دوباره' }))
     expect(mocks.loadPage).toHaveBeenCalledWith(`/payment/card-transfer/${NEW_UUID}/`)
   })

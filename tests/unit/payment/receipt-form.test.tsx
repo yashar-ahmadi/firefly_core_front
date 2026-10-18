@@ -156,8 +156,12 @@ describe('sending', () => {
     expect(sentForm().get('bank_reference')).toBe('987654')
   })
 
-  it('signed in: the order’s page instead of tracking', async () => {
+  it('signed in, the order this account’s (read once): its page instead of tracking', async () => {
     const user = userEvent.setup()
+    serve(mocks.bffFetch, {
+      [RECEIPT]: () => ok(RECEIPT_201, 201),
+      'order/1411635340/': () => ok({ uuid: 'f00d', payment_url: null }),
+    })
     await renderTransfer({ hasSession: true })
     await fillReceipt(user)
     await user.click(submitButton())

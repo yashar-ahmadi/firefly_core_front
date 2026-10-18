@@ -11,7 +11,7 @@ import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
 import { IntentError, startPayment } from './api'
 import { intentMessage } from './intent-messages'
-import { LOOKUP_FAILED, LookupError, lookupDoor } from './order-lookup'
+import type { OwnOrder } from './order-lookup'
 import { payAgainDoor, payAgainRoute } from './pay-again'
 import { savePending, type PendingPayment } from './pending-payments'
 
@@ -20,9 +20,10 @@ import { savePending, type PendingPayment } from './pending-payments'
 // API's own "still starting" retries keep it, `startPayment`; a replayed key whose handoff expired
 // gets a new one), one intent per press. The pending payment is saved before the bank, as on the
 // checkout. A refusal is said on the page (an attempt still open: the order's page resumes it);
-// a session found gone (by the intent or the order's lookup) ends it here instead. Only the
-// order's owner gets the owner's doors: a signed-in payer of someone else's order (`owner`
-// false) pays through the order's link when this device knows it, never the account's lookup.
+// a session found gone ends it here instead. Only the order's confirmed owner (its order read for
+// this account, use-order-ownership.ts) gets the owner's door: anyone else, a signed-in payer of
+// someone else's order or of a guest's included, pays through the order's link when this device
+// knows it.
 
 const BANK_LOAD_FAILED = 'انتقال به درگاه انجام نشد؛ دوباره تلاش کنید.'
 
@@ -30,12 +31,12 @@ export interface PayAgainOptions {
   orderCode: string | null
   pending: PendingPayment | null
   hasSession: boolean
-  /** Signed in as the order's owner (its payment was read with the session). */
-  owner: boolean
+  /** The order, read for this account (its confirmed owner); null: not this account's. */
+  own: OwnOrder | null
 }
 
 export interface PayAgainState {
-  /** A door is known (or can be looked up): the press is offered. */
+  /** A door is known: the press is offered. */
   available: boolean
   busy: boolean
   /** What stopped it, or null. */
@@ -49,7 +50,7 @@ export function usePayAgain({
   orderCode,
   pending,
   hasSession,
-  owner,
+  own,
 }: PayAgainOptions): PayAgainState {
   const client = useQueryClient()
   const expire = useSessionExpired()
@@ -57,10 +58,11 @@ export function usePayAgain({
   const inFlight = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const ownOrderUuid = own?.uuid ?? null
   const door = useMemo(() => {
-    const guest = !owner && orderCode ? findGuestOrder(orderCode) : null
-    return payAgainDoor({ pending, orderCode, owner, guestToken: guest?.linkToken ?? null })
-  }, [pending, orderCode, owner])
+    const guest = !ownOrderUuid && orderCode ? findGuestOrder(orderCode) : null
+    return payAgainDoor({ pending, orderCode, ownOrderUuid, guestToken: guest?.linkToken ?? null })
+  }, [pending, orderCode, ownOrderUuid])
   // The wallet is the payer's own: it needs the session, not the order's ownership.
   const route: PaymentRoute = payAgainRoute(pending, hasSession)
 
@@ -72,7 +74,7 @@ export function usePayAgain({
     announce('در حال آماده\u{200C}سازی پرداخت…')
     let leaving = false
     try {
-      const target = door.kind === 'known' ? door.door : await lookupDoor(door.orderCode)
+      const target = door.door
       const send = () => startPayment({ door: target, route, key: newIdempotencyKey() })
       let intent
       try {
@@ -109,7 +111,6 @@ export function usePayAgain({
         setBusy(false)
       })
     } catch (failure) {
-      if (failure instanceof LookupError) return setError(LOOKUP_FAILED)
       const refusal = failure instanceof IntentError ? failure : new IntentError('other', failure)
       if (refusal.problem === 'session') return expire()
       setError(intentMessage(refusal))

@@ -9,15 +9,15 @@ import { Spinner } from '@/components/ui/spinner'
 import { OrderCode } from '@/features/checkout/placed/order-code'
 import type { PaymentStatusInfo } from '@/lib/api/types/payment'
 import { formatToman } from '@/lib/format'
-import { useSession } from '@/lib/session/session-context'
 import { SUMMARY_KEY } from '@/lib/session/viewer-queries'
 import { removePending } from '../pending-payments'
 import type { SupportLine } from '../result-actions'
 import { ResultIcon } from '../result-icon'
+import { ownOrderOf, type Ownership } from '../use-order-ownership'
 import { usePaymentStatus } from '../use-payment-status'
 import type { TransferStatus } from './card-transfer-api'
 import { RejectionNote } from './rejection-note'
-import { TransferActions } from './transfer-actions'
+import { TransferActions, TransferActionsPlaceholder } from './transfer-actions'
 import { TransferClosed } from './transfer-closed'
 import * as T from './transfer-copy'
 import { useCardAgain } from './use-card-again'
@@ -29,9 +29,10 @@ import type { OutcomeNotice } from './use-transfer-reads'
 // دوباره»); a status already final at the page's first read is not read again. Under review: the
 // order cannot be paid or cancelled; its page or tracking. Approved (`settled`): the order is
 // under way, the pending entry goes. Rejected (`failed` + `payment_receipt_rejected`): the order
-// awaits payment again; its owner reads the reason (rejection-note.tsx), a guest is told it came
-// by SMS; «پرداخت دوباره» opens a NEW attempt. Anything else ended the attempt: closed. Changes
-// after the first are said once, politely.
+// awaits payment again; its confirmed owner (its order read for this account, `ownership`) reads
+// the reason (rejection-note.tsx), anyone else is told it came by SMS; «پرداخت دوباره» opens a
+// NEW attempt. Anything else ended the attempt: closed. Changes after the first are said once,
+// politely.
 
 type Outcome = 'review' | 'approved' | 'rejected' | 'closed'
 
@@ -50,6 +51,8 @@ export interface ReceiptOutcomeProps {
   /** The page's first status read (null: none could be read). */
   initial: TransferStatus | null
   notice: OutcomeNotice | null
+  /** Whether the order is this account's (read once by the page). */
+  ownership: Ownership
   support: SupportLine | null
   headingRef: Ref<HTMLHeadingElement>
 }
@@ -60,19 +63,18 @@ export function ReceiptOutcome({
   uuid,
   initial,
   notice,
+  ownership,
   support,
   headingRef,
 }: ReceiptOutcomeProps) {
-  const { hasSession } = useSession()
   const client = useQueryClient()
   // Final already (approved, rejected, ended): the page's own read is all there is to know.
   const polled = usePaymentStatus(initial && FINAL.has(initial.info.status) ? null : uuid)
   const info = polled.info ?? initial?.info ?? null
-  const foreign = polled.info ? polled.foreign : (initial?.foreign ?? false)
-  const owner = hasSession && !foreign
+  const own = ownOrderOf(ownership)
   const orderCode = info?.order_code ?? null
   const outcome = outcomeOf(info)
-  const again = useCardAgain({ uuid, orderCode, owner })
+  const again = useCardAgain({ uuid, orderCode, own })
 
   const said = useRef<Outcome | null>(null)
   useEffect(() => {
@@ -98,7 +100,7 @@ export function ReceiptOutcome({
       <TransferClosed
         uuid={uuid}
         orderCode={orderCode}
-        owner={owner}
+        ownership={ownership}
         support={support}
         headingRef={headingRef}
       />
@@ -158,13 +160,19 @@ export function ReceiptOutcome({
           بررسی دوباره
         </Button>
       )}
-      {outcome === 'rejected' && <RejectionNote uuid={uuid} owner={owner} />}
-      <TransferActions
-        orderCode={orderCode}
-        owner={owner}
-        again={outcome === 'rejected' ? again : undefined}
-        support={outcome === 'rejected' ? support : undefined}
-      />
+      {outcome === 'rejected' && (
+        <RejectionNote uuid={uuid} owner={own !== null} pending={ownership.state === 'checking'} />
+      )}
+      {ownership.state === 'checking' ? (
+        <TransferActionsPlaceholder />
+      ) : (
+        <TransferActions
+          orderCode={orderCode}
+          owner={own !== null}
+          again={outcome === 'rejected' ? again : undefined}
+          support={outcome === 'rejected' ? support : undefined}
+        />
+      )}
     </div>
   )
 }
