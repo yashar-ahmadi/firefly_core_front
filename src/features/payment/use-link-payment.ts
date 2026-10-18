@@ -7,6 +7,7 @@ import { newIdempotencyKey } from '@/features/checkout/idempotency'
 import { useMarkFeatureDisabled } from '@/features/settings/feature-context'
 import type { OpenAttempt, PaymentRoute, RedirectPayload } from '@/lib/api/types/payment'
 import { loadPage } from '@/lib/navigation/hard-navigation'
+import { useReleaseIfStillHere } from '@/lib/navigation/leaving'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
 import { IntentError, startPayment, type PaymentIntentResult } from './api'
@@ -57,6 +58,7 @@ export function useLinkPayment(options: LinkPaymentOptions) {
   const markFeatureDisabled = useMarkFeatureDisabled()
   const inFlight = useRef(false)
   const [state, setState] = useState<LinkPayState>(IDLE)
+  const holdWhileLeaving = useReleaseIfStillHere()
 
   const walletMoved = () => {
     void client.invalidateQueries({ queryKey: WALLET_KEY })
@@ -69,7 +71,10 @@ export function useLinkPayment(options: LinkPaymentOptions) {
       .catch(() => setState({ ...IDLE, phase: 'redirecting', handoff, bankLoadFailed: true }))
   }
 
-  /** True when the page is leaving (card to card): the press stays taken until it has gone. */
+  /**
+   * True when the page is leaving (card to card): the press stays taken until it has gone, or
+   * until it is clear it has not (`holdWhileLeaving`).
+   */
   function succeeded(intent: PaymentIntentResult, route: PaymentRoute): boolean {
     const payment = intent.payment
     const pending = () =>
@@ -99,6 +104,11 @@ export function useLinkPayment(options: LinkPaymentOptions) {
     if (route === 'card_transfer' && payment) {
       pending()
       loadPage(`/payment/card-transfer/${payment.uuid}/`)
+      // Given back if the browser did not leave after all (an aborted load, a cache restore).
+      holdWhileLeaving(() => {
+        inFlight.current = false
+        setState(IDLE)
+      })
       return true
     }
     if (route === 'wallet_and_gateway') walletMoved()

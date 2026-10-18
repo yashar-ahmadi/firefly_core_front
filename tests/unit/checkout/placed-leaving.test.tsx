@@ -5,6 +5,7 @@ import { contextOf } from '@/features/checkout/placed-order'
 import { usePayOrder } from '@/features/checkout/use-pay-order'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
 import { FeatureProvider } from '@/features/settings/feature-context'
+import { LEAVING_MS } from '@/lib/navigation/leaving'
 import { clientProviders } from '../support/providers'
 import { intent, LINK_TOKEN, PAYMENT_UUID, placement } from '../payment/fixtures'
 
@@ -62,6 +63,47 @@ describe('usePayOrder, card to card', () => {
     const { result } = render()
     await act(() => result.current.pay('card_transfer'))
     expect(result.current.state.phase).toBe('failed')
+    await act(() => result.current.pay('card_transfer'))
+    expect(intents()).toHaveLength(2)
+  })
+})
+
+// A load that never happens (Esc, a network failure then Back) or a page brought back from the
+// back-forward cache must not leave the press taken for good: it comes back after a bounded wait,
+// and at once on a restore (`pageshow` with `persisted`).
+describe('usePayOrder, card to card, the page did not leave after all', () => {
+  const restore = (persisted: boolean) =>
+    act(() => void window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted })))
+
+  it('the press comes back after a bounded wait', async () => {
+    vi.useFakeTimers()
+    try {
+      mocks.bffFetch.mockResolvedValue({ data: intent('card_transfer'), msg: '', status: 201 })
+      const { result } = render()
+      await act(() => result.current.pay('card_transfer'))
+      await act(async () => void (await vi.advanceTimersByTimeAsync(LEAVING_MS - 100)))
+      await act(() => result.current.pay('card_transfer'))
+      expect(intents()).toHaveLength(1)
+      expect(result.current.state.phase).toBe('paying')
+      await act(async () => void (await vi.advanceTimersByTimeAsync(100)))
+      expect(result.current.state.phase).toBe('choosing')
+      await act(() => result.current.pay('card_transfer'))
+      expect(intents()).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('back from the back-forward cache: the press comes back at once', async () => {
+    mocks.bffFetch.mockResolvedValue({ data: intent('card_transfer'), msg: '', status: 201 })
+    const { result } = render()
+    await act(() => result.current.pay('card_transfer'))
+    // The first load's own pageshow is no restore.
+    await restore(false)
+    await act(() => result.current.pay('card_transfer'))
+    expect(intents()).toHaveLength(1)
+    await restore(true)
+    expect(result.current.state.phase).toBe('choosing')
     await act(() => result.current.pay('card_transfer'))
     expect(intents()).toHaveLength(2)
   })

@@ -1,6 +1,12 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, renderHook, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useLinkPayment } from '@/features/payment/use-link-payment'
+import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
+import { FeatureProvider } from '@/features/settings/feature-context'
+import { LEAVING_MS } from '@/lib/navigation/leaving'
+import { clientProviders } from '../support/providers'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { intent, LINK_TOKEN, PAYMENT_UUID } from './fixtures'
 import { payLink } from './link-fixtures'
@@ -78,5 +84,64 @@ describe('while the page leaves', () => {
     await waitFor(() => expect(read).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(payButton()).not.toHaveAttribute('aria-busy'))
     expect(payButton()).not.toHaveAttribute('aria-disabled')
+  })
+})
+
+// The card's page never loaded (Esc, a network failure then Back) or this page came back from
+// the back-forward cache: the press must not stay taken for good. It comes back after a bounded
+// wait, and at once on a restore (`pageshow` with `persisted`).
+describe('useLinkPayment, card to card, the page did not leave after all', () => {
+  const catalog = { gateways: [], withdraw: vi.fn() } as unknown as PaymentCatalogState
+  const intents = () => mocks.bffFetch.mock.calls.filter(([path]) => path === LINK_INTENT)
+  const restore = (persisted: boolean) =>
+    act(() => void window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted })))
+  function renderPayment() {
+    mocks.bffFetch.mockResolvedValue(ok(intent('card_transfer'), 201))
+    const { wrapper: Wrapper } = clientProviders()
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <FeatureProvider initial={{}}>
+        <Wrapper>{children}</Wrapper>
+      </FeatureProvider>
+    )
+    const options = {
+      token: LINK_TOKEN,
+      orderCode: '5592580094',
+      catalog,
+      suggest: vi.fn(),
+      onPaid: vi.fn(),
+      onAttemptOpen: vi.fn(),
+      onStale: vi.fn(),
+    }
+    return renderHook(() => useLinkPayment(options), { wrapper })
+  }
+
+  it('the press comes back after a bounded wait', async () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = renderPayment()
+      await act(() => result.current.pay('card_transfer'))
+      await act(async () => void (await vi.advanceTimersByTimeAsync(LEAVING_MS - 100)))
+      await act(() => result.current.pay('card_transfer'))
+      expect(intents()).toHaveLength(1)
+      expect(result.current.state.phase).toBe('paying')
+      await act(async () => void (await vi.advanceTimersByTimeAsync(100)))
+      expect(result.current.state.phase).toBe('idle')
+      await act(() => result.current.pay('card_transfer'))
+      expect(intents()).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('back from the back-forward cache: the press comes back at once', async () => {
+    const { result } = renderPayment()
+    await act(() => result.current.pay('card_transfer'))
+    await restore(false)
+    await act(() => result.current.pay('card_transfer'))
+    expect(intents()).toHaveLength(1)
+    await restore(true)
+    expect(result.current.state.phase).toBe('idle')
+    await act(() => result.current.pay('card_transfer'))
+    expect(intents()).toHaveLength(2)
   })
 })

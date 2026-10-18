@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/spinner'
 import type { OpenAttempt as Attempt, PaymentRoute } from '@/lib/api/types/payment'
 import { formatToman } from '@/lib/format'
 import { formatJalaliDateTime } from '@/lib/format/date-time'
+import { useReleaseIfStillHere } from '@/lib/navigation/leaving'
 import type { PaymentDoor } from './api'
 import { cancelAttempt } from './attempt-api'
 import { attemptRow, type AttemptRow } from './attempt-row'
@@ -58,9 +59,6 @@ export interface OpenAttemptProps {
   onResolved: (resolution: AttemptResolution) => void
 }
 
-/** How long a press that sent the browser to the bank keeps the button busy (a stuck load). */
-const LEAVING_MS = 4_000
-
 export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemptProps) {
   const [underReview, setUnderReview] = useState(false)
   const [handoffGone, setHandoffGone] = useState(false)
@@ -78,6 +76,7 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<'cancel' | 'bank' | null>(null)
   const inFlight = useRef(false)
+  const holdWhileLeaving = useReleaseIfStillHere()
   const own = attemptRow(attempt)
   const row: AttemptRow = underReview ? 'review' : own === 'bank' && handoffGone ? 'expired' : own
   const polled = useAttemptStatus(attempt.payment, row === 'verifying')
@@ -144,10 +143,11 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
     try {
       const { goToBank } = await import('./go-to-bank')
       goToBank(handoff)
-      setTimeout(() => {
+      // Busy while the browser leaves; given back if it did not (a stuck load, a cache restore).
+      holdWhileLeaving(() => {
         inFlight.current = false
         setBusy(null)
-      }, LEAVING_MS)
+      })
     } catch {
       inFlight.current = false
       setBusy(null)

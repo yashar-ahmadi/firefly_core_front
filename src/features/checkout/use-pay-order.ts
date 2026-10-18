@@ -12,6 +12,7 @@ import { applyIntentRefusal } from '@/features/payment/intent-refusal'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
 import type { PaymentRoute, RedirectPayload } from '@/lib/api/types/payment'
 import { loadPage } from '@/lib/navigation/hard-navigation'
+import { useReleaseIfStillHere } from '@/lib/navigation/leaving'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
 import { newIdempotencyKey } from './idempotency'
@@ -60,6 +61,7 @@ export function usePayOrder(
   const markFeatureDisabled = useMarkFeatureDisabled()
   const inFlight = useRef(false)
   const [state, setState] = useState<PayState>({ ...IDLE, phase: 'starting' })
+  const holdWhileLeaving = useReleaseIfStillHere()
 
   const toThanks = () => router.push(thanksPath(ctx.orderCode))
   const walletMoved = () => {
@@ -103,6 +105,12 @@ export function usePayOrder(
       // holds it: a full page load, never the client router (credential-routes.ts).
       pending()
       loadPage(`/payment/card-transfer/${uuid}/`)
+      // Given back if the browser did not leave after all (an aborted load, a cache restore).
+      // The thanks page is the client router's own navigation: it always completes.
+      holdWhileLeaving(() => {
+        inFlight.current = false
+        setState(IDLE)
+      })
       return true
     }
     if (route === 'wallet_and_gateway') walletMoved()
