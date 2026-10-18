@@ -212,7 +212,7 @@ Everything in Plans 1–3's Global Constraints, plus:
 
 **Behaviour:**
 - Tabs come from `summary.orders.groups` (labels as given; `?group=` in the URL). The list is `order/list/?status_group=…&sort=…`, paginated.
-- Order card: code, Jalali date, status pill (`status_display`), item thumbnails (up to 4, plus «+n»), total, and a primary action.
+- Order card: code, Jalali date, status pill (`status_display`), the units in words («N کالا»), item thumbnails (the list's `item_preview`, three at most; no «+n» tile: the preview carries no quantity and the list no line count, and `item_count` counts units — a backend finding), total, and a primary action.
 - Detail: progress, timeline, lines, receiver, shipping, money split, payments list, and actions:
   - «پرداخت» (`is_payable`; route choice via `availableRoutes` with the uuid door);
   - «تأیید سفارش» (pure COD awaiting payment);
