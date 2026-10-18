@@ -27,7 +27,8 @@ import path from 'node:path'
 // session-restore.spec (a form login and a logout, idem: 6); auth.spec (journeys only: a wrong
 // password, a form login, its logout in another tab, kamran's login there and its logout: 5);
 // checkout-signed-in.spec and orders-journey.spec (journeys only: kamran's login and logout by
-// their guard: 2 each). 25 in all.
+// their guard: 2 each); the wallet's specs (Plan 4 Task 9: shirin's shared session in mobile,
+// tablet, desktop and journeys, support/shirin.ts: 4). 29 in all.
 // They come apart because Playwright, as
 // configured, runs the projects one after the other (mobile, tablet, desktop, then journeys, which
 // waits for the others), each project's account specs first: measured from the backend's log,
@@ -148,26 +149,36 @@ async function sharedState(file: string, create: () => Promise<object>): Promise
 }
 
 /**
- * The project's shared session (sara), as a storage-state file: made the first time it is asked
- * for in a run (one login), then the same file for every worker and spec of the project. A
- * project with `metadata.session` uses that project's instead (`budget-push` reads only, through
- * the desktop's session: no login of its own; cookies are the host's, whatever the port).
+ * A demo account's shared session for the project, as a storage-state file (`name` tells the
+ * accounts apart): made the first time it is asked for in a run (one login), then the same file
+ * for every worker and spec of the project. A project with `metadata.session` uses that
+ * project's instead (`budget-push` reads only, through the desktop's session: no login of its
+ * own; cookies are the host's, whatever the port).
  */
-export async function saraSession(browser: Browser, project: FullProject): Promise<string> {
+export async function demoSession(
+  browser: Browser,
+  project: FullProject,
+  account: DemoAccount,
+  name: string,
+): Promise<string> {
   const baseURL = project.use.baseURL ?? 'http://localhost:3000'
   const owner =
     typeof project.metadata.session === 'string' ? project.metadata.session : project.name
-  const file = path.join(project.outputDir, '.auth', `sara-${owner}.json`)
+  const file = path.join(project.outputDir, '.auth', `${name}-${owner}.json`)
   return sharedState(file, async () => {
     const context = await browser.newContext({ baseURL })
     try {
-      await logIn(context, baseURL)
+      await logIn(context, baseURL, account)
       return await context.storageState()
     } finally {
       await context.close()
     }
   })
 }
+
+/** The project's shared session as sara (see `demoSession`). */
+export const saraSession = (browser: Browser, project: FullProject) =>
+  demoSession(browser, project, SARA, 'sara')
 
 /** `test` with `page` (and `context`) signed in as sara through the project's shared session. */
 export const signedInTest = base.extend<object, { saraState: string }>({

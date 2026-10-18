@@ -1,0 +1,189 @@
+{
+  "topup-below": {
+    "status": 400,
+    "body": {
+      "msg": "درخواست ارسالی معتبر نیست.",
+      "code": 400,
+      "data": {
+        "type": "client_error",
+        "errors": [
+          {
+            "code": "wallet_top_up_below_minimum",
+            "detail": "مبلغ شارژ نمی‌تواند کمتر از 50000 تومان باشد.",
+            "attr": null
+          }
+        ]
+      }
+    }
+  },
+  "topup-above": {
+    "status": 400,
+    "body": {
+      "msg": "درخواست ارسالی معتبر نیست.",
+      "code": 400,
+      "data": {
+        "type": "client_error",
+        "errors": [
+          {
+            "code": "wallet_top_up_above_maximum",
+            "detail": "مبلغ شارژ نمی‌تواند بیشتر از 50000000 تومان باشد.",
+            "attr": null
+          }
+        ]
+      }
+    }
+  },
+  "topup-zero": {
+    "status": 400,
+    "body": {
+      "msg": "درخواست ارسالی معتبر نیست.",
+      "code": 400,
+      "data": {
+        "type": "validation_error",
+        "errors": [
+          {
+            "code": "min_value",
+            "detail": "این مقدار باید بزرگتر یا مساوی با 1 باشد.",
+            "attr": "amount"
+          }
+        ]
+      }
+    }
+  },
+  "topup-named": {
+    "status": 400,
+    "body": {
+      "msg": "درخواست ارسالی معتبر نیست.",
+      "code": 400,
+      "data": {
+        "type": "client_error",
+        "errors": [
+          {
+            "code": "gateway_unknown",
+            "detail": "درگاه پرداخت انتخاب‌شده در دسترس نیست.",
+            "attr": null
+          }
+        ]
+      }
+    }
+  },
+  "topup-unnamed": {
+    "status": 503,
+    "body": {
+      "msg": "این سرویس موقتاً در دسترس نیست.",
+      "code": 503,
+      "data": {
+        "type": "server_error",
+        "errors": [
+          {
+            "code": "gateway_not_configured",
+            "detail": "درگاه پرداخت پیکربندی نشده است.",
+            "attr": null
+          }
+        ]
+      }
+    }
+  },
+  "wd-iban-invalid": {
+    "status": 400,
+    "body": {
+      "msg": "درخواست ارسالی معتبر نیست.",
+      "code": 400,
+      "data": {
+        "type": "validation_error",
+        "errors": [
+          {
+            "code": "iban_invalid",
+            "detail": "شماره شبا معتبر نیست.",
+            "attr": "iban"
+          }
+        ]
+      }
+    }
+  },
+  "wd-card-invalid": {
+    "status": 400,
+    "body": {
+      "msg": "درخواست ارسالی معتبر نیست.",
+      "code": 400,
+      "data": {
+        "type": "validation_error",
+        "errors": [
+          {
+            "code": "card_number_invalid",
+            "detail": "شماره کارت معتبر نیست.",
+            "attr": "card_number"
+          }
+        ]
+      }
+    }
+  },
+  "wd-below": {
+    "status": 400,
+    "body": {
+      "msg": "درخواست ارسالی معتبر نیست.",
+      "code": 400,
+      "data": {
+        "type": "client_error",
+        "errors": [
+          {
+            "code": "wallet_withdrawal_below_minimum",
+            "detail": "مبلغ برداشت نمی‌تواند کمتر از ۲۰۰٬۰۰۰ تومان باشد.",
+            "attr": null
+          }
+        ]
+      }
+    }
+  },
+  "wd-name-long": {
+    "status": 400,
+    "body": {
+      "msg": "درخواست ارسالی معتبر نیست.",
+      "code": 400,
+      "data": {
+        "type": "validation_error",
+        "errors": [
+          {
+            "code": "max_length",
+            "detail": "طول این مقدار نباید بیشتر از 120 نویسه باشد.",
+            "attr": "account_holder_name"
+          }
+        ]
+      }
+    }
+  },
+  "wd-over-balance": {
+    "status": 409,
+    "body": {
+      "msg": "این درخواست با وضعیت فعلی سازگار نیست.",
+      "code": 409,
+      "data": {
+        "type": "client_error",
+        "errors": [
+          {
+            "code": "wallet_insufficient_funds",
+            "detail": "موجودی کیف پول شما برای این تراکنش کافی نیست.",
+            "attr": null
+          }
+        ]
+      }
+    }
+  },
+  "wd-cancel-unknown": {
+    "status": 404,
+    "body": {
+      "msg": "موردی با این مشخصات پیدا نشد.",
+      "code": 404,
+      "data": {
+        "type": "client_error",
+        "errors": [
+          {
+            "code": "not_found",
+            "detail": "یافت نشد.",
+            "attr": null
+          }
+        ]
+      }
+    }
+  }
+}

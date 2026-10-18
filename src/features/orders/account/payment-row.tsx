@@ -1,8 +1,9 @@
 'use client'
 
-import { Badge, type BadgeTone } from '@/components/ui/badge'
+import { Badge } from '@/components/ui/badge'
 import { REJECTION_LABELS } from '@/features/payment/card-transfer/transfer-copy'
-import type { PaymentHistoryItem, ReceiptStatus } from '@/lib/api/types/payment'
+import { PAYMENT_TONES, RECEIPT_WORDS } from '@/features/payment/history-labels'
+import type { PaymentHistoryItem } from '@/lib/api/types/payment'
 import { formatToman, toPersianDigits } from '@/lib/format'
 import { formatJalaliDateTime } from '@/lib/format/date-time'
 import { usePaymentDetail } from './orders-api'
@@ -15,22 +16,6 @@ import { usePaymentDetail } from './orders-api'
 // never offers (a card reader, cash, a transfer the shop recorded) is a payment like any other.
 
 const GENERIC = 'پرداخت ثبت‌شده'
-
-const TONES: Record<string, BadgeTone> = {
-  settled: 'success',
-  pending: 'warning',
-  awaiting_review: 'info',
-  failed: 'danger',
-  cancelled: 'neutral',
-  refunded: 'neutral',
-}
-
-/** No display field for a receipt's status (§2.1): the shop's own words. */
-const RECEIPT_WORDS: Record<ReceiptStatus, string> = {
-  awaiting_review: 'در انتظار بررسی',
-  approved: 'تأیید شده',
-  rejected: 'رد شده',
-}
 
 function ReceiptState({ uuid }: { uuid: string }) {
   const detail = usePaymentDetail(uuid, true)
@@ -71,7 +56,7 @@ export function PaymentRow({ payment }: { payment: PaymentHistoryItem }) {
           )}
         </p>
         {payment.status_display && (
-          <Badge tone={TONES[payment.status] ?? 'neutral'} size="sm">
+          <Badge tone={PAYMENT_TONES[payment.status] ?? 'neutral'} size="sm">
             {payment.status_display}
           </Badge>
         )}

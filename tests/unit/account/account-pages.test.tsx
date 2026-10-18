@@ -159,10 +159,8 @@ describe('the dashboard', () => {
 })
 
 describe('the placeholders', () => {
-  it.each([
-    ['reading-list', 'لیست مطالعه'],
-    ['wallet', 'کیف پول'],
-  ])(
+  // The wallet's page replaced its placeholder (Plan 4 Task 9: tests/unit/wallet/wallet-route).
+  it.each([['reading-list', 'لیست مطالعه']])(
     '/account/%s/: its heading, «به‌زودی», and the way back to the dashboard',
     async (path, title) => {
       mocks.pathname = `/account/${path}/`

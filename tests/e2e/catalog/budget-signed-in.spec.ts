@@ -16,7 +16,7 @@ import { signedInTest } from '../support/session'
 
 // The JavaScript budget signed in (ruling P2-R4; the measure: support/js-budget.ts): the catalog
 // as sara sees it (her header, hearts and cart), the account pages that carry the most code, her
-// cart page, her checkout and her orders.
+// cart page, her checkout, her orders and her wallet.
 // The project's shared session on a desktop (1440 px) and on a phone (a fresh Pixel 7 context at
 // 375 px with the same session). Runs in the desktop project only, which measures both, and
 // again in `budget-push` (a shop with web push; the same session), with push on in the browser:
@@ -43,6 +43,24 @@ type SignedInRoute = BudgetRoute & { resolve?: (page: Page) => Promise<string | 
 
 async function cardsShown(page: Page) {
   await expect(page.getByRole('article').first()).toBeVisible()
+}
+/** The balance and the ledger's first page (rows, or its empty sentence) are on screen. */
+async function walletShown(page: Page) {
+  await expect(page.getByRole('region', { name: 'موجودی', exact: true })).toBeVisible()
+  await expect(
+    page
+      .getByRole('list', { name: 'تراکنش‌های کیف پول' })
+      .or(page.getByText('هنوز تراکنشی در کیف پول شما ثبت نشده است.')),
+  ).toBeVisible()
+}
+/** Her `GET wallet/` answered as a frozen wallet (read through, then changed: nothing written). */
+async function answerWalletFrozen(page: Page) {
+  await page.route(/\/api\/bff\/wallet\/$/, async (route) => {
+    const response = await route.fetch()
+    const body = (await response.json()) as { data: Record<string, unknown> }
+    body.data = { ...body.data, is_frozen: true, freeze_message: 'کیف پول برای بررسی مسدود است.' }
+    await route.fulfill({ response, json: body })
+  })
 }
 async function paymentsShown(page: Page) {
   await expect(page.getByRole('list', { name: 'پرداخت‌های سفارش' })).toBeVisible()
@@ -92,6 +110,38 @@ const ROUTES: SignedInRoute[] = [
     ready: (page) => expect(page.getByRole('button', { name: 'پرداخت' })).toBeVisible(),
   },
   { name: 'reviews', path: '/account/reviews/', budget: CHECKOUT_BUDGET_KB, ready: cardsShown },
+  // Her wallet (Plan 4 Task 9, read only; held to 246 KB in every state): the balance and the
+  // top-up box over each tab (the ledger, the withdrawals, the payment history), and the same
+  // wallet frozen (its `GET wallet/` answered frozen here: no top-up, no new withdrawal). The
+  // bank's code, the withdrawal form and a payment's detail load on their press only.
+  { name: 'wallet', path: '/account/wallet/', budget: CHECKOUT_BUDGET_KB, ready: walletShown },
+  {
+    name: 'wallet-withdrawals',
+    path: '/account/wallet/?tab=withdrawals',
+    budget: CHECKOUT_BUDGET_KB,
+    ready: (page) =>
+      expect(page.getByRole('heading', { name: 'درخواست‌های برداشت' })).toBeVisible(),
+  },
+  {
+    name: 'wallet-history',
+    path: '/account/wallet/?tab=history',
+    budget: CHECKOUT_BUDGET_KB,
+    ready: (page) => expect(page.getByRole('heading', { name: 'تاریخچهٔ پرداخت' })).toBeVisible(),
+  },
+  {
+    name: 'wallet-frozen',
+    path: '/account/wallet/',
+    budget: CHECKOUT_BUDGET_KB,
+    prepare: answerWalletFrozen,
+    ready: async (page) => {
+      await expect(
+        page
+          .getByRole('region', { name: 'موجودی', exact: true })
+          .getByText('مسدود', { exact: true }),
+      ).toBeVisible()
+      await walletShown(page)
+    },
+  },
 ]
 
 signedInTest.describe('JavaScript budget, signed in (production build)', () => {

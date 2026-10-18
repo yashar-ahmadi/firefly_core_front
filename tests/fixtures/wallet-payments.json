@@ -1,0 +1,122 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "count": 7,
+    "total_pages": 1,
+    "current_page": 1,
+    "page_size": 100,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "uuid": "0a9e0002-0000-4000-8000-000000000002",
+        "method": "wallet",
+        "method_display": "کیف پول",
+        "status": "settled",
+        "status_display": "تسویه شده",
+        "applies_to": "online_charge",
+        "applies_to_display": "پرداخت آنلاین سفارش",
+        "amount": 70000,
+        "order_code": "0404614013",
+        "settled_at": "2026-10-15T22:56:14.798835+03:30",
+        "created": "2026-10-15T22:56:14.789478+03:30",
+        "receipt": null
+      },
+      {
+        "uuid": "0a9e0003-0000-4000-8000-000000000003",
+        "method": "wallet",
+        "method_display": "کیف پول",
+        "status": "settled",
+        "status_display": "تسویه شده",
+        "applies_to": "online_charge",
+        "applies_to_display": "پرداخت آنلاین سفارش",
+        "amount": 460000,
+        "order_code": "7573331679",
+        "settled_at": "2026-10-15T22:55:43.363496+03:30",
+        "created": "2026-10-15T22:55:43.349162+03:30",
+        "receipt": null
+      },
+      {
+        "uuid": "0a9e0007-0000-4000-8000-000000000007",
+        "method": "pos",
+        "method_display": "کارتخوان",
+        "status": "settled",
+        "status_display": "تسویه شده",
+        "applies_to": "online_charge",
+        "applies_to_display": "پرداخت آنلاین سفارش",
+        "amount": 1914000,
+        "order_code": "6138078989",
+        "settled_at": "2026-09-02T17:00:00+03:30",
+        "created": "2026-09-02T17:00:00+03:30",
+        "receipt": null
+      },
+      {
+        "uuid": "0a9e0008-0000-4000-8000-000000000008",
+        "method": "pay_on_delivery",
+        "method_display": "پرداخت در محل",
+        "status": "settled",
+        "status_display": "تسویه شده",
+        "applies_to": "delivery_collection",
+        "applies_to_display": "دریافت در محل",
+        "amount": 8187000,
+        "order_code": "2583973877",
+        "settled_at": "2026-08-08T17:00:00+03:30",
+        "created": "2026-08-08T17:00:00+03:30",
+        "receipt": null
+      },
+      {
+        "uuid": "0a9e0005-0000-4000-8000-000000000005",
+        "method": "wallet",
+        "method_display": "کیف پول",
+        "status": "settled",
+        "status_display": "تسویه شده",
+        "applies_to": "online_charge",
+        "applies_to_display": "پرداخت آنلاین سفارش",
+        "amount": 14300000,
+        "order_code": "0935221845",
+        "settled_at": "2026-08-03T17:00:00+03:30",
+        "created": "2026-08-03T17:00:00+03:30",
+        "receipt": null
+      },
+      {
+        "uuid": "0a9e0009-0000-4000-8000-000000000009",
+        "method": "bank_gateway",
+        "method_display": "درگاه بانکی",
+        "status": "settled",
+        "status_display": "تسویه شده",
+        "applies_to": "online_charge",
+        "applies_to_display": "پرداخت آنلاین سفارش",
+        "amount": 3920000,
+        "order_code": "4450528502",
+        "settled_at": "2026-07-23T17:00:00+03:30",
+        "created": "2026-07-23T17:00:00+03:30",
+        "receipt": {
+          "gateway_title": "زرین پال",
+          "tracking_code": "721558120037009020",
+          "settlement_reference": "1079769047",
+          "card_pan_masked": "6154****9883"
+        }
+      },
+      {
+        "uuid": "0a9e0004-0000-4000-8000-000000000004",
+        "method": "bank_gateway",
+        "method_display": "درگاه بانکی",
+        "status": "settled",
+        "status_display": "تسویه شده",
+        "applies_to": "wallet_topup",
+        "applies_to_display": "شارژ کیف پول",
+        "amount": 60000000,
+        "order_code": null,
+        "settled_at": "2026-07-05T15:00:00+03:30",
+        "created": "2026-07-05T15:00:00+03:30",
+        "receipt": {
+          "gateway_title": "زرین پال",
+          "tracking_code": "969858567316788884",
+          "settlement_reference": "1068098779",
+          "card_pan_masked": "6138****7174"
+        }
+      }
+    ]
+  }
+}

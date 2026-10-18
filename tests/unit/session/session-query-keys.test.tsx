@@ -20,6 +20,13 @@ import { awaitingReviewsKey } from '@/features/orders/reviews/reviews-api'
 import { UNREAD_NOTIFICATIONS_KEY } from '@/features/notifications/unread'
 import { SHIPPING_OPTIONS_KEY } from '@/features/checkout/use-shipping-options'
 import { WALLET_BALANCE_KEY } from '@/features/payment/use-wallet'
+import {
+  ledgerKey,
+  OPEN_WITHDRAWAL_KEY,
+  paymentKey,
+  paymentsKey,
+  withdrawalsKey,
+} from '@/features/wallet/api'
 import { WISHLIST_IDS_KEY } from '@/features/wishlist/hooks'
 import { createQueryClient } from '@/lib/query/query-client'
 import {
@@ -65,6 +72,13 @@ const SESSION_READ_KEYS = [
   paymentDetailKey('0b6f5a9e-3c1d-4f7a-9e2b-1a2b3c4d5e6f'),
   orderQrKey('3067562358'),
   awaitingReviewsKey(2),
+  // The wallet page (Plan 4 Task 9): its ledger, withdrawals (the open one too), the payment
+  // history and a payment's detail, all under WALLET_KEY.
+  ledgerKey({ direction: 'debit', cause: 'order_payment', ordering: '-amount', page: 2 }),
+  withdrawalsKey({ status: 'paid', ordering: 'amount' }),
+  OPEN_WITHDRAWAL_KEY,
+  paymentsKey({ applies_to: 'wallet_topup', page: 3 }),
+  paymentKey('0b6f5a9e-3c1d-4f7a-9e2b-1a2b3c4d5e6f'),
 ]
 
 describe('SESSION_QUERIES', () => {

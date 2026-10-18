@@ -95,11 +95,13 @@ describe('a session that ends on an account page', () => {
     mocks.bffFetch.mockImplementation((path: string) =>
       path === 'account/profile/me/' ? Promise.resolve(ok(SARA)) : expired(),
     )
-    const { default: WalletPage } = await import('@/app/(shop)/account/wallet/page')
-    await openPage('/account/wallet/', <WalletPage />)
+    // A page with no reads of its own (the wallet's has its own since Plan 4 Task 9: its
+    // session end is tests/unit/wallet/wallet-page.test.tsx's).
+    const { default: ReadingListPage } = await import('@/app/(shop)/account/reading-list/page')
+    await openPage('/account/reading-list/', <ReadingListPage />)
     await waitFor(() => expect(mocks.replace).toHaveBeenCalled())
     await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/login/?next=/account/wallet/')
+    expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/login/?next=/account/reading-list/')
     expect(reads().filter((path) => path === 'dashboard/summary/')).toHaveLength(1)
   })
 

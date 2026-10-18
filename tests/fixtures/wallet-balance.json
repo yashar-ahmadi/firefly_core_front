@@ -1,0 +1,18 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "balance": 45170000,
+    "is_frozen": false,
+    "freeze_message": null,
+    "is_top_up_enabled": true,
+    "minimum_top_up_amount": 50000,
+    "maximum_top_up_amount": 50000000,
+    "daily_top_up_limit": 100000000,
+    "remaining_daily_top_up": 100000000,
+    "is_withdrawal_enabled": true,
+    "minimum_withdrawal_amount": 200000,
+    "withdrawal_processing_days": 3,
+    "pending_withdrawal_amount": 0
+  }
+}

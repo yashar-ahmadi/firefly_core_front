@@ -1,0 +1,26 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "uuid": "0a9e0004-0000-4000-8000-000000000004",
+    "method": "bank_gateway",
+    "method_display": "درگاه بانکی",
+    "status": "settled",
+    "status_display": "تسویه شده",
+    "applies_to": "wallet_topup",
+    "applies_to_display": "شارژ کیف پول",
+    "amount": 60000000,
+    "order_code": null,
+    "settled_at": "2026-07-05T15:00:00+03:30",
+    "created": "2026-07-05T15:00:00+03:30",
+    "receipt": {
+      "gateway_title": "زرین پال",
+      "tracking_code": "969858567316788884",
+      "settlement_reference": "1068098779",
+      "card_pan_masked": "6138****7174"
+    },
+    "failure_reason": "",
+    "card_transfer_receipt": null,
+    "manual_payment": null
+  }
+}

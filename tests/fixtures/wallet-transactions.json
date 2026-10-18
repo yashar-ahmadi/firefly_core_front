@@ -1,0 +1,92 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "count": 6,
+    "total_pages": 1,
+    "current_page": 1,
+    "page_size": 100,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "created": "2026-10-15T22:57:54.474719+03:30",
+        "direction": "credit",
+        "direction_display": "واریز",
+        "cause": "withdrawal_reversal",
+        "cause_display": "برگشت درخواست برداشت",
+        "amount": 300000,
+        "balance_after": 45170000,
+        "reason": "لغو توسط مشتری",
+        "order_code": null,
+        "payment_uuid": null,
+        "withdrawal_uuid": "0a9e0001-0000-4000-8000-000000000001"
+      },
+      {
+        "created": "2026-10-15T22:57:45.231010+03:30",
+        "direction": "debit",
+        "direction_display": "برداشت",
+        "cause": "withdrawal",
+        "cause_display": "برداشت به حساب بانکی",
+        "amount": 300000,
+        "balance_after": 44870000,
+        "reason": "",
+        "order_code": null,
+        "payment_uuid": null,
+        "withdrawal_uuid": "0a9e0001-0000-4000-8000-000000000001"
+      },
+      {
+        "created": "2026-10-15T22:56:14.796403+03:30",
+        "direction": "debit",
+        "direction_display": "برداشت",
+        "cause": "order_payment",
+        "cause_display": "پرداخت سفارش",
+        "amount": 70000,
+        "balance_after": 45170000,
+        "reason": "",
+        "order_code": "0404614013",
+        "payment_uuid": "0a9e0002-0000-4000-8000-000000000002",
+        "withdrawal_uuid": null
+      },
+      {
+        "created": "2026-10-15T22:55:43.359453+03:30",
+        "direction": "debit",
+        "direction_display": "برداشت",
+        "cause": "order_payment",
+        "cause_display": "پرداخت سفارش",
+        "amount": 460000,
+        "balance_after": 45240000,
+        "reason": "",
+        "order_code": "7573331679",
+        "payment_uuid": "0a9e0003-0000-4000-8000-000000000003",
+        "withdrawal_uuid": null
+      },
+      {
+        "created": "2026-09-13T13:57:03.324195+03:30",
+        "direction": "credit",
+        "direction_display": "واریز",
+        "cause": "top_up",
+        "cause_display": "شارژ از درگاه",
+        "amount": 60000000,
+        "balance_after": 60000000,
+        "reason": "",
+        "order_code": null,
+        "payment_uuid": "0a9e0004-0000-4000-8000-000000000004",
+        "withdrawal_uuid": null
+      },
+      {
+        "created": "2026-08-03T17:00:00+03:30",
+        "direction": "debit",
+        "direction_display": "برداشت",
+        "cause": "order_payment",
+        "cause_display": "پرداخت سفارش",
+        "amount": 14300000,
+        "balance_after": 45700000,
+        "reason": "",
+        "order_code": "0935221845",
+        "payment_uuid": "0a9e0005-0000-4000-8000-000000000005",
+        "withdrawal_uuid": null
+      }
+    ]
+  }
+}

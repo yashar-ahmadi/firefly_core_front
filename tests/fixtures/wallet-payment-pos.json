@@ -1,0 +1,26 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "uuid": "0a9e0007-0000-4000-8000-000000000007",
+    "method": "pos",
+    "method_display": "کارتخوان",
+    "status": "settled",
+    "status_display": "تسویه شده",
+    "applies_to": "online_charge",
+    "applies_to_display": "پرداخت آنلاین سفارش",
+    "amount": 1914000,
+    "order_code": "6138078989",
+    "settled_at": "2026-09-02T17:00:00+03:30",
+    "created": "2026-09-02T17:00:00+03:30",
+    "receipt": null,
+    "failure_reason": "",
+    "card_transfer_receipt": null,
+    "manual_payment": {
+      "terminal_reference": "5136842404",
+      "card_last_digits": "6978",
+      "payout_reference": "",
+      "received_at": "2026-09-02T17:00:00+03:30"
+    }
+  }
+}

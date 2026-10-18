@@ -604,6 +604,20 @@ signed-in header to another.
   the shop's other pages at most 0.1 KB (`ORDERS_KEY` in the shell's `SESSION_QUERIES`, a lucide
   icon regrouped) and `/checkout/` 0.1–0.2 KB (`useAccountQuery`'s two new options, and `Input`
   regrouped into a chunk the orders' search shares).
+- **The wallet** (`/account/wallet/`, Plan 4 Task 9): a client island in the account shell over
+  the BFF, every key under `WALLET_KEY` (`SESSION_QUERIES`; the balance's own key is shared with
+  the checkout's payment step). The balance and the top-up box load with the page; the three tabs
+  (the ledger, the withdrawals, the payment history: one view at a time, a long page on a phone)
+  are each a `next/dynamic` chunk, and so are the bank's code and Task 3's «در حال انتقال به …»
+  screen (loaded with the bank's answer), Task 3's gateway chooser (behind «تغییر درگاه»: its
+  radio group cost every view about 11 KB on load), the withdrawal form, its cancel question and
+  a payment's detail sheet (`wallet-page.tsx`, `withdrawals.tsx`, `top-up-gateway.tsx`,
+  `top-up-parts.tsx`). Measured by the signed-in guard (sara's wallet, read only; also answered
+  frozen): 229.5–233.4 KB on a desktop and a phone, 235.1 KB at most with push on. Adding the
+  route regrouped shared chunks for other pages without adding code to them (Turbopack groups
+  modules by the routes that load them): `/checkout/` −0.2 KB, the product page −1.3 KB, login
+  −0.3 KB, the card-transfer page −0.3 KB, the payment result −0.1–0.2 KB, `/register/` +0.8 KB,
+  `/forgot-password/` +0.2 KB, the catalog's listings ±0.0–0.1 KB.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -847,7 +861,14 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   page (an API guard cancels it when the test ends earlier) and buys it again (one `cart/reorder/`;
   the guard empties his cart again). The read-only orders spec (`tests/e2e/account/orders.spec.ts`,
   every device project, sara) aborts any write the pages could make and answers the review's
-  submission itself (a live review cannot be taken back). A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
+  submission itself (a live review cannot be taken back). The wallet's read-only spec
+  (`tests/e2e/account/wallet.spec.ts`, every device project) reads shirin's wallet (ruling P4-R4:
+  the account with a wallet history; her own shared session, `tests/e2e/support/shirin.ts`) and
+  aborts every write; her wallet journey (`wallet-journey.spec.ts`, journeys) presses a top-up the
+  dev bank refuses (one `wallet/top-up/`, no money moves), then files ONE withdrawal request and
+  cancels it in the same test (the money back at once: her balance asserted exactly as before);
+  a guard cancels any open request of hers before and after (`wallet_withdrawal` is five an hour,
+  counted on success: one request per run). A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
   mobile each run, for the guest's unpaid-orders ceiling; the dev backend answers a bank intent
   `400 gateway_unknown` when a gateway is named (the chooser shows), and the page withdraws that
   gateway for itself and tries the other with a press, refused too, until the bank routes close;
@@ -896,7 +917,7 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
 - **Signed-in specs** (Plan 3). Every login, and every logout, is one `auth_attempt` at the
   backend, 20 a minute per address for the whole run (the BFF forwards the visitor's address), so
   specs never log in per test or in a loop (`tests/e2e/support/session.ts`, which counts a full
-  run's attempts: 25). Measured from the backend's log, Playwright's project-by-project order kept
+  run's attempts: 29). Measured from the backend's log, Playwright's project-by-project order kept
   them to at most 8 in any minute of a run (Plan 4 Task 2; 5 before the journeys project gained
   the signed-in checkout) and 9 across two runs back to back (Plan 3); that is the
   scheduler's behaviour as configured, not a guarantee, so keep the total low. A spec that only reads with a session uses

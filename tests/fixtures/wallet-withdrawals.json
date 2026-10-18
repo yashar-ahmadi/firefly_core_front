@@ -1,0 +1,44 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "count": 2,
+    "total_pages": 1,
+    "current_page": 1,
+    "page_size": 100,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "uuid": "0a9e0001-0000-4000-8000-000000000001",
+        "amount": 300000,
+        "status": "cancelled",
+        "status_display": "لغو شده",
+        "account_holder_name": "شیرین تهرانی",
+        "iban": "IR062960000000100324200001",
+        "card_number": "6037991234567893",
+        "bank_name": "",
+        "rejection_reason": "",
+        "reviewed_at": "2026-10-15T22:57:54.462706+03:30",
+        "paid_at": null,
+        "payout_reference": "",
+        "created": "2026-10-15T22:57:45.224197+03:30"
+      },
+      {
+        "uuid": "0a9e0006-0000-4000-8000-000000000006",
+        "amount": 5000000,
+        "status": "paid",
+        "status_display": "پرداخت شده",
+        "account_holder_name": "شیرین تهرانی",
+        "iban": "IR41968675524242817077818",
+        "card_number": "6297551857770004",
+        "bank_name": "بانک ملت",
+        "rejection_reason": "",
+        "reviewed_at": "2026-08-24T15:00:00+03:30",
+        "paid_at": "2026-08-24T15:00:00+03:30",
+        "payout_reference": "3745309830",
+        "created": "2026-08-24T15:00:00+03:30"
+      }
+    ]
+  }
+}
