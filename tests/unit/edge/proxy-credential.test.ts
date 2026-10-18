@@ -116,4 +116,24 @@ describe('the route kind', () => {
     expect(resolveRedirect).not.toHaveBeenCalled()
     expect(refreshAccess).not.toHaveBeenCalled()
   })
+
+  // A path the proxy leaves alone still renders a page there (an asset-like URL under a catalog
+  // prefix: the 404 page, with the layouts' snippet gate). It is never marked, and a visitor's
+  // own marker is dropped on the way: "unmarked = no operator code" holds literally.
+  it('drops a visitor’s own marker on a path it leaves alone', async () => {
+    const { proxy } = await load()
+    const res = await proxy(request('/product/photo.png', { 'x-ff-route-kind': 'page' }))
+    expect(kindOf(res)).toBeNull()
+    const kept = res.headers.get('x-middleware-override-headers')?.split(',') ?? []
+    expect(kept).toContain('host')
+    expect(kept).not.toContain('x-ff-route-kind')
+    expect(knownSources).not.toHaveBeenCalled()
+  })
+
+  it('touches no request header of a path it leaves alone otherwise', async () => {
+    const { proxy } = await load()
+    const res = await proxy(request('/product/photo.png'))
+    expect(res.headers.get('x-middleware-override-headers')).toBeNull()
+    expect(res.headers.get('x-middleware-next')).toBe('1')
+  })
 })

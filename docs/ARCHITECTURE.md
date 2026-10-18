@@ -634,7 +634,8 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
   no redirect lookup, which would count a hit, no session refresh; an undecodable one gets the
   404 page). The snippet loader (`src/features/settings/snippets.tsx` through
   `operator-code.ts`) renders only on `page`: on a credential page, and on anything the proxy
-  did not mark (fail closed: the paths its matcher skips, such as an asset-like URL's 404),
+  did not mark (fail closed: the paths its matcher skips, such as an asset-like URL's 404, and
+  the paths it leaves alone, where it drops a marker the visitor sent),
   there are no snippet scripts, styles, meta tags, and no HTML zones either (the top zone, the
   footers' trust seals: their markup is unsanitised operator HTML, and `<img onerror>` would
   run). Analytics therefore never sees these URLs (`page_location`).

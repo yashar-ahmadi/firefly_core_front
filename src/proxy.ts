@@ -6,6 +6,7 @@ import { isExpiring } from '@/lib/auth/jwt'
 import { refreshAccess } from '@/lib/auth/refresh'
 import { CookieJar, readSession } from '@/lib/bff/session'
 import { accountLoginPath, isAccountPath } from '@/lib/edge/account-guard'
+import { isDecodable, isForwarded, isSkipped } from '@/lib/edge/proxy-paths'
 import { knownSources, resolveRedirect, ruleSpelling } from '@/lib/edge/redirects'
 import { statusPage } from '@/lib/edge/status-page'
 import { getClientIp } from '@/lib/http/client-ip'
@@ -15,7 +16,8 @@ import { isQuietPrefetch } from '@/lib/http/prefetch'
  * Runs before every page (Node.js runtime), in this order:
  * 1. `/media/*`, `/static/*` and `/sitemap.xml` are proxied to the Django backend (one that cannot
  *    be percent-decoded answers 404 instead).
- * 2. Next internals, route handlers (`/api/*`, `/s/*`, `/healthz/`) and asset files are left alone.
+ * 2. Next internals, route handlers (`/api/*`, `/s/*`, `/healthz/`) and asset files are left alone
+ *    (unmarked: a visitor's own `x-ff-route-kind` is dropped on the way).
  *    Catalog paths are never asset files: one with an extension that cannot be decoded goes on.
  * 3. GET/HEAD: operator redirect rules answer 301/302, or 410 with a status page. Only a path
  *    whose spelling is a known rule source costs an API call (see `redirects.ts`), so a legacy
@@ -40,37 +42,6 @@ const NOT_FOUND_TITLE = 'صفحه پیدا نشد'
 const NOT_FOUND_MESSAGE = 'نشانی این صفحه درست نیست. آن را بررسی کنید یا از صفحهٔ اصلی ادامه دهید.'
 
 const SESSION_COOKIES = [COOKIE.access, COOKIE.refresh, COOKIE.flag]
-const SKIPPED_PREFIX = /^\/(?:_next|api|s|icons)\//
-/** The health probe (src/app/healthz): never a redirect lookup or a session refresh. */
-const HEALTH_CHECK = /^\/healthz\/?$/
-/**
- * The last segment has a file extension, other than `.xml` and the legacy page extensions that
- * operators may redirect from older platforms (`.html`, `.htm`, `.php`, `.asp`, `.aspx`).
- */
-const ASSET_FILE = /\/[^/]*\.(?!xml$|html?$|php$|aspx?$)[^/.]+$/
-
-/** Whether every `%` in the path starts a valid UTF-8 escape (`%ZZ` or a cut `%E0%A4%A` do not). */
-function isDecodable(pathname: string): boolean {
-  try {
-    decodeURIComponent(pathname)
-    return true
-  } catch {
-    return false
-  }
-}
-
-function isForwarded(pathname: string): boolean {
-  return pathname === '/sitemap.xml' || /^\/(?:media|static)\//.test(pathname)
-}
-
-/** Catalog routes, which never serve files (the matcher sends extension-bearing ones here too). */
-const CATALOG_PATH = /^\/(?:product-category|brand|product)\//
-
-function isSkipped(pathname: string, decodable: boolean): boolean {
-  if (SKIPPED_PREFIX.test(pathname) || HEALTH_CHECK.test(pathname)) return true
-  // An undecodable catalog path is a page URL gone wrong: it goes on to the 404 guard.
-  return ASSET_FILE.test(pathname) && (decodable || !CATALOG_PATH.test(pathname))
-}
 
 /** Proxy to the API host, without the visitor's session cookies or credentials. */
 function forward(request: NextRequest, apiUrl: string): NextResponse {
@@ -87,7 +58,6 @@ async function redirectFor(
   decodable: boolean,
 ): Promise<Response | null> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return null
-  if (request.headers.get('purpose') === 'prefetch') return null
   const url = request.nextUrl.clone()
   url.searchParams.delete('_rsc')
   // Only listed sources cost an API call. A well-formed path with no local spelling is left to
@@ -144,6 +114,17 @@ function toLogin(request: NextRequest, env: ServerEnv, clear: boolean): NextResp
     jar.applyTo(response, isSecure(env))
   }
   return response
+}
+
+/**
+ * A path the proxy leaves alone is never marked; a visitor's own marker is dropped on the way,
+ * so what renders there (an asset-like URL's 404 page) is unmarked and gets no operator code.
+ */
+function leftAlone(request: NextRequest): NextResponse {
+  if (!request.headers.has(ROUTE_KIND_HEADER)) return NextResponse.next()
+  const headers = new Headers(request.headers)
+  headers.delete(ROUTE_KIND_HEADER)
+  return NextResponse.next({ request: { headers } })
 }
 
 /** The request headers the page renders with: the visitor's, with the proxy's own route kind. */
@@ -210,7 +191,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
     return decodable ? forward(request, getServerEnv().FIREFLY_API_URL) : notFoundPage()
   }
   // Skipped paths never read the environment, so the health probe reports a broken one itself.
-  if (isSkipped(pathname, decodable)) return NextResponse.next()
+  if (isSkipped(pathname, decodable)) return leftAlone(request)
 
   const kind: RouteKind = carriesCredential(request.nextUrl) ? 'credential' : 'page'
   // A prefetch is marked like the visit (a kept document is shown on the click, and the snippet

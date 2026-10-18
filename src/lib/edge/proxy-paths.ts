@@ -1,0 +1,35 @@
+// The paths the proxy (src/proxy.ts) treats apart, by their shape alone. Pure.
+
+const SKIPPED_PREFIX = /^\/(?:_next|api|s|icons)\//
+/** The health probe (src/app/healthz): never a redirect lookup or a session refresh. */
+const HEALTH_CHECK = /^\/healthz\/?$/
+/**
+ * The last segment has a file extension, other than `.xml` and the legacy page extensions that
+ * operators may redirect from older platforms (`.html`, `.htm`, `.php`, `.asp`, `.aspx`).
+ */
+const ASSET_FILE = /\/[^/]*\.(?!xml$|html?$|php$|aspx?$)[^/.]+$/
+
+/** Whether every `%` in the path starts a valid UTF-8 escape (`%ZZ` or a cut `%E0%A4%A` do not). */
+export function isDecodable(pathname: string): boolean {
+  try {
+    decodeURIComponent(pathname)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** `/media/*`, `/static/*` and `/sitemap.xml`: proxied to the Django backend. */
+export function isForwarded(pathname: string): boolean {
+  return pathname === '/sitemap.xml' || /^\/(?:media|static)\//.test(pathname)
+}
+
+/** Catalog routes, which never serve files (the matcher sends extension-bearing ones here too). */
+const CATALOG_PATH = /^\/(?:product-category|brand|product)\//
+
+/** Next internals, route handlers, the health check and asset files: left alone. */
+export function isSkipped(pathname: string, decodable: boolean): boolean {
+  if (SKIPPED_PREFIX.test(pathname) || HEALTH_CHECK.test(pathname)) return true
+  // An undecodable catalog path is a page URL gone wrong: it goes on to the 404 guard.
+  return ASSET_FILE.test(pathname) && (decodable || !CATALOG_PATH.test(pathname))
+}

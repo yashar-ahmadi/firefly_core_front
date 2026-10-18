@@ -380,7 +380,7 @@ docs/ARCHITECTURE.md, docs/CUSTOMIZATION.md, docs/DEPLOYMENT.md
 
   **`proxy.ts` order of work:**
   1. **Forward** `/media/*`, `/static/*` and `/sitemap.xml` to `FIREFLY_API_URL` with `NextResponse.rewrite(new URL(pathname + search, apiUrl))`.
-  2. Skip `_next`, `api`, `s/`, assets and prefetch requests.
+  2. Skip `_next`, `api`, `s/`, assets and prefetch requests. *(Prefetches superseded by Plan 4 Task 4: they reach the proxy, which only marks them with their route kind, `isQuietPrefetch`.)*
   3. For GET and HEAD only, **resolve redirects** (only when `ruleSpelling` is in `knownSources()`), answering 301 or 302 with a `Location`, or a 410 `statusPage`.
   4. **Refresh the session.** If `ff_rt` exists and `ff_at` is missing or expiring, call `refreshAccess`.
      - On success, set the new `ff_at` on the response and on the forwarded request cookies (`NextResponse.next({ request: { headers } })`), so Server Components read it.

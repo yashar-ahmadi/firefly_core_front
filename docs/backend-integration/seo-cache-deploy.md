@@ -352,6 +352,9 @@ export const config = { matcher: [{
   missing: [{ type: 'header', key: 'next-router-prefetch' }, { type: 'header', key: 'purpose', value: 'prefetch' }] }] };
 ```
 Notes:
+- *Superseded in this storefront (Plan 4 Task 4): the matcher no longer drops prefetches. They reach the proxy,
+  which only marks them with their route kind and skips the redirect lookup and the session refresh
+  (`isQuietPrefetch()`, `src/proxy.ts`); see docs/ARCHITECTURE.md «Payment credentials in URLs».*
 - Do it in proxy/middleware, **not** in `page.tsx` on not-found: pages can only emit 307/308, cannot emit 410, and a
   streamed response turns redirects into meta refresh.
 - Trailing slash: Next normalizes before proxy. With `trailingSlash: true` the slashed old URL gets one 301; the
@@ -783,7 +786,8 @@ server { server_name firefly-core.ir;                       # SITE_DOMAIN = fire
 
 **Redirects** — [ ] proxy.ts with list set + resolve only for listed paths; [ ] `path` = encoded pathname+search;
 [ ] 301/302 via `NextResponse.redirect`, 410 via status page; [ ] failures ⇒ `NextResponse.next()`; [ ] resolve
-never cached; [ ] matcher excludes `_next`, `api/`, `s/`, `media/`, `static/`, robots, sitemap, prefetch.
+never cached; [ ] matcher excludes `_next`, `api/`, `s/`, `media/`, `static/`, robots, sitemap, prefetch
+*(prefetch superseded: prefetches reach the proxy and are only marked, see the note under §4.4)*.
 
 **Short links** — [ ] `app/s/[code]/route.ts` force-dynamic, 302, 404/410/503 mapping; [ ] no internal links to `/s/`;
 [ ] optional `skipTrailingSlashRedirect`; [ ] short domain DNS/TLS + `SHORT_LINK_BASE_URL` aligned.
