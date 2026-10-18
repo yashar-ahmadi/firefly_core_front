@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubBrowserApis } from '../support/dom-stubs'
@@ -90,35 +90,45 @@ describe('the route after placement follows the order', () => {
     expect(pay.mock.calls[0]![0]).toEqual({ route: 'bank_gateway' })
   })
 
+  // The handoff's end is driven by the fake clock (the shared countdown clock and `Date` both
+  // fake): the handoff screen stays until the test moves time past `expires_at`. It used to get
+  // a handoff already expired, which the page rightly drops at once: the screen lived for one
+  // commit, and an assertion on it raced the countdown's own effect (12 of 31 repeats failed).
   it('a bank handoff that expired: the routes again, nothing running, a new press pays', async () => {
-    const user = userEvent.setup()
-    const expired = new Date(Date.now() - 1000).toISOString()
-    const pay = vi
-      .fn()
-      .mockImplementationOnce(async () =>
-        ok(intent('bank_gateway', { handoff: handoff({ expires_at: expired }) }), 201),
-      )
-      .mockImplementationOnce(async () => ok(intent('bank_gateway'), 201))
-    serve(mocks.bffFetch, () => onlineCart(), {
-      [PLACE]: async () => ok(placement(), 201),
-      [LINK_INTENT]: pay,
-    })
-    renderCheckout({ cart: onlineCart() })
-    await placeNow(user)
-    // The bank's handoff screen, then its time is up: the order again.
-    expect(await screen.findByText(/در حال انتقال به/)).toBeInTheDocument()
-    expect(await screen.findByRole('alert', {}, { timeout: 8000 })).toHaveTextContent(
-      'مهلت انتقال به درگاه تمام شد',
-    )
-    const panel = screen.getByRole('region', { name: 'سفارش شما ثبت شد' })
-    // Not «preparing» any more: the routes and the button work.
-    expect(within(panel).queryByRole('status')).not.toBeInTheDocument()
-    const button = within(panel).getByRole('button', { name: 'پرداخت سفارش' })
-    expect(button).toBeEnabled()
-    expect(within(panel).getByRole('radio', { name: /درگاه بانکی/ })).toBeEnabled()
-    await user.click(button)
-    await waitFor(() => expect(pay).toHaveBeenCalledTimes(2))
-  }, 15_000)
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+      const expiresAt = new Date(Date.now() + 60_000).toISOString()
+      const pay = vi
+        .fn()
+        .mockImplementationOnce(async () =>
+          ok(intent('bank_gateway', { handoff: handoff({ expires_at: expiresAt }) }), 201),
+        )
+        .mockImplementationOnce(async () => ok(intent('bank_gateway'), 201))
+      serve(mocks.bffFetch, () => onlineCart(), {
+        [PLACE]: async () => ok(placement(), 201),
+        [LINK_INTENT]: pay,
+      })
+      renderCheckout({ cart: onlineCart() })
+      await placeNow(user)
+      // The bank's handoff screen, until its time is up: then the order again.
+      expect(await screen.findByText(/در حال انتقال به/)).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+      await act(async () => void (await vi.advanceTimersByTimeAsync(61_000)))
+      expect(screen.queryByText(/در حال انتقال به/)).not.toBeInTheDocument()
+      expect(screen.getByRole('alert')).toHaveTextContent('مهلت انتقال به درگاه تمام شد')
+      const panel = screen.getByRole('region', { name: 'سفارش شما ثبت شد' })
+      // Not «preparing» any more: the routes and the button work.
+      expect(within(panel).queryByRole('status')).not.toBeInTheDocument()
+      const button = within(panel).getByRole('button', { name: 'پرداخت سفارش' })
+      expect(button).toBeEnabled()
+      expect(within(panel).getByRole('radio', { name: /درگاه بانکی/ })).toBeEnabled()
+      await user.click(button)
+      await waitFor(() => expect(pay).toHaveBeenCalledTimes(2))
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 
   it('a confirmation chosen, but the order owes something online: the routes for the order', async () => {
     const user = userEvent.setup()
