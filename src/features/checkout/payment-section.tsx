@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
+import { isBankRoute } from '@/features/payment/routes'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
 import type { RouteChoiceState } from '@/features/payment/use-route-choice'
 import type { PaymentRoute } from '@/lib/api/types/payment'
@@ -21,14 +22,18 @@ const { RadioGroup } = STEP_CONTROLS
 // (disabled ones with their reason), the bank's gateways under the chosen bank route when there
 // is more than one, «ورود برای استفاده از کیف پول» for a guest; with nothing owed online, no
 // chooser: the order is confirmed and paid at the door. Before placement for the cart, after it
-// for the order (placed-order.tsx).
+// for the order (placed-order.tsx), and on the payment link's page. A list that could not be
+// read is said, with «تلاش دوباره» (the gateways: the bank's routes cannot be judged without them).
 
 export interface PaymentSectionProps {
   choice: RouteChoiceState
   /** Nothing owed online: a confirmation, not a choice (D, at the door). */
   onDelivery: number
   /** The shop's lists (null methods: the server could not read them; «تلاش دوباره»). */
-  catalog: Pick<PaymentCatalogState, 'methods' | 'retry' | 'retrying' | 'retryFailed'>
+  catalog: Pick<
+    PaymentCatalogState,
+    'methods' | 'gatewaysFailed' | 'retry' | 'retrying' | 'retryFailed'
+  >
   /** A payment is on its way. */
   busy?: boolean
   /** Said when the shopper chooses (the step stays open, say). */
@@ -36,6 +41,25 @@ export interface PaymentSectionProps {
   /** After a login, back here. */
   loginNext?: string
   footer?: ReactNode
+}
+
+function Retry({
+  catalog,
+  failedAgain,
+}: {
+  catalog: PaymentSectionProps['catalog']
+  failedAgain: string
+}) {
+  return (
+    <>
+      <Button variant="outline" loading={catalog.retrying} onClick={() => void catalog.retry()}>
+        تلاش دوباره
+      </Button>
+      <p role="status" className="text-sm leading-6 text-ink-700">
+        {catalog.retryFailed ? failedAgain : ''}
+      </p>
+    </>
+  )
 }
 
 function Note({ tone, children }: { tone: 'info' | 'warning'; children: ReactNode }) {
@@ -71,14 +95,10 @@ export function PaymentSection({
     return (
       <div className="flex flex-col items-start gap-3">
         <Note tone="warning">{'روش\u{200C}های پرداخت بارگذاری نشد.'}</Note>
-        <Button variant="outline" loading={catalog.retrying} onClick={() => void catalog.retry()}>
-          تلاش دوباره
-        </Button>
-        <p role="status" className="text-sm leading-6 text-ink-700">
-          {catalog.retryFailed
-            ? 'روش\u{200C}های پرداخت باز هم بارگذاری نشد؛ کمی بعد دوباره تلاش کنید.'
-            : ''}
-        </p>
+        <Retry
+          catalog={catalog}
+          failedAgain={'روش\u{200C}های پرداخت باز هم بارگذاری نشد؛ کمی بعد دوباره تلاش کنید.'}
+        />
       </div>
     )
   }
@@ -103,6 +123,19 @@ export function PaymentSection({
     <div className="flex flex-col gap-3">
       {routes.length === 0 && (
         <Note tone="warning">{'روشی برای پرداخت این مبلغ در دسترس نیست.'}</Note>
+      )}
+      {catalog.gatewaysFailed && routes.some((route) => isBankRoute(route.route)) && (
+        <div className="flex flex-col items-start gap-3">
+          <Note tone="warning">
+            {
+              'فهرست درگاه\u{200C}های بانکی خوانده نشد؛ تا خوانده نشود، پرداخت با درگاه بانکی ممکن نیست.'
+            }
+          </Note>
+          <Retry
+            catalog={catalog}
+            failedAgain={'درگاه\u{200C}های بانکی باز هم بارگذاری نشد؛ کمی بعد دوباره تلاش کنید.'}
+          />
+        </div>
       )}
       {choice.stale && (
         <Note tone="warning">

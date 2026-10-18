@@ -2,7 +2,10 @@
 
 import { CircleAlert } from 'lucide-react'
 import Link from 'next/link'
+import { useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
+import { Spinner } from '@/components/ui/spinner'
 import { adjustmentText } from '@/features/cart/adjustments'
 import { lineWarning } from '@/features/cart/line-warning'
 import type { Cart, LineIssue } from '@/lib/api/types/cart'
@@ -12,7 +15,8 @@ import type { PlacementNotice } from './use-place-order'
 
 // A refused placement, said (order digest §8.1): the API's sentence, the lines it named and how
 // (an unavailable item, a quantity the stock no longer covers), the quantities a merge changed,
-// and the way out (the cart, the orders awaiting payment, tracking).
+// and the way out (the cart, the orders awaiting payment, tracking). Something to try again here
+// is busy while it runs (one run at a time) and says, politely, when it failed again.
 
 /** What an unavailable item says: its cart line's own warning, else one for its issue. */
 function itemWarning(item: OrderItemUnavailable, cart: Cart | undefined): string {
@@ -55,15 +59,7 @@ export function NoticeBox({ notice, cart }: { notice: PlacementNotice; cart?: Ca
       {notice.adjustments && notice.adjustments.length > 0 && (
         <p className="ms-7 text-ink-800">{notice.adjustments.map(adjustmentText).join(' ')}</p>
       )}
-      {notice.retry && (
-        <button
-          type="button"
-          onClick={notice.retry.run}
-          className={`${buttonClasses({ variant: 'outline', size: 'sm' })} self-start`}
-        >
-          {notice.retry.label}
-        </button>
-      )}
+      {notice.retry && <RetryAction retry={notice.retry} />}
       {notice.link && (
         <Link
           href={notice.link.href}
@@ -74,5 +70,40 @@ export function NoticeBox({ notice, cart }: { notice: PlacementNotice; cart?: Ca
         </Link>
       )}
     </div>
+  )
+}
+
+function RetryAction({ retry }: { retry: NonNullable<PlacementNotice['retry']> }) {
+  const running = useRef(false)
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const run = async () => {
+    if (running.current) return
+    running.current = true
+    setBusy(true)
+    setFailed(false)
+    const done = await retry.run().catch(() => false)
+    running.current = false
+    setBusy(false)
+    setFailed(!done)
+  }
+  return (
+    <>
+      {/* Busy, it stays focusable (aria-disabled): the focus is still there when it answers. */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="self-start"
+        aria-disabled={busy || undefined}
+        aria-busy={busy || undefined}
+        iconStart={busy ? <Spinner size="sm" /> : undefined}
+        onClick={run}
+      >
+        {retry.label}
+      </Button>
+      <p role="status" className="text-sm leading-6 text-ink-700">
+        {failed ? retry.failedAgain : ''}
+      </p>
+    </>
   )
 }

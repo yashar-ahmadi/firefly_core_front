@@ -45,6 +45,7 @@ export async function submitPlacement(
 const CART_LINK = { href: '/cart/', label: 'بازگشت به سبد خرید' }
 const TOTAL_UNREAD =
   'مبلغ سفارش تغییر کرد، ولی سبد خرید دوباره خوانده نشد. سبد را دوباره بخوانید تا مبلغ جدید را ببینید.'
+const UNREAD_AGAIN = 'سبد خرید دوباره خوانده نشد؛ کمی بعد دوباره تلاش کنید.'
 
 /** What a refusal may change on the page (use-place-order's state, the checkout's steps). */
 export interface RefusalDeps {
@@ -87,7 +88,7 @@ export async function handleRefusal(error: PlacementError, sent: number, deps: R
       return deps.setNotice({
         message: TOTAL_UNREAD,
         problem: 'total_changed',
-        retry: { label: 'خواندن دوباره\u{0654} سبد خرید', run: () => void ask() },
+        retry: { label: 'خواندن دوباره\u{0654} سبد خرید', run: ask, failedAgain: UNREAD_AGAIN },
       })
     }
     case 'session':

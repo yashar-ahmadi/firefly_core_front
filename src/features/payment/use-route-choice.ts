@@ -9,6 +9,7 @@ import {
   defaultGateway,
   defaultRoute,
   gatewayCodeFor,
+  isBankRoute,
   isWalletRoute,
   walletLoginOffered,
   type RouteChoice,
@@ -21,7 +22,8 @@ import { useWalletBalance } from './use-wallet'
 // shopper's own choice while the rules allow it, otherwise (nothing chosen yet) the shop's
 // default (the first enabled non-wallet route in the operator's order). A choice the rules no
 // longer allow is never swapped silently: the step asks again (`stale`). The bank's gateway is
-// the shopper's when the chooser shows, the shop's default otherwise.
+// the shopper's when the chooser shows, the shop's default otherwise. While the gateway list
+// could not be read, no route is chosen for the shopper (the bank's state is unknown).
 
 export interface RouteAmounts {
   /** What is owed online now (A before placement, O after). */
@@ -86,7 +88,8 @@ export function useRouteChoice({
   }
   const routes = input ? availableRoutes(input) : []
   const mine = own ? routes.find((choice) => choice.route === own.route) : undefined
-  const chosen = mine ? (mine.enabled ? mine : null) : defaultRoute(routes)
+  const bankUnknown = catalog.gatewaysFailed && routes.some((choice) => isBankRoute(choice.route))
+  const chosen = mine ? (mine.enabled ? mine : null) : bankUnknown ? null : defaultRoute(routes)
   const gateways = chosen?.gateways ?? []
   const gateway =
     gateways.find(({ code }) => code === own?.gateway)?.code ??

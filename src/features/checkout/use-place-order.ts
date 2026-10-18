@@ -35,8 +35,11 @@ export interface PlacementNotice {
   problem: PlacementProblem
   /** A way out: the cart, the orders waiting for payment, login. */
   link?: { href: string; label: string }
-  /** Something to try again here (the cart read again after a total change). */
-  retry?: { label: string; run: () => void }
+  /**
+   * Something to try again here (the cart read again after a total change): resolves true once
+   * it worked, false when it failed again (said politely beside the button).
+   */
+  retry?: { label: string; run: () => Promise<boolean>; failedAgain: string }
   items?: OrderItemUnavailable[]
   adjustments?: CartAdjustment[]
 }

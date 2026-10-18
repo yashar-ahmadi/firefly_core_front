@@ -9,8 +9,7 @@ import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
-import { IntentError } from '@/features/payment/api'
-import { intentMessage } from '@/features/payment/intent-messages'
+import { BANK_UNUSABLE, intentMessage } from '@/features/payment/intent-messages'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
 import { useRouteChoice, type RouteChoiceState } from '@/features/payment/use-route-choice'
 import type { PaymentRoute } from '@/lib/api/types/payment'
@@ -124,9 +123,11 @@ export function PlacedOrderPanel({
           <p className="flex items-start gap-2 text-base leading-7 font-medium text-ink-900">
             <CircleAlert aria-hidden className="mt-1 size-5 shrink-0 text-danger" />
             <span>
-              {error
-                ? intentMessage(bankGone ? new IntentError('gateway_broken', error.cause) : error)
-                : 'مهلت انتقال به درگاه تمام شد؛ دوباره پرداخت کنید.'}
+              {bankGone
+                ? BANK_UNUSABLE
+                : error
+                  ? intentMessage(error)
+                  : 'مهلت انتقال به درگاه تمام شد؛ دوباره پرداخت کنید.'}
             </span>
           </p>
           {bankGone && supportPhone && (
