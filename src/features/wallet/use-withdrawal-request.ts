@@ -7,6 +7,7 @@ import { useMarkFeatureDisabled } from '@/features/settings/feature-context'
 import type { WalletBalance } from '@/lib/api/types/payment'
 import type { WithdrawalInput, WithdrawalRequest } from '@/lib/api/types/wallet'
 import { NO_WAIT, restartWait, type Wait } from '@/lib/forms/waits'
+import { toPersianDigits } from '@/lib/format/digits'
 import { formatToman } from '@/lib/format/number'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { OPEN_WITHDRAWAL_KEY, postWithdrawal } from './api'
@@ -18,7 +19,8 @@ import { walletChanged } from './wallet-queries'
 // presses (the API takes no Idempotency-Key here, so a lost answer is never sent again: the open
 // request is read instead). 201: said, the money's reads again (it left the balance now), the
 // request to the page. Each refusal lands where the form says it: on a field, for the form, or
-// on the page (the open request shown, the form closed).
+// on the page (the open request shown, the form closed). Under the minimum: the wallet read
+// again and its fresh minimum said (the shop may have moved it), else the API's own sentence.
 
 export interface WithdrawalOutcome {
   onFiled: (request: WithdrawalRequest) => void
@@ -28,7 +30,13 @@ export interface WithdrawalOutcome {
   onClosed: (reason: string) => void
 }
 
-export function useWithdrawalRequest(wallet: WalletBalance, outcome: WithdrawalOutcome) {
+/** `GET wallet/` again; the fresh answer (undefined: it could not be read). */
+export type RefreshWallet = () => Promise<WalletBalance | undefined>
+
+export function useWithdrawalRequest(
+  outcome: WithdrawalOutcome,
+  refreshWallet: RefreshWallet = async () => undefined,
+) {
   const client = useQueryClient()
   const expire = useSessionExpired()
   const markFeatureDisabled = useMarkFeatureDisabled()
@@ -62,8 +70,12 @@ export function useWithdrawalRequest(wallet: WalletBalance, outcome: WithdrawalO
           return expire()
         case 'fields':
           return onField(refusal.errors)
-        case 'below_minimum':
-          return onField({ amount: belowMinimum(wallet) })
+        case 'below_minimum': {
+          const fresh = await refreshWallet()
+          return onField({
+            amount: fresh ? belowMinimum(fresh) : toPersianDigits(refusal.message),
+          })
+        }
         case 'insufficient':
           walletChanged(client)
           return onField({ amount: refusal.message })

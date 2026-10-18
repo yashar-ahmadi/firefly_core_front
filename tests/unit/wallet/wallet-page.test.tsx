@@ -6,7 +6,7 @@ import { ApiError } from '@/lib/api/errors'
 import { catalog } from '../payment/fixtures'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { balance, payments, topUpDetail, transactions, withdrawals } from './fixtures'
-import { ok, renderWallet } from './wallet-support'
+import { ok, refuseLive, renderWallet } from './wallet-support'
 
 // `/account/wallet/` «کیف پول» (order digest §1.5, §3.3, §7; Review Focus #5): the balance and
 // the top-up box, then the tabs «تراکنش‌ها», «برداشت», «تاریخچهٔ پرداخت» (links: each view has its
@@ -175,6 +175,33 @@ describe('the `wallet` switch off (Review Focus #5)', () => {
     expect(await screen.findByRole('region', { name: 'موجودی' })).toBeVisible()
     expect(screen.queryByRole('region', { name: 'افزایش موجودی' })).toBeNull()
     expect(within(tabs()).getByRole('link', { name: 'برداشت' })).toBeVisible()
+  })
+})
+
+describe('a refusal about the bounds', () => {
+  it('under the withdrawal minimum, the wallet’s re-read failing: the API’s sentence, no stale minimum', async () => {
+    let reads = 0
+    const served = mocks.bffFetch.getMockImplementation()!
+    mocks.bffFetch.mockImplementation((path: string, init?: unknown) => {
+      if (path === 'wallet/' && ++reads > 1)
+        return Promise.reject(new ApiError({ status: 404, code: 'not_found', detail: 'نیست' }))
+      if (path === 'wallet/withdrawal/request/') return refuseLive('wd-below')
+      return served(path, init)
+    })
+    mocks.search = 'tab=withdrawals'
+    const { user } = renderPage()
+    await user.click(await screen.findByRole('button', { name: 'درخواست برداشت جدید' }))
+    await user.type(await screen.findByRole('textbox', { name: /مبلغ برداشت/ }), '300000')
+    await user.type(screen.getByRole('textbox', { name: /نام صاحب حساب/ }), 'شیرین تهرانی')
+    await user.click(screen.getByRole('textbox', { name: /شماره شبا/ }))
+    await user.paste('IR062960000000100324200001')
+    await user.click(screen.getByRole('button', { name: 'ثبت درخواست برداشت' }))
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: /مبلغ برداشت/ })).toHaveAccessibleDescription(
+        /مبلغ برداشت نمی‌تواند کمتر از ۲۰۰٬۰۰۰ تومان باشد\./,
+      ),
+    )
+    expect(reads).toBe(2)
   })
 })
 

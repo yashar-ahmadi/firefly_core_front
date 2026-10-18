@@ -106,6 +106,9 @@ export function WalletPage({ title, catalog, supportPhone }: WalletPageProps) {
     records.isPending
   const [payment, setPayment] = useState<string | null>(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
+  // A failed re-read is no fresh answer (its data would be the old one).
+  const refreshWallet = () =>
+    wallet.refetch().then((result) => (result.isError ? undefined : result.data))
   const showPayment = (uuid: string) => {
     setPayment(uuid)
     setPaymentOpen(true)
@@ -139,7 +142,7 @@ export function WalletPage({ title, catalog, supportPhone }: WalletPageProps) {
               wallet={wallet.data}
               catalog={catalog}
               supportPhone={supportPhone}
-              refreshWallet={() => wallet.refetch().then((result) => result.data)}
+              refreshWallet={refreshWallet}
             />
           </>
         ) : wallet.isError && !isLoadingSection(wallet) ? (
@@ -181,7 +184,11 @@ export function WalletPage({ title, catalog, supportPhone }: WalletPageProps) {
         )
       )}
       {tab === 'withdrawals' &&
-        (wallet.data ? <LazyWithdrawals wallet={wallet.data} /> : <PanelLoading />)}
+        (wallet.data ? (
+          <LazyWithdrawals wallet={wallet.data} refreshWallet={refreshWallet} />
+        ) : (
+          <PanelLoading />
+        ))}
       {tab === 'history' && (
         <Panel title="تاریخچهٔ پرداخت">
           <LazyHistory onShowPayment={showPayment} />

@@ -18,6 +18,7 @@ import { ORDERINGS, WITHDRAWAL_STATUSES } from './wallet-labels'
 import { FilterSelect, ListEmpty, WalletList } from './wallet-list'
 import { withdrawalsApiQuery, type WithdrawalsParams } from './wallet-params'
 import { useOpenWithdrawal, useWithdrawals } from './wallet-queries'
+import type { RefreshWallet } from './use-withdrawal-request'
 import type { WithdrawalFormProps } from './withdrawal-form'
 import { WithdrawalRow } from './withdrawal-row'
 
@@ -52,7 +53,13 @@ const LazyCancelDialog = dynamic<CancelWithdrawalDialogProps>(
 
 const CARD = 'flex flex-col gap-4 rounded-card bg-white p-4 shadow-card md:p-5'
 
-export function Withdrawals({ wallet }: { wallet: WalletBalance }) {
+export interface WithdrawalsProps {
+  wallet: WalletBalance
+  /** `GET wallet/` again (the form's refusals about the minimum). */
+  refreshWallet?: RefreshWallet
+}
+
+export function Withdrawals({ wallet, refreshWallet }: WithdrawalsProps) {
   const url = useWalletUrl()
   const { params } = url
   const filters = params.withdrawals
@@ -123,6 +130,7 @@ export function Withdrawals({ wallet }: { wallet: WalletBalance }) {
                 <h2 className="text-lg leading-8 font-bold text-ink-900">درخواست برداشت جدید</h2>
                 <LazyWithdrawalForm
                   wallet={wallet}
+                  refreshWallet={refreshWallet}
                   onFiled={(request) => {
                     client.setQueryData(OPEN_WITHDRAWAL_KEY, request)
                     setFormShown(false)

@@ -12,7 +12,11 @@ import { toPersianDigits } from '@/lib/format/digits'
 import { amountDigits, groupDigits } from './amount-input'
 import { cardDigits, groupCard, groupSheba, shebaDigits } from './bank-account'
 import { regroupField, type DigitField } from './digit-field'
-import { useWithdrawalRequest, type WithdrawalOutcome } from './use-withdrawal-request'
+import {
+  useWithdrawalRequest,
+  type RefreshWallet,
+  type WithdrawalOutcome,
+} from './use-withdrawal-request'
 import {
   EMPTY_WITHDRAWAL,
   HOLDER_MAX,
@@ -39,10 +43,12 @@ const ORDER: WithdrawalField[] = ['amount', 'holder', 'iban', 'card']
 
 export interface WithdrawalFormProps extends WithdrawalOutcome {
   wallet: WalletBalance
+  /** `GET wallet/` again (a refusal about the minimum: the shop's may have moved). */
+  refreshWallet?: RefreshWallet
 }
 
-export function WithdrawalForm({ wallet, ...outcome }: WithdrawalFormProps) {
-  const request = useWithdrawalRequest(wallet, outcome)
+export function WithdrawalForm({ wallet, refreshWallet, ...outcome }: WithdrawalFormProps) {
+  const request = useWithdrawalRequest(outcome, refreshWallet)
   const lock = useSubmitWait(request.wait)
   const [values, setValues] = useState<WithdrawalValues>(EMPTY_WITHDRAWAL)
   const [checked, setChecked] = useState<WithdrawalErrors>({})

@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { WithdrawalForm } from '@/features/wallet/withdrawal-form'
+import type { WalletBalance } from '@/lib/api/types/payment'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { balance, withdrawal } from './fixtures'
 import {
@@ -39,9 +40,18 @@ beforeEach(() => {
 const field = (name: RegExp) => screen.getByRole('textbox', { name })
 const submit = () => screen.getByRole('button', { name: /ثبت درخواست برداشت|در حال ثبت/ })
 
-function renderForm(route: Route = () => ok(withdrawal({ status: 'requested' }), '', 201)) {
+function renderForm(
+  route: Route = () => ok(withdrawal({ status: 'requested' }), '', 201),
+  /** What `GET wallet/` answers when read again (null: it could not be read). */
+  fresh: WalletBalance | null = balance(),
+) {
   serve(mocks.bffFetch, { [PATH]: route })
-  const props = { onFiled: vi.fn(), onPendingExists: vi.fn(), onClosed: vi.fn() }
+  const props = {
+    onFiled: vi.fn(),
+    onPendingExists: vi.fn(),
+    onClosed: vi.fn(),
+    refreshWallet: vi.fn(async () => fresh ?? undefined),
+  }
   const view = renderWallet(<WithdrawalForm wallet={balance()} {...props} />)
   return { ...view, ...props, user: userEvent.setup() }
 }
@@ -153,13 +163,26 @@ describe('the API’s answers', () => {
     await waitFor(() => expect(field(label)).toHaveAccessibleDescription(new RegExp(text)))
   })
 
-  it('live below the minimum: the bound in Persian digits, on the amount', async () => {
-    const { user } = renderForm(() => refuseLive('wd-below'))
+  it('live below the minimum: the wallet read again, its fresh minimum said on the amount', async () => {
+    const fresh = balance({ minimum_withdrawal_amount: 500_000 })
+    const { user, refreshWallet } = renderForm(() => refuseLive('wd-below'), fresh)
     await fill(user)
     await user.click(submit())
     await waitFor(() =>
       expect(field(/مبلغ برداشت/)).toHaveAccessibleDescription(
-        /حداقل مبلغ برداشت ۲۰۰٬۰۰۰ تومان است/,
+        /حداقل مبلغ برداشت ۵۰۰٬۰۰۰ تومان است/,
+      ),
+    )
+    expect(refreshWallet).toHaveBeenCalledTimes(1)
+  })
+
+  it('below the minimum, the wallet not read again: the API’s own sentence', async () => {
+    const { user } = renderForm(() => refuseLive('wd-below'), null)
+    await fill(user)
+    await user.click(submit())
+    await waitFor(() =>
+      expect(field(/مبلغ برداشت/)).toHaveAccessibleDescription(
+        /مبلغ برداشت نمی‌تواند کمتر از ۲۰۰٬۰۰۰ تومان باشد\./,
       ),
     )
   })
