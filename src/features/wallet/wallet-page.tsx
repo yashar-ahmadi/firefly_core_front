@@ -16,13 +16,14 @@ import { TopUpForm } from './top-up-form'
 import { useWalletUrl } from './use-wallet-url'
 import { walletAccess } from './wallet-access'
 import { parseWalletParams, WALLET_TABS, type WalletTab } from './wallet-params'
-import { useWallet } from './wallet-queries'
+import { useWallet, useWithdrawals } from './wallet-queries'
 import { WalletTabs } from './wallet-tabs'
 
 // `/account/wallet/` «کیف پول» (order digest §3.3, §5.12, §7; Plan 4 Task 9): «موجودی» and
 // «افزایش موجودی» at the top, then one view at a time (the page is long on a phone): the ledger,
 // the withdrawals, the payment history, each its own chunk. The `wallet` switch off leaves the
-// balance and the ledger readable (and the payment history: no wallet operation) and says why;
+// balance and the ledger readable (and the payment history: no wallet operation) and says why,
+// and the withdrawals while there is a request on record (read then: one row is enough);
 // `walletAccess` decides the rest (Review Focus #5). A payment's detail opens in one sheet, from
 // the ledger or the history, its code loaded on the first open.
 
@@ -75,6 +76,9 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 
 const tabHref = (tab: WalletTab) => (tab === 'transactions' ? '' : `tab=${tab}`)
 
+/** Is there a withdrawal request on record: one row (any status) is enough. */
+const RECORDS = { limit: 1 }
+
 export interface WalletPageProps {
   title: string
   catalog: PaymentCatalog
@@ -85,13 +89,21 @@ export function WalletPage({ title, catalog, supportPhone }: WalletPageProps) {
   const url = useWalletUrl()
   const wallet = useWallet()
   const walletSwitch = useFeature('wallet')
+  const records = useWithdrawals(RECORDS, !walletSwitch.enabled)
   const access = walletAccess({
     wallet: walletSwitch,
     onlinePayment: useFeature('online_payment'),
     balance: wallet.data,
+    hasWithdrawals: !walletSwitch.enabled && (records.data?.count ?? 0) > 0,
   })
   const tabs = WALLET_TABS.filter((tab) => tab.value !== 'withdrawals' || access.withdrawals)
   const tab = tabs.some((item) => item.value === url.params.tab) ? url.params.tab : 'transactions'
+  // The withdrawals asked for while the switch is off: the record read decides.
+  const deciding =
+    url.params.tab === 'withdrawals' &&
+    !access.withdrawals &&
+    !walletSwitch.enabled &&
+    records.isPending
   const [payment, setPayment] = useState<string | null>(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const showPayment = (uuid: string) => {
@@ -106,8 +118,10 @@ export function WalletPage({ title, catalog, supportPhone }: WalletPageProps) {
         <p className="mb-4 flex items-start gap-2 rounded-card bg-info/10 px-4 py-3 text-base leading-7 text-ink-800 md:mb-5">
           <Info aria-hidden className="mt-1 size-5 shrink-0 text-info" />
           <span>
-            {walletSwitch.reason ?? 'کیف پول در حال حاضر غیرفعال است.'} موجودی و تراکنش‌های کیف پول
-            را همچنان می‌بینید.
+            {walletSwitch.reason ?? 'کیف پول در حال حاضر غیرفعال است.'}{' '}
+            {access.withdrawals
+              ? 'موجودی، تراکنش\u{200C}ها و درخواست\u{200C}های برداشت کیف پول را همچنان می\u{200C}بینید.'
+              : 'موجودی و تراکنش\u{200C}های کیف پول را همچنان می\u{200C}بینید.'}
           </span>
         </p>
       )}
@@ -157,10 +171,14 @@ export function WalletPage({ title, catalog, supportPhone }: WalletPageProps) {
           onFollow={url.follow}
         />
       </div>
-      {tab === 'transactions' && (
-        <Panel title="تراکنش‌ها">
-          <LazyTransactions onShowPayment={showPayment} />
-        </Panel>
+      {deciding ? (
+        <PanelLoading />
+      ) : (
+        tab === 'transactions' && (
+          <Panel title="تراکنش‌ها">
+            <LazyTransactions onShowPayment={showPayment} withdrawalsTab={access.withdrawals} />
+          </Panel>
+        )
       )}
       {tab === 'withdrawals' &&
         (wallet.data ? <LazyWithdrawals wallet={wallet.data} /> : <PanelLoading />)}

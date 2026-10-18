@@ -25,7 +25,8 @@ import { WithdrawalRow } from './withdrawal-row'
 // while it is `requested`); a new request only without one and while the wallet allows it
 // (`walletAccess`; the form is its own chunk, loaded on «درخواست برداشت جدید»), else why; then
 // every request, filtered by status and ordered, in the URL. A ledger row's link brings its
-// request forward (`focus`). Shown only while the `wallet` switch is on (the page decides).
+// request forward (`focus`). Shown while the `wallet` switch is on, or while there is a request
+// on record (the page decides): its list and an open one's cancel, never a new request.
 
 function Unavailable() {
   return (

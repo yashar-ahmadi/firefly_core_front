@@ -5,9 +5,11 @@ import type { WalletBalance } from '@/lib/api/types/payment'
 // feature switches and `GET wallet/` alone. The balance and the ledger are always readable (the
 // `wallet` switch closes the money's movements, not their record); the payment history is not a
 // wallet operation. Top-ups need the `wallet` and `online_payment` switches, the shop's top-ups on
-// and a wallet that is not frozen; withdrawals need the `wallet` switch (the tab, with its record
-// of requests), and a new request the shop's withdrawals on and a wallet that is not frozen.
-// Pure.
+// and a wallet that is not frozen. The withdrawals' tab needs the `wallet` switch, or a request on
+// record (the switch off: its list, and an open one's cancel, which the backend still takes and
+// which gives the money back; hiding it would strand the money the balance card says is held). A
+// new request needs the switch, the shop's withdrawals on and a wallet that is not frozen; when
+// one is not offered, why. Pure.
 
 export interface WalletAccess {
   topUp: boolean
@@ -26,21 +28,24 @@ export function walletAccess({
   wallet,
   onlinePayment,
   balance,
+  hasWithdrawals = false,
 }: {
   wallet: FeatureSwitch
   onlinePayment: FeatureSwitch
   balance: WalletBalance | undefined
+  /** A withdrawal request on record (read while the switch is off). */
+  hasWithdrawals?: boolean
 }): WalletAccess {
   const usable = wallet.enabled && !!balance && !balance.is_frozen
   const withdrawalForm = usable && balance.is_withdrawal_enabled
   return {
     topUp: usable && onlinePayment.enabled && balance.is_top_up_enabled,
-    withdrawals: wallet.enabled,
+    withdrawals: wallet.enabled || hasWithdrawals || (balance?.pending_withdrawal_amount ?? 0) > 0,
     withdrawalForm,
     withdrawalNote:
-      withdrawalForm || !balance || !wallet.enabled
+      withdrawalForm || !balance
         ? null
-        : balance.is_frozen
+        : wallet.enabled && balance.is_frozen
           ? FROZEN_NO_WITHDRAWAL
           : WITHDRAWAL_OFF,
   }

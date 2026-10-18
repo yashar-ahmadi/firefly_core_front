@@ -10,9 +10,11 @@ import { ok, renderWallet } from './wallet-support'
 
 // `/account/wallet/` «کیف پول» (order digest §1.5, §3.3, §7; Review Focus #5): the balance and
 // the top-up box, then the tabs «تراکنش‌ها», «برداشت», «تاریخچهٔ پرداخت» (links: each view has its
-// URL). The `wallet` switch off: the balance and the ledger stay (read only), the top-up and the
-// withdrawals go, and the page says why. Frozen: the badge and the message; no top-up, no new
-// withdrawal. A payment's detail opens in a sheet from the ledger or the history.
+// URL). The `wallet` switch off: the balance and the ledger stay (read only), the top-up goes, and
+// the page says why; the withdrawals' tab stays while there is a request to show (its list, an
+// open one's «لغو درخواست»: the backend still cancels it and returns the money), never a new
+// request. Frozen: the badge and the message; no top-up, no new withdrawal. A payment's detail
+// opens in a sheet from the ledger or the history.
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), search: '', replace: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
@@ -96,24 +98,76 @@ describe('the page', () => {
 })
 
 describe('the `wallet` switch off (Review Focus #5)', () => {
-  it('the balance and the ledger stay; no top-up, no withdrawals; the shop’s reason said', async () => {
+  /** No withdrawal request on record (the ledger's rows still name some: the links must go). */
+  function noRecords() {
+    const served = mocks.bffFetch.getMockImplementation()!
+    mocks.bffFetch.mockImplementation((path: string, init?: unknown) =>
+      path === 'wallet/withdrawal/list/'
+        ? ok({ ...withdrawals(), count: 0, total_pages: 0, results: [] })
+        : served(path, init),
+    )
+  }
+
+  it('the balance and the ledger stay; no top-up; the shop’s reason said', async () => {
     renderPage(WALLET_OFF)
     expect(await screen.findByRole('region', { name: 'موجودی' })).toHaveTextContent(
       '۴۵٬۱۷۰٬۰۰۰ تومان',
     )
     expect(screen.getByText(/کیف پول موقتاً غیرفعال است\./)).toBeVisible()
     expect(screen.queryByRole('region', { name: 'افزایش موجودی' })).toBeNull()
-    expect(within(tabs()).queryByRole('link', { name: 'برداشت' })).toBeNull()
     expect(await screen.findByRole('list', { name: 'تراکنش‌های کیف پول' })).toBeVisible()
   })
 
-  it('the withdrawals tab asked for falls back to the ledger', async () => {
+  it('no request on record: no withdrawals tab, nor the ledger’s links to one', async () => {
+    noRecords()
+    renderPage(WALLET_OFF)
+    const ledger = await screen.findByRole('list', { name: 'تراکنش‌های کیف پول' })
+    expect(within(ledger).getAllByRole('listitem')[1]).toHaveTextContent('برداشت به حساب بانکی')
+    expect(within(tabs()).queryByRole('link', { name: 'برداشت' })).toBeNull()
+    expect(within(ledger).queryByRole('link', { name: /درخواست برداشت/ })).toBeNull()
+  })
+
+  it('no request on record: the withdrawals tab asked for falls back to the ledger', async () => {
+    noRecords()
     mocks.search = 'tab=withdrawals'
     renderPage(WALLET_OFF)
     expect(await screen.findByRole('list', { name: 'تراکنش‌های کیف پول' })).toBeVisible()
     await waitFor(() =>
       expect(screen.queryByRole('list', { name: 'درخواست‌های برداشت' })).toBeNull(),
     )
+  })
+
+  it('requests on record: the tab stays, with the list; no new request, why said', async () => {
+    mocks.search = 'tab=withdrawals'
+    renderPage(WALLET_OFF)
+    expect(await within(tabs()).findByRole('link', { name: 'برداشت' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(await screen.findByRole('list', { name: 'درخواست‌های برداشت' })).toBeVisible()
+    expect(
+      await screen.findByText(/ثبت درخواست برداشت از کیف پول در حال حاضر ممکن نیست/),
+    ).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'درخواست برداشت جدید' })).toBeNull()
+  })
+
+  it('an open request (its money held): its «لغو درخواست» stays, the backend still takes it', async () => {
+    const open = {
+      ...withdrawals().results[0]!,
+      status: 'requested' as const,
+      status_display: 'در انتظار بررسی',
+    }
+    wallet = balance({ balance: 44_870_000, pending_withdrawal_amount: 300_000 })
+    mocks.bffFetch.mockImplementation((path: string) => {
+      if (path === 'wallet/') return ok(wallet)
+      if (path === 'wallet/withdrawal/list/') return ok({ ...withdrawals(), results: [open] })
+      return new Promise(() => {})
+    })
+    mocks.search = 'tab=withdrawals'
+    renderPage(WALLET_OFF)
+    const region = await screen.findByRole('region', { name: 'درخواست برداشت باز' })
+    expect(within(region).getByRole('button', { name: 'لغو درخواست' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'درخواست برداشت جدید' })).toBeNull()
   })
 
   it('`online_payment` off: only the top-up goes', async () => {

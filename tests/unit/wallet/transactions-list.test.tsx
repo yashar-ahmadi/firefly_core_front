@@ -43,9 +43,9 @@ const reads = () =>
     .filter(([path]) => path === 'wallet/transaction/list/')
     .map(([, init]) => (init as Init).query ?? {})
 
-function renderList() {
+function renderList({ withdrawalsTab = true } = {}) {
   const onShowPayment = vi.fn()
-  renderWallet(<TransactionsList onShowPayment={onShowPayment} />)
+  renderWallet(<TransactionsList onShowPayment={onShowPayment} withdrawalsTab={withdrawalsTab} />)
   return { onShowPayment, user: userEvent.setup() }
 }
 
@@ -93,6 +93,14 @@ describe('the rows', () => {
     // A payment's uuid is a credential: in no link.
     for (const link of screen.getAllByRole('link'))
       expect(link.getAttribute('href')).not.toContain(transactions().results[2]!.payment_uuid!)
+  })
+
+  it('no withdrawals’ tab (the switch off, no request on record): no link to a request', async () => {
+    renderList({ withdrawalsTab: false })
+    const [reversal, withdrawal] = await rows()
+    expect(withdrawal).toHaveTextContent('برداشت به حساب بانکی')
+    expect(within(reversal!).queryByRole('link', { name: /درخواست برداشت/ })).toBeNull()
+    expect(within(withdrawal!).queryByRole('link', { name: /درخواست برداشت/ })).toBeNull()
   })
 
   it('a cause the storefront does not know: the API’s words, else as it came', async () => {

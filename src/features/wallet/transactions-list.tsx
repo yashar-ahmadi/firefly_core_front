@@ -20,11 +20,18 @@ import { useLedger } from './wallet-queries'
 // moved, newest first unless ordered otherwise; filtered by direction and cause, ordered by date
 // or amount, searched by an order code's start: the URL's state (a change replaces it and goes
 // back to page 1; a search is a new history entry), sent in the API's names. Readable whatever
-// the switches say.
+// the switches say. A row's link to its withdrawal request only while that tab is there.
 
 const SEARCH_MAX = 10
 
-export function TransactionsList({ onShowPayment }: { onShowPayment: (uuid: string) => void }) {
+export function TransactionsList({
+  onShowPayment,
+  withdrawalsTab,
+}: {
+  onShowPayment: (uuid: string) => void
+  /** The withdrawals' tab is offered: a withdrawal's row links to its request there. */
+  withdrawalsTab: boolean
+}) {
   const url = useWalletUrl()
   const { params } = url
   const ledger = params.ledger
@@ -118,7 +125,11 @@ export function TransactionsList({ onShowPayment }: { onShowPayment: (uuid: stri
           <TransactionRow
             row={row}
             onShowPayment={onShowPayment}
-            withdrawalHref={(uuid) => url.href({ ...params, tab: 'withdrawals', focus: uuid })}
+            withdrawalHref={
+              withdrawalsTab
+                ? (uuid) => url.href({ ...params, tab: 'withdrawals', focus: uuid })
+                : undefined
+            }
             onFollow={url.follow}
           />
         )}

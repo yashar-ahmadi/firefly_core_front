@@ -14,7 +14,7 @@ import { CAUSES, DIRECTIONS, labelOf } from './wallet-labels'
 // in words and by sign and colour (never colour alone), the amount (always positive: the sign is
 // the direction's), the balance right after it as the API gives it (nothing summed here), when,
 // the operator's reason, and its links (the order's page; the payment's detail, in a sheet,
-// because its uuid is a credential; the withdrawal, on its tab).
+// because its uuid is a credential; the withdrawal, on its tab while that tab is offered).
 
 /** Kept attached to the digits inside right-to-left text, as Intl writes a minus sign. */
 const LTR_MARK = '\u{200E}'
@@ -22,8 +22,8 @@ const LTR_MARK = '\u{200E}'
 export interface TransactionRowProps {
   row: WalletTransaction
   onShowPayment: (uuid: string) => void
-  /** The withdrawal's place on its tab. */
-  withdrawalHref: (uuid: string) => string
+  /** The withdrawal's place on its tab (none: the tab is not offered, no link). */
+  withdrawalHref?: (uuid: string) => string
   onFollow: (event: MouseEvent<HTMLAnchorElement>) => void
 }
 
@@ -72,7 +72,7 @@ export function TransactionRow({
         </span>
       </div>
       {row.reason.trim() && <p className="text-sm leading-6 text-ink-700">{row.reason}</p>}
-      {(row.order_code || row.payment_uuid || row.withdrawal_uuid) && (
+      {(row.order_code || row.payment_uuid || (row.withdrawal_uuid && withdrawalHref)) && (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {row.order_code && (
             <Link
@@ -92,7 +92,7 @@ export function TransactionRow({
               جزئیات پرداخت
             </Button>
           )}
-          {row.withdrawal_uuid && (
+          {row.withdrawal_uuid && withdrawalHref && (
             <Link
               href={withdrawalHref(row.withdrawal_uuid)}
               onClick={onFollow}
