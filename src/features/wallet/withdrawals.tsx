@@ -1,16 +1,18 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { Banknote, Info } from 'lucide-react'
+import { Info } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
 import { focusInsteadOfGone, useFocusWhenGone } from '@/features/orders/account/gone-trigger'
-import { Button } from '@/components/ui/button'
+import { ListError } from '@/features/account/lists/list-error'
+import { isLoadingSection } from '@/features/account/use-account-query'
 import { useFeature } from '@/features/settings/feature-context'
 import type { WalletBalance } from '@/lib/api/types/payment'
 import type { WithdrawalRequest } from '@/lib/api/types/wallet'
 import { fetchWithdrawals, OPEN_WITHDRAWAL_KEY, withdrawalsKey } from './api'
 import type { CancelWithdrawalDialogProps } from './cancel-withdrawal-dialog'
+import { NewWithdrawal } from './new-withdrawal'
 import { OpenWithdrawal } from './open-withdrawal'
 import { useWalletUrl } from './use-wallet-url'
 import { walletAccess } from './wallet-access'
@@ -19,15 +21,14 @@ import { FilterSelect, ListEmpty, WalletList } from './wallet-list'
 import { withdrawalsApiQuery, type WithdrawalsParams } from './wallet-params'
 import { useOpenWithdrawal, useWithdrawals } from './wallet-queries'
 import type { RefreshWallet } from './use-withdrawal-request'
-import type { WithdrawalFormProps } from './withdrawal-form'
 import { WithdrawalRow } from './withdrawal-row'
 
 // «برداشت» (order digest §3.3.4–3.3.6, §7): the one open request first (with «لغو درخواست»
-// while it is `requested`); a new request only without one and while the wallet allows it
-// (`walletAccess`; the form is its own chunk, loaded on «درخواست برداشت جدید»), else why; then
-// every request, filtered by status and ordered, in the URL. A ledger row's link brings its
-// request forward (`focus`). Shown while the `wallet` switch is on, or while there is a request
-// on record (the page decides): its list and an open one's cancel, never a new request.
+// while it is `requested`), or «تلاش دوباره» in its place when it cannot be read (no new request
+// is offered blind); without one, a new request (`NewWithdrawal`); then every request, filtered
+// by status and ordered, in the URL. A ledger row's link brings its request forward (`focus`).
+// Shown while the `wallet` switch is on, or while there is a request on record (the page
+// decides): its list and an open one's cancel, never a new request.
 
 function Unavailable() {
   return (
@@ -36,12 +37,6 @@ function Unavailable() {
     </p>
   )
 }
-
-const LazyWithdrawalForm = dynamic<WithdrawalFormProps>(
-  () =>
-    import('./withdrawal-form').then((module) => module.WithdrawalForm).catch(() => Unavailable),
-  { ssr: false },
-)
 
 const LazyCancelDialog = dynamic<CancelWithdrawalDialogProps>(
   () =>
@@ -72,8 +67,6 @@ export function Withdrawals({ wallet, refreshWallet }: WithdrawalsProps) {
   const open = useOpenWithdrawal()
   const query = withdrawalsApiQuery(filters)
   const list = useWithdrawals(query)
-  const [formShown, setFormShown] = useState(false)
-  const [closedReason, setClosedReason] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState<WithdrawalRequest | null>(null)
   const [cancelOpen, setCancelOpen] = useState(false)
 
@@ -93,7 +86,6 @@ export function Withdrawals({ wallet, refreshWallet }: WithdrawalsProps) {
   const go = (next: Partial<WithdrawalsParams>) =>
     url.replace({ ...params, focus: null, withdrawals: { ...filters, page: 1, ...next } })
   const openRequest = open.data ?? null
-  const note = closedReason ?? access.withdrawalNote
 
   // The focus never falls to <body>: a request just filed takes it (the form went); a
   // cancellation leaves it on the list's heading («لغو درخواست» went with it).
@@ -122,41 +114,29 @@ export function Withdrawals({ wallet, refreshWallet }: WithdrawalsProps) {
           }}
         />
       )}
+      {open.isError && !isLoadingSection(open) && (
+        <div className={CARD}>
+          <ListError
+            frame="inline"
+            message="درخواست برداشت باز خوانده نشد."
+            error={open.error}
+            errorAt={open.errorUpdatedAt}
+            onRetry={() => void open.refetch()}
+            retrying={open.isFetching}
+          />
+        </div>
+      )}
       {!openRequest && open.isSuccess && (
-        <section aria-label="درخواست برداشت جدید" className={CARD}>
-          {access.withdrawalForm && !closedReason ? (
-            formShown ? (
-              <>
-                <h2 className="text-lg leading-8 font-bold text-ink-900">درخواست برداشت جدید</h2>
-                <LazyWithdrawalForm
-                  wallet={wallet}
-                  refreshWallet={refreshWallet}
-                  onFiled={(request) => {
-                    client.setQueryData(OPEN_WITHDRAWAL_KEY, request)
-                    setFormShown(false)
-                    filed.current = true
-                  }}
-                  onPendingExists={() => setFormShown(false)}
-                  onClosed={(reason) => {
-                    setClosedReason(reason)
-                    setFormShown(false)
-                  }}
-                />
-              </>
-            ) : (
-              <Button
-                variant="outline"
-                className="self-start"
-                iconStart={<Banknote aria-hidden />}
-                onClick={() => setFormShown(true)}
-              >
-                درخواست برداشت جدید
-              </Button>
-            )
-          ) : (
-            note && <p className="text-base leading-7 text-ink-800">{note}</p>
-          )}
-        </section>
+        <NewWithdrawal
+          wallet={wallet}
+          refreshWallet={refreshWallet}
+          offered={access.withdrawalForm}
+          note={access.withdrawalNote}
+          onFiled={(request) => {
+            client.setQueryData(OPEN_WITHDRAWAL_KEY, request)
+            filed.current = true
+          }}
+        />
       )}
       <section aria-labelledby="wallet-withdrawals-heading" className={CARD}>
         <h2
