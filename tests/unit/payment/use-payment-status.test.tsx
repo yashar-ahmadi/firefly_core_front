@@ -194,6 +194,8 @@ describe('refusals', () => {
     const { result } = renderHook(() => usePaymentStatus(PAYMENT_UUID))
     await flush()
     expect(result.current.unreadable).toBe(true)
+    // Refused without the session too: unreadable, never someone else's payment.
+    expect(result.current.foreign).toBe(false)
     await seconds(15 * 60)
     expect(reads()).toHaveLength(errors.length)
   })

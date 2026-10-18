@@ -71,14 +71,15 @@ describe('matcher', () => {
 
   // Every render is marked with its route kind (the snippet gate fails closed), prefetches too:
   // the proxy itself does nothing else for them (no redirect lookup, no session refresh).
-  it.each<Record<string, string>>([{ 'next-router-prefetch': '1' }, { purpose: 'prefetch' }])(
-    'runs on page prefetches too (%o)',
-    async (headers) => {
-      expect(await matches('/festival/', headers)).toBe(true)
-      expect(
-        await matches('/order/pay/k3J9f0qLx2mN8pR1sT4uV7wY0zA3bC6dE9gH2jK5mN8/', headers),
-      ).toBe(true)
-      expect(await matches('/product/x%ZZ.png', headers)).toBe(true)
-    },
-  )
+  it.each<Record<string, string>>([
+    // The router's real shape (tests/fixtures/rsc-request-shapes.json): `rsc` with the flag.
+    { rsc: '1', 'next-router-prefetch': '1' },
+    { purpose: 'prefetch' },
+  ])('runs on page prefetches too (%o)', async (headers) => {
+    expect(await matches('/festival/', headers)).toBe(true)
+    expect(await matches('/order/pay/k3J9f0qLx2mN8pR1sT4uV7wY0zA3bC6dE9gH2jK5mN8/', headers)).toBe(
+      true,
+    )
+    expect(await matches('/product/x%ZZ.png', headers)).toBe(true)
+  })
 })
