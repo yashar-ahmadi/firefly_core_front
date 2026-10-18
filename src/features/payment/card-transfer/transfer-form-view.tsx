@@ -9,12 +9,14 @@ import { ReceiptForm } from './receipt-form'
 import { SupportNote } from './support-note'
 import { HEADING_ID, LEAD, NO_CARDS, PAGE_TITLE } from './transfer-copy'
 import { TransferDetails } from './transfer-details'
-import type { Cutoff } from './use-attempt-cutoff'
+import { useAttemptCutoff } from './use-attempt-cutoff'
 import type { ReceiptHandlers } from './use-receipt-submit'
 
 // The open card transfer (order digest §5.7 steps 2–3, 6): what to transfer and where, the receipt
-// form, and «انصراف» before any receipt (held while one is on its way). A shop with no active card
-// left (deactivated since the attempt opened) gets no form: the support line and «انصراف».
+// form, and «انصراف» before any receipt (held while one is on its way). The attempt's own cut-off
+// is read here, for the form only (use-attempt-cutoff.ts: no link-page read on the other views).
+// A shop with no active card left (deactivated since the attempt opened) gets no form: the
+// support line and «انصراف».
 
 export interface TransferFormViewProps extends ReceiptHandlers {
   uuid: string
@@ -22,7 +24,8 @@ export interface TransferFormViewProps extends ReceiptHandlers {
   /** The server's sanitised instruction (null: none; undefined: not known there). */
   instruction: string | null | undefined
   orderCode: string | null
-  cutoff: Cutoff
+  /** The order's link token, when known (the attempt's own cut-off is read from its page). */
+  linkToken: string | null
   support: SupportLine | null
   headingRef: Ref<HTMLHeadingElement>
   onCancelled: (outcome: CancelOutcome) => void
@@ -33,13 +36,14 @@ export function TransferFormView({
   data,
   instruction,
   orderCode,
-  cutoff,
+  linkToken,
   support,
   headingRef,
   onCancelled,
   ...handlers
 }: TransferFormViewProps) {
   const [uploading, setUploading] = useState(false)
+  const cutoff = useAttemptCutoff({ uuid, linkToken, orderDeadline: data.expires_at })
   const noCards = data.destination_cards.length === 0
   return (
     <>

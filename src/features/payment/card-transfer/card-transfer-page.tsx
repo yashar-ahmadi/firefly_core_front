@@ -16,7 +16,6 @@ import { TransferClosed } from './transfer-closed'
 import { orderLinkToken } from './transfer-door'
 import { TransferFormView } from './transfer-form-view'
 import { TransferRefusal } from './transfer-refusal'
-import { useAttemptCutoff } from './use-attempt-cutoff'
 import { useTransferReads } from './use-transfer-reads'
 
 // `/payment/card-transfer/<uuid>/` (order digest §5.7), the island: the cards read in the browser
@@ -58,11 +57,6 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
   const ownership = useOrderOwnership(orderCode, hasSession && !reads.foreign)
   const own = ownOrderOf(ownership)
   const linkToken = orderLinkToken({ uuid, orderCode, own })
-  const cutoff = useAttemptCutoff({
-    uuid,
-    linkToken,
-    orderDeadline: reads.instruction?.expires_at ?? null,
-  })
   const heading = useRef<HTMLHeadingElement>(null)
 
   // A view that replaces another after the first takes the focus on its heading.
@@ -125,7 +119,7 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
           data={reads.instruction}
           instruction={instruction}
           orderCode={orderCode}
-          cutoff={cutoff}
+          linkToken={linkToken}
           support={support}
           headingRef={heading}
           onSent={sent}
@@ -154,7 +148,7 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
           ownership={ownership}
           support={support}
           headingRef={heading}
-          cancelled={phase.kind === 'cancelled'}
+          ending={phase.kind === 'cancelled' || phase.kind === 'refunded' ? phase.kind : 'closed'}
         />
       )}
     </section>

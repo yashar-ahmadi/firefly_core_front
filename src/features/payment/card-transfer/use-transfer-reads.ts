@@ -23,6 +23,7 @@ import {
 // filled in: the shared 240/h `payment_status` budget; the outcome polls, receipt-outcome.tsx).
 // - status pending → the form;
 // - a receipt under review, approved or rejected → the outcome;
+// - refunded (the shop gave the money back) → said as such, nothing to pay again;
 // - any other end (cancelled, expired, failed otherwise), or a payment that is not a card
 //   transfer (400 `payment_target_invalid`) → closed (a new attempt);
 // - 404 / 403 / a wait / no answer → the calm page (a read again from it).
@@ -50,6 +51,8 @@ export type TransferPhase =
   | { kind: 'closed' }
   /** Cancelled here, with no route choice this device can go back to. */
   | { kind: 'cancelled' }
+  /** The shop gave the money back: nothing to pay again from here. */
+  | { kind: 'refunded' }
 
 export interface TransferReads {
   phase: TransferPhase
@@ -83,6 +86,7 @@ export function phaseOf(info: PaymentStatusInfo): TransferPhase {
     return { kind: 'outcome', notice: null }
   if (info.status === 'failed' && info.failure_reason === 'payment_receipt_rejected')
     return { kind: 'outcome', notice: null }
+  if (info.status === 'refunded') return { kind: 'refunded' }
   return { kind: 'closed' }
 }
 

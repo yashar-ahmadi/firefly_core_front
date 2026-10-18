@@ -34,7 +34,7 @@ import type { OutcomeNotice } from './use-transfer-reads'
 // NEW attempt. Anything else ended the attempt: closed. Changes after the first are said once,
 // politely.
 
-type Outcome = 'review' | 'approved' | 'rejected' | 'closed'
+type Outcome = 'review' | 'approved' | 'rejected' | 'refunded' | 'closed'
 
 const FINAL: ReadonlySet<string> = new Set(['settled', 'failed', 'cancelled', 'refunded'])
 
@@ -43,6 +43,7 @@ function outcomeOf(info: PaymentStatusInfo | null): Outcome {
   if (info.status === 'settled') return 'approved'
   if (info.status === 'failed' && info.failure_reason === 'payment_receipt_rejected')
     return 'rejected'
+  if (info.status === 'refunded') return 'refunded'
   return 'closed'
 }
 
@@ -84,7 +85,9 @@ export function ReceiptOutcome({
           ? T.APPROVED_TITLE
           : outcome === 'rejected'
             ? T.REJECTED_TITLE
-            : T.CLOSED_TITLE,
+            : outcome === 'refunded'
+              ? T.REFUNDED_TITLE
+              : T.CLOSED_TITLE,
       )
     }
     said.current = outcome
@@ -95,7 +98,7 @@ export function ReceiptOutcome({
     void client.invalidateQueries({ queryKey: SUMMARY_KEY })
   }, [outcome, uuid, client])
 
-  if (outcome === 'closed') {
+  if (outcome === 'closed' || outcome === 'refunded') {
     return (
       <TransferClosed
         uuid={uuid}
@@ -103,6 +106,7 @@ export function ReceiptOutcome({
         ownership={ownership}
         support={support}
         headingRef={headingRef}
+        ending={outcome}
       />
     )
   }

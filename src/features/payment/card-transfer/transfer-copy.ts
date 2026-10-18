@@ -61,6 +61,13 @@ export const CLOSED_BODY =
   'این پرداخت کارت به کارت دیگر باز نیست و رسیدی برای آن پذیرفته نمی\u{200C}شود. اگر هنوز واریز نکرده\u{200C}اید، پرداخت تازه\u{200C}ای آغاز کنید؛ اگر مبلغی واریز کرده\u{200C}اید، با پشتیبانی تماس بگیرید.'
 
 export const CANCELLED_TITLE = 'پرداخت کارت به کارت لغو شد'
+export const CANCELLED_BODY =
+  'این پرداخت کارت به کارت بسته شد. برای پرداخت سفارش، پرداخت تازه\u{200C}ای آغاز کنید یا روش دیگری انتخاب کنید.'
+
+/** The shop gave the money back (`refunded`): nothing to pay again here. */
+export const REFUNDED_TITLE = 'مبلغ این پرداخت بازگردانده شد'
+export const REFUNDED_BODY =
+  'مبلغ این پرداخت کارت به کارت از سوی فروشگاه به حساب شما بازگردانده شده است. وضعیت سفارش را در «پیگیری سفارش» ببینید و اگر پرسشی دارید با پشتیبانی تماس بگیرید.'
 export const CANCEL_LABEL = 'انصراف از کارت به کارت'
 export const CANCEL_TITLE = 'از پرداخت کارت به کارت انصراف می\u{200C}دهید؟'
 export const CANCEL_PAID_NOTE =
