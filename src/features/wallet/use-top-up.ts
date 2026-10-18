@@ -13,7 +13,13 @@ import { BANK_LEAVING_MS, useReleaseIfStillHere } from '@/lib/navigation/leaving
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { toPersianDigits } from '@/lib/format/digits'
 import { postTopUp } from './api'
-import { closedForToday, topUpBounds, topUpProblem } from './top-up-bounds'
+import {
+  closedForToday,
+  dayClosed,
+  gatewayOutOfRange,
+  topUpBounds,
+  topUpProblem,
+} from './top-up-bounds'
 import { topUpRefusal, type TopUpRefusal } from './top-up-refusal'
 
 // A top-up's press (order digest §3.3.3, §5.4, §5.12): one request however fast the presses (an
@@ -130,11 +136,13 @@ export function useTopUp({
       case 'amount': {
         // The shop's limits may have moved: said from the wallet read again.
         const fresh = await refreshWallet()
-        const bounds = fresh ? topUpBounds(fresh, request.gateway) : null
-        const field =
-          fresh && bounds && !bounds.open
-            ? closedForToday(fresh)
-            : (bounds && topUpProblem(request.amount, bounds)) || toPersianDigits(refusal.message)
+        if (!fresh) return setIssue({ field: toPersianDigits(refusal.message) })
+        const bounds = topUpBounds(fresh, request.gateway)
+        const field = dayClosed(fresh)
+          ? closedForToday(fresh)
+          : !bounds.open && request.gateway
+            ? gatewayOutOfRange(fresh, request.gateway, catalog.gateways.length > 1)
+            : topUpProblem(request.amount, bounds) || toPersianDigits(refusal.message)
         return setIssue({ field })
       }
       case 'gateway_unknown': {

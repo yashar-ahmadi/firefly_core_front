@@ -18,6 +18,8 @@ import { amountText, parseAmount, regroup } from './amount-input'
 import {
   boundsHint,
   closedForToday,
+  dayClosed,
+  gatewayOutOfRange,
   presetsWithin,
   topUpBounds,
   topUpGatewayCode,
@@ -101,9 +103,11 @@ function TopUpBox({
       ? catalog.gatewaysFailed
         ? 'درگاه\u{200C}های پرداخت خوانده نشد؛ کمی بعد دوباره تلاش کنید.'
         : 'شارژ کیف پول با درگاه بانکی اکنون ممکن نیست؛ با پشتیبانی تماس بگیرید.'
-      : !bounds.open
+      : dayClosed(wallet)
         ? closedForToday(wallet)
-        : null)
+        : !bounds.open && gateways.length < 2 && chosen
+          ? gatewayOutOfRange(wallet, chosen, false)
+          : null)
   if (closed) {
     const support = top.issue?.support || gateways.length === 0
     return (
@@ -135,6 +139,30 @@ function TopUpBox({
   }
   const presets = presetsWithin(bounds)
   const busy = top.phase.kind === 'sending'
+  const gateway = (
+    <TopUpGateway
+      gateways={gateways}
+      chosen={chosen}
+      onChoose={(code) => {
+        setChosenCode(code)
+        setChecked(null)
+        top.clearField()
+      }}
+      disabled={busy}
+    />
+  )
+
+  // The chosen gateway's range misses the wallet's (the day is open): why, and another gateway.
+  if (!bounds.open && chosen) {
+    return (
+      <TopUpSection>
+        <p role="status" className="text-base leading-7 text-ink-800">
+          {gatewayOutOfRange(wallet, chosen, true)}
+        </p>
+        {gateway}
+      </TopUpSection>
+    )
+  }
 
   return (
     <TopUpSection>
@@ -185,16 +213,7 @@ function TopUpBox({
             }}
           />
         </Field>
-        <TopUpGateway
-          gateways={gateways}
-          chosen={chosen}
-          onChoose={(code) => {
-            setChosenCode(code)
-            setChecked(null)
-            top.clearField()
-          }}
-          disabled={busy}
-        />
+        {gateway}
         <SubmitButton busy={busy} lock={lock}>
           {busy ? 'در حال آماده\u{200C}سازی پرداخت…' : 'افزایش موجودی'}
         </SubmitButton>

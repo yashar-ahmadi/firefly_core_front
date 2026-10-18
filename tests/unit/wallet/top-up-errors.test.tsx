@@ -92,6 +92,19 @@ describe('the amount refused by the server', () => {
   })
 })
 
+describe('the amount refused, the bounds then empty', () => {
+  it('by the chosen gateway’s floor, not the day: the gateway’s range, not «closed for today»', async () => {
+    const fresh = balance({ minimum_top_up_amount: 5_000, remaining_daily_top_up: 8_000 })
+    await pressWith(() => refuse(400, 'wallet_top_up_daily_limit_exceeded'), { fresh })
+    await waitFor(() =>
+      expect(amount()).toHaveAccessibleDescription(
+        /پرداخت با زرین پال از ۱۰٬۰۰۰ تومان ممکن است، اما شارژ کیف پول اکنون از ۵٬۰۰۰ تومان تا ۸٬۰۰۰ تومان است؛ درگاه دیگری را انتخاب کنید\./,
+      ),
+    )
+    expect(amount()).not.toHaveAccessibleDescription(/فردا/)
+  })
+})
+
 describe('the box closes', () => {
   it('top-ups switched off by the shop: its sentence instead of the box', async () => {
     await pressWith(() => refuse(400, 'wallet_top_up_disabled', 'شارژ کیف پول غیرفعال است.'))

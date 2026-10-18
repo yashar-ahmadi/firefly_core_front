@@ -6,7 +6,8 @@ import { gatewayFloor } from '@/features/payment/routes'
 // shop's per-charge floor and ceiling, the rest of the rolling day's limit, and the chosen bank
 // gateway's own range (its floor at least the adapters' 1,000 Toman, `gatewayFloor`). These are
 // the min and max of API fields: nothing is summed. The presets are the round amounts inside
-// them. Every sentence says its bound in Persian digits. Pure.
+// them. Empty bounds are the day's doing (closed for today) or the chosen gateway's (its range
+// said; another gateway may fit). Every sentence says its bound in Persian digits. Pure.
 
 export type TopUpWallet = Pick<
   WalletBalance,
@@ -47,7 +48,30 @@ export function boundsHint(bounds: TopUpBounds): string {
   return bounds.ceiling === 'daily' ? `${range} (باقی\u{200C}ماندهٔ سقف شارژ امروز)` : range
 }
 
-/** The day's limit is spent (or what is left is under the floor). */
+/** The shop's own limits leave nothing today: the day's rest is under the per-charge floor. */
+export const dayClosed = (wallet: TopUpWallet) =>
+  wallet.remaining_daily_top_up < wallet.minimum_top_up_amount
+
+/**
+ * The chosen gateway's range misses what the wallet takes now (the day is not closed): both said,
+ * and what to do (another gateway when there is one; else nothing can be charged with this one).
+ */
+export function gatewayOutOfRange(
+  wallet: TopUpWallet,
+  gateway: GatewayOption,
+  others: boolean,
+): string {
+  const floor = formatToman(gatewayFloor(gateway))
+  const span =
+    gateway.maximum_amount === null
+      ? `از ${floor}`
+      : `از ${floor} تا ${formatToman(gateway.maximum_amount)}`
+  const top = Math.min(wallet.maximum_top_up_amount, wallet.remaining_daily_top_up)
+  const next = others ? 'درگاه دیگری را انتخاب کنید.' : 'شارژ با این درگاه ممکن نیست.'
+  return `پرداخت با ${gateway.title} ${span} ممکن است، اما شارژ کیف پول اکنون از ${formatToman(wallet.minimum_top_up_amount)} تا ${formatToman(top)} است؛ ${next}`
+}
+
+/** The day's limit is spent (or what is left is under the shop's floor). */
 export function closedForToday(wallet: Pick<WalletBalance, 'remaining_daily_top_up'>): string {
   return wallet.remaining_daily_top_up > 0
     ? `از سقف شارژ امروز فقط ${formatToman(wallet.remaining_daily_top_up)} باقی مانده که کمتر از حداقل مبلغ شارژ است؛ فردا دوباره تلاش کنید.`

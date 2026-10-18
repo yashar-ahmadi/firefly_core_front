@@ -9,6 +9,8 @@ import {
 import {
   boundsHint,
   closedForToday,
+  dayClosed,
+  gatewayOutOfRange,
   presetsWithin,
   topUpBounds,
   topUpProblem,
@@ -56,9 +58,25 @@ describe('topUpBounds', () => {
   it('closed when the day’s rest is under the floor', () => {
     const wallet = balance({ remaining_daily_top_up: 20_000 })
     expect(topUpBounds(wallet, ZARINPAL).open).toBe(false)
+    expect(dayClosed(wallet)).toBe(true)
     expect(closedForToday(wallet)).toContain('۲۰٬۰۰۰ تومان')
     expect(closedForToday(balance({ remaining_daily_top_up: 0 }))).toBe(
       'سقف شارژ امروز کیف پول پر شده است؛ فردا دوباره تلاش کنید.',
+    )
+  })
+})
+
+describe('empty bounds by the gateway (the day still open)', () => {
+  it('not closed for the day; the gateway’s range and the wallet’s said', () => {
+    const wallet = balance({ remaining_daily_top_up: 100_000 })
+    const high = gateway({ minimum_amount: 200_000, maximum_amount: null })
+    expect(topUpBounds(wallet, high).open).toBe(false)
+    expect(dayClosed(wallet)).toBe(false)
+    expect(gatewayOutOfRange(wallet, high, true)).toBe(
+      'پرداخت با زرین پال از ۲۰۰٬۰۰۰ تومان ممکن است، اما شارژ کیف پول اکنون از ۵۰٬۰۰۰ تومان تا ۱۰۰٬۰۰۰ تومان است؛ درگاه دیگری را انتخاب کنید.',
+    )
+    expect(gatewayOutOfRange(balance(), gateway({ maximum_amount: 20_000 }), false)).toContain(
+      'از ۱۰٬۰۰۰ تومان تا ۲۰٬۰۰۰ تومان ممکن است',
     )
   })
 })

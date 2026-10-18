@@ -135,6 +135,41 @@ describe('the gateway', () => {
   })
 })
 
+describe('when the bounds are empty', () => {
+  it('the day’s rest under the shop’s floor: closed for today', () => {
+    renderForm(balance({ remaining_daily_top_up: 20_000 }))
+    expect(screen.getByRole('region', { name: 'افزایش موجودی' })).toHaveTextContent(
+      /از سقف شارژ امروز فقط ۲۰٬۰۰۰ تومان باقی مانده/,
+    )
+    expect(screen.queryByRole('button', { name: 'تغییر درگاه' })).toBeNull()
+  })
+
+  it('the chosen gateway’s own range: not closed; its range said, «تغییر درگاه» kept', async () => {
+    const [zarinpal, zibal] = gateways()
+    const served = catalog({ gateways: [{ ...zarinpal!, minimum_amount: 200_000 }, zibal!] })
+    const { user } = renderForm(balance({ remaining_daily_top_up: 100_000 }), served)
+    const box = screen.getByRole('region', { name: 'افزایش موجودی' })
+    expect(box).not.toHaveTextContent(/سقف شارژ امروز/)
+    expect(within(box).getByRole('status')).toHaveTextContent(
+      'پرداخت با زرین پال از ۲۰۰٬۰۰۰ تومان ممکن است، اما شارژ کیف پول اکنون از ۵۰٬۰۰۰ تومان تا ۱۰۰٬۰۰۰ تومان است؛ درگاه دیگری را انتخاب کنید.',
+    )
+    expect(screen.queryByRole('textbox', { name: /مبلغ شارژ/ })).toBeNull()
+    // Another gateway: the amount and its bounds come back.
+    await user.click(within(box).getByRole('button', { name: 'تغییر درگاه' }))
+    await user.click(await screen.findByRole('radio', { name: 'زیبال' }))
+    expect(amount()).toHaveAccessibleDescription(/حداقل ۵۰٬۰۰۰ تومان و حداکثر ۱۰۰٬۰۰۰ تومان/)
+  })
+
+  it('the only gateway’s range: closed, its range said', () => {
+    const served = catalog({ gateways: [{ ...gateways()[0]!, maximum_amount: 20_000 }] })
+    renderForm(balance(), served)
+    expect(screen.getByRole('region', { name: 'افزایش موجودی' })).toHaveTextContent(
+      'پرداخت با زرین پال از ۱۰٬۰۰۰ تومان تا ۲۰٬۰۰۰ تومان ممکن است، اما شارژ کیف پول اکنون از ۵۰٬۰۰۰ تومان تا ۵۰٬۰۰۰٬۰۰۰ تومان است؛ شارژ با این درگاه ممکن نیست.',
+    )
+    expect(screen.queryByRole('textbox', { name: /مبلغ شارژ/ })).toBeNull()
+  })
+})
+
 describe('the press', () => {
   it('one top-up however fast the presses, with the chosen gateway', async () => {
     mocks.bffFetch.mockImplementation(() => new Promise(() => {}))
