@@ -1,0 +1,54 @@
+import type { PaymentRoute } from '@/lib/api/types/payment'
+import type { PaymentDoor } from './api'
+import type { PendingPayment } from './pending-payments'
+
+// «پرداخت دوباره» on the result page (order digest §5.10 step 4): which door the new attempt
+// goes through. The status endpoint gives neither the order's uuid nor its link token, so the
+// door comes from what this device kept: the pending payment saved before the bank (its order
+// uuid, signed in, or its link token), else, for a guest, the recent guest orders' token, else,
+// signed in, the order looked up by its code (`GET order/<code>/` → `uuid`, on the press).
+// Nothing known (the result opened on another device, a guest): no door, never a made-up one;
+// the page sends the shopper to tracking or the SMS link instead. Pure.
+
+export type PayAgainDoor =
+  | { kind: 'known'; door: PaymentDoor }
+  /** Signed in: the order's uuid is read by its code when the shopper presses. */
+  | { kind: 'lookup'; orderCode: string }
+  | { kind: 'none' }
+
+export interface PayAgainInput {
+  /** The pending payment saved before the bank, on this device (null: none). */
+  pending: PendingPayment | null
+  /** The payment's order (null: not an order's, e.g. a top-up). */
+  orderCode: string | null
+  hasSession: boolean
+  /** The order's link token from this device's recent guest orders (null: none). */
+  guestToken: string | null
+}
+
+export function payAgainDoor({
+  pending,
+  orderCode,
+  hasSession,
+  guestToken,
+}: PayAgainInput): PayAgainDoor {
+  if (!orderCode) return { kind: 'none' }
+  // The owner's door needs the session it was opened with.
+  if (hasSession && pending?.orderUuid) {
+    return { kind: 'known', door: { kind: 'uuid', orderUuid: pending.orderUuid } }
+  }
+  // Anyone holding the link may pay through it (the bank routes need no account).
+  const token = pending?.linkToken ?? guestToken
+  if (token) return { kind: 'known', door: { kind: 'link', token } }
+  return hasSession ? { kind: 'lookup', orderCode } : { kind: 'none' }
+}
+
+/**
+ * The route of the new attempt: the bank again, or the wallet and the bank when the shopper had
+ * chosen them and is still signed in (the wallet's part was given back when the attempt failed).
+ */
+export function payAgainRoute(pending: PendingPayment | null, hasSession: boolean): PaymentRoute {
+  return pending?.route === 'wallet_and_gateway' && hasSession
+    ? 'wallet_and_gateway'
+    : 'bank_gateway'
+}

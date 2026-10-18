@@ -37,6 +37,8 @@ describe('Referrer-Policy', () => {
   it.each([
     `/order/pay/${TOKEN}/`,
     '/payment/callback/?payment=3f1c7a52-9a0e-4c4b-b5e0-0d2f3b1c9a77&result=success',
+    // The result page once it took the uuid out of the address (a reload of it).
+    '/payment/callback/?result=success',
     '/payment/card-transfer/3f1c7a52-9a0e-4c4b-b5e0-0d2f3b1c9a77/',
     `/login/?next=/order/pay/${TOKEN}/`,
   ])('is no-referrer on %s', async (path) => {

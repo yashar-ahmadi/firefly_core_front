@@ -12,7 +12,7 @@ import { ok, onlineCart, PLACE, placeButton, placed, renderCheckout, serve } fro
 // The placed order's attempt is being verified (409 `payment_attempt_open`, row 3) and the
 // verification ends by itself (its status read: failed): the routes come back. The focus moves
 // to their heading only when it was in the panel that went away (or nowhere); a shopper on
-// «بعداً پرداخت می‌کنم» keeps their place.
+// the «pay later» link keeps their place.
 
 const LINK_INTENT = `payment/link/${LINK_TOKEN}/intent/`
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), push: vi.fn() }))
@@ -60,7 +60,7 @@ const routesHeading = () => screen.findByRole('heading', { level: 3, name: 'پر
 describe('the placed order’s verification ends by itself', () => {
   it('keeps the focus where the shopper put it, outside the panel', async () => {
     const { end } = await verifyingAfterPlacement()
-    const later = screen.getByRole('link', { name: 'بعداً پرداخت می‌کنم' })
+    const later = screen.getByRole('link', { name: 'بعداً پرداخت می\u{200C}کنم' })
     later.focus()
     await end()
     expect(await routesHeading()).not.toHaveFocus()

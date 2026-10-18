@@ -26,8 +26,9 @@ import { SESSION_COOKIES } from './session'
 // that loads on first use (a panel, a menu, a toast, the phone search overlay) does not either.
 // Used by catalog/budget.spec.ts (a guest) and catalog/budget-signed-in.spec.ts (sara), in the
 // `desktop` project and again in `budget-push` (the same build as a shop with web push: dummy
-// FIREBASE_* on its own server, playwright.config.ts), and by checkout/pay-link.spec.ts (the
-// payment link's pages, in `journeys`). The checkout's states are set up and checked by
+// FIREBASE_* on its own server, playwright.config.ts), by checkout/pay-link.spec.ts (the
+// payment link's pages, in `journeys`) and checkout/payment-result.spec.ts (the bank's return
+// page in each of its states, from a mocked status). The checkout's states are set up and checked by
 // support/checkout-states.ts.
 
 /** The session's flag cookie (`ff_auth`): there while the session lives. */
@@ -45,6 +46,8 @@ export interface BudgetRoute {
   budget?: number
   /** The page reached the state measured (a lazily loaded part on screen) before the sum. */
   ready?: (page: Page, device: string) => Promise<void>
+  /** Before the page loads, in each context measured (the result page's mocked status). */
+  prepare?: (page: Page) => Promise<void>
 }
 
 export const BUDGET_KB = 250
@@ -161,6 +164,7 @@ export async function measure(
   if (route.name === 'compare') await seedCompare(page, [SAMPLE.S25, SAMPLE.A56])
   if (route.checkout) await prepareCheckout(page, route.checkout)
   if (push) await pushOn(page)
+  if (route.prepare) await route.prepare(page)
   const scripts = recordScripts(page)
 
   const shown = route.shownPath ?? decodeURIComponent(route.path)

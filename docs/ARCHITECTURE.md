@@ -144,7 +144,13 @@ re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
   simply proxied, so a struggling API is not asked twice per guest read. The response keeps
   `Cache-Control: no-store`, sets no cookie and is
   byte-for-byte the body the proxied read would give. Cost: the empty-cart shape may be up to 60 s
-  stale.
+  stale;
+- sends a payment's status read without the session when asked: `GET payment/<uuid>/status/?anon=1`
+  goes with no bearer, no cart token, no refresh and no cookie change, and without the flag
+  (`lib/bff/anonymous.ts`). The API refuses a signed-in visitor another account's payment (403
+  `payment_forbidden`, a guest order paid through its link) but answers the same read made
+  anonymously (order digest §11 #7); the result page retries with the flag. On any other path the
+  flag is an ordinary query parameter (forwarded, the session attached).
 
 **Visitor IP.** The API throttles guests per IP and all storefront traffic comes from one host,
 so uncached calls (BFF, redirect resolution, short links, token refresh, bank callback) send
@@ -531,6 +537,17 @@ signed-in header to another.
   measure the same with the dev backend's answers replaced (the bank's states cannot be had in
   dev). The shop's other pages and `/cart/` are byte for byte what Task 3 left; the checkout's
   states moved by at most 0.2 KB (the carried retries' code), its costliest (sara's) not at all.
+- **The payment result page** (`/payment/callback/`, Plan 4 Task 5): the route's entry is a thin
+  wrapper around its island (`features/payment/result-loader.tsx`, server-rendered), the status
+  polling (`use-payment-status.ts`) and «پرداخت دوباره» are in it, the bank redirect and the
+  confetti load only when used. Measured from a mocked status
+  (`tests/e2e/checkout/payment-result.spec.ts`, held to `CHECKOUT_BUDGET_KB`): checking, failed
+  and an invalid return 219.0 KB, success 219.8 KB with the confetti (desktop and phone alike).
+  A third lesson for keeping the shop's other pages byte for byte: importing the phone formatter
+  (`lib/format/phone.ts`, directly or through the shell's `SupportPhone`) into the island regrouped
+  two of the product page's chunks (+110 B there, measured by bisecting builds); the route formats
+  the support line on the server and hands the island the text. Importing lucide's `LoaderCircle`
+  next to `Spinner` re-exported it from a shared chunk (+11 B on every page): use `Spinner`.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -664,6 +681,16 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
   replay or heatmap snippet records the DOM: CUSTOMIZATION.md tells operators to mask link URLs
   (or not to record `/checkout/`). They stay links (copy, open in a new tab).
 
+**The bank's return page** (`/payment/callback/?result=…&payment=<uuid>&code=…`) never reads the
+query on the server (its HTML is the same for every return). In the browser it reads the uuid
+once, keeps it for this tab (`sessionStorage`, `ff-payment-return`) and replaces the address with
+`?result=…&code=…` (the native History API, which Next keeps in step), so the credential leaves
+the address bar and the tab's history; a reload of what is left reads it back from the tab's copy
+(only when its `result` and `code` match, so another return in the tab never takes it). The page
+stays under the `/payment/` prefix either way. The uuid is also in `localStorage`'s pending
+payments (Plan 4, saved before the bank) on every page of the origin; the result page removes its
+entry once the payment settled.
+
 **A new route whose URL carries a payment link's token or a payment's uuid** (in its path or its
 query) must sit under one of `CREDENTIAL_PREFIXES` (`credential-routes.ts`), or add its prefix
 there in the same change. Every safeguard above follows from that list alone (the marker, the
@@ -736,10 +763,14 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   journey (`tests/e2e/checkout/pay-link.spec.ts`) places one more guest order through the BFF
   (`support/guest-order.ts`, no intent), opens its link as the SMS spells it (no trailing slash:
   the 308 keeps the token), refuses the bank as above, opens a card-transfer attempt, resumes and
-  abandons it on the link, measures the link's pages, and cancels the order through the page's
-  dialog (an API guard cancels it when the test ends earlier): four `payment_attempt` calls and
-  about nine `order_payment_link` calls per run. Its budget lines print `/order/pay/<token>/`,
-  never the token. A failure the
+  abandons it on the link, reads that cancelled attempt's real status on the bank's return page
+  (`/payment/callback/`), measures the link's pages, and cancels the order through the page's
+  dialog (an API guard cancels it when the test ends earlier): four `payment_attempt` calls,
+  about ten `order_payment_link` calls and one payment status read per run. Its budget lines
+  print `/order/pay/<token>/`, never the token. The return page's other states
+  (`tests/e2e/checkout/payment-result.spec.ts`, every device project, a guest, no backend write)
+  come from a status mocked in the browser (`page.route`), the polling schedule on Playwright's
+  fake clock: the dev backend cannot run a bank. A failure the
   dev backend gives by design is forgiven by its status (`forgiveFailure(page, url, status)` in
   `watch-errors.ts`). Playwright skips it when a project before it failed, and a filter on the command line
   does not drop its dependencies (one journey file still runs the three device suites first):

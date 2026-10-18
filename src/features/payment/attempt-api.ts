@@ -2,10 +2,10 @@ import { bffFetch } from '@/lib/api/client'
 import { ApiError, GENERIC_ERROR_DETAIL, NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
 import type { PaymentStatus, PaymentStatusInfo } from '@/lib/api/types/payment'
 
-// An open attempt's own calls through the BFF (order digest §3.2.5–3.2.6): abandon it
-// (`POST payment/<uuid>/cancel/`, the 30/h `payment_attempt` budget shared with the intents) and
-// read its status (`GET payment/<uuid>/status/`, the 240/h `payment_status` budget). The uuid is
-// a bearer credential: in the path only, never in a log.
+// An open attempt's own call through the BFF (order digest §3.2.6): abandon it
+// (`POST payment/<uuid>/cancel/`, the 30/h `payment_attempt` budget shared with the intents).
+// Its status is read by `usePaymentStatus` (status-api.ts). The uuid is a bearer credential: in
+// the path only, never in a log.
 
 /**
  * A 429's sentence: the account lists' own words, kept here rather than imported from their
@@ -63,12 +63,4 @@ export async function cancelAttempt(uuid: string): Promise<CancelOutcome> {
     const detail = error.status === 0 ? NETWORK_ERROR_DETAIL : error.detail
     return { ok: false, problem, detail }
   }
-}
-
-/** `GET payment/<uuid>/status/`; throws `ApiError`. */
-export async function readAttemptStatus(
-  uuid: string,
-  signal?: AbortSignal,
-): Promise<PaymentStatusInfo> {
-  return (await bffFetch<PaymentStatusInfo>(`payment/${uuid}/status/`, { signal })).data
 }

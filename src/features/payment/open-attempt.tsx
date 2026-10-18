@@ -33,7 +33,7 @@ import {
   UNDER_REVIEW,
 } from './open-attempt-parts'
 import { savePending } from './pending-payments'
-import { useAttemptStatus } from './use-attempt-status'
+import { usePaymentStatus } from './use-payment-status'
 
 // The order's one open online attempt (order digest §5.9; the 409 `payment_attempt_open` body,
 // or the payment link page's `open_attempt`), exactly the table's rows (attempt-row.ts). Hosts:
@@ -79,12 +79,14 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
   const holdWhileLeaving = useReleaseIfStillHere()
   const own = attemptRow(attempt)
   const row: AttemptRow = underReview ? 'review' : own === 'bank' && handoffGone ? 'expired' : own
-  const polled = useAttemptStatus(attempt.payment, row === 'verifying')
+  // The verification's outcome, read under the polling policy (usePaymentStatus).
+  const polled = usePaymentStatus(row === 'verifying' ? attempt.payment : null)
+  const polledStatus = polled.info?.status ?? null
   const resolve = useEffectEvent(onResolved)
   useEffect(() => {
-    if (polled.status === 'settled') resolve({ kind: 'settled' })
-    else if (polled.status && polled.status !== 'pending') resolve({ kind: 'ended' })
-  }, [polled.status])
+    if (polledStatus === 'settled') resolve({ kind: 'settled' })
+    else if (polledStatus && polledStatus !== 'pending') resolve({ kind: 'ended' })
+  }, [polledStatus])
 
   const savePendingAs = (route: PaymentRoute) =>
     savePending(attempt.payment, {
@@ -235,7 +237,7 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
       {error && <AttemptError>{error}</AttemptError>}
       {row === 'verifying' && (
         <p role="status" className="text-sm leading-6 text-ink-700 empty:-mt-3">
-          {polled.unreadable ? POLL_UNREADABLE : polled.exhausted ? POLL_EXHAUSTED : ''}
+          {polled.unreadable ? POLL_UNREADABLE : polled.stopped ? POLL_EXHAUSTED : ''}
         </p>
       )}
     </section>

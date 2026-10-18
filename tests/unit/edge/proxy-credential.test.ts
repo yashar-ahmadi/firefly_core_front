@@ -56,6 +56,8 @@ describe('the route kind', () => {
   it.each([
     `/order/pay/${TOKEN}/`,
     '/payment/callback/?payment=3f1c7a52-9a0e-4c4b-b5e0-0d2f3b1c9a77',
+    // Scrubbed (the page keeps the uuid in this tab and may show it): still no operator code.
+    '/payment/callback/?result=failed&code=gateway_rejected',
     `/login/?next=/order/pay/${TOKEN}/`,
   ])('marks %s as a credential page', async (path) => {
     const { proxy } = await load()

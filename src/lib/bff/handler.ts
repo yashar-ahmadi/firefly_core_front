@@ -6,6 +6,7 @@ import { GENERIC_ERROR_DETAIL, NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
 import { isExpiring } from '@/lib/auth/jwt'
 import { refreshAccess } from '@/lib/auth/refresh'
 import { isAllowed } from '@/lib/bff/allowlist'
+import { NO_SESSION, isAnonymousRead, withoutAnonFlag } from '@/lib/bff/anonymous'
 import { anonymousCartBody, isAnonymousCartRead } from '@/lib/bff/guest-cart'
 import {
   RequestTooLargeError,
@@ -137,9 +138,12 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
     if (text !== null) return serialisedJsonResponse(text)
   }
 
-  const url = `${env.FIREFLY_API_URL}/api/v1/${apiPath(path, queryOf(req))}`
+  // A payment's status read asked without the session: none of it goes, nothing of it changes.
+  const anonymous = isAnonymousRead(req, method, path)
+  const query = anonymous ? withoutAnonFlag(queryOf(req)) : queryOf(req)
+  const url = `${env.FIREFLY_API_URL}/api/v1/${apiPath(path, query)}`
   const forwardedFor = getClientIp(req.headers, env.CLIENT_IP_HEADER)
-  const cookies = readSession(req)
+  const cookies = anonymous ? NO_SESSION : readSession(req)
   const jar = new CookieJar()
   // The refresh and logout endpoints authenticate with the API key alone.
   const keyOnly = path === REFRESH_PATH || path === LOGOUT_PATH
@@ -172,7 +176,7 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
   }
   const secure = new URL(env.SITE_URL).protocol === 'https:'
   const answer = (response: NextResponse): NextResponse => {
-    jar.applyTo(response, secure)
+    if (!anonymous) jar.applyTo(response, secure)
     return response
   }
 

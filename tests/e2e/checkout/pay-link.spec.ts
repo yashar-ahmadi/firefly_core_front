@@ -18,13 +18,14 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // one tried with a press), an unnamed one 503 `gateway_not_configured`; either way the page says
 // the bank cannot be used here, with support, and never navigates. Card to card opens an attempt
 // (its page is Task 6's, a 404 until then); back on the link the attempt's resume UI shows
-// instead of the routes, and its «انصراف» cancels it. The order is then cancelled through the
+// instead of the routes, and its «انصراف» cancels it; the bank's return page then reads that
+// cancelled attempt's real status (Task 5). The order is then cancelled through the
 // page's dialog (this is the cleanup; a guard cancels it through the API if the test ends
 // earlier). The JS budget of the link's pages is measured on the way: payable, with an open
 // attempt, refused.
 // Per run: 1 placement; 2-3 `payment_attempt` calls for the bank and the card, 1 attempt cancel
-// (of 30/h); about 9 `order_payment_link` reads and the cancel (of 30/min). Never printed: the
-// token (`<token>` in the budget lines).
+// (of 30/h); about 10 `order_payment_link` reads and the cancel (of 30/min); 1 payment status
+// read (the result page, of 240/h). Never printed: the token (`<token>` in the budget lines).
 
 const SHOWN = '/order/pay/<token>/'
 /** The sample data's end-of-body snippet (snippets.spec.ts). */
@@ -111,6 +112,7 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
     await press()
     expect((await card).status(), 'a card transfer attempt').toBe(201)
     await page.waitForURL(/\/payment\/card-transfer\/[0-9a-f-]{36}\/$/)
+    const attempt = /\/payment\/card-transfer\/([0-9a-f-]{36})\/$/.exec(page.url())![1]!
 
     // Back on the link: the attempt's resume UI instead of the routes.
     await page.goto(path)
@@ -128,6 +130,17 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
     const abandoned = page.waitForResponse(/\/api\/bff\/payment\/[0-9a-f-]{36}\/cancel\/$/)
     await attemptPanel(page).getByRole('button', { name: 'انصراف' }).click()
     expect((await abandoned).status(), 'the attempt abandoned').toBe(200)
+    await expect(routes(page)).toBeVisible()
+
+    // The bank's return page with this real, cancelled attempt (Plan 4 Task 10's check, one
+    // status read): its status says what it came to, whatever the return claims; the uuid
+    // leaves the address bar.
+    await page.goto(`/payment/callback/?result=failed&payment=${attempt}`)
+    await expect(page.getByRole('heading', { level: 1, name: 'پرداخت بسته شد' })).toBeVisible()
+    await expect(page.getByText('این تلاش پرداخت بسته شده است.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'پرداخت دوباره' })).toHaveCount(0)
+    expect(page.url(), 'the uuid out of the address bar').not.toContain(attempt)
+    await page.goto(path)
     await expect(routes(page)).toBeVisible()
 
     // The order cancelled through the page's dialog (the safe choice focused first).
