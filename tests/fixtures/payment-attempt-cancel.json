@@ -1,0 +1,14 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "uuid": "0b6f5a9e-3c1d-4f7a-9e2b-1a2b3c4d5e6f",
+    "applies_to": "online_charge",
+    "method": "card_transfer",
+    "status": "cancelled",
+    "amount": 1049000,
+    "order_code": "1411635340",
+    "failure_reason": "payment_attempt_abandoned",
+    "settled_at": null
+  }
+}

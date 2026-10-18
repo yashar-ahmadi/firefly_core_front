@@ -68,12 +68,11 @@ async function geo<T>(page: Page, path: string): Promise<T[]> {
 }
 
 /**
- * A guest back at the checkout (`guest-review`): this context's cart with a product, Tehran as
- * its destination and the operator's default shipping option chosen (else the first available,
- * as a shopper would), each through the cart-write guard; and, in this tab's sessionStorage
- * before any page script runs, the receiver the guest confirmed with «ادامه».
+ * This context's guest cart ready to place: a product, Tehran as its destination and the
+ * operator's default shipping option chosen (else the first available, as a shopper would),
+ * each through the cart-write guard. Also the payment link's journey's start (guest-order.ts).
  */
-async function seedGuestReview(page: Page): Promise<void> {
+export async function seedGuestCart(page: Page): Promise<{ province: number; city: number }> {
   await seedCart(page)
   const tehran = (await geo<Province>(page, 'province/list/?limit=1500')).find(
     (province) => province.name === 'تهران',
@@ -113,10 +112,20 @@ async function seedGuestReview(page: Page): Promise<void> {
         data: { code: option!.code, cash_on_delivery: false },
       }),
   )
+  return { province: tehran!.id, city: city!.id }
+}
+
+/**
+ * A guest back at the checkout (`guest-review`): the cart ready to place (`seedGuestCart`) and,
+ * in this tab's sessionStorage before any page script runs, the receiver the guest confirmed
+ * with «ادامه».
+ */
+async function seedGuestReview(page: Page): Promise<void> {
+  const { province, city } = await seedGuestCart(page)
   const draft = JSON.stringify({
     values: {
-      province: tehran!.id,
-      city: city!.id,
+      province,
+      city,
       address: 'خیابان آزمون، کوچه\u{0654} یک',
       plaque: '',
       unit: '',

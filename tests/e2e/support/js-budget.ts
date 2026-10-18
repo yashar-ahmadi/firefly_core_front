@@ -26,8 +26,9 @@ import { SESSION_COOKIES } from './session'
 // that loads on first use (a panel, a menu, a toast, the phone search overlay) does not either.
 // Used by catalog/budget.spec.ts (a guest) and catalog/budget-signed-in.spec.ts (sara), in the
 // `desktop` project and again in `budget-push` (the same build as a shop with web push: dummy
-// FIREBASE_* on its own server, playwright.config.ts). The checkout's states are set up and
-// checked by support/checkout-states.ts.
+// FIREBASE_* on its own server, playwright.config.ts), and by checkout/pay-link.spec.ts (the
+// payment link's pages, in `journeys`). The checkout's states are set up and checked by
+// support/checkout-states.ts.
 
 /** The session's flag cookie (`ff_auth`): there while the session lives. */
 const FLAG_COOKIE = SESSION_COOKIES[2]
@@ -36,6 +37,14 @@ export interface BudgetRoute {
   name: string
   path: string
   checkout?: CheckoutState
+  /** What the line prints instead of the path (a payment link's: its token is a credential). */
+  shownPath?: string
+  /** The page's own status (a payment link that does not open answers 404); default 200. */
+  status?: number
+  /** Its own target (the payment link's pages: `CHECKOUT_BUDGET_KB`); default by kind. */
+  budget?: number
+  /** The page reached the state measured (a lazily loaded part on screen) before the sum. */
+  ready?: (page: Page, device: string) => Promise<void>
 }
 
 export const BUDGET_KB = 250
@@ -46,7 +55,8 @@ export const BUDGET_KB = 250
 export const CHECKOUT_BUDGET_KB = 246
 
 /** The figure a route is held to. */
-export const budgetOf = (route: BudgetRoute) => (route.checkout ? CHECKOUT_BUDGET_KB : BUDGET_KB)
+export const budgetOf = (route: BudgetRoute) =>
+  route.budget ?? (route.checkout ? CHECKOUT_BUDGET_KB : BUDGET_KB)
 
 /** Whether `project` measures the budget: `desktop`, and `budget-push` for a push shop. */
 export function measuresBudget(project: FullProject): boolean {
@@ -153,8 +163,9 @@ export async function measure(
   if (push) await pushOn(page)
   const scripts = recordScripts(page)
 
+  const shown = route.shownPath ?? decodeURIComponent(route.path)
   const response = await page.goto(route.path, { waitUntil: 'load' })
-  expect(response?.status(), `${device} ${route.path}`).toBe(200)
+  expect(response?.status(), `${device} ${shown}`).toBe(route.status ?? 200)
   expect(new URL(page.url()).pathname, `${device}: the page measured`).toBe(
     new URL(route.path, page.url()).pathname,
   )
@@ -166,6 +177,7 @@ export async function measure(
     ).toContain(FLAG_COOKIE)
   }
   if (route.checkout) await checkoutReached(page, route.checkout, device)
+  if (route.ready) await route.ready(page, device)
   await expect
     .poll(scripts.settled, {
       message: `${device}: /_next/static never went quiet for ${QUIET_MS} ms after load`,
@@ -186,7 +198,7 @@ export async function measure(
   const kb = bytes / 1024
   const budget = budgetOf(route)
   const state = route.checkout ? ` [${route.checkout}]` : ''
-  const line = `${route.name} (${device})${state} ${decodeURIComponent(route.path)}: ${kb.toFixed(1)} KB gzip in ${results.length} scripts (budget ${budget} KB)`
+  const line = `${route.name} (${device})${state} ${shown}: ${kb.toFixed(1)} KB gzip in ${results.length} scripts (budget ${budget} KB)`
   return { kb, budget, line }
 }
 

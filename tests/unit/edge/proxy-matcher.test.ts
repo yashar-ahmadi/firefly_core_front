@@ -42,6 +42,10 @@ describe('matcher', () => {
     '/product-category/digital/x%ZZ.webp',
     '/brand/x%ZZ.jpg',
     '/product/x%ZZ.png',
+    // The payment link, as the SMS spells it and as the page is served (its route kind marked).
+    '/order/pay/k3J9f0qLx2mN8pR1sT4uV7wY0zA3bC6dE9gH2jK5mN8',
+    '/order/pay/k3J9f0qLx2mN8pR1sT4uV7wY0zA3bC6dE9gH2jK5mN8/',
+    '/payment/callback/?payment=3f1c7a52-9a0e-4c4b-b5e0-0d2f3b1c9a77&result=success',
   ])('runs on %s', async (url) => {
     expect(await matches(url)).toBe(true)
   })

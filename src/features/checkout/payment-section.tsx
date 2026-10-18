@@ -40,6 +40,8 @@ export interface PaymentSectionProps {
   onChoose?: (route: PaymentRoute) => void
   /** After a login, back here. */
   loginNext?: string
+  /** The order exists already (its payment, its link): «تأیید سفارش» confirms it. */
+  placed?: boolean
   footer?: ReactNode
 }
 
@@ -88,6 +90,7 @@ export function PaymentSection({
   busy = false,
   onChoose,
   loginNext = '/checkout/',
+  placed = false,
   footer,
 }: PaymentSectionProps) {
   const { routes, chosen } = choice
@@ -108,9 +111,11 @@ export function PaymentSection({
       <div className="flex flex-col gap-3">
         {only.enabled ? (
           <Note tone="info">
-            {onDelivery > 0
-              ? `پرداخت آنلاینی لازم نیست: سفارش پس از ثبت تأیید می\u{200C}شود و ${formatToman(onDelivery)} هنگام تحویل پرداخت می\u{200C}شود.`
-              : 'این سفارش رایگان است: پس از ثبت تأیید می\u{200C}شود.'}
+            {`${onDelivery > 0 ? 'پرداخت آنلاینی لازم نیست' : 'این سفارش رایگان است'}: ${
+              placed
+                ? 'با «تأیید سفارش» سفارش تأیید می\u{200C}شود'
+                : 'سفارش پس از ثبت تأیید می\u{200C}شود'
+            }${onDelivery > 0 ? ` و ${formatToman(onDelivery)} هنگام تحویل پرداخت می\u{200C}شود.` : '.'}`}
           </Note>
         ) : (
           <Note tone="warning">{only.reason}</Note>

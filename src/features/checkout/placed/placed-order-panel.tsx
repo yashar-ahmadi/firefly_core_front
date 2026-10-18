@@ -10,12 +10,14 @@ import { cn } from '@/components/ui/cn'
 import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
 import { BANK_UNUSABLE, intentMessage } from '@/features/payment/intent-messages'
+import type { AttemptResolution } from '@/features/payment/open-attempt'
+import { OpenAttemptLoader } from '@/features/payment/open-attempt-loader'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
 import { useRouteChoice, type RouteChoiceState } from '@/features/payment/use-route-choice'
 import type { PaymentRoute } from '@/lib/api/types/payment'
 import { formatToman } from '@/lib/format'
 import { PaymentSection } from '../payment-section'
-import type { PlacedContext } from '../placed-order'
+import { doorOf, type PlacedContext } from '../placed-order'
 import { thanksPath } from '../thanks-path'
 import { usePayOrder } from '../use-pay-order'
 import { BankHandoff } from './bank-handoff'
@@ -28,8 +30,10 @@ import { PayLater } from './pay-later'
 // (`pay_on_delivery`); the route chosen still allowed for A → that route; otherwise the shopper
 // chooses among the routes for the order (no doomed intent). While a route runs the page says so,
 // a bank takes over the page (`BankHandoff`), and a refusal leaves the order here with what
-// happened, the routes again for the order's own amounts and how to pay later. Never lost: the
-// code is on screen from the first moment, the thanks page a link away.
+// happened, the routes again for the order's own amounts and how to pay later. An attempt still
+// open (`409 payment_attempt_open`) is not an error: its resume UI shows (loaded only then) until
+// the shopper continues it or abandons it (then the route runs again, a new key). Never lost:
+// the code is on screen from the first moment, the thanks page a link away.
 
 /** The route to run at once for the order; null: the shopper chooses; undefined: not known yet. */
 function orderRoute(ctx: PlacedContext, choice: RouteChoiceState): PaymentRoute | null | undefined {
@@ -58,6 +62,20 @@ export function PlacedOrderPanel({
   })
   const payment = usePayOrder(ctx, catalog, { suggest: choice.choose })
   const [expired, setExpired] = useState(false)
+  // The shop's sentence after an abandoned attempt whose money the bank had taken (parked).
+  const [attemptNotice, setAttemptNotice] = useState<string | null>(null)
+  const [resumed, setResumed] = useState(false)
+  const door = doorOf(ctx)
+  const resolved = (resolution: AttemptResolution) => {
+    if (resolution.kind === 'settled') return payment.settled()
+    setResumed(true)
+    setAttemptNotice(resolution.kind === 'cancelled' ? (resolution.notice ?? null) : null)
+    // Abandoned to pay again: the route runs again, with a new key (`pay`).
+    if (resolution.kind === 'cancelled' && resolution.repay && choice.chosen) {
+      return void payment.pay(choice.chosen.route, choice.gatewayCode)
+    }
+    payment.choose()
+  }
   const planned = orderRoute(ctx, choice)
   // The press that placed the order pays it too (once, whatever re-renders).
   const started = useRef(false)
@@ -93,7 +111,9 @@ export function PlacedOrderPanel({
     error?.problem === 'gateway_broken' ||
     (error?.problem === 'gateway_refresh' && catalog.gateways.length === 0)
   // The route chosen for the cart does not fit the order: said, the shopper chooses.
-  const differs = state.phase === 'choosing' && !expired
+  const differs = state.phase === 'choosing' && !expired && !resumed
+  // An attempt still open: its resume UI instead of an error (and of the routes) until resolved.
+  const open = error?.problem === 'attempt_open' && door ? error.openAttempt : null
   return (
     <section
       aria-labelledby="placed-heading"
@@ -118,7 +138,21 @@ export function PlacedOrderPanel({
             : 'در حال آماده\u{200C}سازی پرداخت…'}
         </p>
       )}
-      {(error || expired) && (
+      {open && door && (
+        <OpenAttemptLoader
+          attempt={open}
+          door={door}
+          orderCode={ctx.orderCode}
+          fallbackHref={ctx.linkToken ? payLinkPath(ctx.linkToken) : undefined}
+          onResolved={resolved}
+        />
+      )}
+      {attemptNotice && !open && (
+        <p className="rounded-card bg-warning/10 px-4 py-3 text-base leading-7 text-ink-800">
+          {attemptNotice}
+        </p>
+      )}
+      {(error || expired) && !open && (
         <div role="alert" className="flex flex-col gap-2 rounded-card bg-danger/10 px-4 py-3">
           <p className="flex items-start gap-2 text-base leading-7 font-medium text-ink-900">
             <CircleAlert aria-hidden className="mt-1 size-5 shrink-0 text-danger" />
@@ -134,7 +168,7 @@ export function PlacedOrderPanel({
             <SupportPhone phone={supportPhone} label="پشتیبانی" iconLabel="تماس با پشتیبانی" />
           )}
           {error?.problem === 'attempt_open' && ctx.linkToken && (
-            // A full page load (its URL holds the token): credential-routes.ts.
+            // No attempt in the answer: the payment link's page reads it (a full page load).
             <a href={payLinkPath(ctx.linkToken)} className={buttonClasses({ variant: 'link' })}>
               ادامه یا لغو پرداخت نیمه‌تمام
             </a>
@@ -156,27 +190,32 @@ export function PlacedOrderPanel({
       )}
       {state.phase === 'failed' || state.phase === 'choosing' ? (
         <div className="flex flex-col gap-4">
-          <h3 className="text-lg leading-8 font-bold text-ink-900">پرداخت سفارش</h3>
-          <PaymentSection
-            choice={choice}
-            onDelivery={ctx.D}
-            catalog={catalog}
-            busy={paying}
-            loginNext={thanksPath(ctx.orderCode)}
-            footer={
-              <Button
-                size="lg"
-                className="sm:self-start"
-                disabled={!choice.chosen}
-                onClick={() => {
-                  setExpired(false)
-                  if (choice.chosen) void payment.pay(choice.chosen.route, choice.gatewayCode)
-                }}
-              >
-                پرداخت سفارش
-              </Button>
-            }
-          />
+          {!open && (
+            <>
+              <h3 className="text-lg leading-8 font-bold text-ink-900">پرداخت سفارش</h3>
+              <PaymentSection
+                choice={choice}
+                onDelivery={ctx.D}
+                catalog={catalog}
+                busy={paying}
+                loginNext={thanksPath(ctx.orderCode)}
+                placed
+                footer={
+                  <Button
+                    size="lg"
+                    className="sm:self-start"
+                    disabled={!choice.chosen}
+                    onClick={() => {
+                      setExpired(false)
+                      if (choice.chosen) void payment.pay(choice.chosen.route, choice.gatewayCode)
+                    }}
+                  >
+                    پرداخت سفارش
+                  </Button>
+                }
+              />
+            </>
+          )}
           <PayLater
             guest={ctx.guest}
             orderCode={ctx.orderCode}

@@ -1,0 +1,48 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "order_code": "1411635340",
+    "status": "awaiting_payment",
+    "status_display": "در انتظار پرداخت",
+    "placed_at": "2026-10-18T10:50:25.897710+03:30",
+    "item_count": 1,
+    "total": 1049000,
+    "prepayment": 0,
+    "amount_charged_online": 1049000,
+    "amount_to_collect_on_delivery": 0,
+    "amount_settled_online": 0,
+    "amount_outstanding_online": 1049000,
+    "is_payable": true,
+    "can_cancel": true,
+    "expires_at": "2026-10-21T10:50:25.876801+03:30",
+    "open_attempt": {
+      "payment": "0b6f5a9e-3c1d-4f7a-9e2b-1a2b3c4d5e6f",
+      "method": "card_transfer",
+      "status": "pending",
+      "amount": 1049000,
+      "expires_at": "2026-10-19T10:50:25.979166+03:30",
+      "handoff": null,
+      "destination_cards": [
+        {
+          "id": 10001,
+          "holder_name": "فروشگاه فایرفلای",
+          "bank_name": "بانک ملت",
+          "bank_logo_thumbnail": "/static/defaults/default.png",
+          "card_number": "6104-3378-1234-5678",
+          "sheba": "IR620120000000001234567890",
+          "account_number": "1234567890"
+        },
+        {
+          "id": 10002,
+          "holder_name": "فروشگاه فایرفلای",
+          "bank_name": "بانک سامان",
+          "bank_logo_thumbnail": "/static/defaults/default.png",
+          "card_number": "6219-8610-1234-5678",
+          "sheba": "IR350560000000001234567891",
+          "account_number": "1234567891"
+        }
+      ]
+    }
+  }
+}

@@ -5,11 +5,12 @@ const MEDIA_PATH = /^\/(?:media|static)\//
 
 /**
  * Routes later plans build, which the shell already links to (homepage posts, the registration
- * terms' page links, my comments' subjects): a visit or a router prefetch there answers 404
- * until the route exists. Remove each one as its route lands (Plan 3 built the auth and every
- * account page; Plan 4 the cart and the checkout; blog and content pages: the content plan).
+ * terms' page links, my comments' subjects, the payment link's card transfer): a visit or a
+ * router prefetch there answers 404 until the route exists. Remove each one as its route lands
+ * (Plan 3 built the auth and every account page; Plan 4 the cart, the checkout and the payment
+ * link; `/payment/card-transfer/`: Plan 4 Task 6; blog and content pages: the content plan).
  */
-const NOT_YET_BUILT = /^\/(?:blog|page)\//
+const NOT_YET_BUILT = /^\/(?:blog|page|payment\/card-transfer)\//
 
 const NOT_FOUND = /^Failed to load resource: the server responded with a status of 404\b/
 /** A failed request's console line, and its status. */

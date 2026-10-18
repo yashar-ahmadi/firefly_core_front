@@ -1,0 +1,21 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "order_code": "1411635340",
+    "status": "awaiting_payment",
+    "status_display": "در انتظار پرداخت",
+    "placed_at": "2026-10-18T10:50:25.897710+03:30",
+    "item_count": 1,
+    "total": 1049000,
+    "prepayment": 0,
+    "amount_charged_online": 1049000,
+    "amount_to_collect_on_delivery": 0,
+    "amount_settled_online": 0,
+    "amount_outstanding_online": 1049000,
+    "is_payable": true,
+    "can_cancel": true,
+    "expires_at": "2026-10-21T10:50:25.876801+03:30",
+    "open_attempt": null
+  }
+}

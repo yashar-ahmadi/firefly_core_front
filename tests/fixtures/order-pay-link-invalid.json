@@ -1,0 +1,14 @@
+{
+  "msg": "موردی با این مشخصات پیدا نشد.",
+  "code": 404,
+  "data": {
+    "type": "client_error",
+    "errors": [
+      {
+        "code": "order_payment_link_invalid",
+        "detail": "لینک پرداخت معتبر نیست.",
+        "attr": null
+      }
+    ]
+  }
+}

@@ -507,6 +507,29 @@ signed-in header to another.
   routes grew by 343 B (home, category, list, brand, product), of which about 20 B is code (the
   wallet's key, one shared module) and the rest Turbopack regrouping the same modules into other
   chunks; `/cart/` grew by 430 B, as it also carries `CartSummary`'s checkout rows.
+- **The payment link's page** (`/order/pay/<token>/`, Plan 4 Task 4) is read on the server
+  (`features/payment/pay-link-read.ts`: the order once per request, shared with its metadata, the
+  visitor's IP for the per-IP 30/min budget, never cached). A refusal (410, the 409s, 429, no
+  answer) is a server-rendered calm page (`pay-link-refusal.tsx`) that loads no island; an unknown
+  token is a real 404 (`not-found.tsx` in its segment). An open link renders its island
+  (`pay-link-page.tsx`, its own chunk behind `pay-link-loader.tsx`, rendered on the server too),
+  which reads the order again through the BFF only after the shopper acted. Its routes are the
+  checkout's own lazy payment step (`lazy-steps.tsx`'s `PaymentSection`), the bank's screen
+  loads on the bank's answer, the open-attempt resume UI (`open-attempt.tsx`) is its own chunk
+  behind `open-attempt-loader.tsx` (the checkout loads it only on a `409 payment_attempt_open`,
+  the link page only when its order has an open attempt), and the cancel dialog loads on its
+  button's first press. Two lessons from keeping the shop's other pages byte for byte (measured
+  by bisecting builds): a lazily loaded chunk that imported a constant from a client module of
+  another feature (`THROTTLED_MESSAGE` from `account/lists/list-error.tsx`, in the resume UI's
+  chunk under the placed order's) made Turbopack regroup the providers' shared chunks (+438 B on
+  every page); and a lucide icon imported by an alias (`XCircle` instead of `CircleX`) adds a
+  re-export module to a chunk the product page shares (+13 B). Copy such a constant, and use the
+  icons' canonical names. Measured states (`tests/e2e/checkout/pay-link.spec.ts`, held to
+  `CHECKOUT_BUDGET_KB`): an order to pay 238.1 KB, an open attempt 226.6 KB, a refused link 200.6
+  KB (desktop and phone alike); a pure pay-on-delivery confirmation and every open-attempt row
+  measure the same with the dev backend's answers replaced (the bank's states cannot be had in
+  dev). The shop's other pages and `/cart/` are byte for byte what Task 3 left; the checkout's
+  states moved by at most 0.2 KB (the carried retries' code), its costliest (sara's) not at all.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -611,7 +634,9 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
   their markup is unsanitised operator HTML, and `<img onerror>` would run). Analytics therefore
   never sees these URLs (`page_location`).
 - **No referrer.** `securityHeaderRules()` (next.config.ts) sends `Referrer-Policy: no-referrer`
-  on the credential pages (a later header rule wins in Next), the SMS link's 308 included.
+  on the credential pages (a later header rule wins in Next). The SMS link's trailing-slash 308
+  is answered by Next before any header rule (it carries none, the baseline ones included); the
+  page it leads to has the policy.
 - **Full page loads.** Our links to them are plain `<a>` and `loadPage()`, never the client
   router: a script loaded on the page before (an analytics history listener) would otherwise see
   the new URL. The reverse is harmless: from a credential page, a client navigation keeps the
@@ -681,7 +706,14 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   `503 gateway_not_configured` when none is named; two of the 30 an hour of `payment_attempt`)
   and cancels it
   through its link afterwards, whatever happened (the token is taken from any 2xx placement
-  before anything is asserted), so the dev database keeps no open unpaid order. A failure the
+  before anything is asserted), so the dev database keeps no open unpaid order. The payment link
+  journey (`tests/e2e/checkout/pay-link.spec.ts`) places one more guest order through the BFF
+  (`support/guest-order.ts`, no intent), opens its link as the SMS spells it (no trailing slash:
+  the 308 keeps the token), refuses the bank as above, opens a card-transfer attempt, resumes and
+  abandons it on the link, measures the link's pages, and cancels the order through the page's
+  dialog (an API guard cancels it when the test ends earlier): four `payment_attempt` calls and
+  about nine `order_payment_link` calls per run. Its budget lines print `/order/pay/<token>/`,
+  never the token. A failure the
   dev backend gives by design is forgiven by its status (`forgiveFailure(page, url, status)` in
   `watch-errors.ts`). Playwright skips it when a project before it failed, and a filter on the command line
   does not drop its dependencies (one journey file still runs the three device suites first):

@@ -1,4 +1,5 @@
 import type { CartAdjustment, LineIssue, Toman } from './cart'
+import type { OpenAttempt } from './payment'
 
 /**
  * Wire types of the order placement (`POST order/place/`) and the payment-link door the checkout
@@ -98,6 +99,8 @@ export interface OrderPaymentLink {
   amount_outstanding_online: Toman
   is_payable: boolean
   can_cancel: boolean
+  /** The order's payment deadline (`payment_expires_at`); null after a cancellation. */
   expires_at: string | null
-  open_attempt: unknown
+  /** The order's one open online attempt (order digest §5.9), or null. */
+  open_attempt: OpenAttempt | null
 }

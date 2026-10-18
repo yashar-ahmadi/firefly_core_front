@@ -28,7 +28,8 @@ describe('the payment link from the SMS', () => {
     const response = await answer(`/order/pay/${TOKEN}`)
     expect(response.status).toBe(308)
     expect(response.headers.get('location')).toBe(`https://shop.ir/order/pay/${TOKEN}/`)
-    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    // (The live server answers this redirect before any header rule: the page it leads to
+    // carries the policy; tests/e2e/checkout/pay-link.spec.ts checks both.)
   })
 })
 

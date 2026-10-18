@@ -12,17 +12,14 @@ import type { RedirectPayload } from '@/lib/api/types/payment'
 // load). The handoff lives until `expires_at` (15 minutes): after it the bank refuses it, and
 // the shopper pays again from the order.
 
-export function BankHandoff({
-  handoff,
-  loadFailed,
-  onGo,
-  onExpired,
-}: {
+export interface BankHandoffProps {
   handoff: RedirectPayload
   loadFailed: boolean
   onGo: () => void
   onExpired: () => void
-}) {
+}
+
+export function BankHandoff({ handoff, loadFailed, onGo, onExpired }: BankHandoffProps) {
   const [expired, setExpired] = useState(false)
   return (
     <div className="flex flex-col items-center gap-4 rounded-card bg-white p-6 text-center shadow-card md:p-10">

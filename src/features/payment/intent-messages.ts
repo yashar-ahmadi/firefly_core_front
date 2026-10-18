@@ -17,6 +17,9 @@ const FIXED: Partial<Record<IntentError['problem'], string>> = {
   starting: 'پرداخت قبلی شما هنوز در حال آماده شدن است؛ چند لحظه بعد دوباره تلاش کنید.',
   token_expired: 'مهلت انتقال به درگاه تمام شد؛ دوباره پرداخت کنید.',
   throttled: THROTTLED_MESSAGE,
+  // The link door with a session: another account's order cannot be paid from this wallet.
+  forbidden:
+    'این سفارش متعلق به حساب کاربری دیگری است؛ با کیف پول خود نمی\u{200C}توانید آن را بپردازید. روش دیگری انتخاب کنید.',
 }
 
 export function intentMessage(error: IntentError): string {

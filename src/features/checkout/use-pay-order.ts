@@ -7,7 +7,8 @@ import { announce } from '@/components/ui/live-announcer'
 import { useMarkFeatureDisabled } from '@/features/settings/feature-context'
 import { IntentError, startPayment, type PaymentIntentResult } from '@/features/payment/api'
 import { savePending } from '@/features/payment/pending-payments'
-import { BANK_ROUTES } from '@/features/payment/routes'
+import { intentMessage } from '@/features/payment/intent-messages'
+import { applyIntentRefusal } from '@/features/payment/intent-refusal'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
 import type { PaymentRoute, RedirectPayload } from '@/lib/api/types/payment'
 import { loadPage } from '@/lib/navigation/hard-navigation'
@@ -41,6 +42,9 @@ export interface PayState {
 }
 
 const IDLE: PayState = { phase: 'choosing', error: null, handoff: null, bankLoadFailed: false }
+
+/** What the thanks page says of an order whose open attempt settled meanwhile. */
+const PAID = 'پرداخت این سفارش ثبت شد و سفارش شما در حال پردازش است.'
 
 /** The redirect, loaded on the click that needs it. Rejects when its chunk cannot load. */
 const loadGoToBank = () => import('@/features/payment/go-to-bank').then((module) => module.goToBank)
@@ -105,42 +109,13 @@ export function usePayOrder(
   }
 
   function failed(error: IntentError, route: PaymentRoute, gatewayCode: string | undefined) {
-    switch (error.problem) {
-      case 'session':
-        return expire()
-      case 'gateway_broken':
-        catalog.withdraw(BANK_ROUTES)
-        break
-      case 'gateway_refresh': {
-        // The gateway tried (no code: the shop's default) is left out for this page, and the
-        // list read again; with none left, the bank routes close with their reason.
-        const tried =
-          gatewayCode ??
-          (catalog.gateways.find((gateway) => gateway.is_default) ?? catalog.gateways[0])?.code
-        if (tried) catalog.withdrawGateway(tried)
-        void catalog.refreshGateways()
-        break
-      }
-      case 'feature_off':
-        if (error.feature) markFeatureDisabled(error.feature, error.detail)
-        void catalog.refreshMethods()
-        break
-      case 'method_refresh':
-        void catalog.refreshMethods()
-        break
-      case 'card_unavailable':
-        catalog.withdraw(['card_transfer'])
-        break
-      case 'wallet_short':
-      case 'wallet_frozen':
-        walletMoved()
-        break
-      case 'use_wallet':
-        suggest('wallet')
-        break
-      case 'settled':
-        updatePlaced(ctx.orderCode, { outcome: 'settled', failure: error.detail })
-        return toThanks()
+    if (error.problem === 'session') return expire()
+    applyIntentRefusal(error, gatewayCode, { catalog, markFeatureDisabled, walletMoved, suggest })
+    // Not an error: the attempt's resume UI shows (placed-order-panel.tsx), said once.
+    if (error.problem === 'attempt_open') announce(intentMessage(error))
+    if (error.problem === 'settled') {
+      updatePlaced(ctx.orderCode, { outcome: 'settled', failure: error.detail })
+      return toThanks()
     }
     if (route === 'pay_on_delivery') {
       // The order waits for its confirmation: the thanks page offers it again.
@@ -187,5 +162,10 @@ export function usePayOrder(
     goToBankAgain: () => state.handoff && redirect(state.handoff),
     /** The shopper chooses: after a handoff that expired, or a route that does not fit. */
     choose: () => setState(IDLE),
+    /** The order's open attempt settled (its verification ended well): the thanks page. */
+    settled: () => {
+      updatePlaced(ctx.orderCode, { outcome: 'settled', failure: PAID })
+      toThanks()
+    },
   }
 }
