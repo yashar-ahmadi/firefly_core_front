@@ -32,6 +32,10 @@ export const withdrawalHint = (wallet: WithdrawalLimits) =>
 export const belowMinimum = (wallet: WithdrawalLimits) =>
   `حداقل مبلغ برداشت ${formatToman(wallet.minimum_withdrawal_amount)} است.`
 
+/** The balance does not reach the minimum: no amount could pass, so no form (said instead). */
+export const balanceBelowMinimum = (wallet: WithdrawalLimits) =>
+  `برای درخواست برداشت، موجودی شما باید دست\u{200C}کم ${formatToman(wallet.minimum_withdrawal_amount)} باشد.`
+
 export function amountProblem(text: string, wallet: WithdrawalLimits): string | null {
   const amount = parseAmount(text)
   if (amount === null || amount <= 0) return 'مبلغ برداشت را وارد کنید.'

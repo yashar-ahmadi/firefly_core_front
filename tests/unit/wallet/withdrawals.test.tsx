@@ -200,6 +200,20 @@ describe('a new request', () => {
     expect(await list()).toBeVisible()
   })
 
+  it('a balance under the minimum (k.yazdi’s 0): no form that cannot be passed, the minimum said', async () => {
+    renderTab(balance({ balance: 0 }))
+    expect(
+      await screen.findByText('برای درخواست برداشت، موجودی شما باید دست‌کم ۲۰۰٬۰۰۰ تومان باشد.'),
+    ).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'درخواست برداشت جدید' })).toBeNull()
+    expect(await list()).toBeVisible()
+  })
+
+  it('a balance of exactly the minimum: the form is offered', async () => {
+    renderTab(balance({ balance: 200_000 }))
+    expect(await screen.findByRole('button', { name: 'درخواست برداشت جدید' })).toBeVisible()
+  })
+
   it('withdrawals off at the shop (`is_withdrawal_enabled` false): no form, said', async () => {
     renderTab(balance({ is_withdrawal_enabled: false }))
     expect(
