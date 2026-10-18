@@ -7,6 +7,7 @@ import { buttonClasses } from '@/components/ui/button-styles'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
+import { TrackLink } from '@/features/orders/track/track-link'
 import { NO_DOOR_GUEST } from '../pay-again'
 import type { SupportLine } from '../result-actions'
 import { SupportNote } from './support-note'
@@ -68,13 +69,9 @@ export function TransferActions({ orderCode, owner, again, support }: TransferAc
             </Link>
           )
         ) : (
-          <Link
-            href="/order/track/"
-            prefetch={false}
-            className={again && offered ? outline : primary}
-          >
+          <TrackLink orderCode={orderCode} className={again && offered ? outline : primary}>
             پیگیری سفارش
-          </Link>
+          </TrackLink>
         )}
       </div>
       {again && !offered && <p className="text-base leading-7 text-ink-700">{NO_DOOR_GUEST}</p>}

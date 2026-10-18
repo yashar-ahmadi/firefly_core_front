@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { announce } from '@/components/ui/live-announcer'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TrackLink } from '@/features/orders/track/track-link'
 import { payLinkPath } from '@/features/orders/pay-link'
 import { loadPage } from '@/lib/navigation/hard-navigation'
 import { useSession } from '@/lib/session/session-context'
 import type { CancelOutcome } from '../attempt-api'
-import { removePending } from '../pending-payments'
+import { getPending, removePending } from '../pending-payments'
 import type { SupportLine } from '../result-actions'
 import { ownOrderOf, useOrderOwnership } from '../use-order-ownership'
+import { CopyPageLink } from './copy-page-link'
 import { ReceiptOutcome } from './receipt-outcome'
 import { HEADING_ID, PAGE_TITLE, UNDER_REVIEW_NO_CANCEL } from './transfer-copy'
 import { TransferClosed } from './transfer-closed'
@@ -105,6 +107,15 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
             support={support}
             headingRef={heading}
             onRetry={reads.retry}
+            renderTrack={(className, children) => (
+              <TrackLink
+                orderCode={orderCode ?? getPending(uuid)?.orderCode ?? null}
+                className={className}
+              >
+                {children}
+              </TrackLink>
+            )}
+            extra={phase.refusal.kind === 'forbidden' ? <CopyPageLink /> : null}
           />
         )}
       </section>

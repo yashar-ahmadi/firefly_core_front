@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   findGuestOrder,
+  findGuestOrderByToken,
   GUEST_ORDERS_KEY,
   readGuestOrders,
+  removeGuestOrder,
   saveGuestOrder,
   type GuestOrder,
 } from '@/features/orders/guest-orders'
@@ -54,6 +56,30 @@ describe('guest orders', () => {
     })
     expect(() => saveGuestOrder(order('1234567890'))).not.toThrow()
     expect(readGuestOrders()).toEqual([])
+  })
+})
+
+describe('on the tracking page', () => {
+  it('finds an order by its link token, and forgets one order («حذف از این دستگاه»)', () => {
+    saveGuestOrder(order('1000000001', { linkToken: 'token-one' }))
+    saveGuestOrder(order('1000000002', { linkToken: 'token-two', total: 359_000 }))
+    expect(findGuestOrderByToken('token-one')?.orderCode).toBe('1000000001')
+    expect(findGuestOrderByToken('nope')).toBeNull()
+    expect(findGuestOrder('1000000002')?.total).toBe(359_000)
+    expect(removeGuestOrder('1000000002')).toBe(true)
+    expect(readGuestOrders().map((item) => item.orderCode)).toEqual(['1000000001'])
+  })
+
+  it('an entry with a total that is not a number is not ours', () => {
+    localStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify([{ ...order('1000000001'), total: '1' }]))
+    expect(readGuestOrders()).toEqual([])
+  })
+
+  it('a refusing storage: the removal says so, never throws', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    expect(removeGuestOrder('1000000001')).toBe(false)
   })
 })
 

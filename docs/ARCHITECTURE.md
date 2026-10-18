@@ -572,6 +572,22 @@ signed-in header to another.
   unchanged. The island takes the shared leave-guard's default wait rather than importing
   `LEAVING_MS`: that export of `lib/navigation/leaving.ts` grew a lazy chunk of `/checkout/`
   (+4 B gzip, measured).
+- **The order tracking page** (`/order/track/`, Plan 4 Task 7): in the shop's frame, a thin route
+  entry around its island (`features/orders/track/track-loader.tsx`, server-rendered: the form,
+  its button disabled until hydrated). The server's HTML holds no order: the lookup (code and
+  mobile, a lookup key) is a `POST order/track/` from the browser, never a URL or a log. The
+  island reads this device's guest orders after hydration; the phone formatter stays off it (the
+  support line is formatted on the server). Measured from mocked answers
+  (`tests/e2e/orders/track.spec.ts`, held to `CHECKOUT_BUDGET_KB`): 213.2 KB in every state (the
+  form with recent orders, a result, not found; desktop and phone alike). Adding the route
+  regrouped three of the shop's shared chunks (the same 89,875 raw bytes): the shop's pages load
+  the same code, 661 B less gzip. A component a server component renders is a client reference of
+  the whole route, loaded on every visit: the card transfer's calm page (also its not-found page)
+  therefore takes its tracking link and its «کپی لینک این صفحه» from the island as props
+  (`renderTrack`, `extra`) instead of importing them (they cost the route 4.6 KB first). The
+  tracking links on the other pages (`TrackLink`) hand the order's code over in session storage;
+  the code helpers they need live apart from the form's (`order-code.ts`), so they carry no phone
+  formatter.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each

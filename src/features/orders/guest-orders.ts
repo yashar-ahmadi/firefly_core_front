@@ -3,7 +3,8 @@ import { isRecord, readJson, writeJson } from '@/lib/store/json-storage'
 // A guest's recent orders on this device (order digest §5.2 step 3; Plan 4 Global Constraints):
 // the last 10 in localStorage (`ff-guest-orders`), newest first. Guest orders are never linked to
 // an account, so this, the SMS and tracking by code and mobile are their only way back. The link
-// token is a credential: it is kept here, never logged. A storage that refuses never throws.
+// token is a credential: it is kept here, never logged. No mobile number is ever kept (tracking
+// asks for it every time: a shared device). A storage that refuses never throws.
 
 export const GUEST_ORDERS_KEY = 'ff-guest-orders'
 export const GUEST_ORDERS_MAX = 10
@@ -17,6 +18,8 @@ export interface GuestOrder {
   /** Owed online (A) and at the door (D) at placement. */
   A: number
   D: number
+  /** The order's `total` at placement (absent from entries kept before it was). */
+  total?: number
   placedAt: string
 }
 
@@ -28,6 +31,7 @@ const isGuestOrder = (value: unknown): value is GuestOrder =>
   (value.expiresAt === null || typeof value.expiresAt === 'string') &&
   typeof value.A === 'number' &&
   typeof value.D === 'number' &&
+  (value.total === undefined || typeof value.total === 'number') &&
   typeof value.placedAt === 'string'
 
 export function readGuestOrders(): GuestOrder[] {
@@ -43,4 +47,15 @@ export function saveGuestOrder(order: GuestOrder): void {
 
 export function findGuestOrder(code: string): GuestOrder | null {
   return readGuestOrders().find((item) => item.orderCode === code) ?? null
+}
+
+/** The order whose payment link holds `token`, or null. */
+export function findGuestOrderByToken(token: string): GuestOrder | null {
+  return readGuestOrders().find((item) => item.linkToken === token) ?? null
+}
+
+/** Forgets `code` on this device («حذف از این دستگاه»); false when the storage refused. */
+export function removeGuestOrder(code: string): boolean {
+  const kept = readGuestOrders().filter((item) => item.orderCode !== code)
+  return writeJson('local', GUEST_ORDERS_KEY, kept)
 }

@@ -64,6 +64,7 @@ export default async function PayLinkRoute({ params }: { params: Params }) {
           refusal={read.refusal}
           supportPhone={supportPhone}
           retryHref={payLinkPath(token)}
+          linkToken={token}
         />
       )}
     </div>

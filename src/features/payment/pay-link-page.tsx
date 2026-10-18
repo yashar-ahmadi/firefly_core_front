@@ -121,6 +121,7 @@ export function PayLinkPage({
         refusal={view.refusal}
         supportPhone={supportPhone}
         retryHref={payLinkPath(token)}
+        orderCode={link.order_code}
       />
     )
   }

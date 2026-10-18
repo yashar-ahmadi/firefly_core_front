@@ -10,6 +10,7 @@ import { cn } from '@/components/ui/cn'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useHydrated } from '@/components/ui/use-media-query'
 import { findGuestOrder, GUEST_ORDERS_KEY } from '@/features/orders/guest-orders'
+import { TrackLink } from '@/features/orders/track/track-link'
 import { useSession } from '@/lib/session/session-context'
 import { readText } from '@/lib/store/json-storage'
 import { PLACED_KEY, readPlaced } from '../placed-order'
@@ -127,9 +128,9 @@ export function ThanksPage({ code, supportPhone }: { code: string; supportPhone:
       />
       {/* Opened signed in without this tab's record: tracking works for any order too. */}
       {!guest && !ctx && (
-        <Link href="/order/track/" prefetch={false} className={buttonClasses({ variant: 'link' })}>
+        <TrackLink orderCode={code} className={buttonClasses({ variant: 'link' })}>
           پیگیری سفارش با کد سفارش و شمارهٔ موبایل
-        </Link>
+        </TrackLink>
       )}
       <Link href="/" className={buttonClasses({ variant: 'outline' })}>
         <House aria-hidden />

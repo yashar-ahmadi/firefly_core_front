@@ -1,21 +1,22 @@
 import { CircleAlert, Clock, House, RefreshCw, Search } from 'lucide-react'
 import Link from 'next/link'
-import type { Ref } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import { toPersianDigits } from '@/lib/format/digits'
 import type { SupportLine } from '../result-actions'
-import { CopyPageLink } from './copy-page-link'
 import { HEADING_ID } from './transfer-copy'
 import { SupportNote } from './support-note'
 import type { TransferRefusal as Refusal, TransferRefusalKind } from './use-transfer-reads'
 
 // The card-transfer page when it cannot show the payment (order digest §3.2.7: 404, 403; a
 // wait; no answer): a calm page, never an error screen, with what to do next (the order's
-// tracking, the shop, the support line) and, for a wait or a lost answer, a read again; refused
-// even without the session (another account's payment), a copy of the page's link to open it
-// where the shopper is not signed in. Also the segment's not-found page (a uuid of the wrong
-// shape), rendered on the server, with no retry.
+// tracking, the shop, the support line) and, for a wait or a lost answer, a read again. Also the
+// segment's not-found page (a uuid of the wrong shape), rendered on the server, with no retry: it
+// takes no client component of its own (each one would load on every visit of the route, the
+// JS budget), so the island hands in its tracking link (`renderTrack`: TrackLink, the order's
+// code handed over) and what more it offers (`extra`: a copy of the page's link, for another
+// account's payment); the server's page has a plain link to tracking.
 
 const COPY: Record<TransferRefusalKind, { title: string; body: string }> = {
   not_found: {
@@ -35,15 +36,32 @@ const COPY: Record<TransferRefusalKind, { title: string; body: string }> = {
 
 export const NOT_FOUND_TITLE = COPY.not_found.title
 
+const plainTrack = (className: string, children: ReactNode) => (
+  <Link href="/order/track/" prefetch={false} className={className}>
+    {children}
+  </Link>
+)
+
 export interface TransferRefusalProps {
   refusal: Refusal
   support: SupportLine | null
   headingRef?: Ref<HTMLHeadingElement>
   /** Read the payment again (a wait, no answer); omitted, no such offer. */
   onRetry?: () => void
+  /** The link to tracking, made by the island (by default a plain link). */
+  renderTrack?: (className: string, children: ReactNode) => ReactNode
+  /** More to offer, from the island. */
+  extra?: ReactNode
 }
 
-export function TransferRefusal({ refusal, support, headingRef, onRetry }: TransferRefusalProps) {
+export function TransferRefusal({
+  refusal,
+  support,
+  headingRef,
+  onRetry,
+  renderTrack,
+  extra,
+}: TransferRefusalProps) {
   const copy = COPY[refusal.kind]
   const waiting = refusal.kind === 'throttled'
   const retry = onRetry && (waiting || refusal.kind === 'unavailable')
@@ -78,19 +96,18 @@ export function TransferRefusal({ refusal, support, headingRef, onRetry }: Trans
             تلاش دوباره
           </button>
         )}
-        <Link
-          href="/order/track/"
-          prefetch={false}
-          className={buttonClasses({ variant: retry ? 'outline' : 'primary' })}
-        >
-          <Search aria-hidden />
-          پیگیری سفارش
-        </Link>
+        {(renderTrack ?? plainTrack)(
+          buttonClasses({ variant: retry ? 'outline' : 'primary' }),
+          <>
+            <Search aria-hidden />
+            پیگیری سفارش
+          </>,
+        )}
         <Link href="/" className={buttonClasses({ variant: 'outline' })}>
           <House aria-hidden />
           صفحهٔ اصلی فروشگاه
         </Link>
-        {refusal.kind === 'forbidden' && <CopyPageLink />}
+        {extra}
       </div>
       <div className="self-stretch border-t border-ink-100 pt-4">
         <SupportNote support={support} />

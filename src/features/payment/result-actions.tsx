@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
+import { TrackLink } from '@/features/orders/track/track-link'
 import { NO_DOOR_GUEST } from './pay-again'
 import type { ResultAction } from './result-copy'
 import type { PayAgainState } from './use-pay-again'
@@ -17,7 +18,8 @@ import type { PayAgainState } from './use-pay-again'
 // order. «پرداخت دوباره» only through a door this device knows; without one the shopper is told
 // where to pay (the SMS link, tracking), never given a made-up door. Another route: the order's
 // page for its owner, else the order's link page when this device knows it (a full page load:
-// its URL holds the token, credential-routes.ts). The first offer is the primary one.
+// its URL holds the token, credential-routes.ts). Tracking takes the order's code with it
+// (TrackLink: handed over, never in the URL). The first offer is the primary one.
 
 /** The shop's support line: `tel:` ready, and as shown (formatted on the server). */
 export interface SupportLine {
@@ -107,6 +109,13 @@ export function ResultActions({
             variant: index === 0 && !again ? 'primary' : 'outline',
             size: 'lg',
           })
+          if (offer.key === 'track') {
+            return (
+              <TrackLink key={offer.key} orderCode={orderCode} className={className}>
+                {offer.label}
+              </TrackLink>
+            )
+          }
           return offer.plain ? (
             <a key={offer.key} href={offer.href} className={className}>
               {offer.label}

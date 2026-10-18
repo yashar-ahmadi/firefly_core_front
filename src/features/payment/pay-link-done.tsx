@@ -2,6 +2,7 @@
 
 import { CircleCheck, House, Search, CircleX } from 'lucide-react'
 import Link from 'next/link'
+import { TrackLink } from '@/features/orders/track/track-link'
 import { useEffect, useRef } from 'react'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
@@ -72,14 +73,10 @@ export function PayLinkDone({ outcome, link }: { outcome: LinkOutcome; link: Ord
       </h1>
       <p className="text-base leading-7 text-ink-800">{body}</p>
       <div className="flex flex-wrap items-center gap-3">
-        <Link
-          href="/order/track/"
-          prefetch={false}
-          className={buttonClasses({ variant: 'primary' })}
-        >
+        <TrackLink orderCode={link.order_code} className={buttonClasses({ variant: 'primary' })}>
           <Search aria-hidden />
           پیگیری سفارش
-        </Link>
+        </TrackLink>
         <Link href="/" className={buttonClasses({ variant: 'outline' })}>
           <House aria-hidden />
           صفحهٔ اصلی فروشگاه

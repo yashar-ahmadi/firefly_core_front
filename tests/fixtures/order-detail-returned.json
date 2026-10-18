@@ -1,0 +1,170 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "uuid": "0d1e1e7e-0000-4000-8000-000000000003",
+    "order_code": "4450528502",
+    "status": "returned",
+    "status_display": "مسترد شده",
+    "status_group": "returned",
+    "progress": {
+      "is_terminal": true,
+      "steps": [
+        {
+          "status": "awaiting_payment",
+          "label": "در انتظار پرداخت",
+          "state": "completed",
+          "reached_at": "2026-07-23T15:00:00+03:30"
+        },
+        {
+          "status": "processing",
+          "label": "در حال انجام",
+          "state": "completed",
+          "reached_at": "2026-07-24T01:00:00+03:30"
+        },
+        {
+          "status": "packing",
+          "label": "بسته‌بندی",
+          "state": "completed",
+          "reached_at": "2026-07-24T09:00:00+03:30"
+        },
+        {
+          "status": "sent",
+          "label": "ارسال شده",
+          "state": "completed",
+          "reached_at": "2026-07-24T17:00:00+03:30"
+        },
+        {
+          "status": "delivered",
+          "label": "تکمیل شده",
+          "state": "completed",
+          "reached_at": "2026-07-25T01:00:00+03:30"
+        },
+        {
+          "status": "returned",
+          "label": "مسترد شده",
+          "state": "current",
+          "reached_at": "2026-07-25T09:00:00+03:30"
+        }
+      ]
+    },
+    "address_summary": "تهران، تهران، میدان آرژانتین، خیابان الوند، برج نگین",
+    "placed_at": "2026-07-23T15:00:00+03:30",
+    "paid_at": "2026-07-23T17:00:00+03:30",
+    "is_confirmed": false,
+    "is_fully_paid": true,
+    "total": 3920000,
+    "item_count": 1,
+    "shipping_method_title": "پیک موتوری تهران",
+    "postal_tracking_code": "92761652593210037453827",
+    "is_payable": false,
+    "payment_url": "http://localhost:3000/order/pay/e2eReturnedLinkToken000000000000000000000003",
+    "can_cancel": false,
+    "channel": "website",
+    "customer_note": null,
+    "delivery_min_days": 0,
+    "delivery_max_days": 1,
+    "freight_paid_by_recipient": false,
+    "cash_on_delivery": false,
+    "milestones": {
+      "confirmed_at": "2026-07-24T01:00:00+03:30",
+      "packed_at": "2026-07-24T09:00:00+03:30",
+      "dispatched_at": "2026-07-24T17:00:00+03:30",
+      "delivered_at": "2026-07-25T01:00:00+03:30",
+      "cancelled_at": null,
+      "returned_at": "2026-07-25T09:00:00+03:30"
+    },
+    "money": {
+      "goods_subtotal": 4200000,
+      "item_discount": 700000,
+      "goods_total": 3500000,
+      "coupon_discount": 0,
+      "goods_payable": 3500000,
+      "shipping_cost": 65000,
+      "packaging_cost": 5000,
+      "shipping_discount": 0,
+      "tax_rate": "10.00",
+      "tax_amount": 350000,
+      "cod_fee": 0,
+      "total": 3920000,
+      "total_savings": 700000,
+      "prepayment": 0,
+      "amount_charged_online": 3920000,
+      "amount_to_collect_on_delivery": 0,
+      "amount_settled_online": 3920000,
+      "amount_settled_on_delivery": 0,
+      "amount_outstanding_online": 0
+    },
+    "coupon": {
+      "code": null,
+      "title": null,
+      "discount_type": null,
+      "max_discount_amount": null
+    },
+    "receiver": {
+      "receiver_full_name": "شیرین تهرانی",
+      "receiver_mobile": "+989011234513",
+      "receiver_email": null,
+      "province_name": "تهران",
+      "city_name": "تهران",
+      "address": "میدان آرژانتین، خیابان الوند، برج نگین",
+      "plaque": "۱۴",
+      "unit": "۲۲",
+      "postal_code": "1516745923",
+      "latitude": null,
+      "longitude": null
+    },
+    "lines": [
+      {
+        "product_name": "کیف دوشی زنانه درسا",
+        "variant_name": "رنگ: کرم | جنس: چرم مصنوعی",
+        "sku": "DR-BAG-CRM-SL",
+        "brand_name": "درسا",
+        "unit_name": "عدد",
+        "product_slug": "dorsa-women-bag",
+        "image": "http://localhost:8000/media/CACHE/images/products/26/09/13/dorsa-women-bag-2/8cf8b1e86051748625d85c472c7f0521.jpg",
+        "quantity": 1,
+        "unit_price": 4200000,
+        "unit_discount": 700000,
+        "unit_final_price": 3500000,
+        "line_subtotal": 4200000,
+        "line_discount": 700000,
+        "line_total": 3500000,
+        "weight_grams": 580,
+        "review_state": "unavailable"
+      }
+    ],
+    "timeline": [
+      {
+        "to_status": "awaiting_payment",
+        "to_status_display": "در انتظار پرداخت",
+        "created": "2026-07-23T17:00:00+03:30"
+      },
+      {
+        "to_status": "processing",
+        "to_status_display": "در حال انجام",
+        "created": "2026-07-24T01:00:00+03:30"
+      },
+      {
+        "to_status": "packing",
+        "to_status_display": "بسته‌بندی",
+        "created": "2026-07-24T09:00:00+03:30"
+      },
+      {
+        "to_status": "sent",
+        "to_status_display": "ارسال شده",
+        "created": "2026-07-24T17:00:00+03:30"
+      },
+      {
+        "to_status": "delivered",
+        "to_status_display": "تکمیل شده",
+        "created": "2026-07-25T01:00:00+03:30"
+      },
+      {
+        "to_status": "returned",
+        "to_status_display": "مسترد شده",
+        "created": "2026-07-25T09:00:00+03:30"
+      }
+    ]
+  }
+}

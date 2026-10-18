@@ -123,6 +123,7 @@ function saveGuest(ctx: PlacedContext): void {
     expiresAt: ctx.expiresAt,
     A: ctx.A,
     D: ctx.D,
+    total: ctx.total,
     placedAt: ctx.placedAt,
   })
 }

@@ -1,0 +1,173 @@
+{
+  "delivered": {
+    "status": 200,
+    "body": {
+      "msg": "درخواست با موفقیت انجام شد.",
+      "code": 200,
+      "data": {
+        "order_code": "2583973877",
+        "status": "delivered",
+        "status_display": "تکمیل شده",
+        "placed_at": "2026-08-08T15:00:00+03:30",
+        "paid_at": null,
+        "packed_at": "2026-08-09T09:00:00+03:30",
+        "dispatched_at": "2026-08-09T17:00:00+03:30",
+        "delivered_at": "2026-08-10T01:00:00+03:30",
+        "cancelled_at": null,
+        "returned_at": null,
+        "postal_tracking_code": "13733116797137594510231",
+        "item_count": 4,
+        "total": 8187000
+      }
+    }
+  },
+  "returned": {
+    "status": 200,
+    "body": {
+      "msg": "درخواست با موفقیت انجام شد.",
+      "code": 200,
+      "data": {
+        "order_code": "4450528502",
+        "status": "returned",
+        "status_display": "مسترد شده",
+        "placed_at": "2026-07-23T15:00:00+03:30",
+        "paid_at": "2026-07-23T17:00:00+03:30",
+        "packed_at": "2026-07-24T09:00:00+03:30",
+        "dispatched_at": "2026-07-24T17:00:00+03:30",
+        "delivered_at": "2026-07-25T01:00:00+03:30",
+        "cancelled_at": null,
+        "returned_at": "2026-07-25T09:00:00+03:30",
+        "postal_tracking_code": "92761652593210037453827",
+        "item_count": 1,
+        "total": 3920000
+      }
+    }
+  },
+  "cancelled": {
+    "status": 200,
+    "body": {
+      "msg": "درخواست با موفقیت انجام شد.",
+      "code": 200,
+      "data": {
+        "order_code": "5182812244",
+        "status": "cancelled",
+        "status_display": "لغو شده",
+        "placed_at": "2026-10-15T22:57:09.311559+03:30",
+        "paid_at": null,
+        "packed_at": null,
+        "dispatched_at": null,
+        "delivered_at": null,
+        "cancelled_at": "2026-10-15T22:57:09.664836+03:30",
+        "returned_at": null,
+        "postal_tracking_code": null,
+        "item_count": 1,
+        "total": 359000
+      }
+    }
+  },
+  "processing": {
+    "status": 200,
+    "body": {
+      "msg": "درخواست با موفقیت انجام شد.",
+      "code": 200,
+      "data": {
+        "order_code": "7573331679",
+        "status": "processing",
+        "status_display": "در حال انجام",
+        "placed_at": "2026-10-15T22:55:37.895077+03:30",
+        "paid_at": "2026-10-15T22:55:43.363496+03:30",
+        "packed_at": null,
+        "dispatched_at": null,
+        "delivered_at": null,
+        "cancelled_at": null,
+        "returned_at": null,
+        "postal_tracking_code": null,
+        "item_count": 1,
+        "total": 460000
+      }
+    }
+  },
+  "awaiting_payment": {
+    "status": 200,
+    "body": {
+      "msg": "درخواست با موفقیت انجام شد.",
+      "code": 200,
+      "data": {
+        "order_code": "3067562358",
+        "status": "awaiting_payment",
+        "status_display": "در انتظار پرداخت",
+        "placed_at": "2026-09-13T15:00:00+03:30",
+        "paid_at": null,
+        "packed_at": null,
+        "dispatched_at": null,
+        "delivered_at": null,
+        "cancelled_at": null,
+        "returned_at": null,
+        "postal_tracking_code": null,
+        "item_count": 1,
+        "total": 53790000
+      }
+    }
+  },
+  "not_found": {
+    "status": 404,
+    "body": {
+      "msg": "موردی با این مشخصات پیدا نشد.",
+      "code": 404,
+      "data": {
+        "type": "client_error",
+        "errors": [
+          {
+            "code": "order_tracking_not_found",
+            "detail": "سفارشی با این شماره موبایل و کد سفارش پیدا نشد.",
+            "attr": null
+          }
+        ]
+      }
+    }
+  },
+  "bad_shapes": {
+    "status": 400,
+    "body": {
+      "msg": "درخواست ارسالی معتبر نیست.",
+      "code": 400,
+      "data": {
+        "type": "validation_error",
+        "errors": [
+          {
+            "code": "invalid",
+            "detail": "یک شماره تماس معتبر وارد نمایید.",
+            "attr": "mobile_number"
+          },
+          {
+            "code": "invalid_code",
+            "detail": "کد باید دقیقاً ۱۰ رقم باشد.",
+            "attr": "order_code"
+          }
+        ]
+      }
+    }
+  },
+  "store_delivered": {
+    "status": 200,
+    "body": {
+      "msg": "درخواست با موفقیت انجام شد.",
+      "code": 200,
+      "data": {
+        "order_code": "6138078989",
+        "status": "delivered",
+        "status_display": "تکمیل شده",
+        "placed_at": "2026-09-02T15:00:00+03:30",
+        "paid_at": "2026-09-02T17:00:00+03:30",
+        "packed_at": "2026-09-03T09:00:00+03:30",
+        "dispatched_at": null,
+        "delivered_at": "2026-09-03T17:00:00+03:30",
+        "cancelled_at": null,
+        "returned_at": null,
+        "postal_tracking_code": null,
+        "item_count": 4,
+        "total": 1914000
+      }
+    }
+  }
+}

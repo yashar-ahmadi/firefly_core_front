@@ -3,23 +3,36 @@ import Link from 'next/link'
 import { SupportPhone } from '@/components/layout/support-phone'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
+import { TrackLink } from '@/features/orders/track/track-link'
 import { toPersianDigits } from '@/lib/format'
 import { REFUSAL_COPY, type LinkRefusal } from './link-refusal'
 
 // The payment link's page when it does not open (order digest §3.1.9, §8.2): a calm page, never
 // an error screen. What happened (our title, the API's sentence, our note) and what to do next:
 // the order's tracking by code and mobile, the support line, the shop; a wait or a lost answer
-// offers the page again (a full page load: its URL holds the token). Rendered on the server for
-// the first read and in the browser after a later one, so it has no state of its own.
+// offers the page again (a full page load: its URL holds the token). Tracking takes the order's
+// code along (TrackLink: given, or found by the link's token in this device's guest orders).
+// Rendered on the server for the first read and in the browser after a later one, so it has no
+// state of its own.
 
 export interface PayLinkRefusalProps {
   refusal: LinkRefusal
   supportPhone: string | null
   /** The page again (a wait, no answer); omitted, no such offer. */
   retryHref?: string
+  /** The order's code (a later read's refusal), for tracking to start with. */
+  orderCode?: string | null
+  /** The link's token: the order's code is looked up on this device (the first read's). */
+  linkToken?: string | null
 }
 
-export function PayLinkRefusal({ refusal, supportPhone, retryHref }: PayLinkRefusalProps) {
+export function PayLinkRefusal({
+  refusal,
+  supportPhone,
+  retryHref,
+  orderCode,
+  linkToken,
+}: PayLinkRefusalProps) {
   const copy = REFUSAL_COPY[refusal.kind]
   const waiting = refusal.kind === 'throttled'
   const Icon = waiting ? Clock : CircleAlert
@@ -54,14 +67,14 @@ export function PayLinkRefusal({ refusal, supportPhone, retryHref }: PayLinkRefu
             تلاش دوباره
           </a>
         )}
-        <Link
-          href="/order/track/"
-          prefetch={false}
+        <TrackLink
+          orderCode={orderCode}
+          linkToken={linkToken}
           className={buttonClasses({ variant: copy.retry ? 'outline' : 'primary' })}
         >
           <Search aria-hidden />
           پیگیری سفارش
-        </Link>
+        </TrackLink>
         <Link href="/" className={buttonClasses({ variant: 'outline' })}>
           <House aria-hidden />
           صفحهٔ اصلی فروشگاه

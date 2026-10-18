@@ -6,6 +6,7 @@ import { cn } from '@/components/ui/cn'
 import { Countdown } from '@/components/ui/countdown'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { payLinkPath } from '@/features/orders/pay-link'
+import { TrackLink } from '@/features/orders/track/track-link'
 import { formatJalaliDateTime } from '@/lib/format/date-time'
 
 // How to pay later (order digest §5.2 step 3, Plan 4 Global Constraints): a guest's order is
@@ -85,10 +86,10 @@ export function PayLater({
           )}
         </>
       )}
-      <Link href="/order/track/" prefetch={false} className={buttonClasses({ variant: 'link' })}>
+      <TrackLink orderCode={orderCode} className={buttonClasses({ variant: 'link' })}>
         <Search aria-hidden />
         پیگیری سفارش با کد سفارش و شمارهٔ موبایل
-      </Link>
+      </TrackLink>
     </div>
   )
 }
