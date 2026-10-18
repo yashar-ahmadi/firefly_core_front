@@ -1,10 +1,12 @@
 'use client'
 
 import { useId } from 'react'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { SmartImage } from '@/components/ui/smart-image'
 import type { GatewayOption } from '@/lib/api/types/payment'
 import { isPlaceholder } from './route-label'
+import { STEP_CONTROLS } from './step-controls'
+
+const { RadioGroup, RadioGroupItem } = STEP_CONTROLS
 
 // The bank gateways that take this amount (order digest §5.4 step 1), shown only when there is
 // more than one: each with its logo and title, the shop's default chosen first. With one, there

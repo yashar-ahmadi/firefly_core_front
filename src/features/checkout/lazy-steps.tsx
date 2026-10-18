@@ -3,32 +3,39 @@
 import dynamic from 'next/dynamic'
 import { Skeleton } from '@/components/ui/skeleton'
 import { reloadPage } from '@/lib/navigation/hard-navigation'
+import type { CheckoutStep } from './checkout-steps'
 
-// The payment and review steps' own code loads when one of them shows, or earlier, as soon as
-// the shopper works in the page (a pointer over it, a focus in it), one chunk for both: the
-// checkout's first load carries only its first steps (the JS budget), and one chunk group
-// keeps the shop's shared chunks as they are. A chunk that cannot load (a deploy since the page
-// loaded, the connection) says so with a reload; the cart and the receiver's draft are kept.
+// The checkout's step bodies (Task 3's amendment: the JS budget counts what visitors load). The
+// page itself is the steps' frame: each step's numbered heading, a done step's summary in a
+// line, a locked step's heading alone. Only the open step's body is code the page fetches, when
+// it opens: the guest's receiver form or the signed-in address picker, the shipping options, the
+// payment routes, the review. A shopper back at the checkout with everything chosen loads the
+// review's alone. Each body is its own chunk; while it comes, its section keeps its heading (the
+// focus can go there at once) over a skeleton. A chunk that cannot load (a deploy since the page
+// loaded, the connection) says so in its section with a reload; the cart and the receiver's
+// draft are kept. The shopper at work in the page fetches the bodies of the steps still ahead
+// meanwhile (`preloadAhead`).
 
-// One request however often it is asked for (every pointer move over the page asks).
-let loading: ReturnType<typeof importSteps> | null = null
-const importSteps = () => import('./later-steps')
-const load = () =>
-  (loading ??= importSteps().catch((error: unknown) => {
-    loading = null
-    throw error
-  }))
-const loadPayment = () => load().then((module) => module.PaymentSection)
-const loadReview = () => load().then((module) => module.ReviewSection)
-
-/** Fetches both steps' code ahead of time. Never rejects. */
-export function preloadLaterSteps(): void {
-  void load().catch(() => undefined)
+/** One request however often it is asked for; a failed one may be asked again. */
+function once<T>(importer: () => Promise<T>): () => Promise<T> {
+  let loading: Promise<T> | null = null
+  return () =>
+    (loading ??= importer().catch((error: unknown) => {
+      loading = null
+      throw error
+    }))
 }
 
-function StepLoading() {
+const guestForm = once(() => import('./guest-receiver-form'))
+const addressPicker = once(() => import('./address-picker'))
+const shipping = once(() => import('./shipping-section'))
+const payment = once(() => import('./payment-section'))
+const review = once(() => import('./review-section'))
+
+/** A step's body on its way, or a choice being made for the shopper: a skeleton, named. */
+export function StepLoading({ label = 'در حال بارگذاری' }: { label?: string }) {
   return (
-    <div role="status" aria-label="در حال بارگذاری" className="flex flex-col gap-3">
+    <div role="status" aria-label={label} className="flex flex-col gap-3">
       <Skeleton className="h-16 rounded-card" />
       <Skeleton className="h-16 rounded-card" />
     </div>
@@ -53,10 +60,60 @@ function StepUnavailable() {
   )
 }
 
-export const PaymentSection = dynamic(() => loadPayment().catch(() => StepUnavailable), {
-  loading: StepLoading,
-})
+export const GuestReceiverForm = dynamic(
+  () =>
+    guestForm()
+      .then((module) => module.GuestReceiverForm)
+      .catch(() => StepUnavailable),
+  { loading: () => <StepLoading /> },
+)
 
-export const ReviewSection = dynamic(() => loadReview().catch(() => StepUnavailable), {
-  loading: StepLoading,
-})
+export const AddressPicker = dynamic(
+  () =>
+    addressPicker()
+      .then((module) => module.AddressPicker)
+      .catch(() => StepUnavailable),
+  { loading: () => <StepLoading /> },
+)
+
+export const ShippingSection = dynamic(
+  () =>
+    shipping()
+      .then((module) => module.ShippingSection)
+      .catch(() => StepUnavailable),
+  { loading: () => <StepLoading /> },
+)
+
+export const PaymentSection = dynamic(
+  () =>
+    payment()
+      .then((module) => module.PaymentSection)
+      .catch(() => StepUnavailable),
+  { loading: () => <StepLoading /> },
+)
+
+export const ReviewSection = dynamic(
+  () =>
+    review()
+      .then((module) => module.ReviewSection)
+      .catch(() => StepUnavailable),
+  { loading: () => <StepLoading /> },
+)
+
+const BODIES: Record<CheckoutStep, (signedIn: boolean) => Promise<unknown>> = {
+  receiver: (signedIn) => (signedIn ? addressPicker() : guestForm()),
+  shipping: () => shipping(),
+  payment: () => payment(),
+  review: () => review(),
+}
+const ORDER: CheckoutStep[] = ['receiver', 'shipping', 'payment', 'review']
+
+/**
+ * Fetches the bodies of the steps after `step` (the shopper at work in the page: a pointer over
+ * it, a focus in it), never on arrival alone. Never rejects.
+ */
+export function preloadAhead(step: CheckoutStep, signedIn: boolean): void {
+  for (const next of ORDER.slice(ORDER.indexOf(step) + 1)) {
+    void BODIES[next](signedIn).catch(() => undefined)
+  }
+}

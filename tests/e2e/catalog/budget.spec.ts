@@ -1,6 +1,6 @@
 import { test } from '@playwright/test'
 import {
-  BUDGET_KB,
+  budgetOf,
   deviceLabel,
   enforce,
   measure,
@@ -35,15 +35,18 @@ const ROUTES: BudgetRoute[] = [
   // guest without a cart gets its empty state, with every module of the page loaded all the same.
   { name: 'cart', path: '/cart/' },
   // The checkout's own code (its steps, the guest's receiver form) lives on this route alone: a
-  // guest with a product in the cart (support/js-budget.ts `checkout`).
+  // guest with a product in the cart, at the receiver step; and a guest back at the checkout
+  // with everything chosen, at the review (support/js-budget.ts `CheckoutState`). Both are held
+  // to the checkout's own target (`CHECKOUT_BUDGET_KB`).
   { name: 'checkout', path: '/checkout/', checkout: 'guest' },
+  { name: 'checkout-review', path: '/checkout/', checkout: 'guest-review' },
 ]
 
 test.describe('JavaScript budget (production build)', () => {
   test.describe.configure({ mode: 'parallel' })
 
   for (const route of ROUTES) {
-    test(`${route.name}: at most ${BUDGET_KB} KB gzip of JavaScript on desktop and phone`, async ({
+    test(`${route.name}: at most ${budgetOf(route)} KB gzip of JavaScript on desktop and phone`, async ({
       page,
       browser,
     }, info) => {

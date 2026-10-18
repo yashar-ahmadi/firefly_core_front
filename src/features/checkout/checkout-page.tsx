@@ -16,10 +16,15 @@ import { focusCheckoutHeading } from './checkout-heading'
 import { CheckoutSkeleton, EmptyCheckout, SessionEnded, UnorderableBanner } from './checkout-states'
 import { shippingReady, stepState, type CheckoutStep, type StepState } from './checkout-steps'
 import { CheckoutSummaryAside, CheckoutSummaryFolded } from './checkout-summary'
-import { PaymentSection, preloadLaterSteps, ReviewSection } from './lazy-steps'
+import {
+  PaymentSection,
+  preloadAhead,
+  ReviewSection,
+  ShippingSection,
+  StepLoading,
+} from './lazy-steps'
 import { PlacedOrderPanel } from './placed/placed-loader'
 import { ReceiverSection } from './receiver-section'
-import { ShippingSection } from './shipping-section'
 import { stepHeadingId, StepSection } from './step-header'
 import { PaymentSummary, ReceiverSummary, ShippingSummary } from './step-summaries'
 import type { CheckoutTerms } from './terms-checks'
@@ -28,10 +33,11 @@ import { MOVES_STEP, usePlaceOrder } from './use-place-order'
 
 // `/checkout/` (spec §8.7): one page, its steps in order (receiver and destination, shipping,
 // payment, review and placement), each a section of its own, the summary of the API's amounts
-// beside them (folded at the top on phones). Only a cart that can be ordered gets the steps: an
-// empty one (or a guest cart that is gone) shows the way back, one with lines that cannot be
-// ordered sends the shopper back to the cart. Once the order is placed, the page is its payment
-// (PlacedOrderPanel).
+// beside them (folded at the top on phones). Only the open step's body is code loaded with the
+// page (lazy-steps.tsx); the others are their headings and, done, their summaries. Only a cart
+// that can be ordered gets the steps: an empty one (or a guest cart that is gone) shows the way
+// back, one with lines that cannot be ordered sends the shopper back to the cart. Once the order
+// is placed, the page is its payment (PlacedOrderPanel).
 
 const TITLES: Record<CheckoutStep, string> = {
   receiver: 'گیرنده و آدرس',
@@ -133,13 +139,14 @@ export function CheckoutPage({ catalog: initial, terms, supportPhone }: Checkout
       : null
   const state = (of: CheckoutStep): StepState => (blocked ? 'locked' : stepState(of, step, done))
   const edit = (of: CheckoutStep) => (blocked ? undefined : () => checkout.edit(of))
+  // The shopper at work in the page: the bodies of the steps ahead are fetched meanwhile (each
+  // loads by itself when its step opens).
+  const ahead = () => preloadAhead(step, signedIn)
   return (
     <div
       ref={page}
-      // The shopper at work in the page: the payment and review steps' code is fetched
-      // meanwhile (it loads by itself when one of them shows first).
-      onPointerOver={preloadLaterSteps}
-      onFocus={preloadLaterSteps}
+      onPointerOver={ahead}
+      onFocus={ahead}
       className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-6"
     >
       <div className="flex min-w-0 flex-col gap-4">
@@ -172,7 +179,13 @@ export function CheckoutPage({ catalog: initial, terms, supportPhone }: Checkout
           summary={<ShippingSummary cart={cart} />}
           onEdit={edit('shipping')}
         >
-          <ShippingSection checkout={checkout} />
+          {checkout.autoShipping.working && checkout.editing !== 'shipping' ? (
+            // The operator's default being chosen (use-auto-choices): the options' code loads
+            // only if the shopper is asked after all.
+            <StepLoading label={'در حال انتخاب روش ارسال پیش\u{200C}فرض'} />
+          ) : (
+            <ShippingSection checkout={checkout} />
+          )}
         </StepSection>
         <StepSection
           step="payment"

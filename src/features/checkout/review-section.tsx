@@ -61,6 +61,15 @@ function TotalChangedInline({
   )
 }
 
+/** `run` once the browser is idle (a short timeout where it cannot say). */
+function whenIdle(run: () => void): void {
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(run, { timeout: 2000 })
+  } else {
+    setTimeout(run, 1)
+  }
+}
+
 export interface ReviewSectionProps {
   checkout: Checkout
   payment: RouteChoiceState
@@ -95,16 +104,17 @@ export function ReviewSection({ checkout, payment, placement, terms }: ReviewSec
 
   const changed = placement.totalChanged
   const online = cart.amount_charged_online > 0
-  // The payment that follows the press is fetched once the shopper reaches for the form (a
-  // pointer over it, the focus in it), never by the step's arrival alone: a returning shopper
-  // lands here with no interaction, and that load stays within the JavaScript budget.
+  // The payment that follows the press is fetched once the shopper works in the form (a press
+  // in it, the focus in it: a box ticked, the button reached), when the browser is idle; never
+  // on the step's arrival alone (a returning shopper lands here: the JavaScript budget).
+  const working = useRef(false)
+  const reach = () => {
+    if (working.current) return
+    working.current = true
+    whenIdle(preloadPlacedPanel)
+  }
   return (
-    <div
-      ref={form}
-      className="flex flex-col gap-5"
-      onPointerOver={preloadPlacedPanel}
-      onFocus={preloadPlacedPanel}
-    >
+    <div ref={form} className="flex flex-col gap-5" onPointerDown={reach} onFocus={reach}>
       <ReviewLines cart={cart} />
       <ReviewDetails checkout={checkout} payment={payment} />
       <CartSummary cart={cart} variant="checkout" className="rounded-card bg-ink-50 p-4" />

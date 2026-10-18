@@ -2,9 +2,7 @@
 
 import { Truck } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/components/ui/cn'
-import { RadioGroupItem } from '@/components/ui/radio-group'
 import type { ShippingOption } from '@/lib/api/types/shipping'
 import { formatToman } from '@/lib/format'
 import {
@@ -14,6 +12,9 @@ import {
   etaLabel,
   prepaymentNote,
 } from './shipping-labels'
+import { STEP_CONTROLS } from './step-controls'
+
+const { Checkbox, RadioGroupItem } = STEP_CONTROLS
 
 // One shipping option of the radio group (cart digest §6.7): its title (the API sends no carrier
 // logo: a truck stands in), «پس‌کرایه» for a fare collected at the door, its cost from `total`,

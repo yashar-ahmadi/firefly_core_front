@@ -470,24 +470,36 @@ signed-in header to another.
   receiver form, the shipping options, their writes in `use-checkout-writes.ts`) is imported by
   `/checkout/` alone; the `(checkout)` layout's frame (`ShellFrame` with `CheckoutHeader` and
   `CheckoutFooter`) leaves out the shop's header, menus, search, bottom navigation, compare bar
-  and quick view, which pays for the steps (`/checkout/` 248.6 KB, guest and signed in, desktop
-  and phone, push shop too; Plan 4 Task 3). The address book's sheet and the map still
-  load on demand, and so does the `(checkout)` error boundary's view, as the root's does
-  (statically it cost 3.6 KB there; lazily 0.8 KB, its own copy of the loader and the plain
-  fallback). The payment and review steps' UI is one lazy chunk (`lazy-steps.tsx` →
-  `later-steps.ts`): it loads when one of them shows, or as soon as the shopper works in the page
-  (a pointer over it, a focus in it), never on its own at first load. A page whose steps are all
-  done at load downloads it at once: 5.6 KB more, 254.2 KB in all, over the budget (a guest who
-  reloads at the review; a signed-in shopper whose default address and shipping the page sets by
-  itself). The budget guard's measures do not reach that state: the guest's starts at the
-  receiver, and the signed-in one refuses the page's writes. One chunk group,
-  not one per step: two groups made Turbopack regroup the shop's shared chunks (category
-  +1.8 KB). What runs only after the press loads on the press: the placement and its refusals
+  and quick view, which pays for the steps. The address book's sheet and the map still load on
+  demand, and so does the `(checkout)` error boundary's view, as the root's does (statically it
+  cost 3.6 KB there; lazily 0.8 KB, its own copy of the loader and the plain fallback).
+- **The checkout loads only the open step's body** (Task 3's amendment, `lazy-steps.tsx`). The
+  page is the steps' frame: each step's numbered heading, a done step's summary in a line, a
+  locked step's heading alone. The body of the open step is its own lazy chunk: the guest's
+  receiver form or the signed-in address picker, the shipping options, the payment routes, the
+  review. While it comes, its section keeps its heading (the focus goes there at once) over a
+  skeleton; a chunk that cannot load says so in its section with a reload. The shopper at work in
+  the page (a pointer over it, a focus in it) fetches the bodies of the steps ahead meanwhile,
+  never on arrival alone. The choices made for the shopper run in the page's own code, not in
+  the bodies (`use-auto-choices.ts`, from `useCheckout`): the book's default address posted for a
+  signed-in cart, the operator's default shipping option. A step being completed so shows its
+  heading over a named skeleton, and its body loads only if the shopper is asked after all (an
+  empty book, no default, a refusal). A signed-in shopper's first visit therefore goes from the
+  cart to the review loading the review's body alone. The guard measures every state a visitor
+  lands in, against 246 KB for the checkout (`CHECKOUT_BUDGET_KB`, below the route budget:
+  headroom for the order's payment resume): a guest at the receiver, a guest back at the review,
+  sara's checkout with its writes refused (budget specs), and k.yazdi's first visit and return
+  at the review (his journey). The radio steps (address picker, shipping, payment)
+  take their form controls as one set (`step-controls.ts`: the radio group with the checkbox and
+  the text input). The catalog's filters load those three as one chunk, and Turbopack groups
+  modules by the chunk groups that load them together: steps that took the radio group alone split
+  that chunk for the catalog (category, list and brand +1.8 KB). With the set, the catalog's
+  chunks are byte for byte what they were. What runs only after the press loads on the press: the placement and its refusals
   (`place-flow.ts`, whose own imports are only modules the page does not have, or the shared
   chunks regroup again), then the placed order's payment (`placed/placed-loader.tsx` →
   `placed-order-panel.tsx`: the intents, `goToBank` behind its own `import()`, the ways to pay
-  later), fetched ahead once the shopper reaches for the review's form (a pointer over it, a
-  focus in it), never on the step's arrival alone. The payment catalog (`payment/method/list/`, `payment/gateway/list/`) comes as props
+  later), fetched ahead when the browser is idle after the shopper's first press or focus in the
+  review's form, never on the step's arrival alone. The payment catalog (`payment/method/list/`, `payment/gateway/list/`) comes as props
   from the server's 60 s cache, its operator texts sanitised there (`features/payment/catalog.ts`).
   The only shared code the checkout added is the checkout in the session-expiry path rule
   (`isSignedInContextPath`) and the wallet's key in `SESSION_QUERIES`. In Task 3 the catalog

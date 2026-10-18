@@ -89,15 +89,21 @@ describe('ReviewSection', () => {
     expect(await placeButton()).not.toHaveAttribute('aria-disabled')
   })
 
-  it('fetches the placed order’s code once the shopper reaches for the form, not on arrival', async () => {
+  it('fetches the placed order’s code once the shopper works in the form, not on arrival', async () => {
     // A returning shopper lands on the review with no interaction: that load stays in budget.
     serve(mocks.bffFetch, () => onlineCart())
     renderCheckout({ cart: onlineCart() })
     const button = await placeButton()
     await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled', 'true'))
-    expect(mocks.preload).not.toHaveBeenCalled()
     await userEvent.hover(button)
-    expect(mocks.preload).toHaveBeenCalled()
+    expect(mocks.preload).not.toHaveBeenCalled()
+    const note = within(review()).getByLabelText(/توضیحات سفارش/)
+    await userEvent.click(note)
+    await waitFor(() => expect(mocks.preload).toHaveBeenCalledTimes(1))
+    await userEvent.type(note, 'عصر')
+    await userEvent.click(within(review()).getByText(/توضیحات سفارش/))
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    expect(mocks.preload).toHaveBeenCalledTimes(1)
   })
   it('the operator’s sentences must be ticked; then the note and the total go with the key', async () => {
     const user = userEvent.setup()

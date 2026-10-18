@@ -1,7 +1,7 @@
-import { expect, type Response } from '@playwright/test'
+import { expect, type APIResponse, type Response } from '@playwright/test'
 import type { Cart } from '@/lib/api/types/cart'
-import { cartAnswer, cartWrite } from '../support/cart-write'
-import { shellHydrated } from '../support/hydrated'
+import { cartAnswer, cartWrite, requestCartWrite } from '../support/cart-write'
+import { enforce, measure, measurePhone, type BudgetRoute } from '../support/js-budget'
 import { kamranTest } from '../support/kamran-guard'
 import { chooseShipping, SHIPPING_SELECT } from '../support/shipping-choice'
 import { watchErrors } from '../support/watch-errors'
@@ -13,29 +13,38 @@ import { watchErrors } from '../support/watch-errors'
 // with none, the section asks and the test chooses: support/shipping-choice.ts), and the
 // summary shows the API's row; «افزودن آدرس جدید» opens the address book's sheet (its
 // code loads then), closed unsaved. Nothing is ordered (Task 3).
+// The JavaScript budget signed in (Task 3's amendment; support/js-budget.ts): the first visit
+// (the page's own writes, one after the other) is measured as it happens, the context's first
+// page; then the checkout at the review, as he would find it again, in fresh contexts on a
+// desktop and on a phone. No other login: his session, his cart, the guard's restore.
 
 kamranTest.describe.configure({ mode: 'serial' })
 
-const PRODUCT = 'nestle-coffee-gold'
+/** A simple product with stock to spare (the cart's e2e product, as support/js-budget.ts's). */
+const VARIANT = 10123
 const toman = (amount: number) => `${new Intl.NumberFormat('fa-IR').format(amount)} تومان`
-const cartOf = async (response: Response) => ((await response.json()) as { data: Cart }).data
+const cartOf = async (response: Response | APIResponse) =>
+  ((await response.json()) as { data: Cart }).data
+const FIRST: BudgetRoute = { name: 'checkout', path: '/checkout/', checkout: 'signed-in-first' }
+const REVIEW: BudgetRoute = { name: 'checkout', path: '/checkout/', checkout: 'signed-in-review' }
 
 kamranTest(
   'signed in: the default address is the destination, the default option is chosen',
-  async ({ page, kamran }) => {
+  async ({ page, kamran, browser }, info) => {
     const errors = watchErrors(page)
     const home = kamran.before.addresses[0]
     expect(home, 'k.yazdi has a saved address (the sample data)').toBeDefined()
-    await page.goto(`/product/${PRODUCT}/`)
-    await shellHydrated(page)
-    const added = await cartWrite(
-      page,
+    // A product in his cart through the API: the checkout is this context's first page (the
+    // first visit's scripts are measured from a cold cache). The product page's own button has
+    // its journeys elsewhere (cart, checkout-place).
+    const added = await requestCartWrite(
+      kamran.request,
       { method: 'POST', path: 'cart/item/add/', label: 'add' },
       () =>
-        page
-          .getByRole('region', { name: 'خرید', exact: true })
-          .getByRole('button', { name: 'افزودن به سبد خرید' })
-          .click(),
+        kamran.request.post('/api/bff/cart/item/add/', {
+          headers: { 'X-Requested-With': 'ff' },
+          data: { variant: VARIANT, quantity: 1 },
+        }),
     )
 
     // The checkout: his default address posted for him, then the operator's default option
@@ -43,12 +52,14 @@ kamranTest(
     const hadAddress = kamran.before.destination !== null && 'address' in kamran.before.destination
     const auto = cartAnswer(page, SHIPPING_SELECT)
     let destination: Response | null = null
-    if (hadAddress) await page.goto('/checkout/')
+    const visit = () => measure(page, FIRST, 'desktop, signed in', { signedIn: true })
+    let first: Awaited<ReturnType<typeof visit>> | null = null
+    if (hadAddress) first = await visit()
     else {
       destination = await cartWrite(
         page,
         { method: 'POST', path: 'cart/destination/', label: 'destination' },
-        () => page.goto('/checkout/'),
+        async () => (first = await visit()),
         { retry: () => page.reload() },
       )
       expect(destination.request().postDataJSON()).toEqual({ address: home!.id })
@@ -83,5 +94,22 @@ kamranTest(
     await page.keyboard.press('Escape')
     await expect(sheet).toBeHidden()
     expect(errors).toEqual([])
+
+    // Back at the checkout later: the review open at once, on a desktop and on a phone.
+    const storageState = await page.context().storageState()
+    const context = await browser.newContext({ storageState })
+    try {
+      const desktop = await measure(await context.newPage(), REVIEW, 'desktop, signed in', {
+        signedIn: true,
+      })
+      const phone = await measurePhone(browser, REVIEW, {
+        storageState,
+        device: 'phone, signed in',
+        signedIn: true,
+      })
+      enforce(info, ...(first ? [first] : []), desktop, phone)
+    } finally {
+      await context.close()
+    }
   },
 )

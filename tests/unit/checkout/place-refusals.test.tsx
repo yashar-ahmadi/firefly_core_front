@@ -73,7 +73,8 @@ describe('placement refusals', () => {
     expect(screen.getByLabelText(/توضیحات سفارش/)).toHaveValue('لطفاً عصر بیاورید')
     const receiver = screen.getByRole('region', { name: /گیرنده و آدرس/ })
     await user.click(within(receiver).getByRole('button', { name: /ویرایش/ }))
-    expect(within(receiver).getByLabelText(/^نام گیرنده/)).toHaveValue('سارا')
+    // The form's code loads as its step opens (lazy-steps.tsx).
+    expect(await within(receiver).findByLabelText(/^نام گیرنده/)).toHaveValue('سارا')
     expect(within(receiver).getByLabelText(/کد پستی/)).toHaveValue('۱۲۳۴۵-۶۷۸۹۰')
     await user.click(within(receiver).getByRole('button', { name: 'ادامه' }))
 

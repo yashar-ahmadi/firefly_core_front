@@ -3,13 +3,15 @@
 import { ArrowLeftRight, CreditCard, HandCoins, Wallet, WalletCards } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/components/ui/cn'
-import { RadioGroupItem } from '@/components/ui/radio-group'
 import { SmartImage } from '@/components/ui/smart-image'
 import type { PaymentMethodView } from '@/features/payment/catalog'
 import type { RouteChoice } from '@/features/payment/routes'
 import type { PaymentRoute } from '@/lib/api/types/payment'
 import { formatToman } from '@/lib/format'
 import { isPlaceholder, routeLabel } from './route-label'
+import { STEP_CONTROLS } from './step-controls'
+
+const { RadioGroupItem } = STEP_CONTROLS
 
 // One payment route of the radio group (order digest §5.3): its icon (the operator's, or one
 // for the route while the API sends its placeholder), label and description (operator HTML,

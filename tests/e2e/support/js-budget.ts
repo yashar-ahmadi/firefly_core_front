@@ -8,6 +8,11 @@ import {
   type TestInfo,
 } from '@playwright/test'
 import { gzipSync } from 'node:zlib'
+import { RECEIVER_DRAFT_KEY } from '@/features/checkout/receiver-draft'
+import { defaultOption } from '@/features/checkout/shipping-labels'
+import type { Paginated } from '@/lib/api/types/common'
+import type { City, Province } from '@/lib/api/types/geo'
+import type { ShippingOptionList } from '@/lib/api/types/shipping'
 import { requestCartWrite } from './cart-write'
 import { SAMPLE, seedCompare } from './compare-seed'
 import { SESSION_COOKIES } from './session'
@@ -26,22 +31,44 @@ import { SESSION_COOKIES } from './session'
 /** The session's flag cookie (`ff_auth`): there while the session lives. */
 const FLAG_COOKIE = SESSION_COOKIES[2]
 
+/**
+ * The checkout's states measured (Plan 4; Task 3's amendment: what visitors actually load, each
+ * held to `CHECKOUT_BUDGET_KB`):
+ * - `guest`: a product in this context's own cart, nothing else: the receiver step is open;
+ * - `guest-review`: the same cart with Tehran as its destination and the operator's default
+ *   shipping chosen (through the API), and the guest's receiver confirmed in this tab's
+ *   sessionStorage: a guest back at the checkout (a reload), the review open at once;
+ * - `signed-in`: sara's cart as it is, the writes the page would make by itself (the default
+ *   address as the destination, the default shipping option) refused before they leave the
+ *   browser: the shared account is only read;
+ * - `signed-in-review`: a signed-in cart already at the review (its destination one of the
+ *   account's addresses, its shipping chosen: k.yazdi's, left so by his journey,
+ *   checkout/checkout-signed-in.spec.ts); the page has nothing to write, and any write is
+ *   refused all the same;
+ * - `signed-in-first`: the same account's first visit with a cart that has no destination: the
+ *   page posts the default address and chooses the default shipping by itself (writes allowed:
+ *   the journey's guard puts the cart back).
+ */
+export type CheckoutState =
+  'guest' | 'guest-review' | 'signed-in' | 'signed-in-review' | 'signed-in-first'
+
 export interface BudgetRoute {
   name: string
   path: string
-  /**
-   * The checkout (Plan 4): a guest's measure first puts a product in this context's own cart, so
-   * the steps show (not the empty state); a signed-in one leaves the cart as it is, and the writes
-   * the page would make by itself (the default address as the destination, the operator's default
-   * shipping option) are refused before they leave the browser: the shared account is only read.
-   */
-  checkout?: 'guest' | 'signed-in'
+  checkout?: CheckoutState
 }
 
 const BFF = { 'X-Requested-With': 'ff' }
 /** A simple product with stock to spare (the cart's e2e product). */
 const SEED_VARIANT = 10123
 const CHECKOUT_WRITES = /\/api\/bff\/cart\/(?:destination|shipping\/select)\/$/
+
+/** The step the state must show open before its scripts are summed (none: the cart decides). */
+const OPEN_STEP: Partial<Record<CheckoutState, string>> = {
+  guest: 'receiver',
+  'guest-review': 'review',
+  'signed-in-review': 'review',
+}
 
 /**
  * One line in this context's guest cart, through the cart-write guard: the dev SQLite lock's 500
@@ -60,7 +87,94 @@ async function seedCart(page: Page): Promise<void> {
   )
 }
 
+async function geo<T>(page: Page, path: string): Promise<T[]> {
+  const response = await page.request.get(`/api/bff/transportation/${path}`, { headers: BFF })
+  expect(response.ok(), path).toBe(true)
+  return ((await response.json()) as { data: Paginated<T> }).data.results
+}
+
+/**
+ * A guest back at the checkout (`guest-review`): this context's cart with a product, Tehran as
+ * its destination and the operator's default shipping option chosen (else the first available,
+ * as a shopper would), each through the cart-write guard; and, in this tab's sessionStorage
+ * before any page script runs, the receiver the guest confirmed with «ادامه».
+ */
+async function seedGuestReview(page: Page): Promise<void> {
+  await seedCart(page)
+  const tehran = (await geo<Province>(page, 'province/list/?limit=1500')).find(
+    (province) => province.name === 'تهران',
+  )
+  expect(tehran, 'the province Tehran').toBeDefined()
+  const cities = await geo<City>(page, `city/list/?province=${tehran!.id}&limit=1500`)
+  const city = cities.find((item) => item.name === 'تهران') ?? cities[0]
+  expect(city, "one of Tehran's cities").toBeDefined()
+  await requestCartWrite(
+    page.request,
+    {
+      method: 'POST',
+      path: 'cart/destination/',
+      label: "cart/destination/ for the review's measure",
+    },
+    () =>
+      page.request.post('/api/bff/cart/destination/', {
+        headers: BFF,
+        data: { province: tehran!.id, city: city!.id },
+      }),
+  )
+  const list = await page.request.get('/api/bff/cart/shipping/option/list/', { headers: BFF })
+  expect(list.ok(), 'cart/shipping/option/list/').toBe(true)
+  const { options } = ((await list.json()) as { data: ShippingOptionList }).data
+  const option = defaultOption(options) ?? options.find((item) => item.is_available)
+  expect(option, 'a shipping option for Tehran').toBeDefined()
+  await requestCartWrite(
+    page.request,
+    {
+      method: 'POST',
+      path: 'cart/shipping/select/',
+      label: "cart/shipping/select/ for the review's measure",
+    },
+    () =>
+      page.request.post('/api/bff/cart/shipping/select/', {
+        headers: BFF,
+        data: { code: option!.code, cash_on_delivery: false },
+      }),
+  )
+  const draft = JSON.stringify({
+    values: {
+      province: tehran!.id,
+      city: city!.id,
+      address: 'خیابان آزمون، کوچه\u{0654} یک',
+      plaque: '',
+      unit: '',
+      postalCode: '1234567890',
+      firstName: 'آزمون',
+      lastName: 'بودجه',
+      mobile: '09120000000',
+      customerMobile: '',
+    },
+    confirmed: true,
+  })
+  await page.addInitScript(
+    ([key, text]) => {
+      try {
+        if (sessionStorage.getItem(key!) === null) sessionStorage.setItem(key!, text!)
+      } catch {
+        // No storage: the measure's step check says so.
+      }
+    },
+    [RECEIVER_DRAFT_KEY, draft],
+  )
+}
+
 export const BUDGET_KB = 250
+/**
+ * The checkout's own target in every state it is measured in (Task 3's amendment): below the
+ * route budget, the headroom kept for the order's payment resume (Plan 4 Task 4).
+ */
+export const CHECKOUT_BUDGET_KB = 246
+
+/** The figure a route is held to. */
+export const budgetOf = (route: BudgetRoute) => (route.checkout ? CHECKOUT_BUDGET_KB : BUDGET_KB)
 
 /** Whether `project` measures the budget: `desktop`, and `budget-push` for a push shop. */
 export function measuresBudget(project: FullProject): boolean {
@@ -139,6 +253,7 @@ function recordScripts(page: Page) {
 
 interface Measure {
   kb: number
+  budget: number
   line: string
 }
 
@@ -163,7 +278,10 @@ export async function measure(
 ): Promise<Measure> {
   if (route.name === 'compare') await seedCompare(page, [SAMPLE.S25, SAMPLE.A56])
   if (route.checkout === 'guest') await seedCart(page)
-  if (route.checkout === 'signed-in') await page.route(CHECKOUT_WRITES, (write) => write.abort())
+  if (route.checkout === 'guest-review') await seedGuestReview(page)
+  if (route.checkout === 'signed-in' || route.checkout === 'signed-in-review') {
+    await page.route(CHECKOUT_WRITES, (write) => write.abort())
+  }
   if (push) await pushOn(page)
   const scripts = recordScripts(page)
 
@@ -178,6 +296,23 @@ export async function measure(
       cookies.map(({ name }) => name),
       `${device}: still signed in`,
     ).toContain(FLAG_COOKIE)
+  }
+  const step = route.checkout && OPEN_STEP[route.checkout]
+  if (step) {
+    await expect(
+      page.locator(`section[data-step="${step}"]`),
+      `${device}: the checkout's ${step} step open`,
+    ).toHaveAttribute('data-state', 'active', { timeout: SETTLE_LIMIT_MS })
+  }
+  if (route.checkout === 'signed-in-first') {
+    // The page's own writes, one after the other: until the review is open, or the shipping
+    // step asks (no default option for the destination).
+    await expect(
+      page
+        .locator('section[data-step="review"][data-state="active"]')
+        .or(page.getByText('یک روش ارسال انتخاب کنید.')),
+      `${device}: the checkout went as far as it goes by itself`,
+    ).toBeVisible({ timeout: SETTLE_LIMIT_MS })
   }
   await expect
     .poll(scripts.settled, {
@@ -195,12 +330,14 @@ export async function measure(
   expect(results.length, `${device}: scripts were recorded`).toBeGreaterThan(0)
   let bytes = 0
   for (const result of results) if (result.ok) bytes += gzipSync(result.bytes, { level: 9 }).length
-  if (route.checkout === 'guest') {
+  if (route.checkout === 'guest' || route.checkout === 'guest-review') {
     await page.request.delete('/api/bff/cart/clear/', { headers: BFF }).catch(() => undefined)
   }
   const kb = bytes / 1024
-  const line = `${route.name} (${device}) ${decodeURIComponent(route.path)}: ${kb.toFixed(1)} KB gzip in ${results.length} scripts (budget ${BUDGET_KB} KB)`
-  return { kb, line }
+  const budget = budgetOf(route)
+  const state = route.checkout ? ` [${route.checkout}]` : ''
+  const line = `${route.name} (${device})${state} ${decodeURIComponent(route.path)}: ${kb.toFixed(1)} KB gzip in ${results.length} scripts (budget ${budget} KB)`
+  return { kb, budget, line }
 }
 
 /**
@@ -231,5 +368,5 @@ export function enforce(info: TestInfo, ...figures: Measure[]): void {
     console.log(`[js-budget] ${line}`)
     info.annotations.push({ type: 'js-budget', description: line })
   }
-  for (const { kb, line } of figures) expect.soft(kb, line).toBeLessThanOrEqual(BUDGET_KB)
+  for (const { kb, budget, line } of figures) expect.soft(kb, line).toBeLessThanOrEqual(budget)
 }

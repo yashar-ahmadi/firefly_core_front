@@ -1,5 +1,5 @@
 import {
-  BUDGET_KB,
+  budgetOf,
   deviceLabel,
   enforce,
   measure,
@@ -28,6 +28,7 @@ const ROUTES: BudgetRoute[] = [
   // Sara's cart has lines: the cart page as a signed-in shopper sees it (read only).
   { name: 'cart', path: '/cart/' },
   // Her checkout: the address picker and the shipping step, its own writes refused (read only).
+  // At the review signed in: k.yazdi's journey measures it (checkout/checkout-signed-in.spec.ts).
   { name: 'checkout', path: '/checkout/', checkout: 'signed-in' },
 ]
 
@@ -36,7 +37,7 @@ signedInTest.describe('JavaScript budget, signed in (production build)', () => {
 
   for (const route of ROUTES) {
     signedInTest(
-      `${route.name} signed in: at most ${BUDGET_KB} KB gzip of JavaScript on desktop and phone`,
+      `${route.name} signed in: at most ${budgetOf(route)} KB gzip of JavaScript on desktop and phone`,
       async ({ page, browser, saraState }, info) => {
         signedInTest.skip(!measuresBudget(info.project), 'measures both viewports itself')
         signedInTest.setTimeout(90_000)

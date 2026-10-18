@@ -108,9 +108,11 @@ test('a guest checks out up to shipping: receiver, Tehran, the default option ch
       await expect(folded.locator('summary')).toContainText(`جمع کل: ${toman(cart.total)}`)
       await folded.locator('summary').click()
     }
-    const summary = page
-      .getByRole('region', { name: 'خلاصه\u{0654} سفارش' })
-      .filter({ visible: true })
+    // The page's own summary (the aside, or the folded one on phones): the review step, open by
+    // now, shows the same summary in its body as well.
+    const summary = (
+      isWide(page) ? page.getByRole('complementary') : page.locator('details[data-summary="phone"]')
+    ).getByRole('region', { name: 'خلاصه\u{0654} سفارش' })
     const row = summary
       .locator('div')
       .filter({ has: page.getByRole('term').filter({ hasText: 'هزینه\u{0654} ارسال' }) })

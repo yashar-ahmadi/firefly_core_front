@@ -2,12 +2,11 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { MapPin, Pencil, Plus } from 'lucide-react'
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FormAlert } from '@/components/form/form-alert'
 import { useSubmitWait } from '@/components/form/code-timers'
 import { Button } from '@/components/ui/button'
 import { announce } from '@/components/ui/live-announcer'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WidgetBoundary } from '@/components/ui/widget-boundary'
 import { LazyAddressSheet, preloadAddressSheet } from '@/features/account/addresses/lazy-overlays'
@@ -17,12 +16,17 @@ import { ListError, THROTTLED_MESSAGE, throttleWait } from '@/features/account/l
 import { CART_KEY } from '@/features/cart/cart-cache'
 import type { Address } from '@/lib/api/types/cart'
 import { AddressDetails, AddressLabel } from './address-option'
+import type { AutoFailure } from './use-auto-choices'
 import type { Checkout } from './use-checkout'
 import { isThrottled } from './use-checkout-writes'
+import { STEP_CONTROLS } from './step-controls'
+
+const { RadioGroup, RadioGroupItem } = STEP_CONTROLS
 
 // A signed-in shopper's destination (cart digest §6.6, §7.4): the address book as a radio group,
-// the cart's own address chosen, else the default (the book's first) chosen for them. A choice
-// posts `cart/destination/ {address}`. «افزودن آدرس جدید» and «ویرایش» open the address book's
+// the cart's own address chosen (the book's default is posted for the shopper by the page's own
+// code, use-auto-choices.ts; this body shows when they are asked after all). A choice posts
+// `cart/destination/ {address}`. «افزودن آدرس جدید» and «ویرایش» open the address book's
 // own sheet (loaded on demand); a new address becomes the destination; an edit re-reads the cart
 // and its options (a new province or city clears the shipping choice). An empty book opens the
 // sheet at once.
@@ -40,16 +44,17 @@ export function AddressPicker({ checkout }: { checkout: Checkout }) {
   })
   const openSheet = (initial?: Address) => setSheet({ requested: true, open: true, initial })
   const [chosenId, setChosenId] = useState<number | null>(null)
-  const [failure, setFailure] = useState<{ message: string; error: unknown; at: number } | null>(
-    null,
-  )
+  const [own, setOwn] = useState<{ failure: AutoFailure | null } | null>(null)
+  const setFailure = (failure: AutoFailure | null) => setOwn({ failure })
+  // A refusal of the default posted for the shopper (use-auto-choices) is said here until the
+  // shopper's own choice, whose answer is said instead.
+  const failure = own ? own.failure : checkout.autoDestination.failure
   // A 429: the addresses wait out `retry_after` (the choice is never sent meanwhile).
   const lock = useSubmitWait(throttleWait(failure?.error, failure?.at ?? 0))
   const cartAddress = checkout.cart?.destination?.address?.id ?? null
   const inBook = addresses?.some((item) => item.id === cartAddress) ?? false
   const value = chosenId ?? (inBook ? cartAddress : null)
 
-  const tried = useRef(new Set<number>())
   const pick = async (address: Pick<Address, 'id' | 'title'>) => {
     if (lock.locked) return
     setChosenId(address.id)
@@ -58,23 +63,9 @@ export function AddressPicker({ checkout }: { checkout: Checkout }) {
     setChosenId(null)
     if (outcome.status === 'done') announce(`آدرس «${address.title}» برای ارسال انتخاب شد.`)
     if (outcome.status !== 'failed' || !outcome.message) return
-    const throttled = isThrottled(outcome.error)
-    // A throttled default is chosen again once the wait is over.
-    if (throttled) tried.current.delete(address.id)
-    const message = throttled ? THROTTLED_MESSAGE : outcome.message
+    const message = isThrottled(outcome.error) ? THROTTLED_MESSAGE : outcome.message
     setFailure({ message, error: outcome.error, at: Date.now() })
   }
-
-  // A cart without a saved address as its destination: the default (first in the book) is
-  // chosen, once.
-  const preselect = useEffectEvent(() => {
-    const first = addresses?.[0]
-    if (!first || cartAddress !== null || chosenId !== null || checkout.destinationPending) return
-    if (lock.locked || tried.current.has(first.id)) return
-    tried.current.add(first.id)
-    void pick(first)
-  })
-  useEffect(() => preselect(), [addresses, cartAddress, lock.locked])
 
   // An empty book: the sheet opens at once (once; closed, the button is there).
   const opened = useRef(false)

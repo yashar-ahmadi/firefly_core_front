@@ -7,13 +7,15 @@ import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
-import { RadioGroup } from '@/components/ui/radio-group'
 import type { RouteChoiceState } from '@/features/payment/use-route-choice'
 import type { PaymentRoute } from '@/lib/api/types/payment'
 import { formatToman } from '@/lib/format'
 import { loginHref } from '@/lib/links/login'
 import { GatewayChooser } from './gateway-chooser'
 import { PaymentRouteOption } from './payment-route-option'
+import { STEP_CONTROLS } from './step-controls'
+
+const { RadioGroup } = STEP_CONTROLS
 
 // «پرداخت» (order digest §5.3): the routes the rules allow for these amounts as a radio group
 // (disabled ones with their reason), the bank's gateways under the chosen bank route when there

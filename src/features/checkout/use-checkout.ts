@@ -28,13 +28,15 @@ import {
   saveReceiverDraft,
   subscribeReceiverDraft,
 } from './receiver-draft'
+import { useAutoDestination, useAutoShipping, type AutoChoice } from './use-auto-choices'
 import { useDestinationWrite, useShippingWrite, type WriteOutcome } from './use-checkout-writes'
 
 // The checkout's state machine (Plan 4 Tasks 2–3): the cart as the API returned it (`useCart`,
 // the one cart query) decides what is done, the page adds only what the API cannot know (a
 // guest's receiver until placement, the payment route chosen, a step reopened with «ویرایش»),
 // and local state never overrides the cart: a write that changes the cart clears its shipping
-// choice there, and the steps follow.
+// choice there, and the steps follow. The choices made for the shopper (the default address, the
+// default shipping option) are made here too (use-auto-choices.ts).
 
 export interface Checkout {
   cart: Cart | undefined
@@ -72,6 +74,10 @@ export interface Checkout {
   receiverErrors: Partial<Record<GuestField, string>>
   /** A placement refused the receiver: the form again, with the API's messages. */
   reopenReceiver: (errors: Partial<Record<GuestField, string>>) => void
+  /** Signed in: the book's default posted as the destination for the shopper (use-auto-choices). */
+  autoDestination: AutoChoice
+  /** The operator's default shipping option chosen for the shopper (use-auto-choices). */
+  autoShipping: AutoChoice
 }
 
 export interface CheckoutOptions {
@@ -167,6 +173,23 @@ export function useCheckout({ paymentReady = false }: CheckoutOptions = {}): Che
     [setDraft],
   )
 
+  const setDestinationByAddress = async (id: number) =>
+    after(await destination.setDestination({ address: id }), 'receiver')
+  // The choices made for the shopper, in the page's own code (their steps' bodies load only if
+  // the shopper is asked after all).
+  const autoDestination = useAutoDestination({
+    signedIn,
+    cart,
+    pending: destination.isPending,
+    post: setDestinationByAddress,
+  })
+  const autoShipping = useAutoShipping({
+    cart,
+    ready: done.receiver,
+    pending: shipping.isPending,
+    select: shipping.select,
+  })
+
   return {
     cart,
     cartQuery,
@@ -179,8 +202,7 @@ export function useCheckout({ paymentReady = false }: CheckoutOptions = {}): Che
     editing,
     edit: setEditing,
     finishEditing: () => setEditing(null),
-    setDestinationByAddress: async (id) =>
-      after(await destination.setDestination({ address: id }), 'receiver'),
+    setDestinationByAddress,
     setDestinationByCity: async (province, city) =>
       // A guest's step closes with «ادامه» (`confirmReceiver`), not with the city.
       destination.setDestination({ province, city }),
@@ -203,5 +225,7 @@ export function useCheckout({ paymentReady = false }: CheckoutOptions = {}): Che
       setDraft((current) => ({ ...current, confirmed: false }))
       setEditing(null)
     },
+    autoDestination,
+    autoShipping,
   }
 }
