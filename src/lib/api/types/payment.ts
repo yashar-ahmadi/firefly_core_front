@@ -1,8 +1,9 @@
 import type { Toman } from './cart'
 
 /**
- * Wire types of the payment and wallet endpoints the checkout uses (`payment/method/list/`,
- * `payment/gateway/list/`, both intent doors, `wallet/`), copied from the order digest §2
+ * Wire types of the payment and wallet endpoints the storefront uses (`payment/method/list/`,
+ * `payment/gateway/list/`, both intent doors, the card transfer's instruction and receipt, the
+ * history detail, `wallet/`), copied from the order digest §2
  * (docs/backend-integration/order-payment.md), verified against live JSON (2026-10-18). Pure
  * types: safe in any bundle. A payment uuid and a link token are bearer credentials: never log
  * them or send them anywhere but the API (digest §1.3).
@@ -139,4 +140,43 @@ export interface WalletBalance {
   withdrawal_processing_days: number
   /** Already deducted from `balance`. */
   pending_withdrawal_amount: Toman
+}
+
+/** `GET payment/<uuid>/card-transfer/` (digest §3.2.7): what to transfer, where, and by when. */
+export interface CardTransferInstruction {
+  /** The payment's amount (= what is owed online, O). */
+  amount: Toman
+  /** Operator HTML or "" (the card-transfer route's own instruction). */
+  instruction: string
+  /** The shop's active cards. */
+  destination_cards: BankCard[]
+  /** The ORDER's payment deadline, not the attempt's (`open_attempt.expires_at`). */
+  expires_at: string | null
+}
+
+export type ReceiptStatus = 'awaiting_review' | 'approved' | 'rejected'
+
+export type ReceiptRejectionCode =
+  'amount_mismatch' | 'image_unreadable' | 'not_in_statement' | 'duplicate' | 'other'
+
+/** `POST payment/<uuid>/card-transfer/receipt/` (201) and the history detail's receipt. */
+export interface CardTransferReceipt {
+  uuid: string
+  status: ReceiptStatus
+  paid_at: string
+  /** A relative URL, or null. */
+  image_thumbnail: string | null
+  rejection_reason_code: ReceiptRejectionCode | null
+  /** "" until rejected; the sentence the shopper was sent. */
+  rejection_reason: string
+  reviewed_at: string | null
+}
+
+/** `GET payment/history/<uuid>/` (signed in, the payment's owner): the fields read here. */
+export interface PaymentHistoryDetail {
+  uuid: string
+  status: PaymentStatus
+  failure_reason: string
+  order_code: string | null
+  card_transfer_receipt: CardTransferReceipt | null
 }

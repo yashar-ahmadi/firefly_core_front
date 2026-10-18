@@ -57,10 +57,10 @@ describe('isExpectedFailure', () => {
       false,
     )
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/product/x/')).toBe(false)
-    // The card transfer's page (Task 6), which the payment link's page leads to.
+    // The card transfer's page exists now (Task 6): a 404 there is reported.
     expect(
       isExpectedFailure(NOT_FOUND, 'http://localhost:3000/payment/card-transfer/0b6f5a9e/'),
-    ).toBe(true)
+    ).toBe(false)
     // The payment link's page itself exists now: a 404 there is reported.
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/order/pay/x/')).toBe(false)
   })

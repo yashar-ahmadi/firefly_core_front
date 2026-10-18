@@ -12,6 +12,12 @@ import type { PendingPayment } from './pending-payments'
 // known (the result opened on another device): no door, never a made-up one; the page sends the
 // shopper to tracking or the SMS link instead. Pure.
 
+/** Where to pay again when this device knows no door: a guest's (or another payer's) words. */
+export const NO_DOOR_GUEST =
+  'برای پرداخت دوباره، لینک پرداختی را که با پیامک برایتان فرستاده شده باز کنید یا سفارش را از «پیگیری سفارش» پیدا کنید.'
+/** The same for the order's owner. */
+export const NO_DOOR_USER = 'برای پرداخت دوباره به صفحهٔ سفارش بروید.'
+
 export type PayAgainDoor =
   | { kind: 'known'; door: PaymentDoor }
   /** The owner: the order's uuid is read by its code when the shopper presses. */

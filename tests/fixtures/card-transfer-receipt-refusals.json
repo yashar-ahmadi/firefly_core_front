@@ -1,0 +1,130 @@
+{
+  "_note": "Captured live from the dev API on 2026-10-18 (POST payment/<uuid>/card-transfer/receipt/ against a cancelled card attempt and one already under review; nothing was written). The bodies are as the API sent them.",
+  "validation": {
+    "msg": "درخواست ارسالی معتبر نیست.",
+    "code": 400,
+    "data": {
+      "type": "validation_error",
+      "errors": [
+        {
+          "code": "required",
+          "detail": "این مقدار لازم است.",
+          "attr": "payer_name"
+        },
+        {
+          "code": "invalid_code",
+          "detail": "کد باید دقیقاً ۴ رقم باشد.",
+          "attr": "payer_card_last_digits"
+        },
+        {
+          "code": "payment_receipt_paid_at_in_future",
+          "detail": "زمان واریز نمی‌تواند در آینده باشد.",
+          "attr": "paid_at"
+        },
+        {
+          "code": "does_not_exist",
+          "detail": "موردی با شناسهٔ «99999» یافت نشد.",
+          "attr": "destination_card"
+        }
+      ]
+    }
+  },
+  "image_invalid": {
+    "msg": "درخواست ارسالی معتبر نیست.",
+    "code": 400,
+    "data": {
+      "type": "client_error",
+      "errors": [
+        {
+          "code": "payment_receipt_image_invalid",
+          "detail": "فایل ارسالی یک تصویر معتبر (JPEG، PNG یا WEBP) نیست.",
+          "attr": null
+        }
+      ]
+    }
+  },
+  "image_too_small": {
+    "msg": "درخواست ارسالی معتبر نیست.",
+    "code": 400,
+    "data": {
+      "type": "client_error",
+      "errors": [
+        {
+          "code": "payment_receipt_image_too_small",
+          "detail": "ابعاد تصویر رسید کمتر از حد مجاز (۳۰۰ در ۳۰۰ پیکسل) است.",
+          "attr": null
+        }
+      ]
+    }
+  },
+  "image_too_large": {
+    "msg": "حجم درخواست ارسالی بیش از حد مجاز است.",
+    "code": 413,
+    "data": {
+      "type": "client_error",
+      "errors": [
+        {
+          "code": "payment_receipt_image_too_large",
+          "detail": "حجم تصویر رسید نباید بیشتر از ۵ مگابایت باشد.",
+          "attr": null
+        }
+      ]
+    }
+  },
+  "invalid_image": {
+    "msg": "درخواست ارسالی معتبر نیست.",
+    "code": 400,
+    "data": {
+      "type": "validation_error",
+      "errors": [
+        {
+          "code": "invalid_image",
+          "detail": "یک عکس معتبر آپلود کنید. فایلی که ارسال کردید عکس یا عکس خراب شده نیست",
+          "attr": "image"
+        }
+      ]
+    }
+  },
+  "target_invalid": {
+    "msg": "درخواست ارسالی معتبر نیست.",
+    "code": 400,
+    "data": {
+      "type": "client_error",
+      "errors": [
+        {
+          "code": "payment_target_invalid",
+          "detail": "مقصد این پرداخت معتبر نیست.",
+          "attr": null
+        }
+      ]
+    }
+  },
+  "already_submitted": {
+    "msg": "این درخواست با وضعیت فعلی سازگار نیست.",
+    "code": 409,
+    "data": {
+      "type": "client_error",
+      "errors": [
+        {
+          "code": "payment_receipt_already_submitted",
+          "detail": "برای این پرداخت پیش‌تر رسید ثبت شده است.",
+          "attr": null
+        }
+      ]
+    }
+  },
+  "not_found": {
+    "msg": "موردی با این مشخصات پیدا نشد.",
+    "code": 404,
+    "data": {
+      "type": "client_error",
+      "errors": [
+        {
+          "code": "payment_not_found",
+          "detail": "پرداختی با این شناسه پیدا نشد.",
+          "attr": null
+        }
+      ]
+    }
+  }
+}

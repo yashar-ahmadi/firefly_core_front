@@ -5,13 +5,13 @@ import { useMemo, useRef, useState } from 'react'
 import { announce } from '@/components/ui/live-announcer'
 import { newIdempotencyKey } from '@/features/checkout/idempotency'
 import { findGuestOrder } from '@/features/orders/guest-orders'
-import { bffFetch } from '@/lib/api/client'
 import type { PaymentRoute } from '@/lib/api/types/payment'
 import { BANK_LEAVING_MS, useReleaseIfStillHere } from '@/lib/navigation/leaving'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
-import { isSessionExpiredError, SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
-import { IntentError, startPayment, type PaymentDoor } from './api'
+import { SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
+import { IntentError, startPayment } from './api'
 import { intentMessage } from './intent-messages'
+import { LOOKUP_FAILED, LookupError, lookupDoor } from './order-lookup'
 import { payAgainDoor, payAgainRoute } from './pay-again'
 import { savePending, type PendingPayment } from './pending-payments'
 
@@ -24,23 +24,7 @@ import { savePending, type PendingPayment } from './pending-payments'
 // order's owner gets the owner's doors: a signed-in payer of someone else's order (`owner`
 // false) pays through the order's link when this device knows it, never the account's lookup.
 
-const LOOKUP_FAILED =
-  'این سفارش در حساب شما خوانده نشد؛ برای پرداخت از صفحهٔ سفارش یا لینک پرداخت پیامک\u{200C}شده استفاده کنید.'
 const BANK_LOAD_FAILED = 'انتقال به درگاه انجام نشد؛ دوباره تلاش کنید.'
-
-class LookupError extends Error {}
-
-/** `GET order/<code>/` → its uuid: the owner's door for a signed-in shopper. */
-async function lookupDoor(orderCode: string): Promise<PaymentDoor> {
-  try {
-    const { data } = await bffFetch<{ uuid: string }>(`order/${orderCode}/`)
-    return { kind: 'uuid', orderUuid: data.uuid }
-  } catch (error) {
-    // The session is gone: ended like an intent's 401, not said as a lookup that failed.
-    if (isSessionExpiredError(error)) throw new IntentError('session', error)
-    throw new LookupError()
-  }
-}
 
 export interface PayAgainOptions {
   orderCode: string | null

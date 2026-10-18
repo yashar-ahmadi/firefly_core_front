@@ -48,6 +48,11 @@ export interface BudgetRoute {
   ready?: (page: Page, device: string) => Promise<void>
   /** Before the page loads, in each context measured (the result page's mocked status). */
   prepare?: (page: Page) => Promise<void>
+  /**
+   * Once the scripts are summed, before the context may close (a request a mock holds unanswered
+   * must be aborted here: closing the context lets a paused request through to the API).
+   */
+  cleanup?: (page: Page) => Promise<void>
 }
 
 export const BUDGET_KB = 250
@@ -199,6 +204,7 @@ export async function measure(
   let bytes = 0
   for (const result of results) if (result.ok) bytes += gzipSync(result.bytes, { level: 9 }).length
   if (route.checkout) await leaveCheckout(page, route.checkout)
+  if (route.cleanup) await route.cleanup(page)
   const kb = bytes / 1024
   const budget = budgetOf(route)
   const state = route.checkout ? ` [${route.checkout}]` : ''

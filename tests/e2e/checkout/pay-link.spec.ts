@@ -17,15 +17,16 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // run a bank (digest §11 #3): a named gateway answers 400 `gateway_unknown` (withdrawn, the other
 // one tried with a press), an unnamed one 503 `gateway_not_configured`; either way the page says
 // the bank cannot be used here, with support, and never navigates. Card to card opens an attempt
-// (its page is Task 6's, a 404 until then); back on the link the attempt's resume UI shows
+// (a full load to its page, card-transfer.spec.ts's subject); back on the link the attempt's resume UI shows
 // instead of the routes, and its «انصراف» cancels it; the bank's return page then reads that
 // cancelled attempt's real status (Task 5). The order is then cancelled through the
 // page's dialog (this is the cleanup; a guard cancels it through the API if the test ends
 // earlier). The JS budget of the link's pages is measured on the way: payable, with an open
 // attempt, refused.
 // Per run: 1 placement; 2-3 `payment_attempt` calls for the bank and the card, 1 attempt cancel
-// (of 30/h); about 10 `order_payment_link` reads and the cancel (of 30/min); 1 payment status
-// read (the result page, of 240/h). Never printed: the token (`<token>` in the budget lines).
+// (of 30/h); about 11 `order_payment_link` reads and the cancel (of 30/min); 3 `payment_status`
+// reads (the card page's status and cards, the result page; of 240/h). Never printed: the token
+// (`<token>` in the budget lines).
 
 const SHOWN = '/order/pay/<token>/'
 /** The sample data's end-of-body snippet (snippets.spec.ts). */
@@ -104,7 +105,7 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
     await expect(alert.getByRole('link', { name: /پشتیبانی/ })).toBeVisible()
     expect(new URL(page.url()).pathname, 'never sent anywhere').toBe(path)
 
-    // Card to card: an attempt opens; its page is a full page load (Task 6's, 404 until then).
+    // Card to card: an attempt opens; its page is a full page load (card-transfer.spec.ts).
     await routes(page)
       .getByRole('radio', { name: /کارت به کارت/ })
       .check()

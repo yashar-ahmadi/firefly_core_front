@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
+import { NO_DOOR_GUEST, NO_DOOR_USER } from './pay-again'
 import type { ResultAction } from './result-copy'
 import type { PayAgainState } from './use-pay-again'
 
@@ -42,10 +43,6 @@ interface Offer {
   /** A full page load (a credential URL). */
   plain?: boolean
 }
-
-const NO_DOOR_GUEST =
-  'برای پرداخت دوباره، لینک پرداختی را که با پیامک برایتان فرستاده شده باز کنید یا سفارش را از «پیگیری سفارش» پیدا کنید.'
-const NO_DOOR_USER = 'برای پرداخت دوباره به صفحهٔ سفارش بروید.'
 
 export function ResultActions({
   actions,

@@ -551,6 +551,20 @@ signed-in header to another.
   two of the product page's chunks (+110 B there, measured by bisecting builds); the route formats
   the support line on the server and hands the island the text. Importing lucide's `LoaderCircle`
   next to `Spinner` re-exported it from a shared chunk (+11 B on every page): use `Spinner`.
+- **The card-transfer page** (`/payment/card-transfer/<uuid>/`, Plan 4 Task 6): a thin route
+  entry around its island (`features/payment/card-transfer/card-transfer-loader.tsx`,
+  server-rendered: the title and the cards' skeleton). The island holds the cards, the receipt
+  form, the Jalali date input (`components/ui/jalali-date-time-input.tsx` with the pure
+  `lib/format/jalali-calendar.ts`, never re-exported from `lib/format`), the outcome and the
+  closed views; the cancel dialog loads on its first press. Its radio group comes through the
+  checkout's `step-controls.ts` set (the chunk-splitting rule above), and the support line is
+  formatted on the server, as on the result page. Measured from mocked answers
+  (`tests/e2e/checkout/card-transfer-states.spec.ts`, held to `CHECKOUT_BUDGET_KB`): 240.1 KB in
+  every state (cards loading, the form, under review, rejected; desktop and phone alike), and the
+  live journey's form the same; the shop's other pages, `/cart/` and `/checkout/` byte for byte
+  unchanged. The island takes the shared leave-guard's default wait rather than importing
+  `LEAVING_MS`: that export of `lib/navigation/leaving.ts` grew a lazy chunk of `/checkout/`
+  (+4 B gzip, measured).
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -707,6 +721,13 @@ stays under the `/payment/` prefix either way. The uuid is also in `localStorage
 payments (Plan 4, saved before the bank) on every page of the origin; the result page removes its
 entry once the payment settled.
 
+**The card-transfer page** (`/payment/card-transfer/<uuid>/`) is under the `/payment/` prefix
+(operator code off, `no-referrer`) and is reached only by full page loads (the checkout, the link
+page, the resume UI, its own «پرداخت دوباره»); a uuid of the wrong shape is a 404 with no API call.
+It reads its cards in the browser (`GET payment/<uuid>/card-transfer/`, never an intent's answer:
+a replayed key answers no cards), and its links back to the order's link page are plain `<a>`.
+A cancelled attempt's and an unknown uuid's pending entries are removed.
+
 **A new route whose URL carries a payment link's token or a payment's uuid** (in its path or its
 query) must sit under one of `CREDENTIAL_PREFIXES` (`credential-routes.ts`), or add its prefix
 there in the same change. Every safeguard above follows from that list alone (the marker, the
@@ -786,7 +807,15 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   (`/payment/callback/`), measures the link's pages, and cancels the order through the page's
   dialog (an API guard cancels it when the test ends earlier): four `payment_attempt` calls,
   about ten `order_payment_link` calls and one payment status read per run. Its budget lines
-  print `/order/pay/<token>/`, never the token. The return page's other states
+  print `/order/pay/<token>/`, never the token. The card-transfer journey
+  (`tests/e2e/checkout/card-transfer.spec.ts`) places one more guest order, opens a live card
+  attempt from its link page, checks the live cards, their copy buttons and the attempt's
+  cut-off, fills the receipt with `tests/fixtures/receipt.png` and MOCKS its upload (a live
+  upload moves the order to «در انتظار بررسی», which cannot be cancelled; Plan 4 Task 10 makes the
+  one live upload), then cancels the attempt and the order (in `finally`): two `payment_attempt`
+  calls and four `payment_status` reads per run. The page's other states
+  (`card-transfer-states.spec.ts`, every device project) come from mocked answers, a real PNG
+  decoded by the browser included. The return page's other states
   (`tests/e2e/checkout/payment-result.spec.ts`, every device project, a guest, no backend write)
   come from a status mocked in the browser (`page.route`), the polling schedule on Playwright's
   fake clock: the dev backend cannot run a bank. A failure the
