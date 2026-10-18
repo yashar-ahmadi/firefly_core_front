@@ -170,7 +170,7 @@ export function OrdersPage({
           onOpenChange={cancel.setOpen}
           onCancelled={(order) => {
             cancelled.current = order.order_code
-            ordersChanged(client, { code: order.order_code, order })
+            ordersChanged(client, { code: order.order_code, order, wallet: true })
           }}
           onStale={() => ordersChanged(client, { code: selected })}
           onCloseAutoFocus={(event) => {

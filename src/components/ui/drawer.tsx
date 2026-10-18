@@ -28,6 +28,8 @@ export interface DrawerPanelProps {
   footer?: ReactNode
   children: ReactNode
   className?: string
+  /** Where the focus goes as it closes, when its opener may be gone (`event.preventDefault()`). */
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 // `--drawer-from` is where the slide starts: off the start edge, which is the right in RTL.
@@ -48,8 +50,9 @@ export function DrawerPanel({
   footer,
   children,
   className,
+  onCloseAutoFocus,
 }: DrawerPanelProps) {
-  const returnFocus = useReturnFocus()
+  const returnFocus = useReturnFocus({ onCloseAutoFocus })
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className={cn(OVERLAY, OVERLAY_MOTION)} />

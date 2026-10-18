@@ -109,4 +109,23 @@ describe('the card actions', () => {
     expect(within(dialog).getByRole('textbox', { name: /دلیل لغو/ })).toHaveValue('')
     expect(within(dialog).getByRole('button', { name: 'لغو سفارش' })).toBeVisible()
   })
+
+  it('a cancellation reads the wallet again (a combined attempt’s wallet leg returns to it)', async () => {
+    const cancelled = detail('awaiting', { status: 'cancelled', can_cancel: false })
+    serve(mocks.bffFetch, {
+      'dashboard/summary/': () => ok(summary()),
+      'order/list/': () => ok(page([orderItem(A)])),
+      [`order/${A}/cancel/`]: () => ok(cancelled),
+    })
+    const { client } = renderAccount(
+      <OrdersPage title="سفارش‌های من" catalog={catalog()} supportPhone={null} />,
+    )
+    client.setQueryData(['wallet', 'balance'], { balance: 1 })
+    const user = userEvent.setup()
+    await user.click(within(await card(A)).getByRole('button', { name: 'لغو سفارش' }))
+    const dialog = await screen.findByRole('dialog', { name: 'لغو سفارش' })
+    await user.click(within(dialog).getByRole('button', { name: 'لغو سفارش' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(client.getQueryState(['wallet', 'balance'])?.isInvalidated).toBe(true)
+  })
 })

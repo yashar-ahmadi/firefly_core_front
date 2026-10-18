@@ -28,6 +28,8 @@ export interface SheetProps {
   /** Pinned at the bottom, e.g. «نمایش نتایج». */
   footer?: ReactNode
   className?: string
+  /** Where the focus goes as it closes, when its opener may be gone (`event.preventDefault()`). */
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 export { SHEET_SIDE_QUERY } from './use-media-query'
@@ -77,8 +79,9 @@ function BottomSheet({
   children,
   footer,
   className,
+  onCloseAutoFocus,
 }: SheetProps) {
-  const returnFocus = useReturnFocus()
+  const returnFocus = useReturnFocus({ onCloseAutoFocus })
   // Vaul skips the open auto-focus by default; a modal must move focus inside (to the ×).
   return (
     <Vaul.Root open={open} onOpenChange={onOpenChange} direction="bottom" autoFocus>

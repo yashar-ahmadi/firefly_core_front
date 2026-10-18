@@ -135,3 +135,37 @@ describe('refused', () => {
     expect(sent()).toHaveLength(1)
   })
 })
+
+describe('opened again (Task 8 review)', () => {
+  const props = () => ({ onOpenChange: vi.fn(), onCancelled: vi.fn(), onStale: vi.fn() })
+  const reason = () => within(dialog()).getByRole('textbox', { name: /دلیل لغو/ })
+
+  it('starts afresh: no refusal of before (not "final" any more), no reason typed', async () => {
+    serve(mocks.bffFetch, { [CANCEL]: () => refuse(409, 'order_receipt_pending') })
+    const given = props()
+    const user = userEvent.setup()
+    const { rerender } = renderAccount(<CancelDialog code={CODE} open {...given} />)
+    await user.type(reason(), 'دلیل پیشین')
+    await user.click(confirm())
+    expect(within(dialog()).getByRole('alert')).toHaveTextContent('در حال بررسی')
+    expect(within(dialog()).queryByRole('button', { name: 'لغو سفارش' })).toBeNull()
+    rerender(<CancelDialog code={CODE} open={false} {...given} />)
+    rerender(<CancelDialog code={CODE} open {...given} />)
+    expect(within(dialog()).queryByRole('alert')).toBeNull()
+    expect(confirm()).toBeVisible()
+    expect(reason()).toHaveValue('')
+  })
+
+  it('no wait of before either', async () => {
+    serve(mocks.bffFetch, { [CANCEL]: () => refuse(429, 'throttled', 'زیاد', { retry_after: 30 }) })
+    const given = props()
+    const user = userEvent.setup()
+    const { rerender } = renderAccount(<CancelDialog code={CODE} open {...given} />)
+    await user.click(confirm())
+    expect(within(dialog()).getByText(/زمان باقی‌مانده تا تلاش دوباره/)).toBeVisible()
+    rerender(<CancelDialog code={CODE} open={false} {...given} />)
+    rerender(<CancelDialog code={CODE} open {...given} />)
+    expect(within(dialog()).queryByText(/زمان باقی‌مانده تا تلاش دوباره/)).toBeNull()
+    expect(confirm()).not.toHaveAttribute('aria-disabled')
+  })
+})

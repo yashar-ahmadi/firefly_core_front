@@ -25,7 +25,8 @@ import {
 // (with «درخواست بازگشت وجه ثبت شد…» when money was already settled), the dialog closes and the
 // page shows the API's order. A refusal is said here: one that means the page is out of date
 // (cancelled already, past cancelling, gone) also reads the order again, and the dialog offers
-// only «بازگشت»; a 429 waits on the button. Loaded on the first press of «لغو سفارش».
+// only «بازگشت»; a 429 waits on the button. Opened again, it starts afresh (no refusal, reason
+// or wait of before: the order may be cancellable again). Loaded on the first press of «لغو سفارش».
 
 export interface CancelDialogProps {
   code: string
@@ -55,6 +56,15 @@ export function CancelDialog({
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<Failure | null>(null)
   const [wait, setWait] = useState<Wait>(NO_WAIT)
+  const [shown, setShown] = useState(open)
+  if (open !== shown) {
+    setShown(open)
+    if (open) {
+      setFailure(null)
+      setReason('')
+      setWait(NO_WAIT)
+    }
+  }
   const lock = useSubmitWait(wait)
   const final = failure !== null && isStaleRefusal(failure.refusal)
 

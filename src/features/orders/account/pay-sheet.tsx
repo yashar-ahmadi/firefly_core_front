@@ -22,11 +22,20 @@ export interface PaySheetProps {
   supportPhone: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Where the focus goes as it closes (its button may be gone: the order paid). */
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 const NOT_PAYABLE = 'این سفارش اکنون پرداخت یا تأیید نمی\u{200C}شود؛ وضعیت آن به\u{200C}روز شد.'
 
-export function PaySheet({ code, catalog, supportPhone, open, onOpenChange }: PaySheetProps) {
+export function PaySheet({
+  code,
+  catalog,
+  supportPhone,
+  open,
+  onOpenChange,
+  onCloseAutoFocus,
+}: PaySheetProps) {
   const query = useOrder(code)
   const order = query.data
   const actions = order ? orderActions(order) : null
@@ -77,7 +86,12 @@ export function PaySheet({ code, catalog, supportPhone, open, onOpenChange }: Pa
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={title}>
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      onCloseAutoFocus={onCloseAutoFocus}
+    >
       {body}
     </Sheet>
   )
