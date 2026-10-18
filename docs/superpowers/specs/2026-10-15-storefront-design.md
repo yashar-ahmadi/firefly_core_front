@@ -286,8 +286,9 @@ change colours. Client components receive the non-secret config through a React 
 - **Fewest clicks:**
   - add to cart from cards when a product has a single variant or a default variant;
   - quick view for the rest;
-  - for signed-in users with a default address, checkout pre-fills destination and cheapest available
-    shipping, so the user can pay in one confirmation step;
+  - for signed-in users with a default address, checkout pre-fills the destination and the shop's
+    default shipping (the first available option the sender pays for, in the operator's order; with
+    none, the user chooses), so the user can pay in one confirmation step;
   - sticky "add to cart" and "continue" bars on mobile;
   - remembered sort and filter state in the URL.
 - **Readable for everyone:**
@@ -390,8 +391,10 @@ viewed strip, shown only when non-empty.
 1. **Receiver and destination.** A signed-in user picks a saved address (default preselected) or adds one in
    a sheet with map, province and city. A guest fills the receiver form (feature `guest_checkout`; otherwise
    the user is asked to log in, keeping the cart).
-2. **Shipping.** Options for this cart with cost, ETA in business days and cash on delivery. The cheapest
-   available option is selected automatically. Fares collected at the door are not labelled as free.
+2. **Shipping.** Options for this cart with cost, ETA in business days and cash on delivery. The shop's
+   default is selected automatically: the first available option, in the operator's order, whose sender
+   pays the fare (never a free pickup or a door-paid fare picked silently); with none, the shopper
+   chooses. Fares collected at the door are not labelled as free.
 3. **Payment method.** Gateway, wallet, wallet plus gateway, card-to-card and pay on delivery, each shown
    only when allowed by the backend and the feature switches. The gateway list is shown when there is more
    than one.

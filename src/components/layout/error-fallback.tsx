@@ -10,9 +10,14 @@ import { reloadPage } from '@/lib/navigation/hard-navigation'
  * after a deploy, or the connection is. The same words, a reload instead of the retry (a fresh
  * page brings fresh chunks), a plain link home and the server error's reference for support,
  * and nothing the shop layout's chunks carry (no next/link, Button or icons; see
- * src/app/error.tsx), so it costs the page almost nothing.
+ * src/app/error.tsx), so it costs the page almost nothing. It takes the boundary's `className`
+ * as the view does: the root boundary fills the viewport with it, a boundary inside a layout's
+ * `<main>` (the checkout's) takes only its own height between that layout's header and footer.
  */
-export function ErrorFallback({ error }: ErrorBoundaryProps) {
+export function ErrorFallback({
+  error,
+  className = '',
+}: ErrorBoundaryProps & { className?: string }) {
   const t = useT()
   const heading = useRef<HTMLHeadingElement>(null)
 
@@ -25,7 +30,7 @@ export function ErrorFallback({ error }: ErrorBoundaryProps) {
   }, [])
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-14 text-center">
+    <div className={`flex flex-col items-center px-4 py-14 text-center ${className}`}>
       <meta name="robots" content="noindex" />
       <h1
         ref={heading}

@@ -44,5 +44,16 @@ describe('error.tsx without its view', () => {
     expect(screen.getByRole('link', { name: 'صفحه\u{0654} اصلی' })).toHaveAttribute('href', '/')
     expect(screen.getByText('4096538751')).toHaveAttribute('dir', 'ltr')
     expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
+    // Alone under the root layout: the message fills the viewport.
+    expect(heading.parentElement).toHaveClass('min-h-dvh')
+  })
+
+  it('inside the checkout layout’s <main>, the fallback takes only its own height', async () => {
+    const { default: CheckoutError } = await import('@/app/(checkout)/error')
+    render(<CheckoutError error={new Error('boom')} reset={vi.fn()} retry={vi.fn()} />)
+    const heading = await screen.findByRole('heading', { level: 1, name: 'مشکلی پیش آمد' })
+    // Between the checkout header and footer: no full-viewport block.
+    expect(heading.parentElement).not.toHaveClass('min-h-dvh')
+    expect(screen.getByRole('button', { name: 'تلاش دوباره' })).toBeInTheDocument()
   })
 })
