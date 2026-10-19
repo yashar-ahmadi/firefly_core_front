@@ -119,7 +119,9 @@ export function JalaliDateTimeInput({
         )}
       </legend>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="grid flex-[3] grid-cols-[1fr_1.6fr_1.3fr] gap-2">
+        {/* Day and month, then the year, on phones: three in a row there leave the day's
+            select no room for two digits beside its chevron. */}
+        <div className="grid flex-[3] grid-cols-2 gap-2 sm:grid-cols-[1fr_1.6fr_1.3fr]">
           {control('jd', 'روز', numbers(range(1, jalaliMonthLength(parts.jy, parts.jm))))}
           {control(
             'jm',
