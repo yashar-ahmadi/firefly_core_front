@@ -1,5 +1,4 @@
 import { render, screen, within } from '@testing-library/react'
-import type { Metadata } from 'next'
 import { isValidElement, Suspense, type ReactElement, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AccountShell } from '@/features/account/layout/account-shell'
@@ -9,14 +8,15 @@ import { stubBrowserApis } from '../support/dom-stubs'
 import { resolveServerTree } from '../support/server-tree'
 import { banner, ok, page, PURCHASES, summary } from './fixtures'
 
-// The account pages inside their shell: the dashboard (the hub below lg) and the «به‌زودی»
-// placeholders of the pages later plans build (the orders and reviews are built: Plan 4 Task 8).
+// The account pages inside their shell: the dashboard (the hub below lg), and a page beside the
+// shell's side column (every page is built now: the reading list was the last placeholder).
 
 const mocks = vi.hoisted(() => ({ pathname: '/account/', banners: vi.fn() }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/features/account/dashboard/banners-api', () => ({
   getDashboardBanners: mocks.banners,
 }))
+vi.mock('@/features/blog/api', () => ({ getBlogCategories: async () => [] }))
 vi.mock('@/lib/api/client', () => ({
   bffFetch: async (path: string) => {
     if (path === 'dashboard/summary/') return ok(summary())
@@ -24,12 +24,15 @@ vi.mock('@/lib/api/client', () => ({
     if (path === 'dashboard/purchased-product/list/') return ok(page(PURCHASES, 7))
     // The unread count the shell keeps (none unread).
     if (path === 'notification/list/') return ok(page([], 0))
+    // The reading list's page and its bookmarks' ids (nothing saved).
+    if (path === 'blog/reading-list/list/') return ok(page([], 0))
     throw new Error(`unexpected ${path}`)
   },
 }))
 vi.mock('next/navigation', () => ({
   usePathname: () => mocks.pathname,
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 
 beforeEach(() => {
@@ -75,7 +78,7 @@ describe('the account shell', () => {
   it('puts the account card (who is signed in, the navigation) in a side column from lg', async () => {
     mocks.pathname = '/account/reading-list/'
     const { default: ReadingListPage } = await import('@/app/(shop)/account/reading-list/page')
-    await renderInShell(<ReadingListPage />)
+    await renderInShell(await ReadingListPage())
     const navs = screen.getAllByRole('navigation', { name: 'حساب کاربری' })
     expect(navs).toHaveLength(1)
     const side = holder(navs[0]!)!
@@ -156,31 +159,4 @@ describe('the dashboard', () => {
     await renderDashboard()
     expect(screen.queryByRole('region', { name: 'پیشنهادهای ویژه' })).toBeNull()
   })
-})
-
-describe('the placeholders', () => {
-  // The wallet's page replaced its placeholder (Plan 4 Task 9: tests/unit/wallet/wallet-route).
-  it.each([['reading-list', 'لیست مطالعه']])(
-    '/account/%s/: its heading, «به‌زودی», and the way back to the dashboard',
-    async (path, title) => {
-      mocks.pathname = `/account/${path}/`
-      const placeholder = (await import(`@/app/(shop)/account/${path}/page.tsx`)) as {
-        default: () => ReactNode
-        metadata: Metadata
-      }
-      await renderInShell(<placeholder.default />)
-      expect(screen.getByRole('heading', { level: 1, name: title })).toBeVisible()
-      expect(screen.getByRole('heading', { level: 2, name: 'به‌زودی' })).toBeVisible()
-      expect(screen.getByRole('link', { name: 'بازگشت به پیشخوان' })).toHaveAttribute(
-        'href',
-        '/account/',
-      )
-      // Below lg (no side column): back to the hub above the heading.
-      const back = screen.getByRole('link', { name: 'بازگشت به حساب کاربری' })
-      expect(back).toHaveAttribute('href', '/account/')
-      expect(back.className.split(/\s+/)).toContain('lg:hidden')
-      // Its title; noindex comes from the account layout (not overridden here).
-      expect(placeholder.metadata).toEqual({ title })
-    },
-  )
 })

@@ -4,13 +4,15 @@ import type { ReadingListPost } from '@/lib/api/types/blog'
 import { shellHydrated } from '../support/hydrated'
 import { shirinTest } from '../support/shirin'
 
-// The reading-list bookmark signed in (Plan 5 Task 1), as shirin (ruling P4-R4: never sara for
-// a write), in the `journeys` project (one at a time, after the read-only projects; her shared
-// session there, no login of its own). One post saved and removed again from a card: each press
-// is one request (POST, then DELETE answered 204) and flips the bookmark at once. Her reading
-// list is snapshotted first and put back exactly in the fixture's teardown, through a request
-// context of her own, however the test ends. Writes per run: 2 (the presses), plus one per post
-// the teardown has to put back (none when the test passes).
+// The reading list signed in, as shirin (ruling P4-R4: never sara for a write), in the
+// `journeys` project (one at a time, after the read-only projects; her shared session there, no
+// login of its own). Her reading list is snapshotted first and put back exactly in the fixture's
+// teardown, through a request context of her own, however the test ends.
+// - The bookmark (Plan 5 Task 1): one post saved and removed again from a card; each press is
+//   one request (POST, then DELETE answered 204) and flips the bookmark at once. Writes: 2.
+// - Her page `/account/reading-list/` (Task 2): a post saved for it, then filtered, sorted,
+//   removed by its bookmark and brought back by «بازگردانی». Writes: 3 (save, remove, undo).
+// Plus one per post the teardown has to put back (one, the page's post).
 
 const BFF = { 'X-Requested-With': 'ff' }
 const LIST = '/api/bff/blog/reading-list/list/?limit=100'
@@ -122,4 +124,40 @@ test('a bookmark saves a post at once with one request, and a second press remov
   await expect.poll(() => savedSlugs(readingList.request)).not.toContain(slug)
   expect(writes).toEqual([`POST ${slug}`, `DELETE ${slug}`])
   test.info().annotations.push({ type: 'writes', description: `presses: ${writes.length}` })
+})
+
+test('her reading list page: filtered and sorted in the URL; a removal is undone', async ({
+  page,
+  readingList,
+}) => {
+  // A «سبک زندگی» post she has not saved, saved for the page (the fixture takes it out again).
+  const slug = ['tea-brewing-guide', 'gift-guide-yalda', 'perfume-longevity-tips'].find(
+    (candidate) => !readingList.before.includes(candidate),
+  )!
+  const saved = await readingList.request.fetch(toggle(slug), { method: 'POST', headers: BFF })
+  expect(saved.ok()).toBe(true)
+  const writes = recordWrites(page)
+
+  await page.goto('/account/reading-list/')
+  await shellHydrated(page)
+  await expect(page).toHaveTitle(/^لیست مطالعه \| /)
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
+  const card = page.getByRole('article').filter({ has: page.locator(`a[href="/blog/${slug}/"]`) })
+  await expect(card).toBeVisible()
+
+  await page.getByRole('combobox', { name: 'مرتب\u{200C}سازی' }).selectOption('added-asc')
+  await expect(page).toHaveURL(/\/account\/reading-list\/\?sort=added-asc$/)
+  await page.getByRole('combobox', { name: 'دسته\u{200C}بندی' }).selectOption('lifestyle')
+  await expect(page).toHaveURL(/\?category=lifestyle&sort=added-asc$/)
+  await expect(card).toBeVisible()
+
+  const remove = card.getByRole('button', { name: 'حذف از لیست مطالعه' })
+  await expect(remove).toHaveAttribute('aria-pressed', 'true')
+  await remove.click()
+  await expect(card).toHaveCount(0)
+  const toast = page.getByRole('button', { name: 'بازگردانی' })
+  await toast.click()
+  await expect(card).toBeVisible()
+  expect(writes).toEqual([`DELETE ${slug}`, `POST ${slug}`])
+  test.info().annotations.push({ type: 'writes', description: `page: ${writes.length + 1}` })
 })

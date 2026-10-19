@@ -6,14 +6,13 @@ import { onSiteOrigin, siteBreadcrumb, trailBreadcrumb } from '@/features/seo/br
 import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import type { BlogCategoryDetail } from '@/lib/api/types/blog'
 import { toPersianDigits } from '@/lib/format'
+import { BLOG_NAME, BLOG_UNAVAILABLE_TITLE } from '@/features/blog/blog-copy'
 
 // The blog pages' <head> and structured data (blog digest §1.9, seo digest §7). Pure.
 
 type RawParams = Record<string, string | string[] | undefined>
 
-/** The blog's name in the shop (the feature's own label, «وبلاگ»). */
-export const BLOG_NAME = 'وبلاگ'
-export const BLOG_UNAVAILABLE_TITLE = 'وبلاگ موقتاً در دسترس نیست'
+export { BLOG_NAME, BLOG_UNAVAILABLE_TITLE } from '@/features/blog/blog-copy'
 
 /** The home's title: the search, or «وبلاگ» (with its page), and the shop's name. */
 function homeTitle(query: BlogQuery, shop: string): string {
@@ -89,7 +88,7 @@ export function blogHomeJsonLd(siteUrl: string, shop: string): object[] {
 const URL_KEYS = new Set(['url', 'item', '@id', 'image', 'logo'])
 
 /** `value` with every URL field (`URL_KEYS`, at any depth) moved onto `origin`. */
-function onOrigin(value: unknown, origin: string): unknown {
+export function onOrigin(value: unknown, origin: string): unknown {
   if (Array.isArray(value)) return value.map((item) => onOrigin(item, origin))
   if (typeof value !== 'object' || value === null) return value
   return Object.fromEntries(

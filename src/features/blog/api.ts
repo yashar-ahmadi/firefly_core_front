@@ -33,7 +33,7 @@ const CATEGORY_PAGE_SIZE = 100
 /** A bound on a misbehaving `next` link: 2000 categories. */
 const MAX_CATEGORY_PAGES = 20
 
-type ReadOptions = Pick<ApiFetchOptions, 'query' | 'revalidate' | 'tags' | 'forwardedFor'>
+type ReadOptions = Pick<ApiFetchOptions, 'query' | 'revalidate' | 'tags' | 'forwardedFor' | 'token'>
 
 /**
  * One blog read: the envelope's `data`, or the failure, with the blog switch as a

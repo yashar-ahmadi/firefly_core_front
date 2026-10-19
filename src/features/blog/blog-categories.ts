@@ -70,3 +70,17 @@ export function postCategory(
   const first = categories[0]
   return first ? { name: first.name, href: null } : null
 }
+
+/**
+ * A visible trail's steps for a category chain (root→leaf, the API's `breadcrumb`): each linked
+ * to its page when it has one (published), a draft named only.
+ */
+export function chainTrail(
+  chain: readonly BlogCategoryLight[],
+  links: ReadonlyMap<number, string>,
+): { name: string; href?: string }[] {
+  return chain.map((node) => {
+    const href = links.get(node.id)
+    return href ? { name: node.name, href } : { name: node.name }
+  })
+}

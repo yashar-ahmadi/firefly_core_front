@@ -1,0 +1,30 @@
+import type { PostCard } from '@/lib/api/types/blog'
+import { PostGrid } from './post-grid'
+
+const HEADING_ID = 'related-posts'
+
+/**
+ * «مطالب مرتبط» (blog digest §1.5: `related_posts`, chosen on the server): post cards (their
+ * links never prefetched: a post's page counts a view per render), one reading-list scope for
+ * them all. Nothing when there are none.
+ */
+export function RelatedPosts({
+  posts,
+  categoryLinks,
+}: {
+  posts: PostCard[]
+  categoryLinks: ReadonlyMap<number, string>
+}) {
+  if (posts.length === 0) return null
+  return (
+    <section aria-labelledby={HEADING_ID}>
+      <h2
+        id={HEADING_ID}
+        className="mb-3 text-lg leading-8 font-bold text-ink-900 md:mb-4 md:text-xl"
+      >
+        مطالب مرتبط
+      </h2>
+      <PostGrid posts={posts} categoryLinks={categoryLinks} label="مطالب مرتبط" priorityCount={0} />
+    </section>
+  )
+}

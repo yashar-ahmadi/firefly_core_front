@@ -17,14 +17,21 @@ export interface ReadingListButtonProps {
   post: { id: number; slug: string }
   /** The id of the element naming the post (the card's title), for `aria-describedby`. */
   describedBy?: string
+  /**
+   * The post's own `is_in_reading_list`, where the page was read as the visitor (a post's page,
+   * per request): shown from the server render until the visitor's saved ids are in, so the
+   * bookmark never flashes the wrong state. Cached pages (cards) have none.
+   */
+  initialSaved?: boolean
   className?: string
 }
 
 /**
  * The bookmark: pressed (and filled) while the post is in the reading list. A guest sees it too
  * and is sent to the login page (as the wishlist's heart does). The server and hydration render
- * it unpressed (the page is the same for everyone); the saved state shows from the first client
- * render. While a signed-in visitor's ids load it is `aria-disabled` and ignores presses (a press
+ * it as `initialSaved` (unpressed on cached pages, the same for everyone); the visitor's saved ids
+ * decide once they are in. While a signed-in visitor's ids load it is `aria-disabled` and ignores
+ * presses (a press
  * could not know which way to go), and one press is one request: presses while it is on its way
  * are ignored. Gone while the blog is switched off. 44px. Reads the grid's scope, or its own.
  */
@@ -43,12 +50,14 @@ export function ReadingListButton(props: ReadingListButtonProps) {
 function ScopedButton({
   post,
   describedBy,
+  initialSaved = false,
   className,
   scope,
 }: ReadingListButtonProps & { scope: ReadingListScopeValue }) {
   const [pending, setPending] = useState(false)
   if (!scope.enabled) return null
-  const saved = scope.hydrated && scope.saved.has(post.id)
+  const known = scope.hydrated && !scope.savedLoading
+  const saved = known ? scope.saved.has(post.id) : initialSaved
   const waiting = scope.hydrated && scope.savedLoading
 
   const onPress = () => {

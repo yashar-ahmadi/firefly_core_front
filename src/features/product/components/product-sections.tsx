@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
-import { TOP_ZONE } from '@/components/layout/scroll-state'
+import { jumpTo } from '@/components/layout/in-page-scroll'
 import { cn } from '@/components/ui/cn'
 import { usePrefersReducedMotion } from '@/components/ui/use-media-query'
 import { formatNumber } from '@/lib/format'
@@ -16,42 +16,8 @@ export interface SectionLink {
 }
 
 const LABEL = 'بخش\u{200C}های صفحه\u{0654} محصول'
-/** Room between the bar and a section's top once scrolled there. */
-const GAP = 8
 /** The band of the viewport where a section counts as the one being read. */
 const READING_BAND = '-35% 0px -60% 0px'
-
-export interface ScrollTarget {
-  /** The section's top in page coordinates. */
-  targetTop: number
-  currentY: number
-  /** The header's height in full and compact (px). */
-  full: number
-  compact: number
-  /** The section bar's height (px). */
-  bar: number
-}
-
-/**
- * Where to scroll so a section's top sits just under the sticky header and the section bar.
- * The header shrinks while the page scrolls down and comes back while it scrolls up (and in the
- * top zone): going down it is the compact one that ends up above the section, otherwise the full
- * one. Pure.
- */
-export function sectionScrollTop({ targetTop, currentY, full, compact, bar }: ScrollTarget) {
-  const underCompact = targetTop - compact - bar - GAP
-  if (underCompact > currentY && underCompact > TOP_ZONE) return underCompact
-  return Math.max(0, targetTop - full - bar - GAP)
-}
-
-/** A length custom property of <html> (globals.css) in px; 0 when it is not set. */
-function rootLength(name: string): number {
-  const style = getComputedStyle(document.documentElement)
-  const raw = style.getPropertyValue(name).trim()
-  const value = Number.parseFloat(raw)
-  if (!Number.isFinite(value)) return 0
-  return raw.endsWith('rem') ? value * (Number.parseFloat(style.fontSize) || 16) : value
-}
 
 /** What a hand scroll starts with; a programmatic scroll fires none of these. */
 const HAND_SCROLL = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const
@@ -144,18 +110,7 @@ export function ProductSectionsNav({ items }: { items: readonly SectionLink[] })
     const section = document.getElementById(id)
     if (!section) return
     event.preventDefault()
-    const top = sectionScrollTop({
-      targetTop: section.getBoundingClientRect().top + window.scrollY,
-      currentY: window.scrollY,
-      full: rootLength('--header-full'),
-      compact: rootLength('--header-compact'),
-      bar: navRef.current?.offsetHeight ?? 0,
-    })
-    window.scrollTo({ top, behavior: reducedMotion ? 'auto' : 'smooth' })
-    section.focus({ preventScroll: true })
-    // Shareable: the hash joins the URL (the rest kept, no new history entry). Next's router
-    // keeps its own state in `history.state`, so that is passed back untouched.
-    window.history.replaceState(window.history.state, '', `#${id}`)
+    jumpTo(section, `#${id}`, { bar: navRef.current?.offsetHeight ?? 0, reducedMotion })
     pin(id)
   }
 

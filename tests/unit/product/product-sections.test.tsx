@@ -1,9 +1,9 @@
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { sectionScrollTop } from '@/components/layout/in-page-scroll'
 import {
   ProductSectionsNav,
-  sectionScrollTop,
   type SectionLink,
 } from '@/features/product/components/product-sections'
 import { stubBrowserApis } from '../support/dom-stubs'

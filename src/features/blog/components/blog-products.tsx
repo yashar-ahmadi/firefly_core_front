@@ -4,22 +4,34 @@ import { SmartImage } from '@/components/ui/smart-image'
 import { productPath } from '@/features/catalog/listing-routes'
 import type { BlogProductCard } from '@/lib/api/types/blog'
 
-const HEADING_ID = 'blog-products'
+export interface BlogProductsProps {
+  products: BlogProductCard[]
+  /** The section's heading (and its id). */
+  title?: string
+  headingId?: string
+  className?: string
+}
 
 /**
- * The blog home's `recent_products` (blog digest §1.3): compact product tiles, picture, name and
- * the price to pay (`final_price`, the old one struck only with a discount). Nothing when empty.
- * The cart is not offered here: the product page re-checks the stock first.
+ * The blog's compact product tiles (blog digest §1.3, §1.5: the home's `recent_products`, a
+ * post's `related_products`): picture, name and the price to pay (`final_price`, the old one
+ * struck only with a discount). Nothing when empty. The cart is not offered here: the product
+ * page re-checks the stock first (`in_stock` is the operator's tick, not live stock).
  */
-export function BlogProducts({ products }: { products: BlogProductCard[] }) {
+export function BlogProducts({
+  products,
+  title = 'محصولات پیشنهادی',
+  headingId = 'blog-products',
+  className = 'mt-8 md:mt-10',
+}: BlogProductsProps) {
   if (products.length === 0) return null
   return (
-    <section aria-labelledby={HEADING_ID} className="mt-8 md:mt-10">
+    <section aria-labelledby={headingId} className={className}>
       <h2
-        id={HEADING_ID}
+        id={headingId}
         className="mb-3 text-lg leading-8 font-bold text-ink-900 md:mb-4 md:text-xl"
       >
-        محصولات پیشنهادی
+        {title}
       </h2>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4">
         {products.map((product) => (

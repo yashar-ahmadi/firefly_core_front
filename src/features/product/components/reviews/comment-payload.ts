@@ -1,3 +1,5 @@
+import { placeFieldErrors, type PlacedFieldErrors } from '@/features/comments/field-errors'
+import type { CommentMode } from '@/features/comments/form-copy'
 import type { CommentSubmitBody } from '@/lib/api/types/catalog'
 
 // The comment form's words, values, request body and where the API's errors go (product
@@ -7,33 +9,8 @@ import type { CommentSubmitBody } from '@/lib/api/types/catalog'
 export const MAX_POINTS = 10
 export const MAX_POINT_LENGTH = 255
 
-/** A root review (rating, title and points allowed), a root question, or a reply (text only). */
-export type CommentMode = 'comment' | 'question' | 'reply'
+export { COMMENT_COPY, type CommentMode } from '@/features/comments/form-copy'
 
-/** Each mode's words: the form's name, the text label, its missing-text error and the send button. */
-export const COMMENT_COPY: Record<
-  CommentMode,
-  { title: string; text: string; missing: string; send: string }
-> = {
-  comment: {
-    title: 'ثبت دیدگاه',
-    text: 'متن دیدگاه',
-    missing: 'متن دیدگاه را بنویسید.',
-    send: 'ارسال دیدگاه',
-  },
-  question: {
-    title: 'ثبت پرسش',
-    text: 'متن پرسش',
-    missing: 'متن پرسش را بنویسید.',
-    send: 'ارسال پرسش',
-  },
-  reply: {
-    title: 'ثبت پاسخ',
-    text: 'متن پاسخ',
-    missing: 'متن پاسخ را بنویسید.',
-    send: 'ارسال پاسخ',
-  },
-}
 export interface CommentValues {
   review: string
   /** Guests only. */
@@ -122,36 +99,18 @@ const FIELDS: Record<CommentMode, readonly CommentField[]> = {
   reply: ['review', 'name', 'email'],
 }
 
-const PARENT_GONE = 'این مورد دیگر در دسترس نیست. فهرست به\u{200C}روز شد.'
-
-export interface PlacedErrors {
-  errors: CommentErrors
-  /** The answered comment is gone (`parent`): the lists are stale. */
-  parentGone: boolean
-}
+export type PlacedErrors = PlacedFieldErrors<CommentField>
 
 /**
- * The API's field errors (`ApiError.fieldErrors()`) placed on the form: an indexed attr under
- * its list (`positive_points.1` under the pros), a field the mode has under that field (the name
- * too, which the form then shows), anything else above the buttons with its own message, and
- * `detail` there when nothing could be placed (no connection, not the API, too many requests).
+ * The API's field errors (`ApiError.fieldErrors()`) placed on the form (`placeFieldErrors`): an
+ * indexed attr under its list (`positive_points.1` under the pros), a field the mode has under
+ * that field (the name too, which the form then shows), anything else above the buttons with its
+ * own message, and `detail` there when nothing could be placed.
  */
 export function placeApiErrors(
   fieldErrors: Readonly<Record<string, string>>,
   mode: CommentMode,
   detail: string,
 ): PlacedErrors {
-  const errors: CommentErrors = {}
-  let parentGone = false
-  for (const [attr, message] of Object.entries(fieldErrors)) {
-    const key = attr.split('.')[0] ?? attr
-    const field = FIELDS[mode].find((name) => name === key)
-    if (field) errors[field] ??= message
-    else if (key === 'parent') {
-      parentGone = true
-      errors.form ??= PARENT_GONE
-    } else errors.form ??= message
-  }
-  if (Object.keys(errors).length === 0) errors.form = detail
-  return { errors, parentGone }
+  return placeFieldErrors(fieldErrors, FIELDS[mode], detail)
 }

@@ -245,7 +245,8 @@ forgotten on any login or logout.
 `clearViewerQueries` (`lib/session/viewer-queries.ts`) also runs on login and logout: it removes
 the session-only queries (`['me']`, `['summary']`, `['wishlist', …]`) and resets the ones guests
 read too whose answers depend on the viewer (`['cart']`, and under `['product', …]` the payload's
-`is_in_wishlist` and the comment lists' `is_current_user`), so nobody sees the previous visitor's
+`is_in_wishlist` and the comment lists' `is_current_user`, and a blog post's comment lists,
+`['blog-comments', …]`, for the same flag), so nobody sees the previous visitor's
 data, not even within a stale time. A new viewer-dependent query key belongs in that list.
 When several session calls answer 401 at once (an account page's queries), only the first one
 ends the session: `endSession()` (`useSession`) reads a ref that changes at once, before React
@@ -384,6 +385,7 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 | `blog/post/list/?category=…&search=…&page=…` | `getBlogPosts()`: the archive, a category's posts; a search sends the visitor IP (its own entry and rate, like a long-tail listing) | 60 s | `blog` |
 | `blog/category/list/` (all pages), `blog/category/<slug>/` | `getBlogCategories()`, `getBlogCategory()` (a 404 remembered a minute in process memory) | 300 s | `blog`, `blog-category:<slug>` |
 | `global/feature-status/blog/` | `blogSwitchOff()` (`lib/edge/blog-switch.ts`), the proxy's, in process memory | 60 s (a failed read: retried after 15 s, the last known state kept) | — |
+| `blog/post/<slug>/comment/list/?comment_type=comment&page=1` | `getFirstPostComments()` (`features/blog/post-api.ts`): page 1 of a post's comments, server-rendered in its own in-page `<Suspense>` after the post; the questions (read when their tab opens), later pages, and page 1 again for a signed-in visitor (`is_current_user`) come through the BFF | 60 s | `blog-post:<slug>`, `blog` |
 | `product/detail/<slug>/comment/list/?comment_type=…&page=1` | `getFirstComments()`: page 1 of the reviews and of the questions, server-rendered in their own in-page `<Suspense>` after the product (spec §8.13); later pages, and page 1 again for a signed-in visitor (`is_current_user`), come through the BFF | 60 s | `product:<slug>`, `catalog` |
 | `robots/?format=txt` | `/robots.txt` route | 300 s (fetch level) | — |
 | `redirects/list/` (rule sources only) | `knownSources()`, in process memory | 5 min (a failed load is retried after 30 s) | — |
@@ -393,6 +395,8 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 Never cached (`cache: 'no-store'`, and `Cache-Control: no-store` on our responses):
 
 - every BFF call (cart, auth, account, orders, payment status, search…);
+- `blog/post/<slug>/` (each read counts a view): `getPost()`, once per page view, as the visitor
+  (see Blog post views);
 - `redirects/resolve/` (counts hits; a disabled rule must stop at once) — 1 s timeout, fails open;
 - `shortener/<code>/` (each 200 counts a visit; the answer is always a 302, never a 301). A
   prefetch of `/s/<code>` never calls the API and is answered uncached (`src/app/s/[code]/route.ts`,
@@ -460,6 +464,21 @@ Cache Components or partial prefetching):
   segment's `prefetch` export) in next.config or the route.
 
 The same test fails on either.
+
+The route (`app/(shop)/blog/[slug]/page.tsx`) reads the post through `getPost()`
+(`features/blog/post-api.ts`), a React `cache()`: `generateMetadata` and the page share the one
+call of the request (`tests/unit/blog/post-page.test.ts` fails without `cache()`). Nothing keeps
+it beyond the request: no Data Cache, no ISR (`revalidate`). A cached detail would reach the API
+only when it was refreshed, so the views of every page served from it would go uncounted, and a
+draft published or previewed meanwhile would show stale. Being read per request anyway, it is
+read as the visitor: their access token when it is a JWT (a staff account sees a draft or a
+scheduled post, `is_unpublished`, under «پیش‌نمایش — این پست هنوز منتشر نشده است», noindex, no
+share links, no comments; the post's `is_in_reading_list` seeds the bookmark, so it never shows
+the wrong state first) and their IP (the API's per-IP limit). Checked on the build: a document
+load counts one view, so does a client navigation (its RSC request); a router prefetch's request
+(`next-router-prefetch`) renders nothing of the page and counts none; an unknown slug, a draft
+for a guest and `list` are real 404s. `tests/e2e/blog/post.spec.ts` counts one more view for a
+click from the blog and one for a reload.
 
 ## Rendering rules
 
@@ -697,6 +716,24 @@ The same test fails on either.
   and its placeholder), the sign-in pages 0.8–0.9 KB more (the same clean-up), the payment pages
   0.5–0.6 KB more (the bank handoff's URL check; the wave's full run); the catalog and `/cart/`
   unchanged, but for 4 B on the signed-in category (242.2 KB).
+- **The blog post page and the reading list** (Plan 5 Task 2, the full run's guards). A post
+  (`/blog/best-phones-under-30m/`): 221.2 KB for a guest (desktop and phone), 223.5/221.2 KB
+  signed in, 225.2/222.8 KB with push on. The article, its table of contents and the progress bar
+  are small islands over server-rendered HTML; the comment form is a `next/dynamic` chunk fetched
+  on the first «ثبت دیدگاه», «ثبت پرسش» or «پاسخ» press, and the questions are read only when their
+  tab opens. The reading list (`/account/reading-list/`): 224.6/222.2 KB signed in, 226.2/223.9
+  KB with push on. Its empty and no-match states are rendered by the server page and handed to
+  the island as props (`readingListStates()`), and `PostGrid` takes its empty state from its
+  callers: with `EmptyState` in the island's graph (imported directly and through `PostGrid`),
+  Turbopack regrouped the catalog's shared chunks (the category +0.7 KB). Against Plan 5 Task 1's
+  run: the category, a list and a brand unchanged (239.8 KB; signed in with push on, 243.8), the
+  product page 1.0 KB less (237.5), nearly every other route 0.1 KB more (Task 1's carried link
+  check, `isBlogPostPath()` in the shell's `MenuLink` and `StoreLink`), and, without new code on
+  them, `/checkout/` 0.3–0.4 KB more (241.3 a guest, 240.0 at the review, 244.6 sara's refused
+  writes: 1.4 KB under its 246), the payment result 0.5 more (220.6–221.4), the thanks page and
+  the card-transfer page 0.2 more (215.8, 241.7). Bisecting builds found no single cause: taking
+  out the post page, its comments or the reading list each gave back 0.1–0.2 KB of the checkout's
+  share, and the checkout loads the same modules as before the task.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -999,10 +1036,19 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   counted on success: one request per run). Her reading list (`tests/e2e/blog/reading-list.spec.ts`,
   journeys; Plan 5 Task 1): one post saved and removed from a card, one request per press (POST,
   then DELETE), her list snapshotted first and put back exactly by the fixture's teardown (two
-  writes a run when it passes). The blog's read-only spec (`tests/e2e/blog/blog.spec.ts`, every
-  device project) reads the home, its pages, a category and the search's «مشاهدهٔ همه» as a guest;
-  until Task 2 builds a post's page, `watch-errors.ts` lets a 404 of `/blog/<slug>/` through (and of
-  `/page/<slug>/`, Task 3), never one of the blog home or a category. A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
+  writes a run when it passes); her page `/account/reading-list/` (Task 2: a post saved for it,
+  filtered and sorted through the URL, removed by its bookmark and brought back by «بازگردانی»;
+  three writes, and the teardown's one to take the post out again). The blog's read-only spec
+  (`tests/e2e/blog/blog.spec.ts`, every device project) reads the home, its pages, a category and
+  the search's «مشاهدهٔ همه» as a guest; `watch-errors.ts` lets a 404 of `/page/<slug>/` through
+  until Task 3 builds that page, never one of the blog. A post's spec (`tests/e2e/blog/post.spec.ts`,
+  every device project, a guest) reads the article, its table of contents, the comments with the
+  shop's answer and the Q&A tab, and a real 404; it counts the views of one post per project
+  (`airfryer-vs-oven`, `laptop-for-students`, `smartwatch-health-features`: a load, a click from
+  the blog, a reload) and answers the comment form's POST itself (a real one leaves a pending
+  comment nobody can take back). Each run counts 2 views of `best-phones-under-30m` and 3 of its
+  own post per project, plus the budget guards' 8 loads of `best-phones-under-30m`. `E2E_LIVE_COMMENT=1` sends one guest
+  comment for real instead (desktop only, once: it stays pending for the operator to reject). A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
   mobile each run, for the guest's unpaid-orders ceiling; the dev backend answers a bank intent
   `400 gateway_unknown` when a gateway is named (the chooser shows), and the page withdraws that
   gateway for itself and tries the other with a press, refused too, until the bank routes close;

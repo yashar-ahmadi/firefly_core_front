@@ -4,14 +4,14 @@ import type { Page } from '@playwright/test'
 const MEDIA_PATH = /^\/(?:media|static)\//
 
 /**
- * Routes later plans build, which the shell already links to (homepage posts, the registration
- * terms' page links, my comments' subjects, the blog's post cards and search rows): a visit or a
- * router prefetch there answers 404 until the route exists. Remove each one as its route lands
- * (Plan 3 built the auth and every account page; Plan 4 the cart, the checkout, the payment link
- * and the card transfer; Plan 5 Task 1 the blog home and its category pages). Left: a post's
- * page, `/blog/<slug>/` (Task 2), and content pages, `/page/<slug>/` (Task 3).
+ * Routes later plans build, which the shell already links to (the registration terms' page
+ * links, my comments' subjects, search rows): a visit or a router prefetch there answers 404
+ * until the route exists. Remove each one as its route lands (Plan 3 built the auth and every
+ * account page; Plan 4 the cart, the checkout, the payment link and the card transfer; Plan 5
+ * Task 1 the blog home and its category pages, Task 2 a post's page). Left: content pages,
+ * `/page/<slug>/` (Task 3).
  */
-const NOT_YET_BUILT = /^\/(?:page\/|blog\/(?!category\/)[^/]+\/?$)/
+const NOT_YET_BUILT = /^\/page\//
 
 const NOT_FOUND = /^Failed to load resource: the server responded with a status of 404\b/
 /** A failed request's console line, and its status. */

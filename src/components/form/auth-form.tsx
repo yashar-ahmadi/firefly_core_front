@@ -6,13 +6,15 @@ import { cn } from '@/components/ui/cn'
 export interface AuthFormProps {
   /** The step's main action; the request goes from here, never from the browser itself. */
   onSubmit: () => void
+  /** Names the form (a `form` landmark) where the page has several (a comment form). */
+  label?: string
   className?: string
   children: ReactNode
 }
 
 /**
  * Every form that sends what the visitor typed: the auth steps (login, registration, password
- * recovery) and the account forms (profile, password, contact, address). It never submits
+ * recovery), the account forms (profile, password, contact, address) and the blog's comment form. It never submits
  * natively: a GET would put what was typed (names, an email address, a mobile number, an
  * address) in the URL, the history and the server logs.
  *
@@ -21,11 +23,12 @@ export interface AuthFormProps {
  * - `method="post"` keeps even a submission that slips through from being a GET: the values go
  *   in the body, and Next renders the page again for a form POST that is no Server Action.
  */
-export function AuthForm({ onSubmit, className, children }: AuthFormProps) {
+export function AuthForm({ onSubmit, label, className, children }: AuthFormProps) {
   return (
     <form
       method="post"
       noValidate
+      aria-label={label}
       className={cn('flex flex-col', className)}
       onSubmit={(event) => {
         event.preventDefault()

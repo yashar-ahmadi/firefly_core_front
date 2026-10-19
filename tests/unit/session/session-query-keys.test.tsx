@@ -28,7 +28,10 @@ import {
   withdrawalsKey,
 } from '@/features/wallet/api'
 import { WISHLIST_IDS_KEY } from '@/features/wishlist/hooks'
-import { READING_LIST_IDS_KEY, READING_LIST_KEY } from '@/features/blog/reading-list'
+import { postCommentsKey } from '@/features/blog/post-comments-api'
+import { READING_LIST_IDS_KEY } from '@/features/blog/reading-list'
+import { readingListPageKey } from '@/features/account/reading-list/use-reading-list-page'
+import { parseReadingListParams } from '@/features/account/reading-list/reading-list-params'
 import { createQueryClient } from '@/lib/query/query-client'
 import {
   clearViewerQueries,
@@ -80,10 +83,14 @@ const SESSION_READ_KEYS = [
   OPEN_WITHDRAWAL_KEY,
   paymentsKey({ applies_to: 'wallet_topup', page: 3 }),
   paymentKey('0b6f5a9e-3c1d-4f7a-9e2b-1a2b3c4d5e6f'),
-  // The reading list (Plan 5 Task 1): the post cards' saved ids; the account page's lists (Task
-  // 2) go under the same prefix.
+  // The reading list (Plan 5): the post cards' saved ids (Task 1) and the account page's lists
+  // (Task 2), under the same prefix.
   READING_LIST_IDS_KEY,
-  [...READING_LIST_KEY, 'list', { sort: 'added-asc', page: 2 }],
+  readingListPageKey(
+    parseReadingListParams(
+      new URLSearchParams('sort=added-asc&category=tech-news&search=x&page=2'),
+    ),
+  ),
 ]
 
 describe('SESSION_QUERIES', () => {
@@ -108,6 +115,18 @@ describe('SESSION_QUERIES', () => {
 })
 
 describe('VIEWER_AWARE_QUERIES', () => {
+  it('a blog post’s comment lists (is_current_user) are read again on login and logout, not kept', async () => {
+    const client = createQueryClient()
+    const key = [...postCommentsKey('best-phones-under-30m'), 'comment']
+    client.setQueryData(key, {
+      pages: [{ results: [{ id: 1, is_current_user: true }] }],
+      pageParams: [1],
+    })
+    expect(isSessionQuery(key)).toBe(false)
+    await clearViewerQueries(client)
+    expect(client.getQueryData(key)).toBeUndefined()
+  })
+
   it('the checkout’s shipping options go with the cart (read by guests too, per viewer)', async () => {
     const client = createQueryClient()
     const key = [...SHIPPING_OPTIONS_KEY, 'signature']

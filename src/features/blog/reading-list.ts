@@ -146,19 +146,20 @@ export interface ReadingListViewer {
 
 /**
  * One toggle without a hook: the mutation is created when it is called (a card creates none
- * until its bookmark is pressed), the opposite of the cached state. A guest goes to the login
- * page, with this page as `next`. Never rejects.
+ * until its bookmark is pressed), the opposite of the cached state unless `save` says (the
+ * reading list page's «بازگردانی»). A guest goes to the login page, with this page as `next`.
+ * Never rejects.
  */
 export function toggleReadingListOnce(
   client: QueryClient,
   { hasSession, push, expire }: ReadingListViewer,
-  { id, slug }: { id: number; slug: string },
+  { id, slug, save = !isSaved(client, id) }: { id: number; slug: string; save?: boolean },
 ): Promise<void> {
   if (!hasSession) {
     push(loginHref(`${window.location.pathname}${window.location.search}`))
     return Promise.resolve()
   }
-  const variables = { id, slug, save: !isSaved(client, id) }
+  const variables = { id, slug, save }
   return runMutation(client, toggleOptions(client, expire), variables).then(
     () => undefined,
     () => undefined,

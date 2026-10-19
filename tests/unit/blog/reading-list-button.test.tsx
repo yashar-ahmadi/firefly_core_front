@@ -40,7 +40,12 @@ function savedList(ids: number[]) {
 
 const writes = () => mocks.bffFetch.mock.calls.filter(([, opts]) => opts?.method)
 
-function renderButton({ hasSession = true, onFeatureDisabled = vi.fn(), blogOn = true } = {}) {
+function renderButton({
+  hasSession = true,
+  onFeatureDisabled = vi.fn(),
+  blogOn = true,
+  initialSaved = undefined as boolean | undefined,
+} = {}) {
   const client = createQueryClient({ onFeatureDisabled })
   const { wrapper: Session } = clientProviders({ hasSession, client })
   const features = blogOn
@@ -54,7 +59,7 @@ function renderButton({ hasSession = true, onFeatureDisabled = vi.fn(), blogOn =
   render(
     <ReadingListScope>
       <h3 id="title">بهترین گوشی‌ها</h3>
-      <ReadingListButton post={POST} describedBy="title" />
+      <ReadingListButton post={POST} describedBy="title" initialSaved={initialSaved} />
     </ReadingListScope>,
     { wrapper },
   )
@@ -99,6 +104,19 @@ describe('ReadingListButton', () => {
     expect(button).toHaveAttribute('aria-pressed', 'false')
     expect(writes()).toEqual([])
     expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('on a post’s own page, its flag shows until the ids are in: no flash of the wrong state', async () => {
+    let answer: (value: unknown) => void = () => {}
+    mocks.bffFetch.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderButton({ initialSaved: true })
+    const button = screen.getByRole('button', { name: REMOVE })
+    expect(button).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'true'))
+    expect(button).toHaveAttribute('aria-pressed', 'true')
+    // Removed elsewhere meanwhile: the ids decide once they are in.
+    answer(savedList([]))
+    await waitFor(() => expect(button).toHaveAttribute('aria-pressed', 'false'))
   })
 
   it('signed in: the saved ids are read once (every page, 100 a time), and a saved post is pressed', async () => {

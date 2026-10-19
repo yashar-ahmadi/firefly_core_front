@@ -62,15 +62,18 @@ signedInTest('greets sara, shows her order groups and the account pages', async 
   expect(errors).toEqual([])
 })
 
-signedInTest('opens a «به‌زودی» page from the navigation and comes back', async ({ page }) => {
+signedInTest('opens the reading list from the navigation and comes back', async ({ page }) => {
+  // Read only: her list (or the empty state), never a write.
   const errors = watchErrors(page)
   await page.goto('/account/')
   const nav = page.getByRole('navigation', { name: ACCOUNT_NAV })
   await nav.getByRole('link', { name: /^لیست مطالعه/ }).click()
   await expect(page).toHaveURL(/\/account\/reading-list\/$/)
   await expect(page.getByRole('heading', { level: 1, name: 'لیست مطالعه' })).toBeVisible()
-  await expect(page.getByRole('heading', { level: 2, name: 'به‌زودی' })).toBeVisible()
-  await page.getByRole('link', { name: 'بازگشت به پیشخوان' }).click()
+  await expect(
+    page.getByRole('article').first().or(page.getByText('هنوز مطلبی در لیست مطالعه ندارید')),
+  ).toBeVisible()
+  await page.goBack()
   await expect(page).toHaveURL(/\/account\/$/)
   await expect(page.getByRole('heading', { level: 1, name: 'سلام سارا' })).toBeVisible()
   expect(errors).toEqual([])

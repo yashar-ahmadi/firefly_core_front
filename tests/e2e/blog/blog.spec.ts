@@ -5,7 +5,7 @@ import { watchErrors } from '../support/watch-errors'
 // The blog home, its archive and its category pages (Plan 5 Task 1) against the dev backend's
 // sample blog (19 posts, 12 a page; 7 categories). Read only, every project, as a guest. One
 // search per project (the search results' «مشاهدهٔ همه», logged in the operator's report).
-// Post pages are Task 2's: their links still answer 404 (watch-errors.ts allows that alone).
+// A post's page: post.spec.ts.
 
 const SEARCH = 'ای'
 

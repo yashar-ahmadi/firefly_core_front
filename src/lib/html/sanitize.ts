@@ -10,7 +10,8 @@ import sanitizeHtml from 'sanitize-html'
  * input patched. Allowed: text formatting, headings (h1 becomes h2: the page has its own h1),
  * lists, quotes, tables, links and images. Everything else is dropped:
  * - scripts, styles, iframes, objects, svg, math, forms and templates, with their content;
- * - event handlers, `style`, `class`, `id` and any other attribute not listed below;
+ * - event handlers, `style`, `class`, `id` (but a blog post's heading ids: `headingIds`) and any
+ *   other attribute not listed below;
  * - URLs other than http(s), mailto and tel (images: http(s) only), so no `javascript:` or
  *   `data:`, however they are encoded.
  * And rewritten:
@@ -30,6 +31,11 @@ export interface SanitizeOptions {
    * that following a link would lose (the terms under the registration button).
    */
   linksInNewTab?: boolean
+  /**
+   * The ids the API put on the content's headings (a blog post's `headings`, its table of
+   * contents' anchors): kept on headings only, every other id dropped as usual.
+   */
+  headingIds?: ReadonlySet<string>
 }
 
 /** Tags kept (others are dropped, their text kept unless listed in NON_TEXT_TAGS). */
@@ -57,6 +63,31 @@ const ALLOWED_ATTRIBUTES: Record<string, string[]> = {
   td: ['colspan', 'rowspan'],
   col: ['span'],
   colgroup: ['span'],
+}
+
+const HEADING_TAGS = ['h2', 'h3', 'h4', 'h5', 'h6']
+
+/** The allowed attributes, with `id` on headings when there are heading ids to keep. */
+function allowedAttributes(headingIds: ReadonlySet<string> | undefined) {
+  if (!headingIds?.size) return ALLOWED_ATTRIBUTES
+  return {
+    ...ALLOWED_ATTRIBUTES,
+    ...Object.fromEntries(
+      HEADING_TAGS.map((tag) => [tag, [...(ALLOWED_ATTRIBUTES[tag] ?? []), 'id']]),
+    ),
+  }
+}
+
+/** A heading's `id` only when it is one of `headingIds` (and not empty); no other tag's. */
+function headingId(
+  tagName: string,
+  attribs: sanitizeHtml.Attributes,
+  headingIds: ReadonlySet<string> | undefined,
+): sanitizeHtml.Attributes {
+  if (attribs.id === undefined) return attribs
+  const { id, ...rest } = attribs
+  const kept = HEADING_TAGS.includes(tagName) && id !== '' && headingIds?.has(id) === true
+  return kept ? attribs : rest
 }
 
 /** Attributes kept only with one of these values (any tag); `target` is decided per link. */
@@ -180,7 +211,7 @@ export function sanitizeOperatorHtml(
   const siteOrigin = originOf(options.siteUrl)
   const clean = sanitizeHtml(html, {
     allowedTags: ALLOWED_TAGS,
-    allowedAttributes: ALLOWED_ATTRIBUTES,
+    allowedAttributes: allowedAttributes(options.headingIds),
     allowedClasses: {},
     allowedStyles: {},
     allowedSchemes: ['http', 'https', 'mailto', 'tel'],
@@ -200,8 +231,11 @@ export function sanitizeOperatorHtml(
         attribs: linkAttributes(attribs, apiOrigin, siteOrigin, options.linksInNewTab ?? false),
       }),
       img: (tagName, attribs) => ({ tagName, attribs: imageAttributes(attribs, apiOrigin) }),
-      // Runs after the tag's own transform.
-      '*': (tagName, attribs) => ({ tagName, attribs: knownValues(attribs) }),
+      // Runs after the tag's own transform (an h1 is an h2 here).
+      '*': (tagName, attribs) => ({
+        tagName,
+        attribs: knownValues(headingId(tagName, attribs, options.headingIds)),
+      }),
     },
   })
   // The output is re-serialised with `<` escaped in text and attribute values, so a literal

@@ -1,4 +1,4 @@
-import { test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import {
   budgetOf,
   CHECKOUT_BUDGET_KB,
@@ -10,6 +10,11 @@ import {
   type BudgetRoute,
 } from '../support/js-budget'
 import { seedThanks, THANKS_PATH, thanksShown } from '../support/thanks-states'
+
+/** The post's comments are on screen (their first page comes with the HTML). */
+async function postShown(page: Page) {
+  await expect(page.getByRole('tab', { name: /دیدگاه/ })).toBeVisible()
+}
 
 // The JavaScript budget of the catalog and the auth pages for a guest (ruling P2-R4; the measure:
 // support/js-budget.ts). Each route is measured twice and both figures are printed and
@@ -33,6 +38,9 @@ const ROUTES: BudgetRoute[] = [
   // catalog's routes.
   { name: 'blog', path: '/blog/' },
   { name: 'blog-category', path: '/blog/category/buying-guide/' },
+  // Plan 5 Task 2: a post's page, catalog-like too (its TOC, progress bar and comments; the
+  // comment form loads on its first open). Each load counts the post one view: four a run.
+  { name: 'blog-post', path: '/blog/best-phones-under-30m/', ready: postShown },
   // Plan 3: the auth code lives on these routes alone (none of it on the catalog's).
   { name: 'login', path: '/login/' },
   { name: 'register', path: '/register/' },

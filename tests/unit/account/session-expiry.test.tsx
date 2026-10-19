@@ -19,10 +19,12 @@ const mocks = vi.hoisted(() => {
 })
 vi.mock('server-only', () => ({}))
 vi.mock('@/features/account/dashboard/banners-api', () => ({ getDashboardBanners: async () => [] }))
+vi.mock('@/features/blog/api', () => ({ getBlogCategories: async () => [] }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
 vi.mock('next/navigation', () => ({
   usePathname: () => mocks.pathname,
   useRouter: () => mocks.router,
+  useSearchParams: () => new URLSearchParams(window.location.search),
 }))
 
 const expired = () =>
@@ -81,7 +83,7 @@ describe('a session that ends on an account page', () => {
     expect(screen.getByTestId('summary-cards')).toHaveAttribute('aria-busy', 'true')
   })
 
-  it('a placeholder page with a query: back to it after login', async () => {
+  it('a page with a query (its own list and bookmarks answer 401 too): back to it after login, once', async () => {
     const { default: ReadingListPage } = await import('@/app/(shop)/account/reading-list/page')
     await openPage('/account/reading-list/?page=2', <ReadingListPage />)
     await waitFor(() => expect(mocks.replace).toHaveBeenCalled())
@@ -95,8 +97,7 @@ describe('a session that ends on an account page', () => {
     mocks.bffFetch.mockImplementation((path: string) =>
       path === 'account/profile/me/' ? Promise.resolve(ok(SARA)) : expired(),
     )
-    // A page with no reads of its own (the wallet's has its own since Plan 4 Task 9: its
-    // session end is tests/unit/wallet/wallet-page.test.tsx's).
+    // The reading list's own reads answer 401 as well: still one replace.
     const { default: ReadingListPage } = await import('@/app/(shop)/account/reading-list/page')
     await openPage('/account/reading-list/', <ReadingListPage />)
     await waitFor(() => expect(mocks.replace).toHaveBeenCalled())

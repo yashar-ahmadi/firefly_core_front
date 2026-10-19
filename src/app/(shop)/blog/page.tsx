@@ -22,6 +22,7 @@ import { BlogHero } from '@/features/blog/components/blog-hero'
 import { BlogPager } from '@/features/blog/components/blog-pager'
 import { BlogProducts } from '@/features/blog/components/blog-products'
 import { BlogSidebar } from '@/features/blog/components/blog-sidebar'
+import { NoPosts } from '@/features/blog/components/no-posts'
 import { PostGrid } from '@/features/blog/components/post-grid'
 import { loadBlogHome } from '@/features/blog/page-data'
 import { JsonLd } from '@/features/seo/json-ld'
@@ -162,7 +163,7 @@ export default async function BlogHomePage({ searchParams }: BlogHomeProps) {
               categoryLinks={links}
               label={`صفحه\u{0654} ${toPersianDigits(posts.current_page)}`}
               priorityCount={featured > 0 ? 0 : 2}
-              emptyState={query.search ? <NoMatch search={query.search} /> : undefined}
+              emptyState={query.search ? <NoMatch search={query.search} /> : <NoPosts />}
             />
             <BlogPager
               basePath={BLOG_PATH}

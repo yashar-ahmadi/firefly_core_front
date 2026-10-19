@@ -74,6 +74,21 @@ const ROUTES: SignedInRoute[] = [
   // The blog as she sees it: her reading list read once for the bookmarks (no write).
   { name: 'blog', path: '/blog/', ready: cardsShown },
   { name: 'blog-category', path: '/blog/category/buying-guide/', ready: cardsShown },
+  // A post read as her (its bookmark from her own flag; page 1 of the comments read again
+  // through the BFF for her «شما»), and her reading list's page (read only).
+  {
+    name: 'blog-post',
+    path: '/blog/best-phones-under-30m/',
+    ready: (page) => expect(page.getByRole('tab', { name: /دیدگاه/ })).toBeVisible(),
+  },
+  {
+    name: 'reading-list',
+    path: '/account/reading-list/',
+    ready: (page) =>
+      expect(
+        page.getByRole('article').first().or(page.getByText('هنوز مطلبی در لیست مطالعه ندارید')),
+      ).toBeVisible(),
+  },
   { name: 'account', path: '/account/' },
   { name: 'profile', path: '/account/profile/' },
   { name: 'notifications', path: '/account/notifications/' },

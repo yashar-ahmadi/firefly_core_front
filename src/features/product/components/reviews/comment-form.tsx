@@ -8,6 +8,13 @@ import { Field } from '@/components/ui/field'
 import { focusInView } from '@/components/ui/focus-in-view'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  GuestFields,
+  HoneypotField,
+  MAX_COMMENT_LINE,
+  MAX_COMMENT_TEXT,
+  NAME_MISSING,
+} from '@/features/comments/form-fields'
 import { useMarkFeatureDisabled } from '@/features/settings/feature-context'
 import { bffFetch } from '@/lib/api/client'
 import { ApiError, GENERIC_ERROR_DETAIL } from '@/lib/api/errors'
@@ -26,10 +33,7 @@ import {
 import { PointsInput, StarRatingInput } from './review-fields'
 import { commentsKey } from './use-comments'
 
-const NAME_MISSING = 'نام خود را بنویسید.'
 const DONE = 'نظر شما ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
-const MAX_TEXT = 4096
-const MAX_LINE = 255
 
 export interface CommentFormProps {
   slug: string
@@ -147,7 +151,7 @@ export function CommentForm({
         <Field label="عنوان دیدگاه (اختیاری)" error={errors.title}>
           <Input
             value={values.title}
-            maxLength={MAX_LINE}
+            maxLength={MAX_COMMENT_LINE}
             onChange={(e) => set('title', e.target.value)}
           />
         </Field>
@@ -155,7 +159,7 @@ export function CommentForm({
       <Field label={copy.text} error={errors.review} required>
         <Textarea
           value={values.review}
-          maxLength={MAX_TEXT}
+          maxLength={MAX_COMMENT_TEXT}
           rows={4}
           onChange={(e) => set('review', e.target.value)}
         />
@@ -183,42 +187,15 @@ export function CommentForm({
         </div>
       )}
       {guest && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="نام" error={errors.name} required>
-            <Input
-              value={values.name}
-              maxLength={MAX_LINE}
-              autoComplete="name"
-              onChange={(e) => set('name', e.target.value)}
-            />
-          </Field>
-          <Field label="ایمیل (اختیاری)" hint={'نمایش داده نمی\u{200C}شود.'} error={errors.email}>
-            <Input
-              type="email"
-              dir="ltr"
-              inputMode="email"
-              autoComplete="email"
-              value={values.email}
-              maxLength={MAX_LINE}
-              onChange={(e) => set('email', e.target.value)}
-            />
-          </Field>
-        </div>
+        <GuestFields
+          name={values.name}
+          email={values.email}
+          errors={errors}
+          onName={(name) => set('name', name)}
+          onEmail={(email) => set('email', email)}
+        />
       )}
-      {/* Honeypot (product digest §3.13): off-screen, unreachable by keyboard and hidden from
-          assistive tech; a bot that fills it gets the same answer and nothing is saved. */}
-      <div aria-hidden className="absolute start-0 -top-[9999px] h-px w-px overflow-hidden">
-        <label>
-          {'وب\u{200C}سایت'}
-          <input
-            name="website"
-            tabIndex={-1}
-            autoComplete="off"
-            value={values.website}
-            onChange={(e) => set('website', e.target.value)}
-          />
-        </label>
-      </div>
+      <HoneypotField value={values.website} onChange={(website) => set('website', website)} />
       {errors.form && (
         <p role="alert" className="flex items-start gap-1.5 text-base font-medium text-danger">
           <CircleAlert aria-hidden className="mt-1 size-5 shrink-0" />

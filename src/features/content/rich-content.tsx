@@ -17,7 +17,7 @@ export interface RichContentProps {
  */
 export function richContentHtml(
   html: string,
-  options: Pick<SanitizeOptions, 'linksInNewTab'> = {},
+  options: Pick<SanitizeOptions, 'linksInNewTab' | 'headingIds'> = {},
 ): string | null {
   const config = getStoreConfig()
   const clean = sanitizeOperatorHtml(html, config.apiUrl, { ...options, siteUrl: config.siteUrl })

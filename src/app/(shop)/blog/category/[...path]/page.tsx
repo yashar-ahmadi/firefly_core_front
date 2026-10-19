@@ -16,6 +16,7 @@ import {
 import { BlogCategoryChips } from '@/features/blog/components/blog-category-chips'
 import { BlogPager } from '@/features/blog/components/blog-pager'
 import { BlogSidebar } from '@/features/blog/components/blog-sidebar'
+import { NoPosts } from '@/features/blog/components/no-posts'
 import { PostGrid } from '@/features/blog/components/post-grid'
 import { loadBlogCategory, loadBlogCategoryPosts } from '@/features/blog/page-data'
 import { ListingHero } from '@/features/catalog/components/listing-hero'
@@ -135,6 +136,7 @@ export default async function BlogCategoryPage({ params, searchParams }: BlogCat
               posts={posts.results}
               categoryLinks={categoryLinks(categories)}
               label={`صفحه\u{0654} ${toPersianDigits(posts.current_page)}`}
+              emptyState={<NoPosts />}
             />
             <BlogPager
               basePath={path}
