@@ -67,7 +67,7 @@ export const fa: Record<string, string> = {
   contact_us: 'ارتباط با ما',
   contact_phone: 'تلفن تماس',
   contact_email: 'ایمیل',
-  contact_address: 'نشانی',
+  contact_address: 'آدرس',
   postal_code: 'کد پستی: {code}',
   view_on_map: 'مشاهده روی نقشه',
   response_time: 'ساعات پاسخ\u{200C}گویی',

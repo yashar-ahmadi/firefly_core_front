@@ -103,3 +103,11 @@ describe('ContactBlock: phones', () => {
     expect(error).not.toHaveBeenCalled()
   })
 })
+
+describe('ContactBlock: the shop’s address', () => {
+  it('is labelled «آدرس» (the shop’s word for it everywhere, never «نشانی»)', () => {
+    renderContact({ phone: null, phone2: null, address: 'تهران، خیابان ولیعصر' })
+    expect(screen.getByText('آدرس')).toBeVisible()
+    expect(screen.queryByText('نشانی')).toBeNull()
+  })
+})
