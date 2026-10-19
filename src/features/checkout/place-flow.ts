@@ -2,6 +2,7 @@ import type { RouteChoice } from '@/features/payment/routes'
 import type { Cart } from '@/lib/api/types/cart'
 import type { CheckoutStep } from './checkout-steps'
 import type { GuestField } from './guest-receiver'
+import { clearPlacementKey, placementKey } from './idempotency'
 import { placeOrder, PlacementError, type PlaceOrderInput } from './place-order'
 import { afterPlacement, contextOf, recordEarlier, type PlacedContext } from './placed-order'
 import type { Placement, PlacementNotice } from './use-place-order'
@@ -10,7 +11,9 @@ import type { Placement, PlacementNotice } from './use-place-order'
 // load never carries it): the placement, then on a 2xx everything that ends the purchase
 // (`afterPlacement`), or for a refusal what the page does about it (`handleRefusal`, with the
 // page's own state and helpers handed in: this chunk adds no module the page does not have).
-// `submitPlacement` never rejects: a refusal comes back as its `PlacementError`.
+// The placement key is taken here, at the press (idempotency.ts: the review made it when it was
+// reached), and forgotten here when the API calls it malformed. `submitPlacement` never rejects:
+// a refusal comes back as its `PlacementError`.
 
 /**
  * `earlier`: a replay (200) of an order whose total is not this cart's: the key's 2xx was lost
@@ -22,11 +25,11 @@ export type PlacementOutcome =
   | { ok: false; error: PlacementError }
 
 export async function submitPlacement(
-  input: PlaceOrderInput,
+  input: Omit<PlaceOrderInput, 'key'>,
   { route, gatewayCode }: { route: RouteChoice['route']; gatewayCode: string | null },
 ): Promise<PlacementOutcome> {
   try {
-    const { order, replayed } = await placeOrder(input)
+    const { order, replayed } = await placeOrder({ ...input, key: placementKey() })
     const ctx = contextOf(order, { guest: input.isGuest, route, gatewayCode })
     if (replayed && order.total !== input.expectedTotal) {
       recordEarlier(ctx)
@@ -57,8 +60,6 @@ export interface RefusalDeps {
   markGuestClosed: (detail: string) => void
   expire: () => void
   signedIn: boolean
-  /** Forgets the placement key (one the API refused as malformed). */
-  clearKey: () => void
   throttledMessage: string
   setNotice: (notice: PlacementNotice | null) => void
   setNoteError: (message: string) => void
@@ -142,7 +143,8 @@ export async function handleRefusal(error: PlacementError, sent: number, deps: R
       deps.setThrottle({ error: error.cause, at: Date.now() })
       return deps.setNotice({ message: deps.throttledMessage, problem: 'throttled' })
     case 'invalid_key':
-      deps.clearKey()
+      // Malformed (a client bug): the next press makes a new one.
+      clearPlacementKey()
       return say()
     default:
       return say()

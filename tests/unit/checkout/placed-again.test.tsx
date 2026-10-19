@@ -1,19 +1,33 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { PLACEMENT_KEY_STORAGE } from '@/features/checkout/idempotency'
+import {
+  PLACEMENT_KEY_MAX_AGE_MS,
+  PLACEMENT_KEY_STORAGE,
+  PLACEMENT_KEY_USED_STORAGE,
+} from '@/features/checkout/idempotency'
 import { contextOf, readPlaced, savePlaced } from '@/features/checkout/placed-order'
 import { PLACED_KEY, RECENT_MS } from '@/features/checkout/placed/last-placed'
 import { findGuestOrder } from '@/features/orders/guest-orders'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { emptyCartFixture } from '../cart/fixtures'
 import { placement } from '../payment/fixtures'
-import { calls, ok, onlineCart, PLACE, placeButton, renderCheckout, serve } from './place-support'
+import {
+  calls,
+  ok,
+  onlineCart,
+  PLACE,
+  placeButton,
+  placed,
+  renderCheckout,
+  serve,
+} from './place-support'
 
 // An order placed in this tab, met again: the checkout opened again with the cart it emptied (a
 // reload, Back from the bank) shows that order first; and a placement key whose 2xx was lost,
 // sent again for another cart, meets that earlier order (a 200 replay of another total): it is
-// said and recorded, never taken for the purchase on screen (order digest §5.1).
+// said and recorded, never taken for the purchase on screen (order digest §5.1). A key left
+// unused for longer than the stock hold is not sent at all: the purchase on screen gets its own.
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), push: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
@@ -89,5 +103,22 @@ describe('an order placed in this tab, met again', () => {
     const keys = calls(mocks.bffFetch, PLACE).map(([, init]) => init.idempotencyKey)
     expect(keys[0]).toBe(first)
     expect(keys[1]).not.toBe(first)
+  })
+
+  it('a key left unused past the stock hold (a purchase long ago): this purchase sends a new one', async () => {
+    const user = userEvent.setup()
+    sessionStorage.setItem(PLACEMENT_KEY_STORAGE, 'stale-key-0000')
+    const lastUse = Date.now() - PLACEMENT_KEY_MAX_AGE_MS - 60_000
+    sessionStorage.setItem(PLACEMENT_KEY_USED_STORAGE, String(lastUse))
+    serve(mocks.bffFetch, () => onlineCart(), { [PLACE]: placed() })
+    renderCheckout({ cart: onlineCart() })
+    const button = await placeButton()
+    await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'))
+    await user.click(button)
+    expect(await screen.findByRole('heading', { name: 'سفارش شما ثبت شد' })).toBeInTheDocument()
+    const keys = calls(mocks.bffFetch, PLACE).map(([, init]) => init.idempotencyKey)
+    expect(keys).toHaveLength(1)
+    expect(keys[0]).not.toBe('stale-key-0000')
+    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/)
   })
 })

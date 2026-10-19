@@ -14,7 +14,6 @@ import { toPersianDigits } from '@/lib/format'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { ORDERS_KEY, SUMMARY_KEY } from '@/lib/session/viewer-queries'
 import { receiverBody } from './guest-receiver'
-import { clearPlacementKey, placementKey } from './idempotency'
 import type { PlacementProblem } from './place-order'
 import type { PlacedContext } from './placed-order'
 import { thanksPath } from './thanks-path'
@@ -126,7 +125,6 @@ export function usePlaceOrder(
           customerMobile: receiver?.customerMobile,
           note,
           expectedTotal: sent,
-          key: placementKey(),
         },
         { route, gatewayCode: payment.gatewayCode ?? null },
       )
@@ -140,7 +138,6 @@ export function usePlaceOrder(
           markGuestClosed: (detail) => markFeatureDisabled('guest_checkout', detail),
           expire,
           signedIn: checkout.signedIn,
-          clearKey: clearPlacementKey,
           throttledMessage: THROTTLED_MESSAGE,
           setNotice,
           setNoteError,
