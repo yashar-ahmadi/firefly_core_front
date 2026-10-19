@@ -41,4 +41,16 @@ describe('PayLinkDeadline', () => {
     expect(mocks.announce).toHaveBeenCalledTimes(3)
     expect(onEnd).toHaveBeenCalledTimes(1)
   })
+
+  it('nothing to pay online (pay on delivery): a deadline to confirm, said as such', async () => {
+    render(<PayLinkDeadline expiresAt="2026-10-18T12:00:00+03:30" onEnd={vi.fn()} confirmOnly />)
+    expect(document.body).toHaveTextContent('مهلت تأیید:')
+    expect(document.body).not.toHaveTextContent('پرداخت')
+    await wait(60 * 60_000)
+    expect(mocks.announce).toHaveBeenLastCalledWith(
+      'یک ساعت تا پایان مهلت تأیید این سفارش مانده است.',
+    )
+    await wait(60 * 60_000 + 1_000)
+    expect(mocks.announce).toHaveBeenLastCalledWith('مهلت تأیید این سفارش تمام شد.')
+  })
 })

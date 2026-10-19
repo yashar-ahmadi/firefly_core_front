@@ -139,7 +139,11 @@ export function PayLinkPage({
         </h1>
         <PayLinkSummary link={link} />
         {link.expires_at && (
-          <PayLinkDeadline expiresAt={link.expires_at} onEnd={() => void reread()} />
+          <PayLinkDeadline
+            expiresAt={link.expires_at}
+            onEnd={() => void reread()}
+            confirmOnly={!online}
+          />
         )}
       </section>
       <section aria-labelledby="pay-link-routes" className={`${CARD} flex flex-col gap-4`}>

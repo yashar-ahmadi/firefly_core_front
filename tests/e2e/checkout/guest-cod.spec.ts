@@ -172,7 +172,7 @@ test('a guest: TEA30, Tehran, pay on delivery; thanks, tracked, cancelled throug
   const order = seen.order!
   expect((await placement).request().postDataJSON()).toMatchObject({ expected_total: cod.total })
 
-  // The thanks page: the code, awaiting its confirmation, the payment link, «تأیید سفارش».
+  // The thanks page: the code, awaiting its confirmation, its link (to confirm), «تأیید سفارش».
   await page.waitForURL(new RegExp(`/checkout/thanks/${order.order_code}/$`))
   expect(held, 'the confirmation was asked for once, and held').toHaveLength(1)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
@@ -183,7 +183,7 @@ test('a guest: TEA30, Tehran, pay on delivery; thanks, tracked, cancelled throug
   await expect(page.getByRole('button', { name: 'تأیید سفارش' })).toBeVisible()
   // The order's own link (compared, never printed: its token is a credential).
   const token = new URL(order.payment_url!).pathname.split('/').filter(Boolean).at(-1)!
-  const href = await page.getByRole('link', { name: 'لینک پرداخت سفارش' }).getAttribute('href')
+  const href = await page.getByRole('link', { name: 'لینک تأیید سفارش' }).getAttribute('href')
   expect(href === `/order/pay/${token}/`, 'the payment link is the order’s own').toBe(true)
   const cart = await page.request.get('/api/bff/cart/', { headers: BFF })
   expect(((await cart.json()) as { data: Cart }).data.is_empty, 'the cart is spent').toBe(true)
@@ -204,8 +204,11 @@ test('a guest: TEA30, Tehran, pay on delivery; thanks, tracked, cancelled throug
 
   // Cancelled through its link page (the safe choice focused first).
   await page.goBack()
-  await page.getByRole('link', { name: 'لینک پرداخت سفارش' }).click()
+  await page.getByRole('link', { name: 'لینک تأیید سفارش' }).click()
   await page.waitForURL(/\/order\/pay\/[^/]+\/$/)
+  // Nothing to pay online: the link page asks for a confirmation, before its deadline to confirm.
+  await expect(page.getByRole('heading', { level: 1, name: 'تأیید سفارش' })).toBeVisible()
+  await expect(page.getByText('مهلت تأیید:', { exact: false })).toBeVisible()
   await page.getByRole('button', { name: 'لغو سفارش' }).click()
   const dialog = page.getByRole('dialog', { name: 'لغو سفارش' })
   await expect(dialog.getByRole('button', { name: 'بازگشت' })).toBeFocused()

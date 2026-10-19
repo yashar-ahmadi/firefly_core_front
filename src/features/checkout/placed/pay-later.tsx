@@ -74,7 +74,7 @@ export function PayLater({
             className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
             <ExternalLink aria-hidden />
-            لینک پرداخت سفارش
+            {confirmOnly ? 'لینک تأیید سفارش' : 'لینک پرداخت سفارش'}
           </a>
           {expiresAt && (
             <p className="flex flex-wrap items-center gap-x-2">

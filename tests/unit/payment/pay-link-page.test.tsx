@@ -174,6 +174,9 @@ describe('nothing owed online (a pure pay-on-delivery order)', () => {
     // The order exists: «تأیید سفارش» confirms it (never «after placement»).
     expect(screen.getByText(/با «تأیید سفارش» سفارش تأیید می\u{200C}شود/u)).toBeVisible()
     expect(document.body).not.toHaveTextContent('پس از ثبت')
+    // Its deadline is one to confirm the order (as the thanks page says), not to pay it.
+    expect(document.body).toHaveTextContent('مهلت تأیید:')
+    expect(document.body).not.toHaveTextContent('مهلت پرداخت')
     await user.dblClick(screen.getByRole('button', { name: 'تأیید سفارش' }))
     expect(await screen.findByRole('heading', { name: 'سفارش شما تأیید شد' })).toHaveFocus()
     expect(confirm).toHaveBeenCalledTimes(1)

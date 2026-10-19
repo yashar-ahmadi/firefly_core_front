@@ -111,6 +111,12 @@ describe('ThanksPage', () => {
     )
     expect(document.body).toHaveTextContent('مهلت تأیید:')
     expect(document.body).not.toHaveTextContent(/مهلت پرداخت|پرداخت کنید/)
+    // Its link confirms the order: so named (the link page says «تأیید سفارش» too).
+    expect(screen.getByRole('link', { name: 'لینک تأیید سفارش' })).toHaveAttribute(
+      'href',
+      `/order/pay/${LINK_TOKEN}/`,
+    )
+    expect(screen.queryByRole('link', { name: 'لینک پرداخت سفارش' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'تأیید سفارش' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('درگاه بانک پاسخ نداد')
     await user.click(screen.getByRole('button', { name: 'تأیید سفارش' }))
