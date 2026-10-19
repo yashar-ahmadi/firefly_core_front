@@ -47,7 +47,8 @@ export default function UiShowcasePage() {
         </ul>
       </nav>
 
-      <main className="grid gap-6 sm:gap-8">
+      {/* The root layout's skip link targets `#main`, as on the shop's pages (ShellFrame). */}
+      <main id="main" tabIndex={-1} className="grid gap-6 outline-none sm:gap-8">
         <ControlSections />
         <DisplaySections />
         <WidgetSections />
