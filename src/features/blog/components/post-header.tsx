@@ -24,7 +24,7 @@ export interface PostHeaderProps {
  * A post's head: its categories, the title (the page's one h1, `dir="auto"`), then the author,
  * the Jalali publish date (and the update's when it is another day), the reading time (words ÷
  * 200, Persian digits) and the views, with the bookmark (its state as the API read it for this
- * visitor) and the share button (not in a staff preview).
+ * visitor) and the share button (neither in a staff preview).
  */
 export function PostHeader({ post, titleId, categoryLinks }: PostHeaderProps) {
   const published = post.published_at ? formatJalaliDate(post.published_at) : null
@@ -87,20 +87,22 @@ export function PostHeader({ post, titleId, categoryLinks }: PostHeaderProps) {
           <Eye aria-hidden />
           {`${formatNumber(post.view_count)} بازدید`}
         </span>
-        <div className="ms-auto flex items-center gap-1">
-          <ReadingListButton
-            post={{ id: post.id, slug: post.slug }}
-            describedBy={titleId}
-            initialSaved={post.is_in_reading_list}
-          />
-          {!post.is_unpublished && (
+        {/* Neither in a staff preview: a draft cannot be saved (its reading-list POST answers
+            404, even for staff) nor shared (its link is a 404 for everyone else). */}
+        {!post.is_unpublished && (
+          <div className="ms-auto flex items-center gap-1">
+            <ReadingListButton
+              post={{ id: post.id, slug: post.slug }}
+              describedBy={titleId}
+              initialSaved={post.is_in_reading_list}
+            />
             <ShareButton
               title={post.name}
               path={blogPostPath(post.slug)}
               copiedMessage="پیوند مطلب کپی شد."
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </header>
   )

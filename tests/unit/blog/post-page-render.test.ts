@@ -107,6 +107,9 @@ describe('the post’s article', () => {
     )
     // One h1 on the page.
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    // The bookmark and the share button, beside the post's facts.
+    expect(within(head).getByRole('button', { name: 'افزودن به لیست مطالعه' })).toBeVisible()
+    expect(within(head).getByRole('button', { name: 'اشتراک\u{200C}گذاری' })).toBeVisible()
   })
 
   it('a banner only when the API has one, never the square picture instead', async () => {
@@ -141,12 +144,15 @@ describe('the post’s article', () => {
     expect(screen.queryByRole('navigation', { name: 'فهرست مطالب' })).toBeNull()
   })
 
-  it('a staff preview: the bar, no sharing, no comments (their lists answer 404)', async () => {
+  it('a staff preview: the bar, no sharing, no bookmark (a save of a draft is a 404), no comments (their lists answer 404)', async () => {
     await show({ is_unpublished: true, published_at: null })
     expect(screen.getByRole('status')).toHaveTextContent(
       'پیش\u{200C}نمایش — این پست هنوز منتشر نشده است',
     )
     expect(screen.queryByRole('button', { name: 'اشتراک\u{200C}گذاری' })).toBeNull()
+    // The post's own (its related posts are published: their cards keep theirs).
+    const head = within(article()).getByRole('banner')
+    expect(within(head).queryByRole('button', { name: /لیست مطالعه/ })).toBeNull()
     expect(screen.queryByRole('tablist')).toBeNull()
     expect(mocks.apiFetch.mock.calls.some(([path]) => path.endsWith('/comment/list'))).toBe(false)
   })
