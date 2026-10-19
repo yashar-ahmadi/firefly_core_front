@@ -20,7 +20,8 @@ export function contactHeading(page: PageDetail | null): string {
  * `contact-us` page, its title (`contentPageTitle`), description, keywords and `name=` meta rows
  * (its `property=` rows the page renders itself); without it, «تماس با ما» and a description of
  * our own. The canonical is always `/contact-us/`, the backend's `support_link` (seo digest
- * §2.2): the page's own `canonical_link` would name `/page/contact-us/`, which redirects here.
+ * §2.2): the page's own `canonical_link` would name `/page/contact-us/`, which redirects here. A
+ * staff preview of a draft is `noindex, nofollow`.
  */
 export function contactMetadata(page: PageDetail | null, shop: string): Metadata {
   const fallback = `راه\u{200C}های تماس با ${shop}: تلفن، ایمیل، آدرس و فرم ارسال پیام.`
@@ -32,6 +33,8 @@ export function contactMetadata(page: PageDetail | null, shop: string): Metadata
     siteName: shop,
     card: 'summary',
     metaTags: page?.meta_tags ?? [],
+    // A staff preview of a draft (`getContactPage`): never indexed.
+    robots: page?.is_unpublished ? { index: false, follow: false } : null,
   })
 }
 

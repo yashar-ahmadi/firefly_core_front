@@ -70,17 +70,6 @@ export const getPage = cache(async (slug: string): Promise<PageDetail | null> =>
 })
 
 /**
- * The published page only, never a staff preview: for a page shown inside another route (the
- * contact page shows `contact-us`'s content above its form), so a visitor with a session never
- * costs a second, uncached read there. null as `getPage` (a draft included).
- */
-export const getPublishedPage = cache(async (slug: string): Promise<PageDetail | null> => {
-  const segment = oneSegment(slug)
-  if (segment === null || segment.text === 'list') return null
-  return publishedPage(segment)
-})
-
-/**
  * Every published page (`pages/list/?limit=100`, by title), cached like the pages. Never throws:
  * [] on a failure (logged), and the `with_sidebar` aside then shows nothing.
  */

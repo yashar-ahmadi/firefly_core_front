@@ -393,7 +393,7 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 | `blog/post/<slug>/comment/list/?comment_type=comment&page=1`, `pages/<slug>/comment/list/?comment_type=comment&page=1` | `getFirstComments()` (`features/comments/first-comments.ts`): page 1 of a post's or a content page's comments, server-rendered in its own in-page `<Suspense>` after the subject; the questions (read when their tab opens), later pages, and page 1 again for a signed-in visitor (`is_current_user`) come through the BFF | 60 s | `blog-post:<slug>`, `blog`; `page:<slug>`, `pages` |
 | `pages/<slug>/` | `getPage()` (`features/content/pages/api.ts`): a content page as everyone sees it, anonymous (a 404 remembered a minute in process memory); a staff preview is read apart, never cached (see Content pages) | 300 s | `page:<slug>`, `pages` |
 | `pages/list/?limit=100` | `getPageCards()`: the `with_sidebar` aside's other pages | 300 s | `pages` |
-| `pages/contact-us/` | `getContactPage()` (`features/contact/api.ts`, through `getPublishedPage()`): the operator's contact page above the form at `/contact-us/`, published only (never a staff read); a failed read shows the page without it | 300 s | `page:contact-us`, `pages` |
+| `pages/contact-us/` | `getContactPage()` (`features/contact/api.ts`, through `getPage()`): the operator's contact page above the form at `/contact-us/`; a staff preview of a draft is read apart, never cached, as every page's; a failed read shows the page without it | 300 s | `page:contact-us`, `pages` |
 | `faq/category/list/?limit=100&page=…` (all pages) | `getFaqCategories()` (`features/faq/api.ts`): the help centre, anonymous | 600 s | `faq` |
 | `contact-us/subject/list/?limit=100&page=…` (all pages) | `getContactSubjects()` (`features/contact/api.ts`): the contact form's subjects; expired at once by the BFF when a message is refused for a stale list (see Help centre, contact page and linker) | 300 s | `contact-subjects` |
 | `linker/` | `getLinker()` (`features/linker/api.ts`): `/links/` | 300 s | `linker` |
@@ -586,8 +586,11 @@ Plan 5 Task 4: `/faq/` and `/contact-us/` in the shop's layout, `/links/` in its
   over an operator redirect rule for the same path: the proxy never sees these requests (checked
   on the build: with a refresh cookie, `/faq/` makes the proxy's refresh call and `/contact/` none).
   The operator's `contact-us` page, when published, gives the title, the content (sanitised)
-  and its meta rows (`property=` rendered, `name=` through `metadata.other`); its comments are not
-  shown (the form is how to write to the shop) and the canonical is always `/contact-us/` (its
+  and its meta rows (`property=` rendered, `name=` through `metadata.other`). A draft of it is
+  previewed here by staff, since `/page/contact-us/` redirects: the pages' two-path read
+  (`getPage`: the anonymous cached read, then, on its 404 and only with a session, the read with
+  the visitor's token, uncached) puts it under the preview bar, `noindex, nofollow`. Its comments
+  are not shown (the form is how to write to the shop) and the canonical is always `/contact-us/` (its
   `canonical_link` would name the redirect). Then the shop's contact details (the footer's
   `contactDetails()` and `ContactDetailsList` from `components/layout/contact-block.tsx`: phones,
   e-mail, address with postal code and map link, the response hours; not the support link, which

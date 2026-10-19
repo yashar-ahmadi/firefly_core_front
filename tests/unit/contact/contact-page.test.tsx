@@ -133,9 +133,11 @@ describe('the contact page', () => {
     expect(form()).toBeInTheDocument()
   })
 
-  it('reads the subjects and the page anonymously and cached; never a staff read', async () => {
+  it('reads the subjects and the published page anonymously and cached; no staff read over it', async () => {
+    // A session too: the published page needs no second read (a draft's preview:
+    // contact-page-preview.test.tsx).
     mocks.cookies.set('ff_at', 'aaa.bbb.ccc')
-    await show({ page: null })
+    await show()
     const reads = mocks.apiFetch.mock.calls.map(([path, options]) => [path, options])
     expect(reads).toContainEqual([
       'contact-us/subject/list',

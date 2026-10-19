@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { contactDetails } from '@/components/layout/contact-block'
 import { CONTAINER } from '@/components/layout/container'
+import { PreviewBar } from '@/components/layout/preview-bar'
 import { cn } from '@/components/ui/cn'
 import { getStoreConfig } from '@/config/store-config'
 import { getContactPage, getContactSubjects } from '@/features/contact/api'
@@ -32,7 +33,7 @@ const FORM_TITLE_ID = 'contact-form-title'
  * `/page/contact-us/` redirect here, next.config.ts). In the shop's layout, indexable: the trail
  * and its JSON-LD; the operator's `contact-us` page's title and content (sanitised) when there is
  * one, with its `property=` meta rows (its comments are not shown: the form is how to write to
- * the shop); then the shop's contact details (ContactInfo, from the settings) beside the form
+ * the shop), a draft of it for staff under the preview bar (noindex; `getContactPage`); then the shop's contact details (ContactInfo, from the settings) beside the form
  * (ContactForm, with the subjects). On phones the details come first, as they read.
  *
  * Status codes (R9): no loading.tsx, nothing streams; the subjects are awaited (a failed read
@@ -54,6 +55,9 @@ export default async function ContactRoute() {
         <meta key={`${tag.field}-${index}`} property={tag.field.trim()} content={tag.value} />
       ))}
       <JsonLd data={contactJsonLd(page, getStoreConfig().siteUrl)} />
+      {page?.is_unpublished && (
+        <PreviewBar className="max-w-3xl">{'پیش\u{200C}نویس — منتشر نشده'}</PreviewBar>
+      )}
       <Breadcrumbs items={[{ name: title }]} className="mb-2" />
       <h1
         dir="auto"
