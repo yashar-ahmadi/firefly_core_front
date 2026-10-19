@@ -4,8 +4,9 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 
 // Content pages, `/page/<slug>/` (Plan 5 Task 3), against the dev backend's pages (content
 // digest §3–§4): `about-us` (layout `default`, its form open, one approved comment with the
-// shop's answer), `contact-us` (closed, no comments: no block), `terms` (open, none yet), and
-// real 404s for a page that is not there and for a draft. Every dev page is `default`: the
+// shop's answer), `privacy` (closed, no comments: no block), `terms` (open, none yet), and
+// real 404s for a page that is not there and for a draft. (`/page/contact-us/` redirects to the
+// contact page: content/contact.spec.ts.) Every dev page is `default`: the
 // `with_sidebar` aside and `full_width` are unit-tested (tests/unit/content/content-page.test.tsx).
 // Read only, every project, as a guest: the form's POST is answered by the test itself (a real
 // one creates a permanent pending row); the live one runs only with E2E_LIVE_PAGE_COMMENT=1,
@@ -56,11 +57,11 @@ test.describe('a content page', () => {
     expect(errors).toEqual([])
   })
 
-  test('contact-us: closed and without comments, no comments block', async ({ page }) => {
+  test('privacy: closed and without comments, no comments block', async ({ page }) => {
     const errors = watchErrors(page)
-    const response = await page.goto('/page/contact-us/')
+    const response = await page.goto('/page/privacy/')
     expect(response?.status()).toBe(200)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('تماس با ما')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('حریم خصوصی')
     await expect(commentsOf(page)).toHaveCount(0)
     await page.waitForLoadState('load')
     expect(errors).toEqual([])

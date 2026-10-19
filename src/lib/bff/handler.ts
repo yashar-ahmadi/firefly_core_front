@@ -7,6 +7,7 @@ import { isExpiring } from '@/lib/auth/jwt'
 import { refreshAccess } from '@/lib/auth/refresh'
 import { isAllowed } from '@/lib/bff/allowlist'
 import { NO_SESSION, isAnonymousCall, withoutAnonFlag } from '@/lib/bff/anonymous'
+import { bustStaleSubjects } from '@/lib/bff/contact-subjects'
 import { anonymousCartBody, isAnonymousCartRead } from '@/lib/bff/guest-cart'
 import {
   RequestTooLargeError,
@@ -225,6 +226,8 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
     const json = result.kind === 'json' ? result.body : null
     const { status } = result
     captureSession({ path, status, body: json, sentAccess, sentCart, marker: cookies.marker }, jar)
+    // A contact message refused for a stale subject list: the page's cached list expires.
+    bustStaleSubjects(method, path, status, json)
     response = toResponse(result)
   }
   return answer(response)

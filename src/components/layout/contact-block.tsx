@@ -79,10 +79,122 @@ function Item({
   )
 }
 
+/** The shop's contact details, each one trimmed and checked, ready to show. */
+export interface ContactDetails {
+  phones: Array<{ label: string; tel: string }>
+  email: string
+  address: string
+  postalCode: string
+  map: string | null
+  responseTime: string
+}
+
 /**
- * The shop's contact details from the settings: phones (`tel:` with the E.164 value, shown as
- * «۰۲۱ ۹۱۰۰ ۰۰۰۰» left to right), email, address with postal code and map, the response time
- * and the support link. Each missing value hides its row; nothing to show renders nothing.
+ * The settings' contact details (`phone`, `phone2`, `email`, `address`, `postal_code`, `map`,
+ * `response_time`), or null when none is set. Shared by the footer and the contact page.
+ */
+export function contactDetails(
+  settings: Omit<ContactSettings, 'support_link'> | null,
+): ContactDetails | null {
+  if (!settings) return null
+  const details: ContactDetails = {
+    phones: uniquePhones([settings.phone, settings.phone2]),
+    email: text(settings.email),
+    address: text(settings.address),
+    postalCode: text(settings.postal_code),
+    map: mapLink(settings.map),
+    responseTime: text(settings.response_time),
+  }
+  const { phones, email, address, responseTime } = details
+  return phones.length || email || address || responseTime ? details : null
+}
+
+/**
+ * The details as a list in an `<address>`: phones (`tel:` with the E.164 value, shown as
+ * «۰۲۱ ۹۱۰۰ ۰۰۰۰» left to right), email, address with postal code and map link, and the
+ * response time; each missing value hides its row. One column on phones, two on tablets, side by
+ * side where there is room.
+ */
+export function ContactDetailsList({
+  details,
+  t,
+  className,
+}: {
+  details: ContactDetails
+  t: Translate
+  className?: string
+}) {
+  const { phones, email, address, postalCode, map, responseTime } = details
+  return (
+    <address className={cn('not-italic', className)}>
+      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] lg:gap-6">
+        {phones.length > 0 && (
+          <Item icon={Phone} label={t('contact_phone')}>
+            <span className="flex flex-wrap items-center gap-x-3">
+              {phones.map(({ label, tel }, index) => (
+                <span key={label} className="flex items-center gap-x-3">
+                  {index > 0 && <span aria-hidden className="h-4 w-px bg-ink-300" />}
+                  <a
+                    href={`tel:${tel}`}
+                    dir="ltr"
+                    className={cn(
+                      LINK,
+                      'inline-flex min-h-11 items-center text-lg font-bold tracking-wide text-ink-900',
+                    )}
+                  >
+                    {label}
+                  </a>
+                </span>
+              ))}
+            </span>
+          </Item>
+        )}
+        {email && (
+          <Item icon={Mail} label={t('contact_email')}>
+            <a
+              href={`mailto:${email}`}
+              dir="ltr"
+              className={cn(LINK, 'inline-flex min-h-11 items-center break-all')}
+            >
+              {email}
+            </a>
+          </Item>
+        )}
+        {address && (
+          <Item icon={MapPin} label={t('contact_address')}>
+            <p className="leading-7 whitespace-pre-line">{address}</p>
+            {postalCode && (
+              <p className="mt-1 text-sm text-ink-600">
+                {t('postal_code', { code: toPersianDigits(postalCode) })}
+              </p>
+            )}
+            {map && (
+              <a
+                href={map}
+                {...EXTERNAL}
+                className={cn(
+                  LINK,
+                  'inline-flex min-h-11 items-center text-sm font-medium text-brand-700 underline decoration-1 underline-offset-4 hover:decoration-2',
+                )}
+              >
+                {t('view_on_map')}
+              </a>
+            )}
+          </Item>
+        )}
+        {responseTime && (
+          <Item icon={Clock} label={t('response_time')}>
+            <p className="leading-7">{responseTime}</p>
+          </Item>
+        )}
+      </ul>
+    </address>
+  )
+}
+
+/**
+ * The footer's contact card: the shop's contact details (`ContactDetailsList`) and the support
+ * link. Each missing value hides its row; nothing to show renders nothing.
  */
 export function ContactBlock({
   settings,
@@ -93,14 +205,9 @@ export function ContactBlock({
   t: Translate
   className?: string
 }) {
-  const phones = uniquePhones([settings.phone, settings.phone2])
-  const email = text(settings.email)
-  const address = text(settings.address)
-  const postalCode = text(settings.postal_code)
-  const map = mapLink(settings.map)
-  const responseTime = text(settings.response_time)
+  const details = contactDetails(settings)
   const support = linkUrl(settings.support_link)
-  if (!phones.length && !email && !address && !responseTime && !support) return null
+  if (!details && !support) return null
 
   return (
     <section
@@ -122,70 +229,7 @@ export function ContactBlock({
           </a>
         )}
       </div>
-      <address className="mt-5 not-italic">
-        {/* One column on phones, two on tablets, side by side on wide screens. */}
-        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] lg:gap-6">
-          {phones.length > 0 && (
-            <Item icon={Phone} label={t('contact_phone')}>
-              <span className="flex flex-wrap items-center gap-x-3">
-                {phones.map(({ label, tel }, index) => (
-                  <span key={label} className="flex items-center gap-x-3">
-                    {index > 0 && <span aria-hidden className="h-4 w-px bg-ink-300" />}
-                    <a
-                      href={`tel:${tel}`}
-                      dir="ltr"
-                      className={cn(
-                        LINK,
-                        'inline-flex min-h-11 items-center text-lg font-bold tracking-wide text-ink-900',
-                      )}
-                    >
-                      {label}
-                    </a>
-                  </span>
-                ))}
-              </span>
-            </Item>
-          )}
-          {email && (
-            <Item icon={Mail} label={t('contact_email')}>
-              <a
-                href={`mailto:${email}`}
-                dir="ltr"
-                className={cn(LINK, 'inline-flex min-h-11 items-center break-all')}
-              >
-                {email}
-              </a>
-            </Item>
-          )}
-          {address && (
-            <Item icon={MapPin} label={t('contact_address')}>
-              <p className="leading-7 whitespace-pre-line">{address}</p>
-              {postalCode && (
-                <p className="mt-1 text-sm text-ink-600">
-                  {t('postal_code', { code: toPersianDigits(postalCode) })}
-                </p>
-              )}
-              {map && (
-                <a
-                  href={map}
-                  {...EXTERNAL}
-                  className={cn(
-                    LINK,
-                    'inline-flex min-h-11 items-center text-sm font-medium text-brand-700 underline decoration-1 underline-offset-4 hover:decoration-2',
-                  )}
-                >
-                  {t('view_on_map')}
-                </a>
-              )}
-            </Item>
-          )}
-          {responseTime && (
-            <Item icon={Clock} label={t('response_time')}>
-              <p className="leading-7">{responseTime}</p>
-            </Item>
-          )}
-        </ul>
-      </address>
+      {details && <ContactDetailsList details={details} t={t} className="mt-5" />}
     </section>
   )
 }

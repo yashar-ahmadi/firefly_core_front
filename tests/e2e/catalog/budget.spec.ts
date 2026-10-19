@@ -11,6 +11,9 @@ import {
 } from '../support/js-budget'
 import { seedThanks, THANKS_PATH, thanksShown } from '../support/thanks-states'
 
+/** The linker's target (Plan 5 Task 4): no header, footer, menus or search ship there. */
+const LINKS_BUDGET_KB = 200
+
 /** A post's or a page's comments are on screen (their first page comes with the HTML). */
 async function postShown(page: Page) {
   await expect(page.getByRole('tab', { name: /دیدگاه/ })).toBeVisible()
@@ -42,12 +45,17 @@ const ROUTES: BudgetRoute[] = [
   // comment form loads on its first open). Each load counts the post one view: four a run.
   { name: 'blog-post', path: '/blog/best-phones-under-30m/', ready: postShown },
   // Plan 5 Task 3: content pages, catalog-like too: `about-us` with its comments (the section
-  // ships with the page, the form loads on its first open) and `contact-us`, closed and without
+  // ships with the page, the form loads on its first open) and `privacy`, closed and without
   // comments. Every dev page has the `default` layout; `full_width` and `with_sidebar` differ in
   // server-rendered markup only (the frame's classes, the aside's plain links), with no code of
   // their own in the browser (measured once against a mock API: the Task 3 report).
   { name: 'page', path: '/page/about-us/', ready: postShown },
-  { name: 'page-closed', path: '/page/contact-us/' },
+  { name: 'page-closed', path: '/page/privacy/' },
+  // Plan 5 Task 4: the help centre (its search ships with it), the contact page (its form) and
+  // the linker, which has no shop shell (its own minimal layout): held to 200 KB.
+  { name: 'faq', path: '/faq/' },
+  { name: 'contact', path: '/contact-us/' },
+  { name: 'links', path: '/links/', budget: LINKS_BUDGET_KB },
   // Plan 3: the auth code lives on these routes alone (none of it on the catalog's).
   { name: 'login', path: '/login/' },
   { name: 'register', path: '/register/' },

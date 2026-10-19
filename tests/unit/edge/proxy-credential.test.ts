@@ -66,14 +66,21 @@ describe('the route kind', () => {
     expect(kindOf(await proxy(request(path)))).toBe('credential')
   })
 
-  it.each(['/', '/product/x/', '/checkout/', '/login/?next=/account/'])(
-    'marks %s as a page',
-    async (path) => {
-      resolveRedirect.mockResolvedValue(null)
-      const { proxy } = await load()
-      expect(kindOf(await proxy(request(path)))).toBe('page')
-    },
-  )
+  it.each([
+    '/',
+    '/product/x/',
+    '/checkout/',
+    '/login/?next=/account/',
+    // Plan 5 Task 4: the help centre, the contact page, and the linker outside the shop's layout
+    // (its own minimal layout still renders the operator's code on a proxy-marked page).
+    '/faq/',
+    '/contact-us/',
+    '/links/',
+  ])('marks %s as a page', async (path) => {
+    resolveRedirect.mockResolvedValue(null)
+    const { proxy } = await load()
+    expect(kindOf(await proxy(request(path)))).toBe('page')
+  })
 
   it('never takes the visitor’s own marker', async () => {
     const { proxy } = await load()

@@ -88,6 +88,8 @@ const ROUTES: SignedInRoute[] = [
     path: '/page/about-us/',
     ready: (page) => expect(page.getByRole('tab', { name: /دیدگاه/ })).toBeVisible(),
   },
+  // The contact page as she sees it: every field shown to her too (Plan 5 Task 4).
+  { name: 'contact', path: '/contact-us/' },
   {
     name: 'reading-list',
     path: '/account/reading-list/',

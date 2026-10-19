@@ -10,7 +10,8 @@ import { pageComment, pageFixture } from './page-fixtures'
 // `/page/<slug>/` (content digest §3.2): the operator's page in one of three layouts (`default`,
 // `full_width`, `with_sidebar` with an aside listing the other pages; anything else is
 // `default`), its `property=` meta rows rendered by the page, its comments when they are open or
-// some exist, the contact form's slot under `contact-us`, and real 404s.
+// some exist, and real 404s. (`contact-us` is never rendered here: `/page/contact-us/` redirects
+// to the contact page, `/contact-us/`, which shows its content above the form.)
 
 const mocks = vi.hoisted(() => ({ apiFetch: vi.fn(), cookies: new Map<string, string>() }))
 
@@ -29,11 +30,6 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 vi.mock('@/lib/api/server', () => ({ apiFetch: mocks.apiFetch }))
-// The contact form's slot renders nothing until Task 4: a marker shows where it is placed.
-vi.mock('@/features/content/pages/contact-slot', async () => {
-  const { createElement } = await import('react')
-  return { ContactFormSlot: () => createElement('div', { 'data-slot': 'contact-form' }) }
-})
 vi.mock('@/lib/api/client', () => ({ bffFetch: vi.fn(() => new Promise(() => {})) }))
 vi.mock('@/features/settings/api', () => ({
   getTranslations: async () => ({}),
@@ -79,8 +75,9 @@ describe('a content page’s layout', () => {
     const aside = screen.getByRole('complementary', { name: 'صفحه\u{200C}های دیگر' })
     expect(aside.tagName).toBe('ASIDE')
     const links = within(aside).getAllByRole('link')
+    // The contact-us page's home is the contact page (no redirect hop).
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
-      '/page/contact-us/',
+      '/contact-us/',
       '/page/privacy/',
       '/page/terms/',
     ])
@@ -163,25 +160,6 @@ describe('a content page’s content', () => {
     ])
     // `name=` rows go through the metadata (`other`), never as property tags.
     expect(document.head.querySelector('meta[property="twitter:card"]')).toBeNull()
-  })
-
-  it('contact-us: the contact form’s slot (Task 4) right under the content, in the article', async () => {
-    await show({
-      page: pageFixture({
-        slug: 'contact-us',
-        title: 'درباره ما',
-        enable_comments: false,
-        comment_count: 0,
-      }),
-    })
-    const slot = document.querySelector('[data-slot="contact-form"]')
-    expect(slot).not.toBeNull()
-    expect(article().lastElementChild).toBe(slot)
-  })
-
-  it('no contact slot on another page', async () => {
-    await show({ page: pageFixture() })
-    expect(document.querySelector('[data-slot="contact-form"]')).toBeNull()
   })
 })
 

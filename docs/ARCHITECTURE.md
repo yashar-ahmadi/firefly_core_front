@@ -393,6 +393,10 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 | `blog/post/<slug>/comment/list/?comment_type=comment&page=1`, `pages/<slug>/comment/list/?comment_type=comment&page=1` | `getFirstComments()` (`features/comments/first-comments.ts`): page 1 of a post's or a content page's comments, server-rendered in its own in-page `<Suspense>` after the subject; the questions (read when their tab opens), later pages, and page 1 again for a signed-in visitor (`is_current_user`) come through the BFF | 60 s | `blog-post:<slug>`, `blog`; `page:<slug>`, `pages` |
 | `pages/<slug>/` | `getPage()` (`features/content/pages/api.ts`): a content page as everyone sees it, anonymous (a 404 remembered a minute in process memory); a staff preview is read apart, never cached (see Content pages) | 300 s | `page:<slug>`, `pages` |
 | `pages/list/?limit=100` | `getPageCards()`: the `with_sidebar` aside's other pages | 300 s | `pages` |
+| `pages/contact-us/` | `getContactPage()` (`features/contact/api.ts`, through `getPublishedPage()`): the operator's contact page above the form at `/contact-us/`, published only (never a staff read); a failed read shows the page without it | 300 s | `page:contact-us`, `pages` |
+| `faq/category/list/?limit=100&page=…` (all pages) | `getFaqCategories()` (`features/faq/api.ts`): the help centre, anonymous | 600 s | `faq` |
+| `contact-us/subject/list/?limit=100&page=…` (all pages) | `getContactSubjects()` (`features/contact/api.ts`): the contact form's subjects; expired at once by the BFF when a message is refused for a stale list (see Help centre, contact page and linker) | 300 s | `contact-subjects` |
+| `linker/` | `getLinker()` (`features/linker/api.ts`): `/links/` | 300 s | `linker` |
 | `product/detail/<slug>/comment/list/?comment_type=…&page=1` | `getFirstComments()`: page 1 of the reviews and of the questions, server-rendered in their own in-page `<Suspense>` after the product (spec §8.13); later pages, and page 1 again for a signed-in visitor (`is_current_user`), come through the BFF | 60 s | `product:<slug>`, `catalog` |
 | `robots/?format=txt` | `/robots.txt` route | 300 s (fetch level) | — |
 | `redirects/list/` (rule sources only) | `knownSources()`, in process memory | 5 min (a failed load is retried after 30 s) | — |
@@ -401,7 +405,8 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 
 Never cached (`cache: 'no-store'`, and `Cache-Control: no-store` on our responses):
 
-- every BFF call (cart, auth, account, orders, payment status, search…);
+- every BFF call (cart, auth, account, orders, payment status, search…), the contact form's
+  message and its subject list read again after a stale-subject refusal among them;
 - `blog/post/<slug>/` (each read counts a view): `getPost()`, once per page view, as the visitor
   (see Blog post views);
 - a content page's staff preview: `pages/<slug>/` read again with the visitor's token after the
@@ -546,13 +551,99 @@ links prefetch as any shop link: the search results' page rows, the aside, menus
   (`CommentsGate`): closed by `enable_comments`, or by a send's `403 page_comments_disabled`,
   which takes every form away and puts the API's sentence (focused) in its place. The shop's
   answer reads «پاسخ فروشگاه» on posts and pages alike, as in «دیدگاه‌های من».
-- **`contact-us`**: `ContactFormSlot` under the content is where Task 4's contact form renders
-  (nothing yet). Task 4 also adds `/contact-us/`. The canonical URL for the contact form is then
-  `/contact-us/`, which always exists (with the store's contact details), whether or not the
-  operator made a page. When it lands, `/page/contact-us/` should name `/contact-us/` as its
-  canonical (unless the operator set `canonical_link`). Until then the page is self-canonical,
-  because `/contact-us/` does not exist yet. The backend's sitemap lists `/page/contact-us/` while
-  the page is published.
+- **`contact-us`** is never rendered here: `/page/contact-us/` redirects (308) to the contact
+  page, `/contact-us/`, which shows the page's title, content and meta rows above the form (see
+  Help centre, contact page and linker). The shop's own links to it (`contentPagePath`: search
+  rows, the aside, «دیدگاه‌های من») go straight to `/contact-us/`; menus and the backend's sitemap
+  still name `/page/contact-us/` and take the redirect.
+
+### Help centre, contact page and linker
+
+Plan 5 Task 4: `/faq/` and `/contact-us/` in the shop's layout, `/links/` in its own.
+
+- **Help centre** (`/faq/`, blog-faq digest §2): every category (`limit=100`, then each page `next`
+  names; only its `page` is read, `lib/api/every-page.ts`), anonymous and cached 600 s
+  (`getFaqCategories()`, shared with `generateMetadata` by `cache()`), in the API's order (never
+  sorted by name). A category without a visible question is left out (no heading over nothing,
+  no chip to it); with none at all, an empty state. Each question is the kit's native
+  `Disclosure` (`<details id="faq-<id>">`, its question an h3 under the category's h2, escaped,
+  `pre-line`); each answer is operator HTML the API leaves unsanitised with relative `/media`: it
+  goes through the shared sanitiser on the server (`faqSections()`: scripts, handlers and
+  `javascript:` dropped, `/media` and `/static` on the API's origin). The page ships one island,
+  `FaqBrowser`: the chip row (in-page links to `#faq-category-<id>`, sticky under the header;
+  they work without JavaScript), a search over every question and answer (the API has none):
+  Persian-aware (`faq-search.ts`: the Arabic ي, ى and ك read as ی and ک, digits in any script, a
+  ZWNJ as a space, and a word found with or without its spaces), every word in any order; while
+  it runs, what does not match is `hidden`, the chips go, and a polite region says the count;
+  nothing found offers the contact page. A `#faq-<id>` link (on arrival or from the page) opens
+  its question and brings it into view, clearing a search that hid it (`useFaqDeepLink`).
+  FAQPage JSON-LD is built from the same data (the API's is not exposed): every question shown,
+  each answer as the plain text of its sanitised HTML, escaped.
+- **Contact page** (`/contact-us/`, content digest §9; `force-dynamic`, as the digest asks): the
+  canonical contact URL, the backend's `support_link` (seo digest §2.2). `/contact/` (the guide's)
+  and `/page/contact-us/` send there for good (308, `src/config/redirects.ts`). next.config's
+  redirects run before the proxy (Next's order: headers, redirects, then the proxy), so they win
+  over an operator redirect rule for the same path: the proxy never sees these requests (checked
+  on the build: with a refresh cookie, `/faq/` makes the proxy's refresh call and `/contact/` none).
+  The operator's `contact-us` page, when published, gives the title, the content (sanitised)
+  and its meta rows (`property=` rendered, `name=` through `metadata.other`); its comments are not
+  shown (the form is how to write to the shop) and the canonical is always `/contact-us/` (its
+  `canonical_link` would name the redirect). Then the shop's contact details (the footer's
+  `contactDetails()` and `ContactDetailsList` from `components/layout/contact-block.tsx`: phones,
+  e-mail, address with postal code and map link, the response hours; not the support link, which
+  leads here) beside the form.
+- **The form** (`features/contact/`): the subject select only while subjects are listed (required,
+  «انتخاب کنید» first and disabled), the name (≤ 100, `autocomplete="name"`), e-mail and phone in
+  one fieldset (both left to right; at least one, checked before any request with the API's own
+  `contact_channel_required` sentence, said once under both and describing both), the text
+  (10–5000 as hints only), the honeypot. The body: the subject as a Number or left out, e-mail and
+  phone trimmed and left out when empty, the phone's digits normalised (an Iranian mobile as
+  `09…`; anything else in Latin digits for the API to refuse), the honeypot as typed. Every error of
+  the table goes where it belongs (`contactFailure()`): the three contact codes (`attr: null`) by
+  code, the others by `attr`, several at once; `parse_error`, 405, 413, 415 one generic alert; no
+  answer or a 5xx «ارسال نشد…»; a 429 holds the button for `retry_after`, said in minutes (it can
+  be close to an hour). A 201 shows the API's sentence under the button, clears the form and
+  focuses the text.
+- **A stale subject list** (Review Focus #4): the page's list is cached 300 s, so a subject
+  switched off meanwhile (`contact_subject_unavailable`), or a list that was empty and is not any
+  more (`contact_subject_required` while the form had no select), means the form's list is out of
+  date. The form reads the list again through the BFF (`GET contact-us/subject/list/`: BFF calls
+  are never cached), draws the select anew (keyed by the ids, so no old choice survives), keeps
+  everything typed and says what happened. The digest's own design is a route handler calling
+  `revalidateTag`; here the browser's calls go through `/api/bff/`, so the BFF does it
+  (`lib/bff/contact-subjects.ts`): after the API's refusal with one of the two codes it expires
+  the `contact-subjects` tag at once (`revalidateTag(tag, { expire: 0 })`), so the next render of
+  the page reads the new list too. Only the storefront's own form can cause it: the BFF's CSRF
+  check (`X-Requested-With: ff`, a same-origin `Origin`) comes before any call, and the API must
+  have answered one of the two codes; and since a script can forge both, a bust happens at most
+  once per 30 s per server process (each costs one subject read on the next render).
+- **Throttle identity**: the message (10 kept an hour, per IP for a guest) goes through the BFF,
+  which sends the visitor's IP as `X-Forwarded-For` on every call it forwards (`handleBff`, from
+  `CLIENT_IP_HEADER`), as on every uncached user call, so each guest has the quota to themselves.
+  The API honours it only from a trusted proxy (`TRUSTED_PROXY_IPS`, DEPLOYMENT): otherwise every
+  guest shares the storefront server's ten messages an hour.
+- **Linker** (`/links/`, content digest §8): `src/app/links/` sits outside `(shop)`, in its own
+  layout: no shop header, footer or bottom navigation, but the root layout's skip link, providers
+  and operator snippets (the proxy marks it a `page` like any other page), its `<main id="main">`
+  and the bottom HTML zone, and next.config's security headers. One template for every theme: the
+  palette as CSS variables on the root (`linkerStyle()`: `--linker-background`, a colour or a
+  gradient, painted `no-repeat` the whole screen high; the text, button background, text and
+  border; `--linker-radius` from `rounded_edges`), a value that is not a plain colour or gradient
+  replaced by the classic palette's; the avatar's circle and a button's hover derived with
+  `color-mix`; never a branch on `theme.key`. The focus ring takes the theme's text colour (it
+  sits on the page background, which the theme keeps readable). The social row on top or at the
+  bottom; a button's thumbnail on the PHYSICAL side the operator chose (the page is RTL: `right`
+  is the natural order, `left` reversed); the footer line with `show_footer`. Links by type: a
+  store path is the router's `Link` (a post never prefetched, P5-R1; a short link a plain `<a>`),
+  anything else a plain `<a>` to the API's absolute `href`; e-mail and phone their `mailto:` and
+  `tel:`; text a heading and its lines, never HTML; a video an embed only for Aparat
+  (`/v/<hash>` → `www.aparat.com/video/video/embed/videohash/<hash>/vt/frame`) and YouTube
+  (`watch?v=`, `youtu.be` → `www.youtube.com/embed/<id>`), hosts matched exactly, lazily loaded,
+  titled, with `referrerpolicy="strict-origin-when-cross-origin"` (YouTube refuses to play without
+  the origin); any other video a button; an unknown type nothing. The site's CSP has
+  `frame-ancestors` only (who may frame the shop), no `frame-src`, so the embeds need no CSP
+  change. A linker never saved (`name === ''`) is a real 404; the page is indexable, its title the
+  name, its canonical `/links/`. A server component: the route ships the root layout's code alone.
 
 ## Rendering rules
 
@@ -808,6 +899,17 @@ links prefetch as any shop link: the search results' page rows, the aside, menus
   the card-transfer page 0.2 more (215.8, 241.7). Bisecting builds found no single cause: taking
   out the post page, its comments or the reading list each gave back 0.1–0.2 KB of the checkout's
   share, and the checkout loads the same modules as before the task.
+- **The help centre, the contact page and the linker** (Plan 5 Task 4, the full run's guards).
+  `/faq/` 205.4 KB (desktop and phone; one island: the search, the chips, the questions through
+  the kit's `Disclosure`); `/contact-us/` 208.5 KB for a guest, 210.8/208.5 KB signed in,
+  212.5/210.2 KB with push on (the form); `/links/` 196.7 KB, held to 200 KB (no shop shell: the
+  root layout's code and a server-rendered page). Against Task 3's run: the catalog, `/cart/`, the
+  blog post and `/checkout/` (a guest 241.1, sara's refused writes 244.4) unchanged; the
+  checkout's review states 239.8 → 239.9 KB, 9 bytes (two lazy loaders name chunks whose hashes
+  changed; no module of the checkout changed, the figure crossed a rounding boundary); content
+  pages 0.1–0.2 KB more (217.1: Turbopack moved the Radix tabs code their comments use into a
+  chunk now shared with `/categories/`, whose total is unchanged); two account rows 0.1 KB
+  (rounding).
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -1122,10 +1224,16 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   the search's «مشاهدهٔ همه» as a guest; `watch-errors.ts` lets no route's 404 through any more
   (content pages were the last, Task 3), only the dev backend's missing pictures. Content pages'
   spec (`tests/e2e/content/page.spec.ts`, every device project, a guest) reads `about-us` in its
-  layout with its comments and the shop's answer, `contact-us` without a comments block, real 404s
+  layout with its comments and the shop's answer, `privacy` without a comments block, real 404s
   for a missing page and a draft, and answers the form's POST itself (a 201, then a 403
   `page_comments_disabled`); `E2E_LIVE_PAGE_COMMENT=1` sends one guest comment on `terms` for
-  real (desktop only, once: it stays pending for the operator to reject). A post's spec (`tests/e2e/blog/post.spec.ts`,
+  real (desktop only, once: it stays pending for the operator to reject). The help centre's,
+  the contact page's and the linker's specs (`tests/e2e/content/faq.spec.ts`, `contact.spec.ts`,
+  `links.spec.ts`, every device project, a guest) read the live pages (the order, the keyboard,
+  the chips, the Persian search, a deep link; the subjects, the details, the redirects; the
+  theme, the shell's absence, the focus ring) and answer every contact POST and the subject
+  list read again themselves (a real message is a permanent row in the inbox);
+  `E2E_LIVE_CONTACT=1` sends one message for real (desktop only, once). A post's spec (`tests/e2e/blog/post.spec.ts`,
   every device project, a guest) reads the article, its table of contents, the comments with the
   shop's answer and the Q&A tab, and a real 404; it counts the views of one post per project
   (`airfryer-vs-oven`, `laptop-for-students`, `smartwatch-health-features`: a load, a click from

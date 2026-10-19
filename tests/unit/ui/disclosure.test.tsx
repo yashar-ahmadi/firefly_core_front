@@ -49,4 +49,21 @@ describe('Disclosure', () => {
     )
     expect(summaryOf('یک').parentElement).toHaveAttribute('name', 'faq')
   })
+
+  it('takes an id (an anchor to it) and can be hidden', () => {
+    const { rerender } = render(
+      <Disclosure id="faq-42" title="پرسش">
+        <p>پاسخ</p>
+      </Disclosure>,
+    )
+    const details = summaryOf('پرسش').parentElement!
+    expect(details).toHaveAttribute('id', 'faq-42')
+    expect(details).not.toHaveAttribute('hidden')
+    rerender(
+      <Disclosure id="faq-42" title="پرسش" hidden>
+        <p>پاسخ</p>
+      </Disclosure>,
+    )
+    expect(document.getElementById('faq-42')).toHaveAttribute('hidden')
+  })
 })

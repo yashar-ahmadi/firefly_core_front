@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { storefrontRedirects } from './src/config/redirects'
 import { buildRemotePatterns } from './src/config/remote-patterns'
 import { securityHeaderRules } from './src/config/security-headers'
 
@@ -22,6 +23,8 @@ const nextConfig: NextConfig = {
   // X-Frame-Options, CSP frame-ancestors, nosniff and Referrer-Policy on every response
   // (no-referrer on the pages whose URL holds a payment credential).
   headers: async () => securityHeaderRules(),
+  // `/contact/` and `/page/contact-us/` → `/contact-us/` (308), before the proxy runs.
+  redirects: async () => storefrontRedirects(),
   // `next dev` logs each request's URL; never one holding a payment link's token or a payment's
   // uuid (src/config/credential-routes.ts), the BFF's paths to them included. Production logs no
   // requests.

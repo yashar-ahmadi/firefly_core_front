@@ -3,11 +3,20 @@ import type { PageDetail, PageLayout } from '@/lib/api/types/page'
 // A content page's URL, layout and what it shows (content digest §3.2, §10.1). Pure: safe in any
 // bundle.
 
-/** The page Task 4's contact form renders under (content digest §3.2). */
+/** The operator's contact page (content digest §3.2): its content shows above the contact form. */
 export const CONTACT_US_SLUG = 'contact-us'
+/**
+ * The contact page (`src/app/(shop)/contact-us/`): the backend's `support_link` (seo digest
+ * §2.2), so the canonical URL; `/contact/` and `/page/contact-us/` redirect here (next.config).
+ */
+export const CONTACT_US_PATH = '/contact-us/'
 
-/** `/page/<slug>/`, the URL the backend emits for a page (menus, sitemap, search). */
+/**
+ * `/page/<slug>/`, the URL the backend emits for a page (menus, sitemap, search); the
+ * `contact-us` page's is the contact page, so the shop's own links skip the redirect.
+ */
 export function contentPagePath(slug: string): string {
+  if (slug === CONTACT_US_SLUG) return CONTACT_US_PATH
   return `/page/${encodeURIComponent(slug)}/`
 }
 

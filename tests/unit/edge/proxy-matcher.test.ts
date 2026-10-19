@@ -22,6 +22,9 @@ describe('matcher', () => {
   it.each([
     '/',
     '/product/samsung-galaxy-s23-ultra/',
+    '/faq/',
+    '/contact-us/',
+    '/links/',
     '/festival/',
     '/blog/%DA%A9/',
     '/product/v1.5/',

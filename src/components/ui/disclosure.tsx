@@ -9,6 +9,10 @@ export interface DisclosureProps {
   children: ReactNode
   /** Disclosures sharing a name open one at a time where the browser supports it. */
   name?: string
+  /** The `<details>` element's own id (an anchor to it: the help centre's `#faq-<id>`). */
+  id?: string
+  /** Left out of the page for now (a search that does not match it). */
+  hidden?: boolean
   className?: string
   summaryClassName?: string
   contentClassName?: string
@@ -26,6 +30,8 @@ export function Disclosure({
   level = 3,
   children,
   name,
+  id,
+  hidden,
   className,
   summaryClassName,
   contentClassName,
@@ -34,6 +40,8 @@ export function Disclosure({
   return (
     <details
       name={name}
+      id={id}
+      hidden={hidden}
       className={cn('group/disclosure border-b border-ink-200 last:border-b-0', className)}
     >
       <summary

@@ -12,9 +12,8 @@ import { JsonLd } from '@/features/seo/json-ld'
 import { propertyMetaTags } from '@/features/seo/page-metadata'
 import type { PageDetail, PageLayout } from '@/lib/api/types/page'
 import { PAGE_TITLE_ID } from '@/lib/html/reserved-ids'
-import { ContactFormSlot } from './contact-slot'
 import { PageComments } from './page-comments'
-import { CONTACT_US_SLUG, commentsShown, pageLayout } from './page-routes'
+import { commentsShown, pageLayout } from './page-routes'
 import { otherPages, PagesAside } from './pages-aside'
 
 /** Each layout's frame (content digest §3.2). */
@@ -39,10 +38,9 @@ export interface ContentPageProps {
  * `property`, which Next's metadata cannot write: React hoists these into <head>), its JSON-LD,
  * the staff preview's bar, the trail, then the layout's frame (`data-layout`): the article (its
  * title, the page's one h1; the content, sanitised: `/media` on the API, shop links routed in the
- * browser, a post's never prefetched; under `contact-us`, the contact form's slot), the comments
- * block when it shows (`commentsShown`), and the `with_sidebar` aside (the other pages: the list
- * is read for that layout only, cached like the pages). Server-rendered; the comments' first
- * page streams in its own `<Suspense>`.
+ * browser, a post's never prefetched), the comments block when it shows (`commentsShown`), and
+ * the `with_sidebar` aside (the other pages: the list is read for that layout only, cached like
+ * the pages). Server-rendered; the comments' first page streams in its own `<Suspense>`.
  */
 export async function ContentPage({ page, jsonLd }: ContentPageProps) {
   const layout = pageLayout(page.layout)
@@ -90,7 +88,6 @@ export async function ContentPage({ page, jsonLd }: ContentPageProps) {
                 <p className="text-base leading-8 text-ink-800">{page.description}</p>
               )
             )}
-            {page.slug === CONTACT_US_SLUG && <ContactFormSlot />}
           </article>
           {comments && (
             <PageComments

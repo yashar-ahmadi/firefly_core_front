@@ -17,6 +17,9 @@ import { handleBff } from '@/lib/bff/handler'
  *   no cart token, no refresh, no cookie change) and without the flag: the API refuses a signed-in
  *   visitor another account's payment but answers it anonymously (`@/lib/bff/anonymous`).
  *   Elsewhere the flag is an ordinary query parameter.
+ * - A contact message the API refuses for a stale subject list (`contact_subject_unavailable`,
+ *   `contact_subject_required`) expires the contact page's cached subjects, after the CSRF check
+ *   and at most once per 30 s (`@/lib/bff/contact-subjects`).
  */
 export const dynamic = 'force-dynamic'
 
