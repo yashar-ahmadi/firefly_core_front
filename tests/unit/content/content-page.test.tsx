@@ -234,12 +234,16 @@ describe('a staff preview of a draft', () => {
     await show({ page: null, staffPage: pageFixture({ is_unpublished: true }) }, 'about-us')
     expect(screen.getByRole('status')).toHaveTextContent('پیش\u{200C}نویس — منتشر نشده')
     expect(comments()).toBeNull()
-    const reads = readsOf(mocks.apiFetch, 'pages/about-us')
-    expect(reads.map(([, options]) => [options.token ?? null, options.revalidate ?? null])).toEqual(
-      [
-        [null, 300],
-        ['aaa.bbb.ccc', null],
-      ],
-    )
+    // [token, revalidate, visitor IP]: everyone's read is anonymous and cached, so it never
+    // carries an IP (it would split the cache per visitor); the uncached preview carries hers.
+    const reads = readsOf(mocks.apiFetch, 'pages/about-us').map(([, options]) => [
+      options.token ?? null,
+      options.revalidate ?? null,
+      options.forwardedFor ?? null,
+    ])
+    expect(reads).toEqual([
+      [null, 300, null],
+      ['aaa.bbb.ccc', null, '5.6.7.8'],
+    ])
   })
 })
