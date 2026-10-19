@@ -14,6 +14,7 @@ import {
   visitorIp,
   type ReadOptions,
 } from '@/features/catalog/loaders/read'
+import { orRememberedPastLastPage } from '@/features/catalog/loaders/missing'
 import { isApiNotFound } from '@/lib/api/errors'
 import type { BrandCard, FiltersMetadata, ProductCard } from '@/lib/api/types/catalog'
 import type { Paginated } from '@/lib/api/types/common'
@@ -47,13 +48,18 @@ export const getBrands = cache(async (): Promise<BrandCard[]> => {
 })
 
 const listProducts = cache(
-  (search: string, forwardedFor: string | null): Promise<Paginated<ProductCard>> =>
-    read<Paginated<ProductCard>>('product/list', {
-      query: Object.fromEntries(new URLSearchParams(search)),
-      revalidate: LISTING_REVALIDATE,
-      tags: [CATALOG_TAG],
-      forwardedFor,
-    }),
+  (search: string, forwardedFor: string | null): Promise<Paginated<ProductCard>> => {
+    const query = new URLSearchParams(search)
+    // A page past the last is remembered a minute (the Data Cache keeps no 404).
+    return orRememberedPastLastPage(`product/list?${search}`, query.has('page'), () =>
+      read<Paginated<ProductCard>>('product/list', {
+        query: Object.fromEntries(query),
+        revalidate: LISTING_REVALIDATE,
+        tags: [CATALOG_TAG],
+        forwardedFor,
+      }),
+    )
+  },
 )
 
 /**
@@ -80,7 +86,8 @@ export function isLongTail(q: ListingApiQuery): boolean {
  * storefront's anonymous budget. Every other listing is shared by all visitors.
  *
  * Throws `ApiError` on failure. A page past the last one is `ApiError { status: 404, code:
- * 'not_found' }` ("صفحه نامعتبر"): it propagates so the page can call `notFound()`. An unknown
+ * 'not_found' }` ("صفحه نامعتبر"): it propagates so the page can call `notFound()`, and is
+ * remembered for a minute (no API call when asked again: `orRememberedPastLastPage`). An unknown
  * category, brand or list slug is no error here (200 with `count: 0`); check it with its detail.
  */
 export async function getProductList(q: ListingApiQuery): Promise<Paginated<ProductCard>> {

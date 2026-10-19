@@ -1,6 +1,7 @@
 import 'server-only'
 import { cache } from 'react'
 import { asBlogError, BlogUnavailableError } from '@/features/blog/blog-errors'
+import { orRememberedPastLastPage } from '@/features/catalog/loaders/missing'
 import { oneSegment, orRememberedNotFound, visitorIp } from '@/features/catalog/loaders/read'
 import { ApiError } from '@/lib/api/errors'
 import { apiFetch, type ApiFetchOptions } from '@/lib/api/server'
@@ -64,19 +65,24 @@ export interface BlogPostsQuery {
 }
 
 const listPosts = cache(
-  (search: string, forwardedFor: string | null): Promise<Paginated<PostCard>> =>
-    blogRead<Paginated<PostCard>>('blog/post/list', {
-      query: Object.fromEntries(new URLSearchParams(search)),
-      revalidate: LIST_REVALIDATE,
-      tags: [BLOG_TAG],
-      forwardedFor,
-    }),
+  (search: string, forwardedFor: string | null): Promise<Paginated<PostCard>> => {
+    const query = new URLSearchParams(search)
+    // A page past the last is remembered a minute (the Data Cache keeps no 404).
+    return orRememberedPastLastPage(`blog/post/list?${search}`, query.has('page'), () =>
+      blogRead<Paginated<PostCard>>('blog/post/list', {
+        query: Object.fromEntries(query),
+        revalidate: LIST_REVALIDATE,
+        tags: [BLOG_TAG],
+        forwardedFor,
+      }),
+    )
+  },
 )
 
 /**
  * `GET blog/post/list/`. Equal queries share one request and one cache entry (one key order,
  * page 1 left out). A page past the last is `ApiError { status: 404 }` («صفحه نامعتبر»): the
- * page calls `notFound()`. An unknown category is no error here (the API ignores it and lists
+ * page calls `notFound()`; remembered for a minute (no API call when asked again). An unknown category is no error here (the API ignores it and lists
  * everything): check it with `getBlogCategory` first.
  */
 export async function getBlogPosts(q: BlogPostsQuery): Promise<Paginated<PostCard>> {

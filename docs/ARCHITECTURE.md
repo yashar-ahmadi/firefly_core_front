@@ -180,7 +180,10 @@ visitor's own API rate limit rather than to the storefront's single address. Pla
 parameters, or only `sort`, `page`, the boolean toggles or a single brand) stay shared. The API's
 own 404s for product, category, brand and list-page slugs (and unknown filter contexts) are
 remembered in process memory for 60 s, at most 500 keys, least recently used out first
-(`features/catalog/loaders/missing.ts`); other failures are never remembered, and
+(`features/catalog/loaders/missing.ts`), and so is a listing page past its last (`?page=N`: the
+catalog's `product/list/` and the blog's `blog/post/list/`, keyed by the normalised API query,
+`orRememberedPastLastPage`; the page is still a 404, Plan 2's rule); other failures are never
+remembered, and
 `revalidateTag` does not clear this list. DEPLOYMENT.md recommends a per-IP nginx `limit_req` on
 the catalog paths on top. The backend must trust the storefront (`TRUSTED_PROXY_IPS`); see
 DEPLOYMENT.md.
@@ -387,7 +390,7 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 | `global/get-translation/fa/` (fallback `global/languages/`) | `getTranslations()` | 300 s | `translations` |
 | `product/category/list/` (all pages) | `getCategoryTree()` | 300 s | `categories` |
 | `blog/home/` | `getBlogHome()` (`features/blog/api.ts`) | 60 s | `blog:home`, `blog` |
-| `blog/post/list/?category=…&search=…&page=…` | `getBlogPosts()`: the archive, a category's posts; a search sends the visitor IP (its own entry and rate, like a long-tail listing) | 60 s | `blog` |
+| `blog/post/list/?category=…&search=…&page=…` | `getBlogPosts()`: the archive, a category's posts; a search sends the visitor IP (its own entry and rate, like a long-tail listing); a page past the last remembered a minute in process memory | 60 s | `blog` |
 | `blog/category/list/` (all pages), `blog/category/<slug>/` | `getBlogCategories()`, `getBlogCategory()` (a 404 remembered a minute in process memory) | 300 s | `blog`, `blog-category:<slug>` |
 | `global/feature-status/blog/` | `blogSwitchOff()` (`lib/edge/blog-switch.ts`), the proxy's, in process memory | 60 s (a failed read: retried after 15 s, the last known state kept) | — |
 | `blog/post/<slug>/comment/list/?comment_type=comment&page=1`, `pages/<slug>/comment/list/?comment_type=comment&page=1` | `getFirstComments()` (`features/comments/first-comments.ts`): page 1 of a post's or a content page's comments, server-rendered in its own in-page `<Suspense>` after the subject; the questions (read when their tab opens), later pages, and page 1 again for a signed-in visitor (`is_current_user`) come through the BFF | 60 s | `blog-post:<slug>`, `blog`; `page:<slug>`, `pages` |
