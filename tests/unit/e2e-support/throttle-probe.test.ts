@@ -30,6 +30,12 @@ describe('probeBackend', () => {
     })
   })
 
+  it('a 429 without the header: the wait its body gives (`data.retry_after`)', async () => {
+    const body = JSON.stringify({ code: 429, data: { code: 'throttled', retry_after: 552 } })
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(body, { status: 429 }))
+    expect(await probeBackend(API, 'k', fetchImpl)).toEqual({ kind: 'throttled', retryAfter: 552 })
+  })
+
   it('reports a backend that cannot be reached', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => {
       throw new TypeError('fetch failed')

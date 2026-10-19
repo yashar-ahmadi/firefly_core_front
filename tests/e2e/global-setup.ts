@@ -1,14 +1,17 @@
 import type { FullConfig } from '@playwright/test'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { isFullRun, ledgerVerdict, readStarts, recordStart } from './support/anon-budget'
 import { checkServerBuild, localServers } from './support/server-build'
 import { probeBackend, probeVerdict } from './support/throttle-probe'
 
 /**
  * Playwright global setup (after the web servers are up): stop at once, with one clear message,
  * when the backend's anonymous budget is used up (it would answer every spec's API call with
- * 429), or when a local server serves another build than the one just made (a server reused
- * from an earlier run). An unreachable backend or server is left to the specs, as before.
+ * 429), when the full runs of the past hour leave too little of it for one more full run
+ * (support/anon-budget.ts: a ledger of full runs in tests/e2e/.state/), or when a local server
+ * serves another build than the one just made (a server reused from an earlier run). An
+ * unreachable backend or server is left to the specs, as before.
  */
 export default async function globalSetup(config: FullConfig): Promise<void> {
   const apiUrl = process.env.E2E_API_URL ?? 'http://localhost:8000'
@@ -19,6 +22,14 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
   if (verdict) throw new Error(verdict)
 
   const repository = config.configFile ? path.dirname(config.configFile) : process.cwd()
+  if (isFullRun(process.argv) && process.env.E2E_SKIP_ANON_LEDGER !== '1') {
+    const ledger = path.join(repository, 'tests', 'e2e', '.state', 'full-runs.json')
+    const starts = await readStarts(ledger)
+    const now = Date.now()
+    const stop = ledgerVerdict(starts, now)
+    if (stop) throw new Error(stop)
+    await recordStart(ledger, starts, now)
+  }
   const buildFile = path.join(repository, '.next', 'BUILD_ID')
   if (!existsSync(buildFile)) return
   const buildId = readFileSync(buildFile, 'utf8').trim()

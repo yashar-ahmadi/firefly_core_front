@@ -1,6 +1,7 @@
 // Before the e2e suite: one request to the backend, so an exhausted anonymous budget
 // (THROTTLE_ANON, 2000 an hour per address on the sample backend) stops the run with one clear
-// message instead of dozens of specs failing on 429s.
+// message ("wait N s", from Retry-After or the body's `retry_after`) instead of dozens of specs
+// failing on 429s. A budget nearly used up by earlier full runs: support/anon-budget.ts.
 
 /** A cheap anonymous read that the backend's anonymous throttle counts. */
 export const PROBE_PATH = '/api/v1/product/settings/'
@@ -24,10 +25,18 @@ export async function probeBackend(
   } catch (error) {
     return { kind: 'unreachable', reason: error instanceof Error ? error.message : String(error) }
   }
-  await response.body?.cancel().catch(() => undefined)
-  if (response.status !== 429) return { kind: 'ok' }
+  if (response.status !== 429) {
+    await response.body?.cancel().catch(() => undefined)
+    return { kind: 'ok' }
+  }
   const header = response.headers.get('retry-after')
-  return { kind: 'throttled', retryAfter: header && /^\d+$/.test(header) ? Number(header) : null }
+  if (header && /^\d+$/.test(header)) return { kind: 'throttled', retryAfter: Number(header) }
+  // The API's own envelope says it too (`data.retry_after`, seconds).
+  const body = (await response.json().catch(() => null)) as {
+    data?: { retry_after?: unknown }
+  } | null
+  const wait = body?.data?.retry_after
+  return { kind: 'throttled', retryAfter: typeof wait === 'number' && wait > 0 ? wait : null }
 }
 
 /** The message that aborts the run, or null to go on. */

@@ -964,8 +964,14 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   (Task 10's third run within an hour met the 429 midway). Past that the backend answers 429
   `throttled` (`retryAfter` in the server log) and many specs fail at once. For back-to-back runs,
   start the backend with a larger budget, e.g. `THROTTLE_ANON=20000/hour`. A global setup
-  (`tests/e2e/global-setup.ts`) probes the backend once before the run and stops it with that
-  advice when the answer is already 429. The dev backend runs on SQLite: two projects writing
+  (`tests/e2e/global-setup.ts`) probes the backend once before the run (one anonymous read) and
+  stops it with that advice and the wait (`Retry-After`, or the body's `retry_after`) when the
+  answer is already 429. The API tells nothing of the budget left before it refuses, so the setup
+  also keeps the start of every full run (no file, project or grep filter) in a ledger,
+  `tests/e2e/.state/full-runs.json` (`tests/e2e/support/anon-budget.ts`), and stops a third full
+  run within the hour at once with «Wait N s»; `E2E_SKIP_ANON_LEDGER=1` skips the ledger (a larger
+  budget). Focused runs and browsing are not in it: the probe still catches a budget they used
+  up. The dev backend runs on SQLite: two projects writing
   carts at the same moment can meet «database is locked» (a 500). Every spec that writes a cart
   through the UI does it with `cartWrite` (`tests/e2e/support/cart-write.ts`): a 500 that the
   backend's log (`FIREFLY_BACKEND_LOG`, by default `/tmp/backend.log`) shows as that lock, and
