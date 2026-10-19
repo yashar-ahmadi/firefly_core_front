@@ -951,10 +951,11 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   cut-off, fills the receipt with a 400×400 PNG (`tests/fixtures/receipt-400.png`) and MOCKS its
   upload, then the `orders` guard cancels the attempt and the order: two `payment_attempt` calls
   and four `payment_status` reads per run. `E2E_LIVE_RECEIPT=1` sends that receipt for real
-  instead (Plan 4 Task 10 ran it once: order 8492370249, left under review; `payment_receipt_upload`
-  is ten an hour). Its multipart body is read through a route that sends it on unchanged: a
-  `request` listener gets no body for a request holding a file (that one run failed there, after
-  the server had taken the receipt). It is opt-in
+  instead (Plan 4 Task 10 ran it once: order 8492370249; the final fix wave once more: order
+  5572290917, both left under review; `payment_receipt_upload` is ten an hour). Its multipart
+  body is read through a route that sends it on unchanged: a `request` listener gets no body for
+  a request holding a file (that one run failed there, after the server had taken the receipt).
+  It is opt-in
   because a live upload moves the order to «در انتظار بررسی», which neither the customer nor the
   link can cancel: every such run leaves one order in the dev database for the shop's operator
   to reject (its code is printed; the guard cancels the order as usual until the receipt is
@@ -979,8 +980,9 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   stays spent and the order stays (her balance is asserted less exactly the order's online
   amount; the code and the amount are printed). Plan 4 Task 10 ran it once: order 1557203863,
   268,000 Toman from her wallet (45,170,000 → 44,902,000), and that run failed its last check (a
-  console 404 `cart_not_found` on the placement, fixed in 411a832); a passing run is pending the
-  plan's final re-run. «خرید دوباره» on one of shirin's delivered orders
+  console 404 `cart_not_found` on the placement, fixed in 411a832); the final fix wave's run
+  passed: order 8152445742, 268,000 Toman (44,902,000 → 44,634,000). «خرید دوباره» on one of
+  shirin's delivered orders
   (`orders-journey.spec.ts`) fills her cart and its toast leads there; the `shirin` guard
   (`tests/e2e/support/shirin-guard.ts`, her shared session, no login of its own) puts her cart
   and address book back exactly, as the `kamran` guard does his (both through
