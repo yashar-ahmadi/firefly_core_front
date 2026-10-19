@@ -14,8 +14,10 @@ import type { BlogOff } from '@/lib/edge/blog-gate'
  * read is tried again after 15 s.
  *
  * A blog page whose read the API refused with `503 feature_disabled` calls `noteBlogOff`: off at
- * once, so the next request answers 503 without waiting for the minute. The state lives on
- * `globalThis`: the proxy and the pages are separate bundles of one server process.
+ * once, so the next request answers 503 without waiting for the minute. A read that was already
+ * on its way then answers older news: whatever it brings (or fails with) is ignored, and the
+ * note's minute stands (`generation`). The state lives on `globalThis`: the proxy and the pages
+ * are separate bundles of one server process.
  */
 
 const TTL_MS = 60_000
@@ -29,6 +31,8 @@ interface SwitchState {
   /** Whether a read has finished (or a page has said): only the very first one is awaited. */
   settled: boolean
   refreshing: Promise<void> | null
+  /** Bumped by every `noteBlogOff`: a read started before it no longer counts. */
+  generation: number
 }
 
 /** The process-wide state's key (also for tests, which delete it to start over). */
@@ -36,7 +40,13 @@ export const BLOG_SWITCH_STATE = Symbol.for('firefly.blog-switch')
 
 function state(): SwitchState {
   const holder = globalThis as typeof globalThis & { [BLOG_SWITCH_STATE]?: SwitchState }
-  holder[BLOG_SWITCH_STATE] ??= { off: null, nextLoadAt: 0, settled: false, refreshing: null }
+  holder[BLOG_SWITCH_STATE] ??= {
+    off: null,
+    nextLoadAt: 0,
+    settled: false,
+    refreshing: null,
+    generation: 0,
+  }
   return holder[BLOG_SWITCH_STATE]
 }
 
@@ -60,26 +70,37 @@ async function readSwitch(): Promise<BlogOff | null> {
   }
 }
 
+/**
+ * One read of the switch into `current`. A page may note the switch off while it is on its way
+ * (`generation` bumped): the note is newer, so the answer, or the failure's retry time, is dropped.
+ */
+function refresh(current: SwitchState): Promise<void> {
+  const generation = current.generation
+  const stillNews = () => current.generation === generation
+  return readSwitch()
+    .then(
+      (off) => {
+        if (!stillNews()) return
+        current.off = off
+        current.nextLoadAt = Date.now() + TTL_MS
+      },
+      (error: unknown) => {
+        const why = error instanceof ApiError ? `${error.status} ${error.code}` : String(error)
+        console.error('[blog-switch] could not read the blog switch:', why)
+        if (stillNews()) current.nextLoadAt = Date.now() + RETRY_MS
+      },
+    )
+    .finally(() => {
+      current.settled = true
+      current.refreshing = null
+    })
+}
+
 /** The blog's switch as last read: null while it is on (or not known). Never throws. */
 export async function blogSwitchOff(): Promise<BlogOff | null> {
   const current = state()
   if (Date.now() >= current.nextLoadAt) {
-    current.refreshing ??= readSwitch()
-      .then(
-        (off) => {
-          current.off = off
-          current.nextLoadAt = Date.now() + TTL_MS
-        },
-        (error: unknown) => {
-          const why = error instanceof ApiError ? `${error.status} ${error.code}` : String(error)
-          console.error('[blog-switch] could not read the blog switch:', why)
-          current.nextLoadAt = Date.now() + RETRY_MS
-        },
-      )
-      .finally(() => {
-        current.settled = true
-        current.refreshing = null
-      })
+    current.refreshing ??= refresh(current)
     if (!current.settled) await current.refreshing
   }
   return current.off
@@ -91,4 +112,5 @@ export function noteBlogOff(off: BlogOff): void {
   current.off = off
   current.nextLoadAt = Date.now() + TTL_MS
   current.settled = true
+  current.generation += 1
 }

@@ -140,6 +140,47 @@ describe('noteBlogOff', () => {
     await vi.waitFor(async () => expect(await blogSwitchOff()).toBeNull())
   })
 
+  it('wins over a read that started before it and answers after it (“on”, older news)', async () => {
+    const { blogSwitchOff, noteBlogOff } = await load()
+    await blogSwitchOff()
+    let answer: (value: unknown) => void = () => {}
+    apiFetch.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    vi.setSystemTime(Date.now() + 61_000)
+    expect(await blogSwitchOff()).toBeNull()
+    expect(apiFetch).toHaveBeenCalledTimes(2)
+
+    noteBlogOff({ reason: 'وبلاگ بسته است' })
+    answer(row(true))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(await blogSwitchOff()).toEqual({ reason: 'وبلاگ بسته است' })
+    // The note's minute stands: no read before it ends, then the API is asked again.
+    vi.setSystemTime(Date.now() + 59_000)
+    await blogSwitchOff()
+    expect(apiFetch).toHaveBeenCalledTimes(2)
+    apiFetch.mockResolvedValue(row(true))
+    vi.setSystemTime(Date.now() + 2_000)
+    await blogSwitchOff()
+    expect(apiFetch).toHaveBeenCalledTimes(3)
+    await vi.waitFor(async () => expect(await blogSwitchOff()).toBeNull())
+  })
+
+  it('a read that started before it and failed leaves it, and its minute, alone', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { blogSwitchOff, noteBlogOff } = await load()
+    await blogSwitchOff()
+    let fail: (reason: unknown) => void = () => {}
+    apiFetch.mockReturnValue(new Promise((_, reject) => (fail = reject)))
+    vi.setSystemTime(Date.now() + 61_000)
+    await blogSwitchOff()
+    noteBlogOff({ reason: null })
+    fail(await apiError(0, 'network_error'))
+    await vi.waitFor(() => expect(error).toHaveBeenCalledOnce())
+    vi.setSystemTime(Date.now() + 16_000)
+    expect(await blogSwitchOff()).toEqual({ reason: null })
+    expect(apiFetch).toHaveBeenCalledTimes(2)
+    error.mockRestore()
+  })
+
   it('is seen by another copy of the module (the proxy’s and the pages’ bundles)', async () => {
     const pages = await load()
     const proxy = await load()
