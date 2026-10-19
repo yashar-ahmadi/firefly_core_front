@@ -7,7 +7,8 @@ import { labelOf, WITHDRAWAL_STATUSES, WITHDRAWAL_TONES } from './wallet-labels'
 
 // One withdrawal request (order digest §2, §7): the amount, its status as a pill (the API's
 // words; the colour never speaks alone), when it was filed, the account (bank, sheba and card,
-// left to right); a paid one's bank reference and date, a rejected one's reason.
+// left to right, the sheba grouped by fours as the form writes it); a paid one's bank reference
+// and date, a rejected one's reason.
 
 export const withdrawalRowId = (uuid: string) => `withdrawal-${uuid}`
 
@@ -32,8 +33,9 @@ export function WithdrawalFacts({ request }: { request: WithdrawalRequest }) {
           <dd className="text-ink-800">{request.bank_name}</dd>
         </>
       )}
-      <dt className="text-ink-600">شبا</dt>
-      <dd>
+      {/* A phone's column is narrower than a grouped sheba: it takes its own line there. */}
+      <dt className="col-span-2 text-ink-600 sm:col-span-1">شبا</dt>
+      <dd className="col-span-2 sm:col-span-1">
         <bdi dir="ltr" className="text-ink-900 tabular-nums">
           {shownSheba(request.iban)}
         </bdi>

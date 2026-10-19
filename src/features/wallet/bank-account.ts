@@ -41,11 +41,17 @@ const groupsOfFour = (digits: string) => toPersianDigits(digits.replace(/(\d{4})
 /** «۰۶۲۹ ۶۰۰۰ …»: the sheba's digits in groups of four. */
 export const groupSheba = groupsOfFour
 
-/** A whole sheba shown («IR۰۶ ۲۹۶۰ …»), left to right. */
-export const shownSheba = (iban: string) =>
-  /^IR\d{24}$/i.test(iban)
-    ? `IR${groupsOfFour(iban.slice(2, 4))} ${groupsOfFour(iban.slice(4))}`
-    : iban
+/**
+ * A whole sheba shown («IR۰۶ ۲۹۶۰ …»), left to right, in Persian digits whatever its length (the
+ * list shows what the API gives, a seed's odd one included); anything not «IR» and digits as given,
+ * its digits in Persian.
+ */
+export function shownSheba(iban: string): string {
+  const digits = /^IR(\d+)$/i.exec(iban.replace(/[\s-]/g, ''))?.[1]
+  if (!digits) return toPersianDigits(iban)
+  const rest = digits.slice(2)
+  return `IR${groupsOfFour(digits.slice(0, 2))}${rest ? ` ${groupsOfFour(rest)}` : ''}`
+}
 
 /** The card number's 16 digits as typed or pasted. */
 export const cardDigits = (text: string): string => onlyDigits(text).slice(0, CARD_DIGITS)

@@ -8,6 +8,7 @@ import {
   isShebaValid,
   shebaDigits,
   shebaProblem,
+  shownSheba,
 } from '@/features/wallet/bank-account'
 import { regroupField } from '@/features/wallet/digit-field'
 
@@ -48,6 +49,21 @@ describe('the sheba', () => {
 
   it('shown in groups of four, Persian digits', () => {
     expect(groupSheba('062960000000100324200001')).toBe('۰۶۲۹ ۶۰۰۰ ۰۰۰۰ ۱۰۰۳ ۲۴۲۰ ۰۰۰۱')
+  })
+})
+
+describe('a sheba as shown (a request’s, as the API gives it)', () => {
+  it('«IR» and its digits in groups, in Persian digits, left to right', () => {
+    expect(shownSheba(SHEBA)).toBe('IR۰۶ ۲۹۶۰ ۰۰۰۰ ۰۰۱۰ ۰۳۲۴ ۲۰۰۰ ۰۱')
+  })
+
+  it('one of another length (the dev seed’s 25 characters): Persian digits, grouped all the same', () => {
+    expect(shownSheba('IR41968675524242817077818')).toBe('IR۴۱ ۹۶۸۶ ۷۵۵۲ ۴۲۴۲ ۸۱۷۰ ۷۷۸۱ ۸')
+    expect(shownSheba('ir41 9686-7552')).toBe('IR۴۱ ۹۶۸۶ ۷۵۵۲')
+  })
+
+  it('anything else: as given, its digits in Persian', () => {
+    expect(shownSheba('DE89370400440532013000')).toBe('DE۸۹۳۷۰۴۰۰۴۴۰۵۳۲۰۱۳۰۰۰')
   })
 })
 
