@@ -9,7 +9,7 @@ import type { OpenAttempt, PaymentRoute, RedirectPayload } from '@/lib/api/types
 import { loadPage } from '@/lib/navigation/hard-navigation'
 import { useReleaseIfStillHere } from '@/lib/navigation/leaving'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
-import { SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
+import { ORDERS_KEY, SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
 import { IntentError, startPayment, type PaymentDoor, type PaymentIntentResult } from './api'
 import { intentMessage } from './intent-messages'
 import { applyIntentRefusal } from './intent-refusal'
@@ -78,6 +78,9 @@ export function useLinkPayment(options: LinkPaymentOptions) {
    * until it is clear it has not (`holdWhileLeaving`).
    */
   function succeeded(intent: PaymentIntentResult, route: PaymentRoute): boolean {
+    // Paid through its link, the order moved: a signed-in owner's «سفارش‌های من» read it again.
+    // (The account's pay sheet, the uuid door, refreshes them itself: `ordersChanged`.)
+    if (door.kind === 'link') void client.invalidateQueries({ queryKey: ORDERS_KEY })
     const payment = intent.payment
     const pending = () =>
       payment &&

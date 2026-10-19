@@ -14,7 +14,7 @@ import type { PaymentRoute, RedirectPayload } from '@/lib/api/types/payment'
 import { loadPage } from '@/lib/navigation/hard-navigation'
 import { useReleaseIfStillHere } from '@/lib/navigation/leaving'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
-import { SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
+import { ORDERS_KEY, SUMMARY_KEY, WALLET_KEY } from '@/lib/session/viewer-queries'
 import { newIdempotencyKey } from './idempotency'
 import { doorOf, updatePlaced, type PlacedContext } from './placed-order'
 import { thanksPath } from './thanks-path'
@@ -78,6 +78,8 @@ export function usePayOrder(
 
   /** True when the page is leaving (another page loads): the press stays taken meanwhile. */
   function succeeded(intent: PaymentIntentResult, route: PaymentRoute): boolean {
+    // The order moved (confirmed, paid, an attempt open): «سفارش‌های من» read it again.
+    if (!ctx.guest) void client.invalidateQueries({ queryKey: ORDERS_KEY })
     const uuid = intent.payment?.uuid
     const pending = () =>
       uuid &&

@@ -12,7 +12,7 @@ import type { CartAdjustment } from '@/lib/api/types/cart'
 import type { OrderItemUnavailable } from '@/lib/api/types/order'
 import { toPersianDigits } from '@/lib/format'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
-import { SUMMARY_KEY } from '@/lib/session/viewer-queries'
+import { ORDERS_KEY, SUMMARY_KEY } from '@/lib/session/viewer-queries'
 import { receiverBody } from './guest-receiver'
 import { clearPlacementKey, placementKey } from './idempotency'
 import type { PlacementProblem } from './place-order'
@@ -163,7 +163,11 @@ export function usePlaceOrder(
       // The cart is spent: read again (empty now), but not its shipping options, which the API
       // can no longer price (404 `cart_not_found`); the review asking for them goes next.
       void client.invalidateQueries({ queryKey: CART_KEY, exact: true })
-      if (!guest) void client.invalidateQueries({ queryKey: SUMMARY_KEY })
+      if (!guest) {
+        // The counts and «سفارش‌های من» hold the new order now (marked stale: no request here).
+        void client.invalidateQueries({ queryKey: SUMMARY_KEY })
+        void client.invalidateQueries({ queryKey: ORDERS_KEY })
+      }
       announce(`سفارش ${code} ثبت شد.`)
       onPlaced(outcome.ctx)
     } catch {
