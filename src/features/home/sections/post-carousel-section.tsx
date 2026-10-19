@@ -4,19 +4,20 @@ import { Carousel } from '@/components/ui/carousel'
 import { SmartImage } from '@/components/ui/smart-image'
 import type { HomeSection, PostCard } from '@/lib/api/types/catalog'
 import { formatJalaliDate } from '@/lib/format'
+import { blogPostPath } from '@/lib/links/post-link'
 import { SectionShell } from './section-header'
 
 const IMAGE_SIZES = '(min-width: 1024px) 320px, (min-width: 768px) 33vw, 60vw'
 
 /**
  * A compact post card: picture, title and Jalali publish date; the whole card links to
- * `/blog/{slug}/`.
+ * `/blog/{slug}/`, never prefetched (its page counts a view per render, P5-R1).
  */
 function PostTile({ post }: { post: PostCard }) {
   const date = post.published_at ? formatJalaliDate(post.published_at) : ''
   return (
     <Link
-      href={`/blog/${encodeURIComponent(post.slug)}/`}
+      href={blogPostPath(post.slug)}
       prefetch={false}
       className="group flex h-full flex-col gap-3 rounded-card bg-white p-2.5 shadow-card transition-shadow hover:shadow-raised sm:p-3"
     >

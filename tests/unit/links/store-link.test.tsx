@@ -5,12 +5,14 @@ import type { PublicStoreConfig } from '@/config/resolve-store-config'
 import { StoreConfigProvider } from '@/lib/config-context'
 import { StoreLink } from '@/lib/links/store-link'
 
-// A marker on Next links, so a client-side link can be told apart from a plain <a>.
+// A marker on Next links, so a client-side link can be told apart from a plain <a>, with its
+// prefetch setting (`auto` when none is given).
 vi.mock('next/link', () => ({
   default: (props: ComponentProps<'a'> & { href: string; prefetch?: unknown }) => {
     const anchorProps: ComponentProps<'a'> & { prefetch?: unknown } = { ...props }
     delete anchorProps.prefetch
-    return <a data-next-link="" {...anchorProps} />
+    const prefetch = props.prefetch === undefined ? 'auto' : String(props.prefetch)
+    return <a data-next-link="" data-prefetch={prefetch} {...anchorProps} />
   },
 }))
 
@@ -46,6 +48,22 @@ describe('StoreLink', () => {
       expect(link).not.toHaveAttribute('target')
     },
   )
+
+  // Ruling P5-R1: a post's page counts a view on every render (blog digest §1.5).
+  it.each(['/blog/best-phones-under-30m/', 'https://shop.ir/blog/x/'])(
+    'never prefetches the post %s',
+    (href) => {
+      renderLink({ href, children: 'مطلب' })
+      const link = screen.getByRole('link', { name: 'مطلب' })
+      expect(link).toHaveAttribute('data-next-link')
+      expect(link).toHaveAttribute('data-prefetch', 'false')
+    },
+  )
+
+  it('prefetches other storefront paths as Next decides (the blog’s home included)', () => {
+    renderLink({ href: '/blog/', children: 'وبلاگ' })
+    expect(screen.getByRole('link', { name: 'وبلاگ' })).toHaveAttribute('data-prefetch', 'auto')
+  })
 
   it('renders an absolute URL as a plain <a rel="noopener">', () => {
     renderLink({ href: 'https://blog.example.com/a/', children: 'وبلاگ' })

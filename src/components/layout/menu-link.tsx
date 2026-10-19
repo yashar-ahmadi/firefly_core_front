@@ -6,6 +6,7 @@ import { useState, type HTMLAttributes, type MouseEvent, type ReactNode } from '
 import { cn } from '@/components/ui/cn'
 import type { MenuNode } from '@/lib/api/types/settings'
 import { useOptionalStoreConfig } from '@/lib/config-context'
+import { isBlogPostPath } from '@/lib/links/post-link'
 import { isShortLinkPath } from '@/lib/links/short-link'
 import { isStorePath, storeHref } from '@/lib/links/store-href'
 
@@ -17,7 +18,7 @@ export interface MenuLinkProps extends Omit<HTMLAttributes<HTMLElement>, 'childr
   withIcon?: boolean
   /** Replaces the title as the visible label. */
   children?: ReactNode
-  /** Next.js prefetching for storefront paths (default: Next's own). */
+  /** Next.js prefetching for storefront paths (default: Next's own; never for a post). */
   prefetch?: boolean | null
 }
 
@@ -42,8 +43,9 @@ export function MenuIcon({ src, className }: { src: string; className?: string }
  * One menu item as a link (content.md §5.4): a group heading (`url: null`) is a `<span>`,
  * `open_in_new_tab` opens a new tab with `rel="noopener"` (internal paths too), a storefront
  * path is a Next `Link`, and any other URL a plain `<a>`. A short link (`/s/<code>`) is a plain
- * `<a>` too: every request to it counts a visit, so it must never be prefetched. The URL is used
- * as the API sends it.
+ * `<a>` too: every request to it counts a visit, so it must never be prefetched. A blog post's
+ * page counts a view on every render, so a link to one is never prefetched either (P5-R1). The
+ * URL is used as the API sends it.
  */
 export function MenuLink({
   node,
@@ -78,7 +80,12 @@ export function MenuLink({
   }
   if (isStorePath(href) && !isShortLinkPath(href)) {
     return (
-      <Link href={href} prefetch={prefetch} onClick={handleClick} {...props}>
+      <Link
+        href={href}
+        prefetch={isBlogPostPath(href) ? false : prefetch}
+        onClick={handleClick}
+        {...props}
+      >
         {content}
       </Link>
     )

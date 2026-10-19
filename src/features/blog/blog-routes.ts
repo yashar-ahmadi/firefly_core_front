@@ -6,13 +6,11 @@ import { parseListingParams } from '@/features/catalog/listing-params'
 
 type RawParams = Record<string, string | string[] | undefined>
 
+/** `/blog/<slug>/`, a post: never prefetched (ruling P5-R1, `@/lib/links/post-link`). */
+export { blogPostPath } from '@/lib/links/post-link'
+
 /** The blog home and archive. */
 export const BLOG_PATH = '/blog/'
-
-/** `/blog/<slug>/`, a post (Task 2's page). */
-export function blogPostPath(slug: string): string {
-  return `/blog/${encodeURIComponent(slug)}/`
-}
 
 /** `/blog/category/<path>/` from the category's `path` («tech-news/mobile-blog»). */
 export function blogCategoryPath(path: string): string {

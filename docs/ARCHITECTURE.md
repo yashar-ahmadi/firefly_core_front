@@ -440,6 +440,24 @@ account's «لیست مطالعه» row, my comments' post links, the search res
 reading-list bookmarks (also turned off by a refused write); the operator's menus come pre-filtered
 by the API.
 
+### Blog post views
+
+`GET blog/post/<slug>/` increments the post's `view_count` on every call, with no dedupe (blog
+digest §1.5), so a render of a post's page is a counted view. Ruling P5-R1: **no link to a post is
+ever prefetched.** The blog's own links (cards, the sidebar's recent posts, the home's carousel,
+search rows) say `prefetch={false}`, a link item holding one says `prefetch: false`
+(`tests/unit/blog/post-links-prefetch.test.ts` checks the source), and operator URLs ask
+`isBlogPostPath()` (`lib/links/post-link.ts`: MenuLink in the header and footer menus, StoreLink
+on the home page). Hard rules for the post's route, so that even a default prefetch could never
+render it (Next renders a dynamic page for a prefetch only down to a loading boundary, or with
+Cache Components or partial prefetching):
+
+- no `loading.*` at or above `/blog/[slug]` (`src/app`, `(shop)`, `blog`, `blog/[slug]`);
+- no Cache Components (`cacheComponents`), no partial prefetching (`partialPrefetching`, a
+  segment's `prefetch` export) in next.config or the route.
+
+The same test fails on either.
+
 ## Rendering rules
 
 - **R5 — the root layout is `force-dynamic`.** It reads runtime config (theme, store config,

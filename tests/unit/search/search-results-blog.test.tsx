@@ -8,8 +8,9 @@ import { searchResults } from './fixtures'
 
 // The blog in the search results (content digest §7.1, Plan 5 Task 1): the posts group's
 // «مشاهدهٔ همه» goes to the blog's archive of the group's own query (`/blog/?search=…`, never the
-// raw input), post rows are prefetched like the others now that the blog exists (pages stay off
-// until theirs does), and the group is left out while the blog is switched off.
+// raw input), post rows are never prefetched (ruling P5-R1: a post's page counts a view on every
+// render; pages stay off until theirs exists), and the group is left out while the blog is
+// switched off.
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: () => new Promise(() => {}) }))
@@ -68,11 +69,11 @@ describe('the blog posts in the search results', () => {
     expect(within(posts()!).queryByRole('link', { name: /^مشاهده/ })).toBeNull()
   })
 
-  it('post rows are prefetched as Next decides; content pages are not yet', () => {
+  it('post rows are never prefetched (P5-R1), nor content pages yet', () => {
     show()
     const post = within(posts()!).getByRole('link', { name: /بهترین گوشی/ })
     expect(post).toHaveAttribute('href', '/blog/best-phones-under-30m/')
-    expect(post).toHaveAttribute('data-prefetch', 'auto')
+    expect(post).toHaveAttribute('data-prefetch', 'false')
     const pages = screen.getByRole('region', { name: /^صفحه/ })
     expect(within(pages).getByRole('link', { name: /راهنمای خرید گوشی/ })).toHaveAttribute(
       'data-prefetch',

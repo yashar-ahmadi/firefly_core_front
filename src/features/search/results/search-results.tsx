@@ -49,9 +49,9 @@ function compactItems(results: Results, kind: Exclude<ResultKind, 'products'>): 
         name: post.name,
         description: post.description,
         // The cover, or the title's first letter while the API has only its placeholder.
-        // Prefetched as Next decides: a post's page renders no view for a prefetch (no
-        // loading.tsx, so the prefetch stops at the layouts).
         thumb: <CategoryThumb category={post} sizes="44px" className={SQUARE_THUMB} />,
+        // A post's page counts a view on every render (ruling P5-R1): never prefetched.
+        prefetch: false,
       }))
     case 'pages':
       return results.pages.items.map((page) => ({
