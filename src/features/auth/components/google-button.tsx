@@ -1,7 +1,7 @@
 'use client'
 
 import Script from 'next/script'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/components/ui/cn'
 import { useSubmitWait } from '@/components/form/code-timers'
 import type { Wait } from '@/lib/forms/waits'
@@ -66,7 +66,15 @@ let receiver: ((idToken: string) => void) | null = null
 export function GoogleButton({ clientId, onCredential, wait }: GoogleButtonProps) {
   const [failed, setFailed] = useState(false)
   const slot = useRef<HTMLDivElement>(null)
+  const noteRef = useRef<HTMLDivElement>(null)
   const lock = useSubmitWait(wait)
+  // A wait makes the slot inert. With the focus in Google's button (its frame: the visitor just
+  // pressed it), the browser would then drop the focus to the page: it goes to the wait note
+  // instead, which says how long. Read before the browser's own focus fix-up (a layout effect).
+  useLayoutEffect(() => {
+    if (!lock.locked) return
+    if (slot.current?.contains(document.activeElement)) noteRef.current?.focus()
+  }, [lock.locked])
   // The latest handler of the latest button drawn (the step can be left and shown again).
   const latest = useRef(onCredential)
   useEffect(() => {
@@ -121,7 +129,9 @@ export function GoogleButton({ clientId, onCredential, wait }: GoogleButtonProps
         inert={lock.locked}
         className={cn('flex min-h-11 w-full justify-center', lock.locked && 'opacity-50')}
       />
-      {lock.note}
+      <div ref={noteRef} tabIndex={-1} className="rounded-control outline-none empty:hidden">
+        {lock.note}
+      </div>
       <OrDivider />
     </>
   )
