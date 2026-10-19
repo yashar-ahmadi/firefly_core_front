@@ -53,13 +53,18 @@ export function ContactChannelFields({
             {...shared}
           />
         </Field>
-        <Field label="شمارهٔ موبایل" hint="فقط شمارهٔ موبایل ایران" error={errors.phone}>
+        {/* The example in the hint (as the address form's), not a placeholder: a placeholder
+            reads as a number already typed. */}
+        <Field
+          label="شمارهٔ موبایل"
+          hint="فقط شمارهٔ موبایل ایران؛ مانند ۰۹۱۲۱۲۳۴۵۶۷"
+          error={errors.phone}
+        >
           <Input
             type="tel"
             dir="ltr"
             inputMode="tel"
             autoComplete="tel"
-            placeholder="۰۹۱۲۱۲۳۴۵۶۷"
             value={phone}
             onChange={(event) => onPhone(event.target.value)}
             {...shared}

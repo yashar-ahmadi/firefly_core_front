@@ -59,6 +59,9 @@ describe('the form', () => {
     expect(emailInput()).toHaveAttribute('maxlength', '254')
     expect(channel.getByRole('textbox', { name: /موبایل/ })).toHaveAttribute('type', 'tel')
     expect(phoneInput()).toHaveAttribute('dir', 'ltr')
+    // The example is in the hint, never a placeholder that reads as a number already typed.
+    expect(phoneInput()).not.toHaveAttribute('placeholder')
+    expect(phoneInput()).toHaveAccessibleDescription(/فقط شمارهٔ موبایل ایران؛ مانند ۰۹۱۲۱۲۳۴۵۶۷/)
     expect(messageInput()).toHaveAttribute('minlength', '10')
     expect(messageInput()).toHaveAttribute('maxlength', '5000')
     const honeypot = document.querySelector<HTMLInputElement>('input[name="website"]')!
