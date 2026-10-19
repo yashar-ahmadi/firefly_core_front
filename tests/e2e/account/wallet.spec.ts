@@ -126,8 +126,11 @@ shirinTest(
     const sheet = page.getByRole('dialog', { name: 'جزئیات پرداخت' })
     await expect(sheet).toContainText(toman(history.results[0]!.amount))
     await expect(sheet).toContainText(history.results[0]!.status_display)
-    // The payment's uuid (a credential) never reaches the address bar.
-    expect(page.url()).not.toContain(history.results[0]!.uuid)
+    // The payment's uuid (a credential) never reaches the address bar; compared as a boolean, so
+    // a failure never prints it.
+    expect(page.url().includes(history.results[0]!.uuid), 'the uuid out of the address bar').toBe(
+      false,
+    )
     await page.keyboard.press('Escape')
     await expect(sheet).toBeHidden()
 
