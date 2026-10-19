@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import type SharpModule from 'sharp'
+import { fallbackIcon } from '@/features/pwa/fallback-icons'
 import { apiFileUrl, readApiImage } from '@/features/settings/api-image'
 
 // The installed app's icons (`/icons/<size>/`, src/app/icons/[size]/route.ts; the manifest names
@@ -11,8 +12,10 @@ import { apiFileUrl, readApiImage } from '@/features/settings/api-image'
 // 2 MB, a raster image), contained in the central 56 % on white, which a maskable icon's safe
 // circle (80 %) holds whole. Without either, a monogram: the shop's first letter, white on the
 // brand colour, drawn with the bundled Vazirmatn (no system font is needed: the Docker image has
-// none), or a shopping bag when the font cannot draw it. Each result is kept in memory a day per
-// source (five minutes when a source configured could not be read).
+// none), or a shopping bag when the font cannot draw it. When sharp cannot load or fails, the
+// bundled brand-neutral PNGs (fallback-icons.ts): the icons never fail. Each result is kept in
+// memory a day per source (five minutes when a source configured could not be read, or for the
+// bundled icon).
 
 export type IconSize = 192 | 512
 
@@ -32,8 +35,10 @@ export interface AppIconInput {
 
 export interface AppIcon {
   bytes: Buffer
-  /** Made from the favicon or the logo (false: the monogram). */
+  /** Made from the favicon or the logo (false: the monogram, or the bundled icon). */
   fromSource: boolean
+  /** The bundled brand-neutral icon: sharp could not load or failed (fallback-icons.ts). */
+  fallback?: boolean
 }
 
 const LIMITS = { maxBytes: 2 * 1024 * 1024, timeoutMs: 3_000 }
@@ -164,13 +169,21 @@ const MAX_ENTRIES = 8
 /** Each icon made, by what it is made from, until when (epoch ms); oldest first. */
 const kept = new Map<string, { icon: AppIcon; until: number }>()
 
-/** The icon of `input.size`; never throws for a source that cannot be read. */
+/** The bundled icon, said once per try in a fixed sentence (sharp's message may name paths). */
+function bundled(size: IconSize, error: unknown): AppIcon {
+  const name = error instanceof Error && /^[A-Za-z]{1,40}$/.test(error.name) ? error.name : 'Error'
+  console.error('[icons] sharp could not make the icon; serving the bundled one:', name)
+  return { bytes: fallbackIcon(size), fromSource: false, fallback: true }
+}
+
+/** The icon of `input.size`; never throws (a source that cannot be read, sharp missing or broken). */
 export async function appIcon(input: AppIconInput): Promise<AppIcon> {
   const key = JSON.stringify([input.size, input.favicon, input.logo, input.name, input.primary])
   const copy = kept.get(key)
   if (copy && copy.until > Date.now()) return copy.icon
-  const icon = await makeIcon(input)
-  const unread = !icon.fromSource && Boolean(input.favicon || input.logo)
+  const icon = await makeIcon(input).catch((error: unknown) => bundled(input.size, error))
+  const unread =
+    icon.fallback === true || (!icon.fromSource && Boolean(input.favicon || input.logo))
   kept.delete(key)
   kept.set(key, { icon, until: Date.now() + (unread ? RETRY_MS : DAY_MS) })
   while (kept.size > MAX_ENTRIES) kept.delete(kept.keys().next().value!)
