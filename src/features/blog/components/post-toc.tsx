@@ -13,12 +13,20 @@ import { isModifiedClick } from '@/lib/navigation/modified-click'
 const LABEL = 'فهرست مطالب'
 /** A heading above this share of the viewport's height is one the visitor has reached. */
 const READING_LINE = 0.3
+/**
+ * How far above the viewport the observer's band reaches: further than any post is long, so a
+ * heading is inside the band exactly when it is above the reading line.
+ */
+const BAND_ABOVE_PX = 100_000
 
 /**
  * The heading whose section is being read: the last one above the reading line (none above the
- * first). One IntersectionObserver for every heading, whose band ends at the line: it calls back
- * only when a heading crosses it (or the viewport's top), in either direction, and the answer
- * is then read off the headings' boxes; no scroll listener.
+ * first). One IntersectionObserver for every heading, whose band is everything above the line
+ * (`BAND_ABOVE_PX` up, to the line down): it calls back whenever a heading changes sides of the
+ * line, in either direction, however the page moved. A band ending at the viewport's top would
+ * miss a jump (End, Home, a scrollbar drag, an instant scroll) that takes a heading from below
+ * the line to above the viewport at once: it would never be inside the band, and the mark would
+ * stay on the old section. The answer is then read off the headings' boxes; no scroll listener.
  */
 function useCurrentHeading(ids: readonly string[]): string | null {
   const [current, setCurrent] = useState<string | null>(null)
@@ -39,7 +47,7 @@ function useCurrentHeading(ids: readonly string[]): string | null {
       setCurrent(reached)
     }
     const observer = new IntersectionObserver(update, {
-      rootMargin: `0px 0px -${(1 - READING_LINE) * 100}% 0px`,
+      rootMargin: `${BAND_ABOVE_PX}px 0px -${(1 - READING_LINE) * 100}% 0px`,
     })
     for (const heading of headings) observer.observe(heading)
     return () => observer.disconnect()
