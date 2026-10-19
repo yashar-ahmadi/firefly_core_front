@@ -97,10 +97,34 @@ describe('blogSwitchOff', () => {
     error.mockRestore()
   })
 
-  it('an unknown key (404) is a switch that does not exist: on', async () => {
+  it('an unknown key (404) is a switch that does not exist: on, read again after a minute', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { blogSwitchOff } = await load()
     apiFetch.mockRejectedValue(await apiError(404, 'not_found'))
     expect(await blogSwitchOff()).toBeNull()
+    // An answer, not a failure: nothing logged, and no retry after 15 s.
+    expect(error).not.toHaveBeenCalled()
+    vi.setSystemTime(Date.now() + 59_000)
+    await blogSwitchOff()
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+    vi.setSystemTime(Date.now() + 2_000)
+    await blogSwitchOff()
+    expect(apiFetch).toHaveBeenCalledTimes(2)
+    error.mockRestore()
+  })
+
+  it('a failed read after a known “off” keeps it off, with its reason', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    apiFetch.mockResolvedValue(row(false, 'تعمیرات'))
+    const { blogSwitchOff } = await load()
+    expect(await blogSwitchOff()).toEqual({ reason: 'تعمیرات' })
+    apiFetch.mockRejectedValue(await apiError(0, 'network_error'))
+    vi.setSystemTime(Date.now() + 61_000)
+    expect(await blogSwitchOff()).toEqual({ reason: 'تعمیرات' })
+    await vi.waitFor(() => expect(error).toHaveBeenCalledOnce())
+    expect(await blogSwitchOff()).toEqual({ reason: 'تعمیرات' })
+    expect(apiFetch).toHaveBeenCalledTimes(2)
+    error.mockRestore()
   })
 })
 

@@ -81,6 +81,15 @@ describe('a blog page while the blog is switched off', () => {
     },
   )
 
+  it('a HEAD gets the 503 too', async () => {
+    const { proxy } = await load()
+    const res = await proxy(request('/blog/a-post/', { method: 'HEAD' }))
+    expect(blogSwitchOff).toHaveBeenCalledOnce()
+    expect(res.status).toBe(503)
+    expect(res.headers.get('retry-after')).toBe('300')
+    expect(decodeURIComponent(forwarded(res, 'x-ff-blog-off') ?? '')).toBe(REASON)
+  })
+
   it('without a reason: the header is there, empty', async () => {
     blogSwitchOff.mockResolvedValue({ reason: null })
     const { proxy } = await load()
