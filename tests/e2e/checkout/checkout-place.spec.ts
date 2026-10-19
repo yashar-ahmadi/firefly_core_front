@@ -168,10 +168,9 @@ test('a guest places an order; the dev bank is not configured: no navigation, th
     await expect(routes.getByRole('radio', { name: /درگاه بانکی/ })).toHaveCount(0)
   }
   expect(new URL(page.url()).pathname).toBe('/checkout/')
-  await expect(page.getByRole('link', { name: 'لینک پرداخت سفارش' })).toHaveAttribute(
-    'href',
-    `/order/pay/${token}/`,
-  )
+  // The order's own link (compared, never printed: its token is a credential).
+  const href = await page.getByRole('link', { name: 'لینک پرداخت سفارش' }).getAttribute('href')
+  expect(href === `/order/pay/${token}/`, 'the payment link is the order’s own').toBe(true)
   // The purchase is over: the cart (its badge) is empty.
   const after = await page.request.get('/api/bff/cart/', { headers: BFF })
   expect(((await after.json()) as { data: Cart }).data.is_empty).toBe(true)

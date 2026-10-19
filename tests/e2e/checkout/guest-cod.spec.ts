@@ -5,6 +5,7 @@ import type { City, Province } from '@/lib/api/types/geo'
 import type { OrderPlacementResult } from '@/lib/api/types/order'
 import { toLatinDigits, toPersianDigits } from '@/lib/format/digits'
 import { cartWrite } from '../support/cart-write'
+import { waitForCredentialPath } from '../support/credential-url'
 import { runMobile } from '../support/guest-order'
 import { shellHydrated } from '../support/hydrated'
 import { orderGuardTest as test } from '../support/order-guard'
@@ -193,7 +194,8 @@ test('a guest: TEA30, Tehran, pay on delivery; thanks, tracked, cancelled throug
   await expect(page).toHaveURL(/\/order\/track\/$/)
   const codeField = page.getByRole('textbox', { name: /کد سفارش/ })
   await expect(codeField).not.toHaveValue('')
-  expect(toLatinDigits(await codeField.inputValue())).toBe(order.order_code)
+  const handed = toLatinDigits(await codeField.inputValue())
+  expect(handed === order.order_code, 'the order’s code handed over (never printed)').toBe(true)
   await page.getByRole('textbox', { name: /شمارهٔ موبایل/ }).fill(mobile)
   const lookup = page.waitForResponse(/\/api\/bff\/order\/track\/$/)
   await page.getByRole('button', { name: 'پیگیری سفارش', exact: true }).click()
@@ -205,7 +207,7 @@ test('a guest: TEA30, Tehran, pay on delivery; thanks, tracked, cancelled throug
   // Cancelled through its link page (the safe choice focused first).
   await page.goBack()
   await page.getByRole('link', { name: 'لینک تأیید سفارش' }).click()
-  await page.waitForURL(/\/order\/pay\/[^/]+\/$/)
+  await waitForCredentialPath(page, /^\/order\/pay\/[^/]+\/$/, 'the order’s link page')
   // Nothing to pay online: the link page asks for a confirmation, before its deadline to confirm.
   await expect(page.getByRole('heading', { level: 1, name: 'تأیید سفارش' })).toBeVisible()
   await expect(page.getByText('مهلت تأیید:', { exact: false })).toBeVisible()

@@ -1,5 +1,6 @@
 import { expect, type Page, type Response } from '@playwright/test'
 import { toPersianDigits } from '@/lib/format/digits'
+import { waitForCredentialPath } from '../support/credential-url'
 import { placeGuestOrder } from '../support/guest-order'
 import {
   CHECKOUT_BUDGET_KB,
@@ -30,6 +31,7 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // (`<token>` in the budget lines).
 
 const SHOWN = '/order/pay/<token>/'
+const CARD_PAGE = /^\/payment\/card-transfer\/([0-9a-f-]{36})\/$/
 /** The sample data's end-of-body snippet (snippets.spec.ts). */
 const SEAL_LOG = 'enamad placeholder'
 const isIntent = (response: Response) =>
@@ -55,11 +57,13 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
   // The SMS link: no trailing slash. A 308 to the page, the token kept, no referrer.
   const sms = await page.request.get(`/order/pay/${order.token}`, { maxRedirects: 0 })
   expect(sms.status(), 'the SMS link is sent on').toBe(308)
-  expect(new URL(sms.headers()['location']!, 'http://shop.invalid').pathname).toBe(path)
+  // Compared, never printed (the token is a credential): every check of an address here.
+  const sent = new URL(sms.headers()['location']!, 'http://shop.invalid').pathname
+  expect(sent === path, 'the SMS link leads to the page, its token kept').toBe(true)
   const logs: string[] = []
   page.on('console', (message) => logs.push(message.text()))
   const opened = await page.goto(`/order/pay/${order.token}`)
-  expect(new URL(page.url()).pathname, 'the page, its token kept').toBe(path)
+  expect(new URL(page.url()).pathname === path, 'the page, its token kept').toBe(true)
   expect(opened?.status()).toBe(200)
   expect(opened?.headers()['referrer-policy']).toBe('no-referrer')
   // A real link's page runs none of the operator's snippets (snippets.spec.ts: they run on the
@@ -103,7 +107,7 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
   const alert = payAlert(page)
   await expect(alert).toContainText('پرداخت با درگاه بانکی در این فروشگاه اکنون ممکن نیست')
   await expect(alert.getByRole('link', { name: /پشتیبانی/ })).toBeVisible()
-  expect(new URL(page.url()).pathname, 'never sent anywhere').toBe(path)
+  expect(new URL(page.url()).pathname === path, 'never sent anywhere').toBe(true)
 
   // Card to card: an attempt opens; its page is a full page load (card-transfer.spec.ts).
   await routes(page)
@@ -112,8 +116,8 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
   const card = page.waitForResponse(isIntent)
   await press()
   expect((await card).status(), 'a card transfer attempt').toBe(201)
-  await page.waitForURL(/\/payment\/card-transfer\/[0-9a-f-]{36}\/$/)
-  const attempt = /\/payment\/card-transfer\/([0-9a-f-]{36})\/$/.exec(page.url())![1]!
+  await waitForCredentialPath(page, CARD_PAGE, 'the card-transfer page')
+  const attempt = CARD_PAGE.exec(new URL(page.url()).pathname)![1]!
 
   // Back on the link: the attempt's resume UI instead of the routes.
   await page.goto(path)
@@ -140,7 +144,7 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
   await expect(page.getByRole('heading', { level: 1, name: 'پرداخت بسته شد' })).toBeVisible()
   await expect(page.getByText('این تلاش پرداخت بسته شده است.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'پرداخت دوباره' })).toHaveCount(0)
-  expect(page.url(), 'the uuid out of the address bar').not.toContain(attempt)
+  expect(page.url().includes(attempt), 'the uuid out of the address bar').toBe(false)
   await page.goto(path)
   await expect(routes(page)).toBeVisible()
 

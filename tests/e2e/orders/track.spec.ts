@@ -57,7 +57,7 @@ test.describe('order tracking', () => {
     await expect(steps.last()).toHaveAttribute('aria-current', 'step')
     await expect(page.getByRole('button', { name: /کپی.*کد رهگیری مرسوله/ })).toBeVisible()
     for (const secret of [KNOWN.code, KNOWN.mobile, '9011234513']) {
-      expect(page.url(), 'no lookup key in the address').not.toContain(secret)
+      expect(page.url().includes(secret), 'no lookup key in the address').toBe(false)
     }
     expect(new URL(page.url()).search).toBe('')
     expect(errors).toEqual([])
