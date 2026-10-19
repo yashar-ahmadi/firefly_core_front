@@ -18,6 +18,9 @@ export type AccountNavVariant = 'sidebar' | 'hub'
 
 interface RowStyle {
   list: string
+  /** A row's box: its size, padding and layout, nothing that reacts to a pointer. */
+  box: string
+  /** The box of a link row, with its hover, pressed and current-page tints. */
   row: string
   /** The icon, or its round tile on the hub. */
   icon: string
@@ -25,13 +28,17 @@ interface RowStyle {
   logoutIcon: string
 }
 
+const SIDEBAR_BOX = 'group relative flex min-h-11 items-center gap-3 rounded-control px-3 text-base'
+const HUB_BOX = 'group flex min-h-14 items-center gap-3 px-4 text-base font-medium'
+
 const STYLES: Record<AccountNavVariant, RowStyle> = {
   // 44px rows in the side column (lg); the current page tinted, with a bar at its start.
   sidebar: {
     list: 'flex flex-col gap-0.5',
+    box: SIDEBAR_BOX,
     row: cn(
-      'group relative flex min-h-11 items-center gap-3 rounded-control px-3 text-base text-ink-700 transition-colors',
-      'hover:bg-ink-50 hover:text-ink-900',
+      SIDEBAR_BOX,
+      'text-ink-700 transition-colors hover:bg-ink-50 hover:text-ink-900',
       'aria-[current=page]:bg-brand-50 aria-[current=page]:font-bold aria-[current=page]:text-brand-800',
       "aria-[current=page]:before:absolute aria-[current=page]:before:inset-y-2 aria-[current=page]:before:start-0 aria-[current=page]:before:w-1 aria-[current=page]:before:rounded-pill aria-[current=page]:before:bg-brand aria-[current=page]:before:content-['']",
     ),
@@ -44,9 +51,10 @@ const STYLES: Record<AccountNavVariant, RowStyle> = {
   // the hub clips what is outside it (its rounded corners).
   hub: {
     list: 'flex flex-col divide-y divide-ink-100',
+    box: HUB_BOX,
     row: cn(
-      'group flex min-h-14 items-center gap-3 px-4 text-base font-medium text-ink-800 transition-colors',
-      'hover:bg-ink-50 focus-visible:-outline-offset-2 active:bg-ink-100',
+      HUB_BOX,
+      'text-ink-800 transition-colors hover:bg-ink-50 focus-visible:-outline-offset-2 active:bg-ink-100',
     ),
     icon: 'grid size-10 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-700 [&_svg]:size-5',
     logout: 'text-danger',
@@ -74,11 +82,14 @@ function Badge({ badge }: { badge: NavBadge }) {
   )
 }
 
-/** The wallet's row while its entry is undecided (`pending`): the row's size, hidden. */
+/**
+ * The wallet's row while its entry is undecided (`pending`): the row's size, hidden. Only the
+ * row's box: no hover, pressed or current-page tint on something nobody can use.
+ */
 function RowPlaceholder({ variant }: { variant: AccountNavVariant }) {
   return (
     <li aria-hidden data-placeholder="wallet">
-      <div className={STYLES[variant].row}>
+      <div className={STYLES[variant].box}>
         <Skeleton
           className={cn('shrink-0 rounded-full', variant === 'hub' ? 'size-10' : 'size-5')}
         />

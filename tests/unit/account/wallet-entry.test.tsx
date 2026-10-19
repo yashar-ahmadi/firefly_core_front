@@ -78,6 +78,13 @@ const card = () => screen.getByTestId('summary-cards').querySelector('a[href="/a
 const rowSlot = () => nav().querySelector<HTMLElement>('li[data-placeholder="wallet"]')
 const cardSlot = () =>
   screen.getByTestId('summary-cards').querySelector('[data-card][data-shape="wide"][aria-hidden]')
+/** The placeholder row's tints for a pointer or a current page: a hidden, inert box has none. */
+const interactiveClasses = (slot: HTMLElement) =>
+  [...(slot.firstElementChild?.classList ?? [])].filter((name) =>
+    /^(?:hover|active|focus-visible|aria-\[current=page\]|group-aria-\[current=page\]):|^transition/.test(
+      name,
+    ),
+  )
 const hrefNear = (slot: HTMLElement, side: 'previous' | 'next') =>
   (side === 'previous' ? slot.previousElementSibling : slot.nextElementSibling)
     ?.querySelector('a')
@@ -162,6 +169,7 @@ describe('while the wallet’s entry is undecided (the switch off)', () => {
     const slot = rowSlot()!
     expect(slot).toHaveAttribute('aria-hidden', 'true')
     expect(slot.firstElementChild).toHaveClass('min-h-11')
+    expect(interactiveClasses(slot)).toEqual([])
     expect([hrefNear(slot, 'previous'), hrefNear(slot, 'next')]).toEqual([
       '/account/addresses/',
       '/account/notifications/',
@@ -199,6 +207,7 @@ describe('while the wallet’s entry is undecided (the switch off)', () => {
     await waitFor(() => expect(rowSlot()).not.toBeNull())
     const slot = rowSlot()!
     expect(slot.firstElementChild).toHaveClass('min-h-14')
+    expect(interactiveClasses(slot)).toEqual([])
   })
 
   it('the switch on: never held, the row is there from the start', () => {
