@@ -3,6 +3,7 @@ import type { Paginated } from '@/lib/api/types/common'
 import type { DashboardSummary } from '@/lib/api/types/dashboard'
 import type { OrderListItem } from '@/lib/api/types/order-detail'
 import type { AwaitingReviewOrder } from '@/lib/api/types/order-review'
+import { fulfilUnlessDropped, liveJson } from '../support/live-route'
 import { signedInTest } from '../support/session'
 import { forgiveFailure, watchErrors } from '../support/watch-errors'
 
@@ -143,10 +144,13 @@ signedInTest(
       sent.push(route.request().postDataJSON())
       return route.fulfill({ status: 201, json: { msg: SAVED, code: 201, data: {} } })
     })
-    // Once «sent», the list as the server would then answer it: without that purchase.
+    // Once «sent», the list as the server would then answer it: without that purchase. A read
+    // the page drops on its way (a refetch cancelling it) has its live response disposed: it is
+    // let go, never read (`liveJson`).
     await page.route(/\/api\/bff\/order\/review\/awaiting\/list\//, async (route) => {
-      const live = await route.fetch()
-      const body = (await live.json()) as { data: Paginated<AwaitingReviewOrder> }
+      const live = await liveJson<{ data: Paginated<AwaitingReviewOrder> }>(route)
+      if (live === null) return route.abort().catch(() => {})
+      const { body } = live
       if (sent.length > 0) {
         body.data.results = body.data.results
           .map((order) => ({
@@ -157,7 +161,7 @@ signedInTest(
           }))
           .filter((order) => order.products.length > 0)
       }
-      return route.fulfill({ response: live, json: body })
+      return fulfilUnlessDropped(route, { response: live.response, json: body })
     })
 
     const response = await page.goto(
