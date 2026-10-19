@@ -937,7 +937,9 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   the same reason: a wallet payment settles at once and the order is «در حال انجام», so the money
   stays spent and the order stays (her balance is asserted less exactly the order's online
   amount; the code and the amount are printed). Plan 4 Task 10 ran it once: order 1557203863,
-  268,000 Toman from her wallet (45,170,000 → 44,902,000). «خرید دوباره» on one of shirin's delivered orders
+  268,000 Toman from her wallet (45,170,000 → 44,902,000), and that run failed its last check (a
+  console 404 `cart_not_found` on the placement, fixed in 411a832); a passing run is pending the
+  plan's final re-run. «خرید دوباره» on one of shirin's delivered orders
   (`orders-journey.spec.ts`) fills her cart and its toast leads there; the `shirin` guard
   (`tests/e2e/support/shirin-guard.ts`, her shared session, no login of its own) puts her cart
   and address book back exactly, as the `kamran` guard does his (both through
@@ -958,8 +960,8 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   `E2E_BASE_URL` points elsewhere. One full run makes about 1,900 API requests (Plan 4 Task 10),
   about 700 of them anonymous (estimated from the throttle's own window when it ran out), all from
   one address, and the sample backend allows 2000 an hour per address (`THROTTLE_ANON`, a sliding
-  hour): two runs an hour, three at most, fewer with local browsing (Task 10's third run within
-  an hour met the 429 midway). Past that the backend answers 429
+  hour): two full runs an hour at most (about 1,400 of the 2,000), fewer with local browsing
+  (Task 10's third run within an hour met the 429 midway). Past that the backend answers 429
   `throttled` (`retryAfter` in the server log) and many specs fail at once. For back-to-back runs,
   start the backend with a larger budget, e.g. `THROTTLE_ANON=20000/hour`. A global setup
   (`tests/e2e/global-setup.ts`) probes the backend once before the run and stops it with that
