@@ -51,6 +51,14 @@ describe('the order, as the server read it', () => {
     expect(calls(mocks.bffFetch, `order/${CODE}/`)).toHaveLength(0)
   })
 
+  it('the way up is «سفارش‌های من» at every width, never the account hub', () => {
+    renderPage(detail('delivered'))
+    const back = screen.getByRole('link', { name: 'بازگشت به سفارش‌های من' })
+    expect(back).toHaveAttribute('href', '/account/orders/')
+    expect(back.className).not.toMatch(/(^|\s)(lg:)?hidden(\s|$)/)
+    expect(screen.queryByRole('link', { name: 'بازگشت به حساب کاربری' })).toBeNull()
+  })
+
   it('a review per line: «ثبت دیدگاه» for one awaiting it (to that purchase), the state otherwise', async () => {
     const order = detail('delivered')
     order.lines[1] = { ...order.lines[1]!, review_state: 'reviewed' }
@@ -128,6 +136,11 @@ describe('without the server’s read', () => {
       'href',
       '/account/orders/',
     )
+    expect(screen.getByRole('link', { name: 'بازگشت به سفارش‌های من' })).toHaveAttribute(
+      'href',
+      '/account/orders/',
+    )
+    expect(screen.queryByRole('link', { name: 'بازگشت به حساب کاربری' })).toBeNull()
   })
 })
 

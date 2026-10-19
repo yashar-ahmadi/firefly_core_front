@@ -178,7 +178,7 @@ describe('the placeholders', () => {
       // Below lg (no side column): back to the hub above the heading.
       const back = screen.getByRole('link', { name: 'بازگشت به حساب کاربری' })
       expect(back).toHaveAttribute('href', '/account/')
-      expect(back.className).toContain('lg:hidden')
+      expect(back.className.split(/\s+/)).toContain('lg:hidden')
       // Its title; noindex comes from the account layout (not overridden here).
       expect(placeholder.metadata).toEqual({ title })
     },

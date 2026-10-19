@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRight, ClipboardX } from 'lucide-react'
+import { ClipboardX } from 'lucide-react'
 import Link from 'next/link'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -24,24 +24,14 @@ import { OrderView } from './order-view'
 // 404 then says «سفارش پیدا نشد» in the page.
 
 export const ORDERS_HOME = '/account/orders/'
+/** The way up from an order, at every width. */
+const UP = { href: ORDERS_HOME, label: 'سفارش‌های من' }
 
 export interface OrderDetailPageProps {
   code: string
   initial: OrderDetail | null
   catalog: PaymentCatalog
   supportPhone: string | null
-}
-
-function BackToOrders() {
-  return (
-    <Link
-      href={ORDERS_HOME}
-      className="-ms-2 hidden min-h-11 items-center gap-1.5 rounded-control px-2 text-base font-medium text-ink-700 hover:text-ink-900 lg:inline-flex"
-    >
-      <ArrowRight aria-hidden className="size-5 ltr:rotate-180" />
-      سفارش‌های من
-    </Link>
-  )
 }
 
 function DetailSkeleton() {
@@ -65,7 +55,7 @@ export function OrderDetailPage({ code, initial, catalog, supportPhone }: OrderD
     // shared chunks (+0.6 KB gzip on every listing page, measured; the chunk-splitting gotcha).
     return (
       <>
-        <AccountPageHeader title="سفارش پیدا نشد" />
+        <AccountPageHeader title="سفارش پیدا نشد" back={UP} />
         <div className="flex flex-col items-center gap-3 rounded-card bg-white px-4 py-12 text-center shadow-card">
           <span
             aria-hidden
@@ -87,9 +77,9 @@ export function OrderDetailPage({ code, initial, catalog, supportPhone }: OrderD
 
   return (
     <>
-      <BackToOrders />
       <AccountPageHeader
         title={title}
+        back={UP}
         action={
           order && (
             <div className="flex items-center gap-2">
