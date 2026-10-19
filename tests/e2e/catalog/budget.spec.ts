@@ -1,6 +1,7 @@
 import { test } from '@playwright/test'
 import {
   budgetOf,
+  CHECKOUT_BUDGET_KB,
   deviceLabel,
   enforce,
   measure,
@@ -8,6 +9,7 @@ import {
   measuresBudget,
   type BudgetRoute,
 } from '../support/js-budget'
+import { seedThanks, THANKS_PATH, thanksShown } from '../support/thanks-states'
 
 // The JavaScript budget of the catalog and the auth pages for a guest (ruling P2-R4; the measure:
 // support/js-budget.ts). Each route is measured twice and both figures are printed and
@@ -40,6 +42,16 @@ const ROUTES: BudgetRoute[] = [
   // to the checkout's own target (`CHECKOUT_BUDGET_KB`).
   { name: 'checkout', path: '/checkout/', checkout: 'guest' },
   { name: 'checkout-review', path: '/checkout/', checkout: 'guest-review' },
+  // The thanks page after a guest's placement (support/thanks-states.ts: this tab's hand-off,
+  // nothing placed), held to the checkout's target too.
+  {
+    name: 'checkout-thanks',
+    path: THANKS_PATH,
+    shownPath: '/checkout/thanks/<code>/',
+    budget: CHECKOUT_BUDGET_KB,
+    prepare: (page) => seedThanks(page, { guest: true }),
+    ready: (page) => thanksShown(page, { guest: true }),
+  },
 ]
 
 test.describe('JavaScript budget (production build)', () => {

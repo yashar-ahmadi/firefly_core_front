@@ -29,7 +29,8 @@ import { SESSION_COOKIES } from './session'
 // FIREBASE_* on its own server, playwright.config.ts), by checkout/pay-link.spec.ts (the
 // payment link's pages, in `journeys`) and checkout/payment-result.spec.ts (the bank's return
 // page in each of its states, from a mocked status). The checkout's states are set up and checked by
-// support/checkout-states.ts.
+// support/checkout-states.ts, the thanks page's by support/thanks-states.ts (through `prepare`
+// and `ready`).
 
 /** The session's flag cookie (`ff_auth`): there while the session lives. */
 const FLAG_COOKIE = SESSION_COOKIES[2]

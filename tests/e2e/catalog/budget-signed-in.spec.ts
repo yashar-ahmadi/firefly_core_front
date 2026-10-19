@@ -13,6 +13,7 @@ import {
   type BudgetRoute,
 } from '../support/js-budget'
 import { signedInTest } from '../support/session'
+import { seedThanks, THANKS_PATH, thanksShown } from '../support/thanks-states'
 
 // The JavaScript budget signed in (ruling P2-R4; the measure: support/js-budget.ts): the catalog
 // as sara sees it (her header, hearts and cart), the account pages that carry the most code, her
@@ -78,6 +79,16 @@ const ROUTES: SignedInRoute[] = [
   // Her checkout: the address picker and the shipping step, its own writes refused (read only).
   // At the review signed in: k.yazdi's journey measures it (checkout/checkout-signed-in.spec.ts).
   { name: 'checkout', path: '/checkout/', checkout: 'signed-in' },
+  // The thanks page after her placement (support/thanks-states.ts: this tab's hand-off, nothing
+  // placed: P4-R4), held to the checkout's 246 KB.
+  {
+    name: 'checkout-thanks',
+    path: THANKS_PATH,
+    shownPath: '/checkout/thanks/<code>/',
+    budget: CHECKOUT_BUDGET_KB,
+    prepare: (page) => seedThanks(page, { guest: false }),
+    ready: (page) => thanksShown(page, { guest: false }),
+  },
   // Her orders (Plan 4 Task 8, read only; held to the checkout's 246 KB): every order, a group
   // she has none in (its empty state), a delivered order (tracking code, payments, reviews), the
   // order awaiting her payment (pay and cancel offered: their code loads on the press only), and

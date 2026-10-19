@@ -511,7 +511,9 @@ signed-in header to another.
   lands in, against 246 KB for the checkout (`CHECKOUT_BUDGET_KB`, below the route budget:
   headroom for the order's payment resume): a guest at the receiver, a guest back at the review,
   sara's checkout with its writes refused (budget specs), and k.yazdi's first visit and return
-  at the review (his journey). The radio steps (address picker, shipping, payment)
+  at the review (his journey); and the thanks page after a placement, a guest's and sara's
+  (`tests/e2e/support/thanks-states.ts`: this tab's hand-off made up, nothing placed). The radio
+  steps (address picker, shipping, payment)
   take their form controls as one set (`step-controls.ts`: the radio group with the checkbox and
   the text input). The catalog's filters load those three as one chunk, and Turbopack groups
   modules by the chunk groups that load them together: steps that took the radio group alone split
@@ -635,6 +637,14 @@ signed-in header to another.
   0.2–0.3 KB (its overlays' focus rule) and an order 0.1 KB (its way up). The catalog moved by at
   most 0.1 KB (rounding and regrouping; no code added to it): the costliest is a signed-in
   category with push on, 243.8 KB of 250; `/cart/` 228.4–232.4 KB.
+- **The final fix wave's figures** (its last build, the budget specs). The thanks page
+  (`/checkout/thanks/<code>/`, measured from then on) 215.6 KB in every state (a guest, sara,
+  push on; desktop and phone alike). `/checkout/` 241.0 (a guest), 239.7 (the reviews) and 244.2
+  KB (sara's refused writes): at most 0.2 KB less than Task 10. The account pages 1.6–1.7 KB more
+  and the wallet 1.2–1.3 KB (the logout's storage clean-up, the wallet's entry with the switch off
+  and its placeholder), the sign-in pages 0.8–0.9 KB more (the same clean-up), the payment pages
+  0.5–0.6 KB more (the bank handoff's URL check; the wave's full run); the catalog and `/cart/`
+  unchanged, but for 4 B on the signed-in category (242.2 KB).
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
