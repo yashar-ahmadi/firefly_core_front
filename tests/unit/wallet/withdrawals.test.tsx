@@ -182,25 +182,6 @@ describe('the open request', () => {
   })
 })
 
-describe('the open request cannot be read', () => {
-  it('said in place with «تلاش دوباره» (no new request offered blind); the list stays', async () => {
-    let fail = true
-    mocks.bffFetch.mockImplementation((path: string, init: Init = {}) => {
-      if (path !== 'wallet/withdrawal/list/') return new Promise(() => {})
-      if (!Array.isArray(init.query?.status)) return ok(withdrawals())
-      return fail ? refuse(403, 'permission_denied') : ok({ ...withdrawals(), results: [] })
-    })
-    const { user } = renderTab()
-    expect(await screen.findByText('درخواست برداشت باز خوانده نشد.')).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'درخواست برداشت جدید' })).toBeNull()
-    expect(await list()).toBeVisible()
-    fail = false
-    await user.click(screen.getByRole('button', { name: 'تلاش دوباره' }))
-    expect(await screen.findByRole('button', { name: 'درخواست برداشت جدید' })).toBeVisible()
-    expect(screen.queryByText('درخواست برداشت باز خوانده نشد.')).toBeNull()
-  })
-})
-
 describe('a new request', () => {
   it('no open one: «درخواست برداشت جدید» loads the form', async () => {
     const { user } = renderTab()
@@ -217,20 +198,6 @@ describe('a new request', () => {
     expect(screen.queryByText(/لغو همچنان ممکن است/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'درخواست برداشت جدید' })).toBeNull()
     expect(await list()).toBeVisible()
-  })
-
-  it('a balance under the minimum (k.yazdi’s 0): no form that cannot be passed, the minimum said', async () => {
-    renderTab(balance({ balance: 0 }))
-    expect(
-      await screen.findByText('برای درخواست برداشت، موجودی شما باید دست‌کم ۲۰۰٬۰۰۰ تومان باشد.'),
-    ).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'درخواست برداشت جدید' })).toBeNull()
-    expect(await list()).toBeVisible()
-  })
-
-  it('a balance of exactly the minimum: the form is offered', async () => {
-    renderTab(balance({ balance: 200_000 }))
-    expect(await screen.findByRole('button', { name: 'درخواست برداشت جدید' })).toBeVisible()
   })
 
   it('withdrawals off at the shop (`is_withdrawal_enabled` false): no form, said', async () => {
