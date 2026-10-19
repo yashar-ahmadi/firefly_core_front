@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 
 // A module's static import graph inside the repository, read from the source (no bundler): every
@@ -62,4 +62,28 @@ export function importGraph(entry: string): ImportGraph {
     packages: [...packages].sort(),
     clientFiles: clientFiles.sort(),
   }
+}
+
+/** The project files `file` imports itself (repository-relative), as `importGraph` follows them. */
+export function directImports(file: string): string[] {
+  const from = join(ROOT, file)
+  const targets = new Set<string>()
+  for (const match of readFileSync(from, 'utf8').matchAll(SPECIFIER)) {
+    const target = resolveFile(match[1] ?? match[2]!, from)
+    if (target !== null) targets.add(relative(ROOT, target))
+  }
+  return [...targets].sort()
+}
+
+/** Every TypeScript source file under `dir` (repository-relative), sorted. */
+export function sourceFiles(dir: string): string[] {
+  return readdirSync(join(ROOT, dir), { recursive: true, encoding: 'utf8' })
+    .filter((name) => /\.tsx?$/.test(name))
+    .map((name) => join(dir, name))
+    .sort()
+}
+
+/** The files under `dir` that import `target` themselves. */
+export function importersOf(target: string, dir = 'src'): string[] {
+  return sourceFiles(dir).filter((file) => directImports(file).includes(target))
 }
