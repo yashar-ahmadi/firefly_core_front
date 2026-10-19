@@ -28,7 +28,7 @@ describe('Disclosure', () => {
     const user = userEvent.setup()
     render(
       <Disclosure title="لینک‌های مفید" level={2}>
-        <a href="/page/terms/">قوانین و مقررات</a>
+        <a href="#terms">قوانین و مقررات</a>
       </Disclosure>,
     )
     const summary = summaryOf('لینک‌های مفید')

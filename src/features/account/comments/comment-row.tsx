@@ -9,6 +9,7 @@ import { cn } from '@/components/ui/cn'
 import { Rating } from '@/components/ui/rating'
 import { SmartImage } from '@/components/ui/smart-image'
 import { Spinner } from '@/components/ui/spinner'
+import { SHOP_ANSWER } from '@/features/comments/form-copy'
 import { useFeature } from '@/features/settings/feature-context'
 import type { MyComment, MyCommentReply } from '@/lib/api/types/dashboard'
 import { formatJalaliDate } from '@/lib/format'
@@ -55,7 +56,7 @@ function ReplyItem({ reply }: { reply: MyCommentReply }) {
         {reply.is_user_admin && (
           <Badge tone="brand" size="sm">
             <Store aria-hidden />
-            پاسخ فروشگاه
+            {SHOP_ANSWER}
           </Badge>
         )}
         <time dateTime={reply.created} className="text-sm text-ink-600">

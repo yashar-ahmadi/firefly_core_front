@@ -9,8 +9,8 @@ import { searchResults } from './fixtures'
 // The blog in the search results (content digest §7.1, Plan 5 Task 1): the posts group's
 // «مشاهدهٔ همه» goes to the blog's archive of the group's own query (`/blog/?search=…`, never the
 // raw input), post rows are never prefetched (ruling P5-R1: a post's page counts a view on every
-// render; pages stay off until theirs exists), and the group is left out while the blog is
-// switched off.
+// render; a content page counts none: its rows prefetch as usual), and the group is left out
+// while the blog is switched off.
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: () => new Promise(() => {}) }))
@@ -69,15 +69,32 @@ describe('the blog posts in the search results', () => {
     expect(within(posts()!).queryByRole('link', { name: /^مشاهده/ })).toBeNull()
   })
 
-  it('post rows are never prefetched (P5-R1), nor content pages yet', () => {
+  it('post rows are never prefetched (P5-R1)', () => {
     show()
     const post = within(posts()!).getByRole('link', { name: /بهترین گوشی/ })
     expect(post).toHaveAttribute('href', '/blog/best-phones-under-30m/')
     expect(post).toHaveAttribute('data-prefetch', 'false')
+  })
+
+  it('content page rows link to their page and prefetch as usual (a page counts no views)', () => {
+    const results = searchResults()
+    const persian = {
+      ...results.pages.items[0]!,
+      id: 10004,
+      title: 'شرایط ارسال',
+      slug: 'شرایط-ارسال',
+    }
+    show({
+      ...results,
+      pages: { ...results.pages, count: 2, items: [...results.pages.items, persian] },
+    })
     const pages = screen.getByRole('region', { name: /^صفحه/ })
-    expect(within(pages).getByRole('link', { name: /راهنمای خرید گوشی/ })).toHaveAttribute(
-      'data-prefetch',
-      'false',
+    const guide = within(pages).getByRole('link', { name: /راهنمای خرید گوشی/ })
+    expect(guide).toHaveAttribute('href', '/page/phone-guide/')
+    expect(guide).toHaveAttribute('data-prefetch', 'auto')
+    expect(within(pages).getByRole('link', { name: /شرایط ارسال/ })).toHaveAttribute(
+      'href',
+      `/page/${encodeURIComponent('شرایط-ارسال')}/`,
     )
   })
 

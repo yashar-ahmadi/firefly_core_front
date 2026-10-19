@@ -1,4 +1,5 @@
 import { productPath } from '@/features/catalog/listing-routes'
+import { contentPagePath } from '@/features/content/pages/page-routes'
 import type { CommentSubjectType, MyComment } from '@/lib/api/types/dashboard'
 import { blogPostPath } from '@/lib/links/post-link'
 
@@ -27,7 +28,7 @@ export function subjectHref(
     case 'post':
       return blogEnabled ? blogPostPath(subject.slug) : null
     case 'page':
-      return `/page/${encodeURIComponent(subject.slug)}/`
+      return contentPagePath(subject.slug)
   }
 }
 

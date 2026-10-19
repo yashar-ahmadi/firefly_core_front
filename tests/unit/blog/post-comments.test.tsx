@@ -2,8 +2,8 @@ import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { PostCommentList } from '@/features/blog/components/post-comment-list'
 import { PostComments } from '@/features/blog/components/post-comments'
+import { SubjectCommentList } from '@/features/comments/subject-comment-list'
 import { FeatureProvider, type FeatureMap } from '@/features/settings/feature-context'
 import { ApiError } from '@/lib/api/errors'
 import type { BlogComment } from '@/lib/api/types/blog-post'
@@ -14,7 +14,7 @@ import { paginated } from './page-support'
 import { commentFixture, liveThreads } from './post-fixtures'
 
 // A post's comments and Q&A (blog digest §1.7): two tabs with the post's counts, each a list of
-// threads with their replies (the shop's answer «پاسخ رسمی», the visitor's own «شما»), the
+// threads with their replies (the shop's answer «پاسخ فروشگاه», the visitor's own «شما»), the
 // comments' first page server-rendered, the questions read once their tab opens.
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn() }))
@@ -25,6 +25,7 @@ stubBrowserApis()
 vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
 
 const SLUG = 'best-phones-under-30m'
+const POST = { kind: 'post', slug: SLUG } as const
 const CLOSED = 'ثبت دیدگاه روی مطالب وبلاگ تا اطلاع بعدی بسته است.'
 
 type Switches = Partial<Record<'blog' | 'blog_comments', string | null>>
@@ -62,8 +63,8 @@ function renderSection({ off = {}, hasSession = false, questions = [] }: Section
   )
   render(
     <PostComments slug={SLUG} commentCount={2} questionCount={questionCount}>
-      <PostCommentList
-        slug={SLUG}
+      <SubjectCommentList
+        subject={POST}
         type="comment"
         count={2}
         initialPage={paginated(liveThreads())}
@@ -87,8 +88,8 @@ describe('PostComments', () => {
     renderSection({ questions: [commentFixture({ comment_type: 'question' })] })
     const tabs = within(screen.getByRole('tablist')).getAllByRole('tab')
     // The badge is seen; a screen reader hears the count as words, never glued to the label.
-    expect(tabs[0]).toHaveAccessibleName('دیدگاه\u{200C}ها، ۲ دیدگاه')
-    expect(tabs[1]).toHaveAccessibleName('پرسش و پاسخ، ۱ پرسش')
+    expect(tabs[0]).toHaveAccessibleName('دیدگاه\u{200C}ها (۲ دیدگاه)')
+    expect(tabs[1]).toHaveAccessibleName('پرسش و پاسخ (۱ پرسش)')
     expect(within(tabs[0]!).getByText('۲')).toHaveAttribute('aria-hidden', 'true')
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
     const list = screen.getByRole('list', { name: 'دیدگاه\u{200C}ها' })
@@ -113,10 +114,10 @@ describe('PostComments', () => {
     expect(listReads('question')).toHaveLength(1)
   })
 
-  it('the shop’s answer is «پاسخ رسمی», nested under its thread', () => {
+  it('the shop’s answer is «پاسخ فروشگاه» (as on a page and in my comments), nested under its thread', () => {
     renderSection()
     const answer = screen.getByRole('list', { name: 'پاسخ\u{200C}ها به علی کریمی' })
-    expect(within(answer).getByText('پاسخ رسمی')).toBeInTheDocument()
+    expect(within(answer).getByText('پاسخ فروشگاه')).toBeInTheDocument()
     expect(within(answer).getByText('تیم محتوای فایرفلای')).toBeInTheDocument()
   })
 
@@ -148,7 +149,7 @@ describe('PostComments', () => {
   })
 })
 
-describe('PostCommentList', () => {
+describe('SubjectCommentList: a post’s', () => {
   function renderList(threads: BlogComment[] | Error) {
     mocks.bffFetch.mockImplementation(() =>
       threads instanceof Error
@@ -161,7 +162,7 @@ describe('PostCommentList', () => {
         <FeatureProvider initial={{}}>{children}</FeatureProvider>
       </Base>
     )
-    render(<PostCommentList slug={SLUG} type="comment" count={1} />, { wrapper })
+    render(<SubjectCommentList subject={POST} type="comment" count={1} />, { wrapper })
     act(() => intersect())
   }
 

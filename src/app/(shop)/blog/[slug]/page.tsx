@@ -1,9 +1,9 @@
-import { EyeOff } from 'lucide-react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { CONTAINER } from '@/components/layout/container'
+import { PreviewBar } from '@/components/layout/preview-bar'
 import { cn } from '@/components/ui/cn'
 import { getStoreConfig } from '@/config/store-config'
 import { loadBlog } from '@/features/blog/availability'
@@ -12,14 +12,14 @@ import { BLOG_PATH } from '@/features/blog/blog-routes'
 import { BLOG_NAME, blogUnavailableMetadata } from '@/features/blog/blog-seo'
 import { BlogProducts } from '@/features/blog/components/blog-products'
 import { PostArticle } from '@/features/blog/components/post-article'
-import { PostCommentPlaceholders } from '@/features/blog/components/post-comment-list'
 import { PostComments } from '@/features/blog/components/post-comments'
 import { ReadingProgress } from '@/features/blog/components/reading-progress'
 import { RelatedPosts } from '@/features/blog/components/related-posts'
-import { SeededPostComments } from '@/features/blog/components/seeded-post-comments'
-import { getFirstPostComments } from '@/features/blog/post-api'
 import { loadPost, postContentHtml } from '@/features/blog/post-data'
 import { postJsonLd, postMetadata } from '@/features/blog/post-seo'
+import { getFirstComments } from '@/features/comments/first-comments'
+import { SeededComments } from '@/features/comments/seeded-comments'
+import { CommentPlaceholders } from '@/features/comments/subject-comment-list'
 import { JsonLd } from '@/features/seo/json-ld'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
 import { shopName } from '@/features/seo/shop-name'
@@ -36,19 +36,6 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   if (loaded.off) return blogUnavailableMetadata(shop)
   if (loaded.data === null) return notFoundMetadata()
   return postMetadata(loaded.data.post, shop, getStoreConfig().siteUrl)
-}
-
-/** A staff preview of a draft or a scheduled post (blog digest §1.5). */
-function PreviewBar() {
-  return (
-    <p
-      role="status"
-      className="mx-auto mb-3 flex max-w-6xl items-center gap-2 rounded-control bg-warning/10 px-4 py-3 text-base font-medium text-warning"
-    >
-      <EyeOff aria-hidden className="size-5 shrink-0" />
-      {'پیش\u{200C}نمایش — این پست هنوز منتشر نشده است'}
-    </p>
-  )
 }
 
 /**
@@ -76,8 +63,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { post, categories } = loaded.data
   // Comment lists of an unpublished post answer 404, even for staff.
   const comments = !post.is_unpublished
-  // Start page 1 of the comments now (React cache() shares it with SeededPostComments).
-  if (comments && post.comment_count > 0) void getFirstPostComments(post.slug, 'comment')
+  // Start page 1 of the comments now (React cache() shares it with SeededComments).
+  if (comments && post.comment_count > 0) void getFirstComments('post', post.slug, 'comment')
   const links = categoryLinks(categories)
   const trail = [
     { name: BLOG_NAME, href: BLOG_PATH },
@@ -89,7 +76,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
       <ReadingProgress targetId={POST_ARTICLE_ID} />
       <JsonLd data={postJsonLd(post, getStoreConfig().siteUrl)} />
-      {post.is_unpublished && <PreviewBar />}
+      {/* A staff preview of a draft or a scheduled post (blog digest §1.5). */}
+      {post.is_unpublished && (
+        <PreviewBar className="mx-auto max-w-6xl">
+          {'پیش\u{200C}نمایش — این پست هنوز منتشر نشده است'}
+        </PreviewBar>
+      )}
       <Breadcrumbs items={trail} className="mx-auto mb-2 max-w-6xl" />
       <PostArticle
         id={POST_ARTICLE_ID}
@@ -111,10 +103,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             commentCount={post.comment_count}
             questionCount={post.question_count}
           >
-            <Suspense
-              fallback={<PostCommentPlaceholders type="comment" count={post.comment_count} />}
-            >
-              <SeededPostComments slug={post.slug} count={post.comment_count} />
+            <Suspense fallback={<CommentPlaceholders type="comment" count={post.comment_count} />}>
+              <SeededComments
+                subject={{ kind: 'post', slug: post.slug }}
+                count={post.comment_count}
+              />
             </Suspense>
           </PostComments>
         ) : (

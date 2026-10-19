@@ -4,6 +4,7 @@ import { toCardProduct } from '@/features/catalog/card-product'
 import { ProductGrid } from '@/features/catalog/components/product-grid'
 import { blogPostPath } from '@/features/blog/blog-routes'
 import { brandPath, categoryPath } from '@/features/catalog/listing-routes'
+import { contentPagePath } from '@/features/content/pages/page-routes'
 import type { SearchResults as Results } from '@/lib/api/types/search'
 import {
   CompactList,
@@ -56,7 +57,8 @@ function compactItems(results: Results, kind: Exclude<ResultKind, 'products'>): 
     case 'pages':
       return results.pages.items.map((page) => ({
         key: page.id,
-        href: `/page/${encodeURIComponent(page.slug)}/`,
+        // A page counts no views (content digest §3.2): prefetched as any shop link.
+        href: contentPagePath(page.slug),
         name: page.title,
         description: page.description,
         thumb: (
@@ -67,7 +69,6 @@ function compactItems(results: Results, kind: Exclude<ResultKind, 'products'>): 
             <FileText className="size-5" />
           </span>
         ),
-        prefetch: false,
       }))
   }
 }

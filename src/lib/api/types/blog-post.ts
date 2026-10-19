@@ -87,40 +87,9 @@ export interface PostDetail {
   updated: string
 }
 
-/** The two streams of one comment model: «دیدگاه‌ها» and «پرسش و پاسخ». */
-export type BlogCommentType = 'comment' | 'question'
-
-/** One visible entry of `GET blog/post/<slug>/comment/list/`, with its whole visible subtree. */
-export interface BlogComment {
-  /** Sent as `parent` to reply. */
-  id: number
-  name: string
-  /** Plain text: escaped, `white-space: pre-wrap`. */
-  review: string
-  /** A reply's is its parent's. */
-  comment_type: BlogCommentType
-  /** The shop's official answer, written in the panel: «پاسخ رسمی». */
-  is_user_admin: boolean
-  /** The viewer wrote it (a session's read only): «شما». */
-  is_current_user: boolean
-  parent_id: number | null
-  /** Newest first, any depth. */
-  replies: BlogComment[]
-  created: string
-}
-
-/** `POST blog/post/<slug>/comment/submit/`: 201 with only `msg` (moderated; nothing returned). */
-export interface BlogCommentSubmitBody {
-  /** Required, ≤ 4096. */
-  review: string
-  /** Required for guests (≤ 255); ignored for a signed-in visitor. */
-  name?: string
-  /** Guests only; a valid address when sent. */
-  email?: string
-  /** Default 'comment'; a reply's is its parent's. */
-  comment_type?: BlogCommentType
-  /** An accepted comment of the same post. */
-  parent?: number
-  /** Honeypot: hidden, empty. */
-  website?: string
-}
+// A post's comments have the shape every subject's comments have (subject-comment.ts).
+export type {
+  SubjectComment as BlogComment,
+  SubjectCommentSubmitBody as BlogCommentSubmitBody,
+  SubjectCommentType as BlogCommentType,
+} from '@/lib/api/types/subject-comment'

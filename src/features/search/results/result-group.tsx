@@ -76,10 +76,7 @@ export interface CompactItem {
   description?: string | null
   /** A decorative picture or icon before the name. */
   thumb: ReactNode
-  /**
-   * Off for a post (its page counts a view on every render: P5-R1) and for a route not built yet
-   * (content pages, Task 3).
-   */
+  /** Off for a post (its page counts a view on every render: ruling P5-R1). */
   prefetch?: false
 }
 

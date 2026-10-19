@@ -1,5 +1,11 @@
-// The words of every comment form of the shop (a product's, a blog post's), by what it writes.
-// Pure: safe in any bundle.
+// The words of every comment form of the shop (a product's, a blog post's, a content page's), by
+// what it writes. Pure: safe in any bundle.
+
+/**
+ * The shop's answer, written in the panel (`is_user_admin`): the same words on a post, on a page
+ * and in «دیدگاه‌های من», which lists the replies to both (content digest §4.1).
+ */
+export const SHOP_ANSWER = 'پاسخ فروشگاه'
 
 /** A root comment (a product's: rating, title and points allowed), a root question, or a reply (text only). */
 export type CommentMode = 'comment' | 'question' | 'reply'

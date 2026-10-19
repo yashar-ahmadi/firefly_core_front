@@ -1,9 +1,10 @@
-// The ids the storefront's own markup uses on a page that shows operator content with heading
-// ids (a blog post: its `headings`, the table of contents' anchors). A content heading never
-// takes one of them (the sanitiser drops it, and the table of contents leaves it out), so the
-// skip link, `#comments` and every `aria-labelledby` keep finding ours, and the document never
-// holds an id twice. The components render these constants; the shell's are listed as written
-// there (tests/unit/html/reserved-ids.test.ts checks both). Pure: safe in any bundle.
+// The ids the storefront's own markup uses on a page that shows operator content (a blog post,
+// whose headings keep the API's ids: its `headings`, the table of contents' anchors; a content
+// page). A content heading never takes one of them (the sanitiser drops it, and the table of
+// contents leaves it out), so the skip link, `#comments` and every `aria-labelledby` keep finding
+// ours, and the document never holds an id twice. The components render these constants; the
+// shell's are listed as written there (tests/unit/html/reserved-ids.test.ts checks both). Pure:
+// safe in any bundle.
 
 /** `<main>`: the skip link's target and NavigationProgress's `aria-busy`. */
 export const MAIN_ID = 'main'
@@ -17,6 +18,9 @@ export const POST_TITLE_ID = 'post-title'
 /** A post's «مطالب مرتبط» and «محصولات مرتبط» headings. */
 export const RELATED_POSTS_ID = 'related-posts'
 export const POST_PRODUCTS_ID = 'post-products'
+/** A content page's title (its article's name) and its aside's heading («صفحه‌های دیگر»). */
+export const PAGE_TITLE_ID = 'page-title'
+export const PAGES_ASIDE_HEADING_ID = 'pages-aside-heading'
 
 /** The shell's own (src/components/layout, the theme's head), on every page. */
 const SHELL_IDS = [
@@ -37,5 +41,7 @@ export const RESERVED_IDS: ReadonlySet<string> = new Set([
   POST_TITLE_ID,
   RELATED_POSTS_ID,
   POST_PRODUCTS_ID,
+  PAGE_TITLE_ID,
+  PAGES_ASIDE_HEADING_ID,
   ...SHELL_IDS,
 ])

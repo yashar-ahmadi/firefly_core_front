@@ -28,7 +28,7 @@ import {
   withdrawalsKey,
 } from '@/features/wallet/api'
 import { WISHLIST_IDS_KEY } from '@/features/wishlist/hooks'
-import { postCommentsKey } from '@/features/blog/post-comments-api'
+import { subjectCommentsKey } from '@/features/comments/subjects'
 import { READING_LIST_IDS_KEY } from '@/features/blog/reading-list'
 import { readingListPageKey } from '@/features/account/reading-list/use-reading-list-page'
 import { parseReadingListParams } from '@/features/account/reading-list/reading-list-params'
@@ -115,17 +115,23 @@ describe('SESSION_QUERIES', () => {
 })
 
 describe('VIEWER_AWARE_QUERIES', () => {
-  it('a blog post’s comment lists (is_current_user) are read again on login and logout, not kept', async () => {
-    const client = createQueryClient()
-    const key = [...postCommentsKey('best-phones-under-30m'), 'comment']
-    client.setQueryData(key, {
-      pages: [{ results: [{ id: 1, is_current_user: true }] }],
-      pageParams: [1],
-    })
-    expect(isSessionQuery(key)).toBe(false)
-    await clearViewerQueries(client)
-    expect(client.getQueryData(key)).toBeUndefined()
-  })
+  it.each([
+    ['a blog post’s', { kind: 'post', slug: 'best-phones-under-30m' }],
+    ['a content page’s', { kind: 'page', slug: 'about-us' }],
+  ] as const)(
+    '%s comment lists (is_current_user) are read again on login and logout, not kept',
+    async (_, subject) => {
+      const client = createQueryClient()
+      const key = [...subjectCommentsKey(subject), 'comment']
+      client.setQueryData(key, {
+        pages: [{ results: [{ id: 1, is_current_user: true }] }],
+        pageParams: [1],
+      })
+      expect(isSessionQuery(key)).toBe(false)
+      await clearViewerQueries(client)
+      expect(client.getQueryData(key)).toBeUndefined()
+    },
+  )
 
   it('the checkout’s shipping options go with the cart (read by guests too, per viewer)', async () => {
     const client = createQueryClient()

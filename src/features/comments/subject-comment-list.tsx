@@ -2,20 +2,21 @@
 
 import { useEffect, useRef } from 'react'
 import { useSeenOnce } from '@/components/ui/use-in-view'
-import { usePostComments } from '@/features/blog/post-comments-api'
+import { useCommentsClosed } from '@/features/comments/comments-gate'
+import { subjectRules, type CommentSubject } from '@/features/comments/subjects'
 import {
   ThreadList,
   ThreadPlaceholders,
   type ThreadListCopy,
 } from '@/features/comments/thread-list'
-import { useFeature } from '@/features/settings/feature-context'
+import { useSubjectComments } from '@/features/comments/use-subject-comments'
 import { isApiNotFound } from '@/lib/api/errors'
-import type { BlogComment, BlogCommentType } from '@/lib/api/types/blog-post'
 import type { Paginated } from '@/lib/api/types/common'
+import type { SubjectComment, SubjectCommentType } from '@/lib/api/types/subject-comment'
 import { useSession } from '@/lib/session/session-context'
-import { PostCommentThread } from './post-comment-thread'
+import { SubjectCommentThread } from './subject-comment-thread'
 
-const COPY: Record<BlogCommentType, ThreadListCopy> = {
+const COPY: Record<SubjectCommentType, ThreadListCopy> = {
   comment: {
     list: 'دیدگاه\u{200C}ها',
     empty: 'هنوز دیدگاهی ثبت نشده است. اولین نفری باشید که دیدگاه می\u{200C}نویسد.',
@@ -27,35 +28,38 @@ const COPY: Record<BlogCommentType, ThreadListCopy> = {
     failed: 'پرسش\u{200C}ها بارگذاری نشد.',
   },
 }
-const POST_GONE = 'این مطلب دیگر در دسترس نیست.'
 
 /** The loading list (the server's page 1 on its way). */
-export function PostCommentPlaceholders({ type, count }: { type: BlogCommentType; count: number }) {
+export function CommentPlaceholders({ type, count }: { type: SubjectCommentType; count: number }) {
   return <ThreadPlaceholders count={count} label={`در حال بارگذاری ${COPY[type].list}`} />
 }
 
-export interface PostCommentListProps {
-  slug: string
-  type: BlogCommentType
-  /** The post's count of visible root entries (`comment_count` / `question_count`). */
+export interface SubjectCommentListProps {
+  subject: CommentSubject
+  type: SubjectCommentType
+  /** The subject's count of visible root entries (`comment_count` / `question_count`). */
   count: number
   /** Page 1 as the server rendered it (anonymous); without it the list loads when in view. */
-  initialPage?: Paginated<BlogComment> | null
+  initialPage?: Paginated<SubjectComment> | null
 }
 
 /**
- * A post's comments or questions (ThreadList: newest first, page by page with «نمایش بیشتر»).
- * Page 1 of the comments comes server-rendered (`initialPage`); a signed-in visitor's copy is
- * read again through the BFF once the list comes near, so their own entries say «شما». Without
- * it (the questions, or a failed server read), page 1 loads when the list comes near (its tab
- * opened). With a count of zero nothing is read. A post gone meanwhile (404) says so.
+ * A post's or a page's comments or questions (ThreadList: newest first, page by page with «نمایش
+ * بیشتر»). Page 1 of the comments comes server-rendered (`initialPage`); a signed-in visitor's
+ * copy is read again through the BFF once the list comes near, so their own entries say «شما».
+ * Without it (the questions, or a failed server read), page 1 loads when the list comes near
+ * (its tab opened). With a count of zero nothing is read. A subject gone meanwhile (404) says
+ * so. «پاسخ» is offered while the forms are open.
  */
-export function PostCommentList({ slug, type, count, initialPage }: PostCommentListProps) {
+export function SubjectCommentList({ subject, type, count, initialPage }: SubjectCommentListProps) {
   const [ref, seen] = useSeenOnce<HTMLDivElement>()
-  const replies = useFeature('blog_comments').enabled
+  const replies = useCommentsClosed(subject) === null
   const { hasSession } = useSession()
   const seeded = initialPage ?? undefined
-  const query = usePostComments(slug, type, { enabled: seen && count > 0, initialPage: seeded })
+  const query = useSubjectComments(subject, type, {
+    enabled: seen && count > 0,
+    initialPage: seeded,
+  })
   const { refetch } = query
   // The server's page 1 is anonymous: a signed-in visitor's own entries are marked only by the
   // BFF's answer. Once, when the list first comes near.
@@ -66,15 +70,16 @@ export function PostCommentList({ slug, type, count, initialPage }: PostCommentL
     void refetch()
   }, [seen, hasSession, seeded, refetch])
 
+  const gone = subjectRules(subject.kind).gone
   return (
     <ThreadList
       query={query}
       count={count}
       copy={COPY[type]}
       frameRef={ref}
-      failedMessage={(error) => (isApiNotFound(error) ? POST_GONE : null)}
+      failedMessage={(error) => (isApiNotFound(error) ? gone : null)}
       renderThread={(comment) => (
-        <PostCommentThread comment={comment} slug={slug} canReply={replies} />
+        <SubjectCommentThread comment={comment} subject={subject} canReply={replies} />
       )}
     />
   )

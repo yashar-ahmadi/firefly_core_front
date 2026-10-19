@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { isPlaceholderImage } from '@/components/layout/menu-tree'
 import { onOrigin } from '@/features/blog/blog-seo'
 import { siteBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
+import { canonicalFor } from '@/features/seo/canonical'
 import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import type { BlogPostingJsonLd, PostDetail } from '@/lib/api/types/blog-post'
 import { htmlToText } from '@/lib/html/to-text'
@@ -9,27 +10,12 @@ import { blogPostPath } from '@/lib/links/post-link'
 
 // A post's <head> and structured data (blog digest §1.9, seo digest §7). Pure.
 
-/** A path's trailing slash (the site's URLs all have one: `trailingSlash`), query and hash kept. */
-function withSlash(path: string): string {
-  const [, pathname = '', rest = ''] = /^([^?#]*)(.*)$/.exec(path) ?? []
-  return pathname.endsWith('/') ? path : `${pathname}/${rest}`
-}
-
 /**
  * The canonical: the operator's `canonical_link` (a path or a URL on this shop given its trailing
- * slash; another site's as written), else the post's own path. Pure.
+ * slash; another site's as written), else the post's own path (`canonicalFor`). Pure.
  */
 export function postCanonical(post: Pick<PostDetail, 'slug' | 'canonical_link'>, siteUrl: string) {
-  const link = post.canonical_link?.trim()
-  if (!link) return blogPostPath(post.slug)
-  if (link.startsWith('/') && !link.startsWith('//')) return withSlash(link)
-  try {
-    const url = new URL(link)
-    if (url.origin !== new URL(siteUrl).origin) return link
-    return `${url.origin}${withSlash(`${url.pathname}${url.search}${url.hash}`)}`
-  } catch {
-    return link
-  }
+  return canonicalFor(post.canonical_link, blogPostPath(post.slug), siteUrl)
 }
 
 /**

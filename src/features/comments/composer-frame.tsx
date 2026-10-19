@@ -7,9 +7,9 @@ import { focusInView } from '@/components/ui/focus-in-view'
 import { Spinner } from '@/components/ui/spinner'
 import { reloadPage } from '@/lib/navigation/hard-navigation'
 
-// «ثبت دیدگاه» and its kind for every comment form of the shop (a product's, a blog post's): a
-// button that opens the form in place, its code loaded on the first open (`next/dynamic` in the
-// caller), and the API's moderation notice once it is sent.
+// «ثبت دیدگاه» and its kind for every comment form of the shop (a product's, a blog post's, a
+// content page's): a button that opens the form in place, its code loaded on the first open
+// (`next/dynamic` in the caller), and the API's moderation notice once it is sent.
 
 /** While a form's code arrives (the first open only). */
 export function FormLoading() {

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { forgiveFailure, isExpectedFailure, watchErrors } from '../../e2e/support/watch-errors'
 
 // The e2e console guard (tests/e2e/support/watch-errors.ts): only the dev backend's missing
-// pictures and routes later plans build may fail; anything else must reach the test.
+// pictures may fail (every route the shell links to is built since Plan 5 Task 3); anything else
+// must reach the test.
 
 const NOT_FOUND = 'Failed to load resource: the server responded with a status of 404 (Not Found)'
 const SERVER_ERROR =
@@ -51,8 +52,9 @@ describe('isExpectedFailure', () => {
     )
   })
 
-  it('lets through only 404s from the routes not built yet', () => {
-    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/page/terms/?_rsc=abc')).toBe(true)
+  it('reports a 404 from content pages, which exist now (Plan 5 Task 3): every route is built', () => {
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/page/terms/?_rsc=abc')).toBe(false)
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/page/terms/')).toBe(false)
     expect(isExpectedFailure(SERVER_ERROR, 'http://localhost:3000/page/terms/?_rsc=abc')).toBe(
       false,
     )

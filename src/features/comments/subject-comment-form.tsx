@@ -11,64 +11,70 @@ import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  EMPTY_POST_COMMENT,
-  postCommentBody,
-  postCommentFailure,
-  type PostCommentErrors,
-  type PostCommentMode,
-  type PostCommentValues,
-} from '@/features/blog/post-comment-payload'
-import { postCommentsKey } from '@/features/blog/post-comments-api'
+  commentBody,
+  commentFailure,
+  EMPTY_COMMENT,
+  type CommentErrors,
+  type CommentValues,
+} from '@/features/comments/comment-payload'
+import { useCloseComments } from '@/features/comments/comments-gate'
 import type { ComposerFormProps } from '@/features/comments/composer-frame'
-import { COMMENT_COPY } from '@/features/comments/form-copy'
+import { COMMENT_COPY, type CommentMode } from '@/features/comments/form-copy'
 import {
   GuestFields,
   HoneypotField,
   MAX_COMMENT_TEXT,
   NAME_MISSING,
 } from '@/features/comments/form-fields'
+import {
+  commentSubmitPath,
+  subjectCommentsKey,
+  type CommentSubject,
+} from '@/features/comments/subjects'
 import { useMarkFeatureDisabled } from '@/features/settings/feature-context'
 import { bffFetch } from '@/lib/api/client'
-import type { BlogCommentSubmitBody } from '@/lib/api/types/blog-post'
 import type { FeatureKey } from '@/lib/api/types/common'
+import type { SubjectCommentSubmitBody } from '@/lib/api/types/subject-comment'
 import { NO_WAIT, restartWait, type Wait } from '@/lib/forms/waits'
 import { useSession } from '@/lib/session/session-context'
 import { MY_COMMENTS_KEY, SUMMARY_KEY } from '@/lib/session/viewer-queries'
 
 const DONE = 'نظر شما ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
 
-export interface PostCommentFormProps extends ComposerFormProps {
-  slug: string
-  mode: PostCommentMode
+export interface SubjectCommentFormProps extends ComposerFormProps {
+  subject: CommentSubject
+  mode: CommentMode
   /** The comment answered (mode `reply`). */
   parentId?: number
 }
 
 /**
- * The blog's comment, question or reply form (blog digest §1.7), opened by PostCommentComposer
- * (its code loads on the first open). The text (≤ 4096), a guest's name (≤ 255) and optional
- * e-mail (a signed-in visitor's come from the account), the honeypot, every empty optional left
- * out. The text and a guest's name are checked here first; the API's errors go under their
- * fields (several at once), the rest above the button; a 429 holds the button for `retry_after`;
- * a switched-off switch (`blog_comments`, `blog`) turns the feature off, which takes the form
- * away. Once accepted (201), the API's moderation notice: nothing is inserted into the list.
- * Never submits natively (AuthForm).
+ * The comment, question or reply form of a post or a page (blog digest §1.7, content digest §4.2),
+ * opened by SubjectCommentComposer (its code loads on the first open). The text (≤ 4096), a
+ * guest's name (≤ 255) and optional e-mail (a signed-in visitor's come from the account), the
+ * honeypot, every empty optional left out. The text and a guest's name are checked here first;
+ * the API's errors go under their fields (several at once), the rest above the button; a 429
+ * holds the button for `retry_after`; a switched-off switch (`blog_comments`, `blog`) turns the
+ * feature off, and a page's form closed meanwhile (`403 page_comments_disabled`) closes its gate:
+ * either takes the form away. Once accepted (201), the API's moderation notice: nothing is
+ * inserted into the list. Never submits natively (AuthForm).
  */
-export function PostCommentForm({
-  slug,
+export function SubjectCommentForm({
+  subject,
   mode,
   parentId,
   onDone,
   onCancel,
   autoFocus = false,
-}: PostCommentFormProps) {
+}: SubjectCommentFormProps) {
   const copy = COMMENT_COPY[mode]
   const { hasSession } = useSession()
   const client = useQueryClient()
   const markFeatureDisabled = useMarkFeatureDisabled()
+  const closeComments = useCloseComments()
   const frameRef = useRef<HTMLDivElement>(null)
-  const [values, setValues] = useState<PostCommentValues>(EMPTY_POST_COMMENT)
-  const [errors, setErrors] = useState<PostCommentErrors>({})
+  const [values, setValues] = useState<CommentValues>(EMPTY_COMMENT)
+  const [errors, setErrors] = useState<CommentErrors>({})
   // Bumped on each refused attempt: the focus then moves to the first field to fix.
   const [attempt, setAttempt] = useState(0)
   // A signed-in account the API treats as a guest (the session ended): ask for the name.
@@ -82,19 +88,16 @@ export function PostCommentForm({
     if (autoFocus) frameRef.current?.querySelector('textarea')?.focus()
   }, [autoFocus])
 
-  const refuse = (next: PostCommentErrors) => {
+  const refuse = (next: CommentErrors) => {
     setErrors(next)
     setAttempt((count) => count + 1)
   }
 
   const mutation = useMutation({
-    mutationFn: (body: BlogCommentSubmitBody) =>
-      bffFetch<Record<string, never>>(`blog/post/${slug}/comment/submit/`, {
-        method: 'POST',
-        body,
-      }),
+    mutationFn: (body: SubjectCommentSubmitBody) =>
+      bffFetch<Record<string, never>>(commentSubmitPath(subject), { method: 'POST', body }),
     onSuccess: ({ msg }) => {
-      setValues(EMPTY_POST_COMMENT)
+      setValues(EMPTY_COMMENT)
       setErrors({})
       // The account's summary counts the visitor's comments, and «دیدگاه‌های من» lists them.
       void client.invalidateQueries({ queryKey: SUMMARY_KEY })
@@ -102,29 +105,32 @@ export function PostCommentForm({
       onDone(msg || DONE)
     },
     onError: (error) => {
-      const failure = postCommentFailure(error)
+      const failure = commentFailure(error, subject.kind)
       if (failure.feature) {
         return markFeatureDisabled(failure.feature.key as FeatureKey, failure.feature.reason)
       }
+      if (failure.closed !== null) return closeComments(failure.closed)
       if (failure.askName) setAskName(true)
-      if (failure.parentGone) void client.invalidateQueries({ queryKey: postCommentsKey(slug) })
+      if (failure.parentGone) {
+        void client.invalidateQueries({ queryKey: subjectCommentsKey(subject) })
+      }
       const seconds = failure.waitSeconds
       if (seconds) setWait((previous) => restartWait(previous, Date.now(), seconds))
       refuse(failure.errors)
     },
   })
 
-  const set = (key: keyof PostCommentValues, value: string) =>
+  const set = (key: keyof CommentValues, value: string) =>
     setValues((current) => ({ ...current, [key]: value }))
 
   const submit = () => {
     if (mutation.isPending || lock.locked) return
-    const local: PostCommentErrors = {}
+    const local: CommentErrors = {}
     if (!values.review.trim()) local.review = copy.missing
     if (guest && !values.name.trim()) local.name = NAME_MISSING
     if (Object.keys(local).length > 0) return refuse(local)
     setErrors({})
-    mutation.mutate(postCommentBody(values, { mode, guest, parentId }))
+    mutation.mutate(commentBody(values, { mode, guest, parentId }))
   }
 
   return (

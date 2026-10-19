@@ -81,6 +81,13 @@ const ROUTES: SignedInRoute[] = [
     path: '/blog/best-phones-under-30m/',
     ready: (page) => expect(page.getByRole('tab', { name: /دیدگاه/ })).toBeVisible(),
   },
+  // A content page as she sees it: page 1 of its comments read again through the BFF for her
+  // «شما» (Plan 5 Task 3).
+  {
+    name: 'page',
+    path: '/page/about-us/',
+    ready: (page) => expect(page.getByRole('tab', { name: /دیدگاه/ })).toBeVisible(),
+  },
   {
     name: 'reading-list',
     path: '/account/reading-list/',

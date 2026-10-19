@@ -11,7 +11,7 @@ import {
 } from '../support/js-budget'
 import { seedThanks, THANKS_PATH, thanksShown } from '../support/thanks-states'
 
-/** The post's comments are on screen (their first page comes with the HTML). */
+/** A post's or a page's comments are on screen (their first page comes with the HTML). */
 async function postShown(page: Page) {
   await expect(page.getByRole('tab', { name: /دیدگاه/ })).toBeVisible()
 }
@@ -41,6 +41,13 @@ const ROUTES: BudgetRoute[] = [
   // Plan 5 Task 2: a post's page, catalog-like too (its TOC, progress bar and comments; the
   // comment form loads on its first open). Each load counts the post one view: four a run.
   { name: 'blog-post', path: '/blog/best-phones-under-30m/', ready: postShown },
+  // Plan 5 Task 3: content pages, catalog-like too: `about-us` with its comments (the section
+  // ships with the page, the form loads on its first open) and `contact-us`, closed and without
+  // comments. Every dev page has the `default` layout; `full_width` and `with_sidebar` differ in
+  // server-rendered markup only (the frame's classes, the aside's plain links), with no code of
+  // their own in the browser (measured once against a mock API: the Task 3 report).
+  { name: 'page', path: '/page/about-us/', ready: postShown },
+  { name: 'page-closed', path: '/page/contact-us/' },
   // Plan 3: the auth code lives on these routes alone (none of it on the catalog's).
   { name: 'login', path: '/login/' },
   { name: 'register', path: '/register/' },

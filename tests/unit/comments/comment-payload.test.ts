@@ -1,26 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import {
-  EMPTY_POST_COMMENT,
-  postCommentBody,
-  postCommentFailure,
-} from '@/features/blog/post-comment-payload'
+import { commentBody, commentFailure, EMPTY_COMMENT } from '@/features/comments/comment-payload'
 import { ApiError, GENERIC_ERROR_DETAIL } from '@/lib/api/errors'
 
-// The blog's comment form (blog digest §1.7): what it sends (every empty optional left out, the
-// honeypot only when filled) and where each answer of the API's error matrix goes.
+// The comment form of a post and of a page (blog digest §1.7, content digest §4.2): what it sends
+// (every empty optional left out, the honeypot only when filled) and where each answer of the
+// API's error matrix goes; a post's here (a page's own answers: tests/unit/content/
+// page-comment-errors.test.ts).
 
-const values = (overrides: Partial<typeof EMPTY_POST_COMMENT> = {}) => ({
-  ...EMPTY_POST_COMMENT,
+const values = (overrides: Partial<typeof EMPTY_COMMENT> = {}) => ({
+  ...EMPTY_COMMENT,
   review: '  ممنون از مقاله  ',
   ...overrides,
 })
 
+/** A post's form's reading of an answer. */
+const postCommentFailure = (error: unknown) => commentFailure(error, 'post')
+
 const refusal = (status: number, errors: { code: string; attr: string | null; detail: string }[]) =>
   ApiError.fromBody(status, { data: { type: 'validation_error', errors } })
 
-describe('postCommentBody', () => {
+describe('commentBody', () => {
   it('a guest’s comment: the text trimmed, the name, nothing empty (no email, no type, no honeypot)', () => {
-    expect(postCommentBody(values({ name: ' علی ' }), { mode: 'comment', guest: true })).toEqual({
+    expect(commentBody(values({ name: ' علی ' }), { mode: 'comment', guest: true })).toEqual({
       review: 'ممنون از مقاله',
       name: 'علی',
     })
@@ -28,35 +29,36 @@ describe('postCommentBody', () => {
 
   it('a guest’s e-mail when given; a signed-in visitor sends neither (the account’s are used)', () => {
     const typed = values({ name: 'علی', email: ' a@b.ir ' })
-    expect(postCommentBody(typed, { mode: 'comment', guest: true })).toEqual({
+    expect(commentBody(typed, { mode: 'comment', guest: true })).toEqual({
       review: 'ممنون از مقاله',
       name: 'علی',
       email: 'a@b.ir',
     })
-    expect(postCommentBody(typed, { mode: 'comment', guest: false })).toEqual({
+    expect(commentBody(typed, { mode: 'comment', guest: false })).toEqual({
       review: 'ممنون از مقاله',
     })
   })
 
   it('a question says so; a reply names its parent and no type (it inherits the parent’s)', () => {
-    expect(postCommentBody(values(), { mode: 'question', guest: false })).toEqual({
+    expect(commentBody(values(), { mode: 'question', guest: false })).toEqual({
       review: 'ممنون از مقاله',
       comment_type: 'question',
     })
-    expect(postCommentBody(values(), { mode: 'reply', guest: false, parentId: 10002 })).toEqual({
+    expect(commentBody(values(), { mode: 'reply', guest: false, parentId: 10002 })).toEqual({
       review: 'ممنون از مقاله',
       parent: 10002,
     })
   })
 
   it('sends the honeypot only when a bot filled it', () => {
-    expect(postCommentBody(values({ website: 'x.ir' }), { mode: 'comment', guest: false })).toEqual(
-      { review: 'ممنون از مقاله', website: 'x.ir' },
-    )
+    expect(commentBody(values({ website: 'x.ir' }), { mode: 'comment', guest: false })).toEqual({
+      review: 'ممنون از مقاله',
+      website: 'x.ir',
+    })
   })
 })
 
-describe('postCommentFailure: the error matrix', () => {
+describe('commentFailure: a post’s error matrix', () => {
   it.each([
     ['required', 'review', 'این مقدار لازم است.'],
     ['blank', 'review', 'این مقدار نباید خالی باشد.'],
@@ -103,7 +105,7 @@ describe('postCommentFailure: the error matrix', () => {
       }),
     )
     expect(failure.errors).toEqual({ form: 'این مطلب دیگر در دسترس نیست.' })
-    expect(failure.postGone).toBe(true)
+    expect(failure.subjectGone).toBe(true)
   })
 
   it('429 throttled: a calm sentence and the API’s wait (data.retry_after)', () => {

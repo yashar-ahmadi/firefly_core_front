@@ -3,16 +3,6 @@ import type { Page } from '@playwright/test'
 /** The dev backend's picture paths: its pictures and placeholders may be missing in dev. */
 const MEDIA_PATH = /^\/(?:media|static)\//
 
-/**
- * Routes later plans build, which the shell already links to (the registration terms' page
- * links, my comments' subjects, search rows): a visit or a router prefetch there answers 404
- * until the route exists. Remove each one as its route lands (Plan 3 built the auth and every
- * account page; Plan 4 the cart, the checkout, the payment link and the card transfer; Plan 5
- * Task 1 the blog home and its category pages, Task 2 a post's page). Left: content pages,
- * `/page/<slug>/` (Task 3).
- */
-const NOT_YET_BUILT = /^\/page\//
-
 const NOT_FOUND = /^Failed to load resource: the server responded with a status of 404\b/
 /** A failed request's console line, and its status. */
 const FAILED = /^Failed to load resource: the server responded with a status of (\d{3})\b/
@@ -48,13 +38,14 @@ function pathOf(url: string): string | null {
 /**
  * Whether a console error is one the dev environment is expected to log: a 404 for a backend
  * picture (a path under `/media/` or `/static/`, also through the image optimizer, so
- * `/_next/static/` chunks are still reported) or for a route not built yet. Any other failure there (a 5xx, a refused connection) is
- * reported. Pure, for the unit test.
+ * `/_next/static/` chunks are still reported). Every route the shell links to is built (the last,
+ * content pages, in Plan 5 Task 3): a 404 anywhere else is reported, and so is any other failure
+ * of a picture (a 5xx, a refused connection). Pure, for the unit test.
  */
 export function isExpectedFailure(text: string, url: string): boolean {
   const path = pathOf(url)
   if (path === null || !NOT_FOUND.test(text)) return false
-  return MEDIA_PATH.test(path) || NOT_YET_BUILT.test(path)
+  return MEDIA_PATH.test(path)
 }
 
 /**

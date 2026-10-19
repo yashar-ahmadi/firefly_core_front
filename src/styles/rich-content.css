@@ -137,6 +137,29 @@
   border-block-start: 1px solid var(--color-ink-200);
 }
 
+/* A content page's `full_width` layout (content digest §3.2: chosen for wide pictures and
+   tables): on phones (below 768px) a picture keeps its own width (a wide chart, a size chart
+   drawn as a picture) instead of shrinking to an unreadable strip, and the block holding it
+   scrolls sideways in its own box, as a table does; from 768px pictures fit the column as
+   everywhere. The content's own box is the last guard: the page itself never scrolls sideways
+   (a picture straight in the content, or a browser without `:has()`). */
+.rich-content-wide {
+  overflow-x: auto;
+}
+
+@media (max-width: 47.99rem) {
+  .rich-content-wide img {
+    max-width: none;
+  }
+
+  @supports selector(:has(*)) {
+    .rich-content-wide :is(p, figure, li, div):has(> img) {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+  }
+}
+
 /* Tables scroll sideways inside their own box instead of widening the page. A `.table-wrap`
    wrapper does the same job for markup that already has one. */
 .rich-content table {
@@ -154,6 +177,15 @@
   overflow-wrap: normal;
   text-align: start;
   vertical-align: top;
+}
+
+/* At the table's start (its right in RTL), where a sideways-scrolling table begins: centred over
+   a wide table it would sit off-screen. */
+.rich-content caption {
+  padding-block: 0 0.5rem;
+  color: var(--color-ink-700);
+  font-weight: 500;
+  text-align: start;
 }
 
 .rich-content th {

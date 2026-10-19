@@ -65,12 +65,18 @@ export function isSessionQuery(queryKey: QueryKey): boolean {
 /**
  * Read by guests too, but the answer depends on who asks: the cart (`CART_KEY`), under
  * `['product']` the product payload (`is_in_wishlist`) and its comment lists
- * (`is_current_user`), and a blog post's comment lists (`['blog-comments']`, `is_current_user`).
- * Reset: what is on screen reads again as the new visitor and shows nothing of the old one
- * meanwhile; a list seeded from the server falls back to that anonymous page. Add a new
- * viewer-dependent key here.
+ * (`is_current_user`), a blog post's comment lists (`['blog-comments']`) and a content page's
+ * (`['page-comments']`), both `is_current_user` (`subjectCommentsKey`,
+ * src/features/comments/subjects.ts). Reset: what is on screen reads again as the new visitor and
+ * shows nothing of the old one meanwhile; a list seeded from the server falls back to that
+ * anonymous page. Add a new viewer-dependent key here.
  */
-const VIEWER_AWARE_QUERIES: readonly QueryKey[] = [['cart'], ['product'], ['blog-comments']]
+const VIEWER_AWARE_QUERIES: readonly QueryKey[] = [
+  ['cart'],
+  ['product'],
+  ['blog-comments'],
+  ['page-comments'],
+]
 
 /**
  * Drops what the previous visitor saw, so the next one never sees it (not even for a stale

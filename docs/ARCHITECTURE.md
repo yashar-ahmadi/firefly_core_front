@@ -249,8 +249,9 @@ forgotten on any login or logout.
 `clearViewerQueries` (`lib/session/viewer-queries.ts`) also runs on login and logout: it removes
 the session-only queries (`['me']`, `['summary']`, `['wishlist', …]`) and resets the ones guests
 read too whose answers depend on the viewer (`['cart']`, and under `['product', …]` the payload's
-`is_in_wishlist` and the comment lists' `is_current_user`, and a blog post's comment lists,
-`['blog-comments', …]`, for the same flag), so nobody sees the previous visitor's
+`is_in_wishlist` and the comment lists' `is_current_user`, and a blog post's and a content page's
+comment lists, `['blog-comments', …]` and `['page-comments', …]`, for the same flag), so nobody
+sees the previous visitor's
 data, not even within a stale time. A new viewer-dependent query key belongs in that list.
 When several session calls answer 401 at once (an account page's queries), only the first one
 ends the session: `endSession()` (`useSession`) reads a ref that changes at once, before React
@@ -389,7 +390,9 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 | `blog/post/list/?category=…&search=…&page=…` | `getBlogPosts()`: the archive, a category's posts; a search sends the visitor IP (its own entry and rate, like a long-tail listing) | 60 s | `blog` |
 | `blog/category/list/` (all pages), `blog/category/<slug>/` | `getBlogCategories()`, `getBlogCategory()` (a 404 remembered a minute in process memory) | 300 s | `blog`, `blog-category:<slug>` |
 | `global/feature-status/blog/` | `blogSwitchOff()` (`lib/edge/blog-switch.ts`), the proxy's, in process memory | 60 s (a failed read: retried after 15 s, the last known state kept) | — |
-| `blog/post/<slug>/comment/list/?comment_type=comment&page=1` | `getFirstPostComments()` (`features/blog/post-api.ts`): page 1 of a post's comments, server-rendered in its own in-page `<Suspense>` after the post; the questions (read when their tab opens), later pages, and page 1 again for a signed-in visitor (`is_current_user`) come through the BFF | 60 s | `blog-post:<slug>`, `blog` |
+| `blog/post/<slug>/comment/list/?comment_type=comment&page=1`, `pages/<slug>/comment/list/?comment_type=comment&page=1` | `getFirstComments()` (`features/comments/first-comments.ts`): page 1 of a post's or a content page's comments, server-rendered in its own in-page `<Suspense>` after the subject; the questions (read when their tab opens), later pages, and page 1 again for a signed-in visitor (`is_current_user`) come through the BFF | 60 s | `blog-post:<slug>`, `blog`; `page:<slug>`, `pages` |
+| `pages/<slug>/` | `getPage()` (`features/content/pages/api.ts`): a content page as everyone sees it, anonymous (a 404 remembered a minute in process memory); a staff preview is read apart, never cached (see Content pages) | 300 s | `page:<slug>`, `pages` |
+| `pages/list/?limit=100` | `getPageCards()`: the `with_sidebar` aside's other pages | 300 s | `pages` |
 | `product/detail/<slug>/comment/list/?comment_type=…&page=1` | `getFirstComments()`: page 1 of the reviews and of the questions, server-rendered in their own in-page `<Suspense>` after the product (spec §8.13); later pages, and page 1 again for a signed-in visitor (`is_current_user`), come through the BFF | 60 s | `product:<slug>`, `catalog` |
 | `robots/?format=txt` | `/robots.txt` route | 300 s (fetch level) | — |
 | `redirects/list/` (rule sources only) | `knownSources()`, in process memory | 5 min (a failed load is retried after 30 s) | — |
@@ -401,6 +404,8 @@ Never cached (`cache: 'no-store'`, and `Cache-Control: no-store` on our response
 - every BFF call (cart, auth, account, orders, payment status, search…);
 - `blog/post/<slug>/` (each read counts a view): `getPost()`, once per page view, as the visitor
   (see Blog post views);
+- a content page's staff preview: `pages/<slug>/` read again with the visitor's token after the
+  anonymous read's 404 (see Content pages);
 - `redirects/resolve/` (counts hits; a disabled rule must stop at once) — 1 s timeout, fails open;
 - `shortener/<code>/` (each 200 counts a visit; the answer is always a 302, never a 301). A
   prefetch of `/s/<code>` never calls the API and is answered uncached (`src/app/s/[code]/route.ts`,
@@ -492,6 +497,59 @@ counted read knows which. The API has no read of a post that counts nothing: its
 Django's `GET` (`retrieve()` increments `view_count` for a published post). So a monitor or link
 checker that sends `HEAD` to post URLs inflates their views. Point uptime checks at `/healthz/`,
 and keep crawlers' HEAD-only checks off `/blog/<slug>/`.
+
+### Content pages
+
+`/page/<slug>/` (`app/(shop)/page/[slug]/page.tsx`, content digest §3–§4) renders an operator's
+page in the shop's layout. It is indexable, and a page counts no views (unlike a post), so its
+links prefetch as any shop link: the search results' page rows, the aside, menus.
+
+- **Two reads, kept apart** (`getPage()`, a React `cache()`: `generateMetadata` and the page
+  share each). Everyone's page is read anonymously (no `Authorization`, no visitor IP) and cached
+  300 s, one Data Cache entry for every visitor. Only when that read is the API's 404 (missing,
+  or a draft), and only for a visitor with a session (a JWT-shaped `ff_at`), the page is read
+  again with their token and IP, uncached (`apiFetch` never caches a call with a token). A staff
+  account then gets the draft (`is_unpublished`): «پیش‌نویس — منتشر نشده», `noindex, nofollow`,
+  no comments (their lists answer 404 even for staff). Anyone else gets the same 404. A published
+  page never carries a token, and an answer read with one never reaches a cache. Pages are
+  rendered per request anyway (R5), and sent `private, no-store`.
+- **Status codes** (R9): no `loading.*`; the page is awaited and `notFound()` called (missing,
+  a draft for a guest, `list`, a slug that is not one segment) before anything streams. Persian
+  slugs are percent-encoded once for the API (`oneSegment`).
+- **Layouts** (`pageLayout()`, unknown values read as `default`; the frame says `data-layout`):
+  `default`, one readable column (`max-w-3xl`); `full_width`, the container's whole width, where
+  tables scroll in their own focusable region and, on phones, pictures keep their own width, the
+  block holding one scrolling sideways (`.rich-content-wide`; from 768 px they fit the column; the
+  content's box is the last guard, so the page itself never scrolls sideways);
+  `with_sidebar`, the text and an `<aside>` «صفحه‌های دیگر» (every other published page,
+  `getPageCards()`, read for that layout only), beside it from lg and sticky, below it on phones.
+  None ships client code of its own: `ContentPage` is a server component.
+- **Content**: `RichContentBody` over the sanitiser (`/media` on the API, shop links routed in
+  the browser on a click, so a post's link is never prefetched: P5-R1). Every id is dropped (a
+  page has no `headings`); a content `h1` is an `h2`, so the title is the page's one `h1`.
+- **Head** (`contentPageMetadata()`, `features/content/pages/page-seo.ts`, over
+  `pageMetadata()`): the title absolute (`page_title` as written when it names the shop, else
+  «<page_title> | <shop>»: the API's `page_title` falls back to the bare title, checked live);
+  the description (`page_description`, else `description`, else none); keywords when set; the
+  canonical (`canonical_link`, else the page's own path, its trailing slash kept); the operator's
+  `meta_tags` split, in order with repeats kept: `og:`, `article:`, `product:`, `profile:`,
+  `book:`, `fb:` rows rendered by the page as `<meta property>` (React hoists them into the
+  initial `<head>`), the others through `metadata.other`. No key is ever `undefined`. JSON-LD:
+  the BreadcrumbList of the visible trail (the API gives pages no structured data), escaped.
+- **Comments**: shown while `enable_comments`, or while approved comments or questions exist
+  (`commentsShown()`; the form only while `enable_comments`). The section, lists, threads and form
+  are the blog's, generalised in `src/features/comments/` by subject (`subjects.ts`: a post's or
+  a page's API path, query key, form switch and words). A page's forms sit behind its own gate
+  (`CommentsGate`): closed by `enable_comments`, or by a send's `403 page_comments_disabled`,
+  which takes every form away and puts the API's sentence (focused) in its place. The shop's
+  answer reads «پاسخ فروشگاه» on posts and pages alike, as in «دیدگاه‌های من».
+- **`contact-us`**: `ContactFormSlot` under the content is where Task 4's contact form renders
+  (nothing yet). Task 4 also adds `/contact-us/`. The canonical URL for the contact form is then
+  `/contact-us/`, which always exists (with the store's contact details), whether or not the
+  operator made a page. When it lands, `/page/contact-us/` should name `/contact-us/` as its
+  canonical (unless the operator set `canonical_link`). Until then the page is self-canonical,
+  because `/contact-us/` does not exist yet. The backend's sitemap lists `/page/contact-us/` while
+  the page is published.
 
 ## Rendering rules
 
@@ -1058,8 +1116,13 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   filtered and sorted through the URL, removed by its bookmark and brought back by «بازگردانی»;
   three writes, and the teardown's one to take the post out again). The blog's read-only spec
   (`tests/e2e/blog/blog.spec.ts`, every device project) reads the home, its pages, a category and
-  the search's «مشاهدهٔ همه» as a guest; `watch-errors.ts` lets a 404 of `/page/<slug>/` through
-  until Task 3 builds that page, never one of the blog. A post's spec (`tests/e2e/blog/post.spec.ts`,
+  the search's «مشاهدهٔ همه» as a guest; `watch-errors.ts` lets no route's 404 through any more
+  (content pages were the last, Task 3), only the dev backend's missing pictures. Content pages'
+  spec (`tests/e2e/content/page.spec.ts`, every device project, a guest) reads `about-us` in its
+  layout with its comments and the shop's answer, `contact-us` without a comments block, real 404s
+  for a missing page and a draft, and answers the form's POST itself (a 201, then a 403
+  `page_comments_disabled`); `E2E_LIVE_PAGE_COMMENT=1` sends one guest comment on `terms` for
+  real (desktop only, once: it stays pending for the operator to reject). A post's spec (`tests/e2e/blog/post.spec.ts`,
   every device project, a guest) reads the article, its table of contents, the comments with the
   shop's answer and the Q&A tab, and a real 404; it counts the views of one post per project
   (`airfryer-vs-oven`, `laptop-for-students`, `smartwatch-health-features`: a load, a click from

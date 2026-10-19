@@ -2,17 +2,18 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { PostCommentComposer } from '@/features/blog/components/post-comment-composer'
-import { postCommentsKey } from '@/features/blog/post-comments-api'
+import { SubjectCommentComposer } from '@/features/comments/subject-comment-composer'
+import { subjectCommentsKey } from '@/features/comments/subjects'
 import { FeatureProvider } from '@/features/settings/feature-context'
 import { ApiError } from '@/lib/api/errors'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { clientProviders } from '../support/providers'
 
-// The blog's comment form (blog digest §1.7), opened in place by its button: a guest's name and
-// e-mail (a signed-in visitor's come from the account), the honeypot, every empty optional left
-// out; once sent, the API's moderation notice (focused) and nothing inserted; a 429 waits out
-// `retry_after`; a switched-off comments switch takes the form away.
+// The comment form of a post or a page (blog digest §1.7, content digest §4.2), opened in place
+// by its button; a post's here: a guest's name and e-mail (a signed-in visitor's come from the
+// account), the honeypot, every empty optional left out; once sent, the API's moderation notice
+// (focused) and nothing inserted; a 429 waits out `retry_after`; a switched-off comments switch
+// takes the form away. (A page's own gate: tests/unit/content/page-comments.test.tsx.)
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
@@ -20,6 +21,7 @@ vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
 stubBrowserApis()
 
 const SLUG = 'best-phones-under-30m'
+const POST = { kind: 'post', slug: SLUG } as const
 const SUBMIT = `blog/post/${SLUG}/comment/submit/`
 const OK = 'نظر شما با موفقیت ثبت شد و پس از تأیید نمایش داده می شود.'
 
@@ -34,7 +36,7 @@ function renderComposer({
       <FeatureProvider initial={{}}>{children}</FeatureProvider>
     </Base>
   )
-  render(<PostCommentComposer slug={SLUG} type={type} parentId={parentId} />, { wrapper })
+  render(<SubjectCommentComposer subject={POST} type={type} parentId={parentId} />, { wrapper })
   return { client, user: userEvent.setup() }
 }
 
@@ -45,7 +47,7 @@ beforeEach(() => {
   mocks.bffFetch.mockReset()
 })
 
-describe('PostCommentComposer', () => {
+describe('SubjectCommentComposer: a post’s form', () => {
   it('a guest gives a name (and may give an e-mail); a signed-in visitor gives neither', async () => {
     const { user } = renderComposer()
     await user.click(screen.getByRole('button', { name: 'ثبت دیدگاه' }))
@@ -66,7 +68,7 @@ describe('PostCommentComposer', () => {
     mocks.bffFetch.mockResolvedValue({ data: {}, msg: OK, status: 201 })
     const { client, user } = renderComposer()
     const listed = { pages: [{ results: [] }], pageParams: [1] }
-    client.setQueryData([...postCommentsKey(SLUG), 'comment'], listed)
+    client.setQueryData([...subjectCommentsKey(POST), 'comment'], listed)
     await user.click(screen.getByRole('button', { name: 'ثبت دیدگاه' }))
     await user.type(await textBox(), ' ممنون ')
     await user.type(screen.getByRole('textbox', { name: /^نام/ }), 'علی')
@@ -76,7 +78,7 @@ describe('PostCommentComposer', () => {
     expect(status).toHaveFocus()
     expect(writes()).toEqual([[SUBMIT, { method: 'POST', body: { review: 'ممنون', name: 'علی' } }]])
     // Moderated: never put in the list, and the list is not read again for it.
-    expect(client.getQueryData([...postCommentsKey(SLUG), 'comment'])).toBe(listed)
+    expect(client.getQueryData([...subjectCommentsKey(POST), 'comment'])).toBe(listed)
     expect(mocks.bffFetch).toHaveBeenCalledTimes(1)
     // Opened again: an empty form.
     await user.click(screen.getByRole('button', { name: 'ثبت دیدگاه' }))

@@ -62,7 +62,7 @@ test.describe('a post', () => {
     const list = comments.getByRole('list', { name: 'دیدگاه\u{200C}ها' })
     await expect(list.getByText('چرا گوشی های اپل در این لیست نیستند؟')).toBeVisible()
     await expect(
-      list.getByRole('list', { name: /^پاسخ\u{200C}ها به/u }).getByText('پاسخ رسمی'),
+      list.getByRole('list', { name: /^پاسخ\u{200C}ها به/u }).getByText('پاسخ فروشگاه'),
     ).toBeVisible()
     await comments.getByRole('tab', { name: /پرسش و پاسخ/ }).click()
     await expect(comments.getByRole('tab', { name: /پرسش و پاسخ/ })).toHaveAttribute(
