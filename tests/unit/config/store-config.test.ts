@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseServerEnv, type ServerEnv } from '@/config/env-schema'
 import { PRESET_NAMES, PRESETS, type PresetName } from '@/config/presets'
 import { resolveStoreConfig, toPublicConfig } from '@/config/resolve-store-config'
+import { HOSTILE_SHELL_ENV, useHermeticEnv } from '../support/hermetic-env'
 
 const base = {
   FIREFLY_API_URL: 'https://api.shop.ir/',
@@ -183,17 +184,25 @@ describe('toPublicConfig', () => {
 })
 
 describe('getStoreConfig (server accessor)', () => {
+  // Registered before useHermeticEnv: undone once the real environment is back.
+  beforeEach(() => {
+    for (const [name, value] of Object.entries(HOSTILE_SHELL_ENV)) vi.stubEnv(name, value)
+  })
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.resetModules()
     vi.doUnmock('server-only')
   })
+  // The accessor reads `process.env`: the test's own, never the shell's.
+  const setEnv = useHermeticEnv()
 
   it('resolves from process.env once and memoizes', async () => {
-    vi.stubEnv('FIREFLY_API_URL', 'https://api.shop.ir/')
-    vi.stubEnv('SITE_URL', 'https://shop.ir/')
-    vi.stubEnv('FIREFLY_API_KEY', 'k')
-    vi.stubEnv('STORE_PRESET', 'paint')
+    setEnv({
+      FIREFLY_API_URL: 'https://api.shop.ir/',
+      SITE_URL: 'https://shop.ir/',
+      FIREFLY_API_KEY: 'k',
+      STORE_PRESET: 'paint',
+    })
     vi.resetModules()
     vi.doMock('server-only', () => ({}))
     const { getStoreConfig } = await import('@/config/store-config')

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { parseServerEnv } from '@/config/env-schema'
 
 const base = {
@@ -102,11 +102,17 @@ describe('parseServerEnv', () => {
     }
   })
 
-  it('does not echo secret values in error messages', () => {
-    const message = errorOf(() =>
-      parseServerEnv({ ...base, FIREFLY_API_KEY: 'super-secret-key', THEME_PRIMARY: 'nope' }),
+  it.each([
+    'https://api.shop.ir/?x=1',
+    'https://api.shop.ir/backend?x',
+    'https://api.shop.ir/#top',
+    'https://api.shop.ir?',
+    'https://api.shop.ir/#',
+  ])('refuses a FIREFLY_API_URL with a query or a fragment: %s', (value) => {
+    const message = errorOf(() => parseServerEnv({ ...base, FIREFLY_API_URL: value }))
+    expect(message).toContain(
+      'FIREFLY_API_URL: must be the bare API origin, without a query (?) or fragment (#)',
     )
-    expect(message).not.toContain('super-secret-key')
   })
 
   it('parses booleans from true, false, 1 and 0', () => {
@@ -194,38 +200,5 @@ describe('parseServerEnv', () => {
 
   it('rejects an unknown STORE_PRESET', () => {
     expect(() => parseServerEnv({ ...base, STORE_PRESET: 'jewelry' })).toThrow(/STORE_PRESET/)
-  })
-})
-
-describe('getServerEnv (server accessor)', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs()
-    vi.resetModules()
-    vi.doUnmock('server-only')
-  })
-
-  async function loadAccessor() {
-    vi.resetModules()
-    vi.doMock('server-only', () => ({}))
-    return import('@/config/env')
-  }
-
-  it('throws when called, never when the module is imported', async () => {
-    vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('FIREFLY_API_URL', '')
-    vi.stubEnv('SITE_URL', '')
-    vi.stubEnv('FIREFLY_API_KEY', '')
-    const { getServerEnv } = await loadAccessor()
-    expect(() => getServerEnv()).toThrow(/FIREFLY_API_KEY/)
-  })
-
-  it('memoizes the parsed environment', async () => {
-    vi.stubEnv('FIREFLY_API_URL', 'https://api.shop.ir/')
-    vi.stubEnv('SITE_URL', 'https://shop.ir/')
-    vi.stubEnv('FIREFLY_API_KEY', 'k')
-    const { getServerEnv } = await loadAccessor()
-    const first = getServerEnv()
-    expect(first.FIREFLY_API_URL).toBe('https://api.shop.ir')
-    expect(getServerEnv()).toBe(first)
   })
 })

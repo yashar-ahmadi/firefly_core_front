@@ -39,17 +39,22 @@ const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 const HEADER_NAME = /^[a-z0-9-]+$/
 
 const HTTP_URL = 'must be an http(s) URL'
+const BARE_URL = 'must be the bare API origin, without a query (?) or fragment (#)'
 const HEX_HINT = 'must be a #RRGGBB hex colour, e.g. "#4F46E5"'
 const FLAG_HINT = 'must be true, false, 1 or 0'
 const HEADER_HINT = 'must be an HTTP header name such as "x-real-ip", or "none"'
 const REQUIRED = 'is required in production'
 
-const httpUrl = z
-  .url({
-    protocol: /^https?$/,
-    error: (issue) => (issue.input === undefined ? REQUIRED : HTTP_URL),
-  })
-  .transform((value) => value.replace(/\/+$/, ''))
+const url = z.url({
+  protocol: /^https?$/,
+  error: (issue) => (issue.input === undefined ? REQUIRED : HTTP_URL),
+})
+const stripSlashes = (value: string) => value.replace(/\/+$/, '')
+const httpUrl = url.transform(stripSlashes)
+/** Paths are appended to it (`/api/v1/…`): a `?` or `#` would swallow them. */
+const apiUrl = url
+  .refine((value) => !/[?#]/.test(value), { error: BARE_URL })
+  .transform(stripSlashes)
 const hex = z.string().regex(HEX_COLOR, { error: HEX_HINT })
 const flag = z
   .stringbool({ truthy: ['true', '1'], falsy: ['false', '0'], error: FLAG_HINT })
@@ -58,7 +63,7 @@ const flag = z
 function buildSchema(isProduction: boolean) {
   return z
     .object({
-      FIREFLY_API_URL: isProduction ? httpUrl : httpUrl.default(DEV_API_URL),
+      FIREFLY_API_URL: isProduction ? apiUrl : apiUrl.default(DEV_API_URL),
       FIREFLY_API_KEY: isProduction
         ? z.string({ error: REQUIRED }).min(1, { error: REQUIRED })
         : z.string().default(''),
