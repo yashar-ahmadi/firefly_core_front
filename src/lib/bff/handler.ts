@@ -31,6 +31,7 @@ import {
   MERGE_PATH,
   REFRESH_PATH,
   captureSession,
+  isKeyOnly,
   readSession,
 } from '@/lib/bff/session'
 import { callUpstream, type UpstreamResult } from '@/lib/bff/upstream'
@@ -121,6 +122,8 @@ interface RefreshState {
  * API answers public paths as a guest and auth-required paths with its own 401, which is relayed.
  * If the refresh fails transiently (5xx, 429, no answer), the cookies stay and, where the call
  * would go without a usable bearer or its 401 would be relayed, a retryable 503 answers instead.
+ * Key-only paths (`isKeyOnly`: the refresh, the logout and the auth forms' POSTs) go with the API
+ * key alone and never refresh.
  */
 export async function handleBff(req: NextRequest, segments: string[]): Promise<NextResponse> {
   const env = getServerEnv()
@@ -146,8 +149,8 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
   const forwardedFor = getClientIp(req.headers, env.CLIENT_IP_HEADER)
   const cookies = anonymous ? NO_SESSION : readSession(req)
   const jar = new CookieJar()
-  // The refresh and logout endpoints authenticate with the API key alone.
-  const keyOnly = path === REFRESH_PATH || path === LOGOUT_PATH
+  // The refresh and logout endpoints, and the auth forms', authenticate with the API key alone.
+  const keyOnly = isKeyOnly(path)
   let body: OutgoingBody
   try {
     body = await readBody(req, method, bodyRewrite(path, cookies.refresh))

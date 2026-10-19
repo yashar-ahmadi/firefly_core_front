@@ -15,6 +15,37 @@ export const LOGOUT_PATH = 'account/auth/logout/'
 export const LOGOUT_ALL_PATH = 'account/auth/logout-all/'
 export const MERGE_PATH = 'cart/merge/'
 
+/**
+ * The sign-in, registration and recovery forms' calls: they start a session and never need one,
+ * so they go with the API key alone (no bearer, no refresh step: see `isKeyOnly`).
+ */
+const AUTH_ENTRY_PATHS: ReadonlySet<string> = new Set(
+  [
+    'login/',
+    'login/otp/request/',
+    'login/otp/verify/',
+    'google/',
+    'register/start/',
+    'register/verify/',
+    'register/resend-otp/',
+    'register/complete/',
+    'password-reset/request/',
+    'password-reset/verify-otp/',
+    'password-reset/confirm/',
+  ].map((rest) => `account/auth/${rest}`),
+)
+
+/**
+ * Whether the BFF sends `path` with the API key alone: never a bearer, a guest cart token or a
+ * refresh step. The refresh and logout endpoints authenticate with the refresh token in their
+ * body; the auth forms' (`AUTH_ENTRY_PATHS`) start a session, so a stale refresh cookie left in
+ * the browser must not hold them up (a transient refresh failure would answer every sign-in with
+ * a 503 until it healed).
+ */
+export function isKeyOnly(path: string): boolean {
+  return path === REFRESH_PATH || path === LOGOUT_PATH || AUTH_ENTRY_PATHS.has(path)
+}
+
 /** Codes after which the account can no longer be used: the session must end. */
 const ACCOUNT_GONE = new Set(['user_inactive', 'user_not_found'])
 /** Codes the refresh endpoint uses for a dead refresh token. */

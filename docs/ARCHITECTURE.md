@@ -117,8 +117,12 @@ re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
 - requires `X-Requested-With: ff` on every method (a cross-site form or top-level navigation cannot
   add it) and, for writes, an `Origin` matching the request host or `SITE_URL`;
 - adds `X-API-Key`, `Authorization: Bearer <ff_at>`, `X-Cart-Token: <ff_cart>` (for guests and the
-  cart merge, never on key-only paths), `Idempotency-Key` (passed through) and `X-Forwarded-For` (the visitor IP from
-  `CLIENT_IP_HEADER`);
+  cart merge, never on key-only paths), `Idempotency-Key` (passed through) and `X-Forwarded-For`
+  (the visitor IP from `CLIENT_IP_HEADER`). Key-only paths (`isKeyOnly`, `lib/bff/session.ts`)
+  get the API key alone and no refresh step: the token refresh and logout, and the sign-in,
+  registration and recovery forms' POSTs (login, OTP login, Google, `register/*`,
+  `password-reset/*`), which start a session and never need one, so a stale refresh cookie whose
+  refresh fails transiently cannot hold every sign-in at a 503;
 - refreshes the access token once (before the call when it is expiring, or after a
   `401 token_not_valid`/`authentication_failed`) and retries once; a refresh that fails
   transiently (5xx, 429, no answer) keeps the cookies and, where the call would go without a usable
