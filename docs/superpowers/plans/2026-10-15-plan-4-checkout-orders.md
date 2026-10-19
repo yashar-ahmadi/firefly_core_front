@@ -256,7 +256,7 @@ Everything in Plans 1–3's Global Constraints, plus:
 
 - [ ] **Step 1: e2e against the dev backend.** Use the accounts and shipping methods listed in `cart-address.md` §9 and `order-payment.md` (sample data).
   - A guest adds a product, applies coupon `TEA30` or `FREESHIP` where valid, sets the Tehran destination, selects a COD-capable method with COD, places the order, and sees the thanks page with order code and payment link. Tracking with code and mobile finds it.
-  - A signed-in user with wallet balance places an order paid by wallet; the order appears in `/account/orders/` under «در حال پردازش».
+  - A signed-in user with wallet balance places an order paid by wallet; the order appears in `/account/orders/` under «در حال انجام».
   - Card-to-card: a guest places an order, chooses card transfer, sees destination cards, uploads a 400×400 PNG receipt fixture, and sees «در صف بررسی».
   - Bank gateway: the dev backend returns `gateway_not_configured`. Assert the UI shows the misconfiguration message and does not navigate. Bank redirect itself is covered by unit tests.
   - The payment result page with `?result=failed&payment=<uuid of a cancelled attempt>` shows the correct copy.

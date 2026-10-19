@@ -414,7 +414,9 @@ The checkout re-validates shipping selection before paying, as the backend clear
   right after placement. Otherwise they auto-cancel after 72 h. Any non-zero online share is paid online
   first.
 - Before redirecting to a bank, the context (payment uuid, order code or uuid, link token, kind) is saved in
-  `sessionStorage` and a short-lived cookie, so the result page can offer the right next action.
+  `localStorage` (`ff-pending-payments`, by payment uuid; no cookie), so the result page can offer the right
+  next action. Entries are pruned after 7 days, removed once the payment settles, and on logout the ones
+  saved while signed in are removed (a guest's own stay).
 - An open payment attempt (`409 payment_attempt_open`) offers "continue" or "abandon".
 - The same result page handles wallet top-ups.
 - The exact flows follow `order-payment.md`.
