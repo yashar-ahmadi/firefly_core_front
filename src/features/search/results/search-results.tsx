@@ -57,7 +57,8 @@ function compactItems(results: Results, kind: Exclude<ResultKind, 'products'>): 
     case 'pages':
       return results.pages.items.map((page) => ({
         key: page.id,
-        // A page counts no views (content digest §3.2): prefetched as any shop link.
+        // A page counts no views (the backend's `PageDetailView`, `pages/views.py`, has no view
+        // counter; docs/ARCHITECTURE.md, «Content pages»): prefetched as any shop link.
         href: contentPagePath(page.slug),
         name: page.title,
         description: page.description,
