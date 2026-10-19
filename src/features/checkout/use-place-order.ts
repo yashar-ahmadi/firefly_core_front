@@ -160,7 +160,9 @@ export function usePlaceOrder(
         })
         return
       }
-      void client.invalidateQueries({ queryKey: CART_KEY })
+      // The cart is spent: read again (empty now), but not its shipping options, which the API
+      // can no longer price (404 `cart_not_found`); the review asking for them goes next.
+      void client.invalidateQueries({ queryKey: CART_KEY, exact: true })
       if (!guest) void client.invalidateQueries({ queryKey: SUMMARY_KEY })
       announce(`سفارش ${code} ثبت شد.`)
       onPlaced(outcome.ctx)
