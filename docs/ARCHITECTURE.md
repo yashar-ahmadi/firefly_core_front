@@ -275,7 +275,10 @@ first); a session and the cookie, but with another login's marker than this tab'
 (`useSession().sessionReplaced()`: the marker it loaded with, signed in with, or had when a server
 render turned the session on) → another visitor signed in elsewhere: the tab's web push steps
 stop, and an account or checkout page loads again (`location.reload()`: its HTML is the
-visitor's own) while any other page reads the viewer queries again in place
+visitor's own), and so does a `/payment/` page (the bank's return, the card transfer: they read
+once whether the payment's order is this account's, `useOrderOwnership`, and would go on
+offering the previous account's order page and door), while any other page reads the viewer
+queries again in place
 (`resetViewerQueries`: the header's name, hearts, the cart, the «شما» marks; their HTML is the
 same for everyone); no session but the cookie (a login elsewhere) → the tab takes the session
 itself (`setHasSession(true)`, the guest's viewer queries reset) and asks the server once

@@ -13,6 +13,10 @@ import { useSession } from './session-context'
 import { useSessionExpired } from './use-session-expired'
 import { clearViewerQueries, resetViewerQueries } from './viewer-queries'
 
+/** Pages that load again after a switch: the signed-in context, and the payment pages. */
+const reloadsOnSwitch = (pathname: string) =>
+  isSignedInContextPath(pathname) || pathname.startsWith('/payment/')
+
 /**
  * Sets this tab right against the session flag cookie (`ff_auth`, the marker of the login the
  * session began with), once, when it mounts (the shop-wide sweep mounts it when a tab coming back
@@ -23,7 +27,9 @@ import { clearViewerQueries, resetViewerQueries } from './viewer-queries'
  *   account page or a signed-in checkout);
  * - a session here, another login's marker (a logout and a login elsewhere): this tab's push
  *   steps stop, and the new session is this tab's; an account or checkout page loads again (its
- *   HTML is the visitor's own), any other page reads the visitor's data again in place
+ *   HTML is the visitor's own), and so does a payment page (`/payment/…`: it read once whether
+ *   the payment's order is this account's, `useOrderOwnership`, and offers that account's order
+ *   page and door); any other page reads the visitor's data again in place
  *   (`resetViewerQueries`: the header's name, hearts, the cart, the «شما» marks);
  * - no session here, but the cookie (a login elsewhere): the tab takes it (the guest's reads
  *   reset, the guest's checkout receiver forgotten) and asks the server once;
@@ -42,7 +48,7 @@ export function SessionSweepAction({ accountPage = false }: { accountPage?: bool
       if (!sessionReplaced()) return
       abandonPushWork()
       const { pathname } = window.location
-      if (isSignedInContextPath(pathname)) {
+      if (reloadsOnSwitch(pathname)) {
         void clearViewerQueries(client)
         return reloadPage()
       }
