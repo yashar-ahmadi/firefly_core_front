@@ -12,7 +12,7 @@ import { forgiveFailure } from './watch-errors'
 const BOX = 'کد تخفیف دارید؟'
 
 export async function applySampleCoupon(page: Page): Promise<CouponChoice<Cart>> {
-  return firstTaken<Cart>(couponsToTry(), async (code) => {
+  return firstTaken<Cart>(couponsToTry(process.env.E2E_COUPONS), async (code) => {
     await page.getByLabel(BOX).fill(code)
     const answer = await cartWrite(
       page,

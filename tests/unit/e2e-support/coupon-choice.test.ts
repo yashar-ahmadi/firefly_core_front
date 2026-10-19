@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { couponsToTry, firstTaken, SAMPLE_COUPONS } from '../../e2e/support/coupon-choice'
 
 // Which sample coupon the guest's pay-on-delivery journey applies (Plan 4 Task 10 fix round): the
 // sample codes run out (TEA30 on 2026-10-28, FREESHIP on 2026-11-12) on a read-only backend, so
 // they are tried in turn; the first the API takes is the one, and with none taken the journey
-// goes on without a coupon (said). `E2E_COUPONS` replaces the list.
+// goes on without a coupon (said). `E2E_COUPONS` replaces the list: the caller passes it, so
+// these tests hold whatever the shell exports.
 
 const taken = (code: string) => ({ code, taken: { code } })
 const refused = (code: string, refusal: string) => ({ code, refusal })
@@ -39,9 +40,17 @@ describe('firstTaken', () => {
 })
 
 describe('couponsToTry', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
   it('the sample codes, TEA30 first', () => {
     expect(couponsToTry(undefined)).toEqual(['TEA30', 'FREESHIP'])
     expect(SAMPLE_COUPONS).toEqual(['TEA30', 'FREESHIP'])
+  })
+
+  it('the shell never reaches it: only the value passed counts', () => {
+    vi.stubEnv('E2E_COUPONS', 'NOWRUZ25')
+    expect(couponsToTry(undefined)).toEqual(['TEA30', 'FREESHIP'])
+    expect(couponsToTry('')).toEqual(['TEA30', 'FREESHIP'])
   })
 
   it('E2E_COUPONS replaces them (comma-separated, blanks dropped); empty: the samples', () => {

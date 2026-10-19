@@ -7,8 +7,11 @@
 
 export const SAMPLE_COUPONS: readonly string[] = ['TEA30', 'FREESHIP']
 
-/** `E2E_COUPONS`'s codes when it names any, else the sample ones. */
-export function couponsToTry(env: string | undefined = process.env.E2E_COUPONS): string[] {
+/**
+ * `env`'s codes (the caller passes `E2E_COUPONS`) when it names any, else the sample ones. An
+ * explicit argument, never read here: the unit tests must not depend on the shell's value.
+ */
+export function couponsToTry(env: string | undefined): string[] {
   const named = (env ?? '')
     .split(',')
     .map((code) => code.trim())
