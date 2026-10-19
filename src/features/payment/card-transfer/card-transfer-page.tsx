@@ -50,7 +50,7 @@ function Loading() {
     <div aria-busy className="flex flex-col gap-4" role="status">
       <span className="sr-only">در حال خواندن اطلاعات پرداخت…</span>
       <Skeleton className="h-28 w-full rounded-card" />
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2">
         <Skeleton className="h-56 w-full rounded-card" />
         <Skeleton className="h-56 w-full rounded-card" />
       </div>

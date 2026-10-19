@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button'
 import { announce } from '@/components/ui/live-announcer'
 
 // One copyable value of a shop card (its number, sheba, account number): its label with the copy
-// button beside it, then the value on a line of its own (it never has to share its width, so it
-// wraps only between its groups on the narrowest phones), shown as given (`children`, left to
-// right) and copied as `value` (the digits alone, no dashes or spaces). The button names what it
-// copies («کپی شماره کارت بانک ملت»), and the result is said politely and shown on the button for
-// a moment. Without a clipboard (an insecure origin, a refusal) the value is selected for the
-// shopper to copy.
+// button beside it, then the value on a line of its own (it never shares its width: one card a
+// row until lg; on phones a sheba still wraps, between its groups, in balanced lines kept to the
+// same side as the other values), shown as given (`children`, left to right) and copied as
+// `value` (the digits alone, no dashes or spaces). The button names what it copies («کپی شماره
+// کارت بانک ملت»), and the result is said politely and shown on the button for a moment. Without
+// a clipboard (an insecure origin, a refusal) the value is selected for the shopper to copy.
 
 const SHOWN_MS = 2_000
 
@@ -67,7 +67,7 @@ export function CopyValue({ label, value, what, children, large = false }: CopyV
         className={
           large
             ? 'self-start text-lg font-bold tracking-wide text-ink-900 tabular-nums select-all md:text-xl'
-            : 'self-start text-base font-medium text-ink-900 tabular-nums select-all'
+            : 'self-start text-end text-base font-medium text-balance text-ink-900 tabular-nums select-all'
         }
       >
         {children}

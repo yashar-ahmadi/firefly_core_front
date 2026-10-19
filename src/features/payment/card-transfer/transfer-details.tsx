@@ -77,7 +77,7 @@ export function TransferDetails({ data, orderCode, cutoff, instruction }: Transf
         <h2 id="transfer-cards-heading" className="text-lg leading-8 font-bold text-ink-900">
           {CARDS_HEADING}
         </h2>
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid gap-3 lg:grid-cols-2">
           {data.destination_cards.map((card) => (
             <li key={card.id}>
               <DestinationCard card={card} />
