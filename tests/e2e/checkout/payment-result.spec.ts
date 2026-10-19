@@ -45,6 +45,7 @@ async function mockStatus(page: Page, answers: PaymentStatusInfo[]) {
 }
 
 const back = (query: string) => `/payment/callback/${query}`
+const toman = (amount: number) => `${new Intl.NumberFormat('fa-IR').format(amount)} تومان`
 const heading = (page: Page) => page.getByRole('heading', { level: 1 })
 
 test.describe('the payment result page', () => {
@@ -178,14 +179,24 @@ test.describe('the payment result page', () => {
   test('after 15 minutes: stopped, and «بررسی دوباره» reads once', async ({ page }) => {
     test.slow()
     await page.clock.install()
-    const reads = await mockStatus(page, [info()])
+    // Each answer its own amount: the page showing it proves that read was handled, and so the
+    // next one scheduled (the schedule waits for each answer), before the clock jumps again. A
+    // jump made while an answer was still on its way fired nothing (Task 10, run 1, tablet).
+    const amountOf = (read: number) => 1_000_000 + read
+    const reads = await mockStatus(
+      page,
+      Array.from({ length: 30 }, (_, read) => info({ amount: amountOf(read) })),
+    )
+    const shown = (read: number) => page.getByText(toman(amountOf(read)), { exact: true })
     await page.goto(back(`?result=success&payment=${UUID}`))
     await expect(heading(page)).toHaveText('در حال بررسی پرداخت')
+    await expect(shown(0)).toBeVisible()
     const stopped = page.getByText(COPY.stopped, { exact: true })
     for (let minute = 0; minute < 20 && !(await stopped.isVisible()); minute++) {
-      const before = reads.count
+      const done = reads.count
       await page.clock.fastForward('01:00')
-      await expect.poll(async () => reads.count > before || (await stopped.isVisible())).toBe(true)
+      // The read due in that minute, answered and shown (or the window over: stopped).
+      await expect(shown(done).or(stopped).first()).toBeVisible()
     }
     await expect(stopped).toBeVisible()
     const count = reads.count
