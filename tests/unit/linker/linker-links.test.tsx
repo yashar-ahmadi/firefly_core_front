@@ -119,9 +119,15 @@ describe('the links, by type', () => {
     const frames = [...document.querySelectorAll('iframe')]
     expect(frames.map((frame) => frame.getAttribute('src'))).toEqual([
       'https://www.aparat.com/video/video/embed/videohash/rajj65c/vt/frame',
-      'https://www.youtube.com/embed/dQw4w9WgXcQ',
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
     ])
     for (const frame of frames) {
+      // Scripts and the player's own origin (both players need them), fullscreen and the
+      // provider's own page in a new tab; no top navigation, forms or downloads.
+      expect(frame).toHaveAttribute(
+        'sandbox',
+        'allow-scripts allow-same-origin allow-presentation allow-popups',
+      )
       expect(frame).toHaveAttribute('loading', 'lazy')
       expect(frame).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
       expect(frame.getAttribute('allow')).toContain('encrypted-media')

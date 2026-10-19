@@ -86,7 +86,13 @@ function buttonLink(link: LinkerLink, side: ThumbnailSide): ReactNode {
   ) : null
 }
 
-/** An Aparat or YouTube player, lazily loaded, in a 16:9 frame; the title under it. */
+/**
+ * What a player may do (both need their scripts and their own origin's storage; fullscreen;
+ * the provider's page in a new tab), nothing more: no top navigation, forms or downloads.
+ */
+const PLAYER_SANDBOX = 'allow-scripts allow-same-origin allow-presentation allow-popups'
+
+/** An Aparat or YouTube player, lazily loaded, sandboxed, in a 16:9 frame; the title under it. */
 function VideoEmbed({ link, src }: { link: LinkerLink; src: string }) {
   const title = link.title.trim() || 'ویدیو'
   return (
@@ -96,6 +102,7 @@ function VideoEmbed({ link, src }: { link: LinkerLink; src: string }) {
           src={src}
           title={title}
           loading="lazy"
+          sandbox={PLAYER_SANDBOX}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
           // YouTube refuses to play without the page's origin as the referrer (its error 153).

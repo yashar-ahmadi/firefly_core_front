@@ -22,7 +22,9 @@ function parse(value: string): URL | null {
  * The embed URL for a video link, or null (the link then shows as a button):
  * - Aparat `aparat.com/v/<hash>` → `https://www.aparat.com/video/video/embed/videohash/<hash>/vt/frame`
  *   (the iframe Aparat's own embed code builds);
- * - YouTube `youtube.com/watch?v=<id>` (www, m) and `youtu.be/<id>` → `https://www.youtube.com/embed/<id>`.
+ * - YouTube `youtube.com/watch?v=<id>` (www, m) and `youtu.be/<id>` →
+ *   `https://www.youtube-nocookie.com/embed/<id>` (YouTube's privacy-enhanced player: it sets no
+ *   cookie before the visitor plays the video).
  * Hosts are matched exactly (no look-alike), the id by its shape; always https.
  */
 export function videoEmbedUrl(value: string): string | null {
@@ -36,5 +38,5 @@ export function videoEmbedUrl(value: string): string | null {
   let id: string | null = null
   if (YOUTUBE_HOSTS.has(host) && url.pathname === '/watch') id = url.searchParams.get('v')
   else if (host === 'youtu.be') id = url.pathname.replace(/^\/|\/$/g, '')
-  return id && YOUTUBE_ID.test(id) ? `https://www.youtube.com/embed/${id}` : null
+  return id && YOUTUBE_ID.test(id) ? `https://www.youtube-nocookie.com/embed/${id}` : null
 }

@@ -641,11 +641,14 @@ Plan 5 Task 4: `/faq/` and `/contact-us/` in the shop's layout, `/links/` in its
   anything else a plain `<a>` to the API's absolute `href`; e-mail and phone their `mailto:` and
   `tel:`; text a heading and its lines, never HTML; a video an embed only for Aparat
   (`/v/<hash>` → `www.aparat.com/video/video/embed/videohash/<hash>/vt/frame`) and YouTube
-  (`watch?v=`, `youtu.be` → `www.youtube.com/embed/<id>`), hosts matched exactly, lazily loaded,
-  titled, with `referrerpolicy="strict-origin-when-cross-origin"` (YouTube refuses to play without
-  the origin); any other video a button; an unknown type nothing. The site's CSP has
+  (`watch?v=`, `youtu.be` → `www.youtube-nocookie.com/embed/<id>`, the privacy-enhanced player:
+  no cookie before the visitor plays), hosts matched exactly, lazily loaded, titled, sandboxed
+  (`allow-scripts allow-same-origin allow-presentation allow-popups`: no top navigation, forms or
+  downloads), with `referrerpolicy="strict-origin-when-cross-origin"` (YouTube refuses to play
+  without the origin); any other video a button; an unknown type nothing. The site's CSP has
   `frame-ancestors` only (who may frame the shop), no `frame-src`, so the embeds need no CSP
-  change. A linker never saved (`name === ''`) is a real 404; the page is indexable, its title the
+  change; adding a `frame-src` alone would block every other frame (Google's sign-in button, an
+  operator snippet's) unless listed too. A linker never saved (`name === ''`) is a real 404; the page is indexable, its title the
   name, its canonical `/links/`. A server component: the route ships the root layout's code alone.
 
 ## Rendering rules

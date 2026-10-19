@@ -8,7 +8,8 @@ import { videoEmbedUrl } from '@/features/linker/video-embed'
 
 const APARAT = (hash: string) =>
   `https://www.aparat.com/video/video/embed/videohash/${hash}/vt/frame`
-const YOUTUBE = (id: string) => `https://www.youtube.com/embed/${id}`
+/** YouTube's privacy-enhanced player: no cookie until the visitor plays the video. */
+const YOUTUBE = (id: string) => `https://www.youtube-nocookie.com/embed/${id}`
 
 describe('videoEmbedUrl', () => {
   it.each([
