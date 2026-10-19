@@ -6,12 +6,18 @@ import { MenuLink } from '@/components/layout/menu-link'
 import { slimCategories } from '@/components/layout/menu-tree'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { EmptyState } from '@/components/ui/empty-state'
+import { seoMetadata } from '@/features/seo/metadata'
+import { shopName } from '@/features/seo/shop-name'
 import { getCategoryTree, getMenu, getTranslations } from '@/features/settings/api'
 import { createTranslator } from '@/lib/i18n/translator'
 
+const PATH = '/categories/'
+
+/** «دسته‌بندی‌ها | shop» (the layout's template), its own canonical and the social cards. */
 export async function generateMetadata(): Promise<Metadata> {
-  const t = createTranslator(await getTranslations())
-  return { title: t('categories') }
+  const [translations, shop] = await Promise.all([getTranslations(), shopName()])
+  const t = createTranslator(translations)
+  return { ...seoMetadata({ path: PATH, siteName: shop }), title: t('categories') }
 }
 
 /**

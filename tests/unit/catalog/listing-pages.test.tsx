@@ -195,6 +195,24 @@ describe('the brands index', () => {
     expect(links[0]).toHaveTextContent('۶ کالا')
   })
 
+  it('its trail (home › «برندها») is its BreadcrumbList JSON-LD, on the shop’s origin', async () => {
+    mocks.getBrands.mockResolvedValue([brandCard(3, 'اپل', 'apple', 6)])
+    const { container } = await show(BrandsPage())
+    const blocks = [...container.querySelectorAll('script[type="application/ld+json"]')].map(
+      (script) => JSON.parse(script.textContent ?? ''),
+    )
+    expect(blocks).toEqual([
+      {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'خانه', item: 'https://shop.ir/' },
+          { '@type': 'ListItem', position: 2, name: 'برندها', item: 'https://shop.ir/brand/' },
+        ],
+      },
+    ])
+  })
+
   it('is titled «برندها» and indexable', async () => {
     const meta = await brandsMetadata()
     expect(meta.title).toBe('برندها')

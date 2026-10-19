@@ -8,10 +8,15 @@ import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import { EmptyState } from '@/components/ui/empty-state'
 import { getBrands } from '@/features/catalog/api'
+import { getStoreConfig } from '@/config/store-config'
 import { BRANDS_PATH, brandPath } from '@/features/catalog/listing-routes'
+import { trailBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
+import { JsonLd } from '@/features/seo/json-ld'
 import { seoMetadata } from '@/features/seo/metadata'
 import { shopName } from '@/features/seo/shop-name'
+import { getTranslations } from '@/features/settings/api'
 import { formatNumber } from '@/lib/format'
+import { createTranslator } from '@/lib/i18n/translator'
 
 const TITLE = 'برندها'
 const HEADING_ID = 'brands-heading'
@@ -25,12 +30,18 @@ const byName = new Intl.Collator('fa').compare
 
 /**
  * `/brand/`: every published brand, A to Z, as a grid of logo cards (the logo fits its square,
- * never cut) linking to the brand's page. Indexable. An API failure reaches the error boundary.
+ * never cut) linking to the brand's page. Indexable; its visible trail (home › «برندها») is its
+ * BreadcrumbList JSON-LD. An API failure reaches the error boundary.
  */
 export default async function BrandsPage() {
-  const brands = [...(await getBrands())].sort((a, b) => byName(a.name, b.name))
+  const [all, translations] = await Promise.all([getBrands(), getTranslations()])
+  const brands = [...all].sort((a, b) => byName(a.name, b.name))
+  const home = createTranslator(translations)('home')
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
+      <JsonLd
+        data={trailBreadcrumb([{ name: TITLE, path: BRANDS_PATH }], getStoreConfig().siteUrl, home)}
+      />
       <Breadcrumbs items={[{ name: TITLE }]} className="mb-2" />
       <h1
         id={HEADING_ID}
