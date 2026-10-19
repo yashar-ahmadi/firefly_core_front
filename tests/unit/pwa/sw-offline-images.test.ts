@@ -33,6 +33,45 @@ describe('images (stale while revalidate)', () => {
     )
   })
 
+  it.each([
+    ['storing it', 'put'],
+    ['trimming the cache', 'keys'],
+  ] as const)(
+    'a picture never seen reaches the page at once: %s happens behind it',
+    async (_, step) => {
+      const { sw, kept } = await ready()
+      const cache = await sw.caches.open(CACHES.images)
+      const original = cache[step].bind(cache) as (...args: unknown[]) => Promise<unknown>
+      let release: () => void = () => {}
+      const held = new Promise<void>((resolve) => (release = resolve))
+      cache[step] = (async (...args: unknown[]) => {
+        await held
+        return original(...args)
+      }) as never
+      const { answer, settled } = sw.dispatch('fetch', { request: image('/media/p1.jpg') })
+      const first = await Promise.race([
+        answer,
+        new Promise<'waiting'>((resolve) => setTimeout(resolve, 50, 'waiting')),
+      ])
+      expect(first, 'the page waited for the cache').not.toBe('waiting')
+      expect(await (first as Response).text()).toBe('image https://shop.test/media/p1.jpg')
+      release()
+      await settled()
+      expect(await kept()).toEqual(['/media/p1.jpg'])
+    },
+  )
+
+  it('a cache that refuses the picture (storage full): the page still gets it', async () => {
+    const { sw, kept } = await ready()
+    const cache = await sw.caches.open(CACHES.images)
+    cache.put = async () => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError')
+    }
+    const response = await sw.request(image('/media/p1.jpg'))
+    expect(await response?.text()).toBe('image https://shop.test/media/p1.jpg')
+    expect(await kept()).toEqual([])
+  })
+
   it('offline: the copy kept; a picture never seen fails as it would', async () => {
     const { sw, state } = await ready()
     await sw.request(optimized(1))

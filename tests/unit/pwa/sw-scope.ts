@@ -158,7 +158,8 @@ export function worker(
 
   /**
    * Fires `type` at every listener, synchronously as browsers do: `answer` is what was given to
-   * `respondWith` (null when nothing was), `settled` every `waitUntil` (for tests on timers).
+   * `respondWith` (null when nothing was), `settled` every `waitUntil`, those a pending one adds
+   * later included (for tests on timers).
    */
   const dispatch = (
     type: string,
@@ -173,7 +174,15 @@ export function worker(
       respondWith: (response: Response | Promise<Response>) => (answer = Promise.resolve(response)),
     }
     for (const handler of handlers[type] ?? []) handler(event)
-    return { answer, settled: () => Promise.all(waits).then(() => undefined) }
+    const settled = async () => {
+      // The answer too: a `waitUntil` may be added on its way (a picture stored behind it).
+      const answered = answer?.catch(() => undefined)
+      for (let seen = -1; seen !== waits.length;) {
+        seen = waits.length
+        await Promise.all([...waits, answered])
+      }
+    }
+    return { answer, settled }
   }
   /** Fires `type`; resolves to the answer (if any) once every `waitUntil` has settled. */
   const fire = async (type: string, fields: object = {}): Promise<Response | undefined> => {

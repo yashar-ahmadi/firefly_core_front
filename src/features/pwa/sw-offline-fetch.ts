@@ -21,13 +21,14 @@ async function trim(cache, limit) {
   await Promise.all(keys.slice(0, Math.max(0, keys.length - limit)).map((key) => cache.delete(key)))
 }
 
+// The page never waits for the cache: the picture goes on at once, stored and trimmed behind it.
 async function staleWhileRevalidate(event) {
   const cache = await caches.open(CACHES.images)
   const kept = await cache.match(event.request)
-  const fresh = fetch(event.request).then(async (response) => {
+  const fresh = fetch(event.request).then((response) => {
     if (storable(response)) {
-      await cache.put(event.request, response.clone())
-      await trim(cache, IMAGE_LIMIT)
+      const copy = response.clone()
+      event.waitUntil(quietly(cache.put(event.request, copy).then(() => trim(cache, IMAGE_LIMIT))))
     }
     return response
   })
