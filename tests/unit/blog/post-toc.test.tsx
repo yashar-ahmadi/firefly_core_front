@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PostToc } from '@/features/blog/components/post-toc'
 import { tocEntries } from '@/features/blog/post-toc-entries'
+import { COMMENTS_ID } from '@/lib/html/reserved-ids'
 import { sanitizeOperatorHtml } from '@/lib/html/sanitize'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { FakeIntersectionObserver, intersect, resetIntersections } from '../support/intersection'
@@ -61,6 +62,14 @@ describe('tocEntries', () => {
       ['intro', 0],
       ['note', 0],
     ])
+  })
+
+  it('leaves out an id of the page itself: its heading has none (the sanitiser dropped it)', () => {
+    const entries = tocEntries([
+      { text: 'دیدگاه‌ها', id: COMMENTS_ID, level: 2, number: '1' },
+      { text: 'جمع‌بندی', id: 'summary', level: 2, number: '2' },
+    ])
+    expect(entries.map(({ id }) => id)).toEqual(['summary'])
   })
 })
 

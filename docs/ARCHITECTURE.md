@@ -807,8 +807,13 @@ click from the blog and one for a reload.
   formatting, lists, tables, links and images; no scripts, styles, iframes, forms or event
   handlers; `http(s)`/`mailto`/`tel` URLs only; `/media` and `/static` made absolute on the API
   origin; external links (including `\`-spelled protocol-relative ones) open in a new tab with
-  `rel="noopener noreferrer"`; tables wrapped in a focusable scroll region. Plain-text fields
-  (announcement, copyright) use `htmlToText`.
+  `rel="noopener noreferrer"`; tables wrapped in a focusable scroll region. Every `id` is
+  dropped, except a blog post's heading ids (`headingIds`, its table of contents' anchors:
+  `lib/html/heading-ids.ts`), kept on headings only, each on its first heading (the document
+  never holds an id twice), and never one the page's own markup uses: `RESERVED_IDS`
+  (`lib/html/reserved-ids.ts`: `main`, `comments`, the post's title and sections, the shell's
+  ids; a new id on such a page goes there, `tests/unit/html/reserved-ids.test.ts` checks it).
+  Plain-text fields (announcement, copyright) use `htmlToText`.
 - **Snippets** (`global/extra-snippets/`) are trusted operator code and are *not* sanitised:
   analytics must execute. `parseSnippet` splits them into `script`/`noscript`/`style`/`meta`/`link`
   nodes and loose `html`. Head snippets render inside `<head>` (loose HTML skipped); body scripts at

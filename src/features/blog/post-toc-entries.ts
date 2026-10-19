@@ -1,8 +1,10 @@
 import type { ContentHeading } from '@/lib/api/types/blog-post'
+import { isUsableHeadingId } from '@/lib/html/heading-ids'
 
 // The rows of a post's table of contents, from the API's `headings` (blog digest §1.5): their ids
 // are the ones the API put on the content's headings, which the page keeps (`headingIds` in the
-// sanitiser), so the content is never parsed for them. Pure.
+// sanitiser, by the same rules: lib/html/heading-ids.ts), so the content is never parsed for
+// them. Pure.
 
 export interface TocEntry {
   /** The heading's id in the content; the link is `#` + it encoded. */
@@ -16,14 +18,15 @@ export interface TocEntry {
 
 /**
  * The h2 and h3 headings, in order (an h1 counts as an h2: the sanitiser shows it as one). A
- * heading without an id (punctuation only) cannot be linked to, and a repeated id (two headings
- * with the same text) would jump to the first one: both are left out. h4 to h6 are too deep.
+ * heading without an id (punctuation only) cannot be linked to, nor one whose id the page's own
+ * markup uses (`isUsableHeadingId`: the sanitiser dropped it), and a repeated id (two headings
+ * with the same text) is only on the first one: all are left out. h4 to h6 are too deep.
  */
 export function tocEntries(headings: readonly ContentHeading[]): TocEntry[] {
   const seen = new Set<string>()
   const entries: TocEntry[] = []
   for (const heading of headings) {
-    if (heading.level > 3 || heading.id === '' || seen.has(heading.id)) continue
+    if (heading.level > 3 || !isUsableHeadingId(heading.id) || seen.has(heading.id)) continue
     seen.add(heading.id)
     entries.push({
       id: heading.id,

@@ -23,14 +23,12 @@ import { postJsonLd, postMetadata } from '@/features/blog/post-seo'
 import { JsonLd } from '@/features/seo/json-ld'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
 import { shopName } from '@/features/seo/shop-name'
+import { POST_ARTICLE_ID, POST_PRODUCTS_ID } from '@/lib/html/reserved-ids'
 import { BlogUnavailable } from '../unavailable'
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>
 }
-
-/** The article's id: the reading progress follows it. */
-const ARTICLE_ID = 'post-article'
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params
@@ -89,17 +87,22 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
-      <ReadingProgress targetId={ARTICLE_ID} />
+      <ReadingProgress targetId={POST_ARTICLE_ID} />
       <JsonLd data={postJsonLd(post, getStoreConfig().siteUrl)} />
       {post.is_unpublished && <PreviewBar />}
       <Breadcrumbs items={trail} className="mx-auto mb-2 max-w-6xl" />
-      <PostArticle id={ARTICLE_ID} post={post} html={postContentHtml(post)} categoryLinks={links} />
+      <PostArticle
+        id={POST_ARTICLE_ID}
+        post={post}
+        html={postContentHtml(post)}
+        categoryLinks={links}
+      />
       <div className="mx-auto mt-8 flex max-w-6xl flex-col gap-8 md:mt-10 md:gap-10">
         <RelatedPosts posts={post.related_posts} categoryLinks={links} />
         <BlogProducts
           products={post.related_products}
           title="محصولات مرتبط"
-          headingId="post-products"
+          headingId={POST_PRODUCTS_ID}
           className=""
         />
         {comments ? (

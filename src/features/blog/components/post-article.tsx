@@ -3,10 +3,10 @@ import { SmartImage } from '@/components/ui/smart-image'
 import { tocEntries } from '@/features/blog/post-toc-entries'
 import { RichContentBody } from '@/features/content/rich-content-body'
 import type { PostDetail } from '@/lib/api/types/blog-post'
+import { POST_TITLE_ID } from '@/lib/html/reserved-ids'
 import { PostHeader } from './post-header'
 import { PostToc } from './post-toc'
 
-const TITLE_ID = 'post-title'
 /** Under the sticky header, with a little air (the header's full height: a jump on load). */
 const HEADING_SCROLL_MARGIN = '[&_:is(h2,h3,h4,h5,h6)]:scroll-mt-[calc(var(--header-full)+1rem)]'
 
@@ -29,8 +29,8 @@ export interface PostArticleProps {
 export function PostArticle({ id, post, html, categoryLinks }: PostArticleProps) {
   const hasToc = tocEntries(post.headings).length >= 2
   return (
-    <article id={id} aria-labelledby={TITLE_ID} className="mx-auto max-w-6xl">
-      <PostHeader post={post} titleId={TITLE_ID} categoryLinks={categoryLinks} />
+    <article id={id} aria-labelledby={POST_TITLE_ID} className="mx-auto max-w-6xl">
+      <PostHeader post={post} titleId={POST_TITLE_ID} categoryLinks={categoryLinks} />
       {post.banner && (
         <SmartImage
           src={post.banner}

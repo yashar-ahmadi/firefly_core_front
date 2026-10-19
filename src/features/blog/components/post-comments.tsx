@@ -6,12 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BLOG_UNAVAILABLE_TITLE } from '@/features/blog/blog-copy'
 import { useFeature } from '@/features/settings/feature-context'
 import { formatNumber } from '@/lib/format/number'
+import { COMMENTS_HEADING_ID, COMMENTS_ID } from '@/lib/html/reserved-ids'
 import { PostCommentComposer } from './post-comment-composer'
 import { PostCommentList } from './post-comment-list'
-
-/** The section's anchor (`/blog/<slug>/#comments`). */
-export const COMMENTS_ID = 'comments'
-const HEADING_ID = 'post-comments-heading'
 
 function Count({ value }: { value: number }) {
   return (
@@ -42,10 +39,13 @@ export function PostComments({ slug, commentCount, questionCount, children }: Po
   return (
     <section
       id={COMMENTS_ID}
-      aria-labelledby={HEADING_ID}
+      aria-labelledby={COMMENTS_HEADING_ID}
       className="scroll-mt-[calc(var(--header-full)+1rem)] rounded-card bg-white p-4 shadow-card md:p-6"
     >
-      <h2 id={HEADING_ID} className="mb-2 text-lg leading-8 font-bold text-ink-900 md:text-xl">
+      <h2
+        id={COMMENTS_HEADING_ID}
+        className="mb-2 text-lg leading-8 font-bold text-ink-900 md:text-xl"
+      >
         {'دیدگاه\u{200C}ها و پرسش\u{200C}ها'}
       </h2>
       {blog.enabled ? (

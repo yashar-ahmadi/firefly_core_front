@@ -1,7 +1,6 @@
 import type { PostCard } from '@/lib/api/types/blog'
+import { RELATED_POSTS_ID } from '@/lib/html/reserved-ids'
 import { PostGrid } from './post-grid'
-
-const HEADING_ID = 'related-posts'
 
 /**
  * «مطالب مرتبط» (blog digest §1.5: `related_posts`, chosen on the server): post cards (their
@@ -17,9 +16,9 @@ export function RelatedPosts({
 }) {
   if (posts.length === 0) return null
   return (
-    <section aria-labelledby={HEADING_ID}>
+    <section aria-labelledby={RELATED_POSTS_ID}>
       <h2
-        id={HEADING_ID}
+        id={RELATED_POSTS_ID}
         className="mb-3 text-lg leading-8 font-bold text-ink-900 md:mb-4 md:text-xl"
       >
         مطالب مرتبط

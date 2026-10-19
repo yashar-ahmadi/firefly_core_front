@@ -1,5 +1,6 @@
 import 'server-only'
 import sanitizeHtml from 'sanitize-html'
+import { headingIdFilter, withHeadingIds } from '@/lib/html/heading-ids'
 
 /**
  * Operator HTML (the footer text, FAQ answers, dynamic content) made safe to render with
@@ -33,7 +34,8 @@ export interface SanitizeOptions {
   linksInNewTab?: boolean
   /**
    * The ids the API put on the content's headings (a blog post's `headings`, its table of
-   * contents' anchors): kept on headings only, every other id dropped as usual.
+   * contents' anchors): kept on headings only, each on its first heading, never one of the
+   * page's own (`RESERVED_IDS`); every other id dropped as usual (`headingIdFilter`).
    */
   headingIds?: ReadonlySet<string>
 }
@@ -63,31 +65,6 @@ const ALLOWED_ATTRIBUTES: Record<string, string[]> = {
   td: ['colspan', 'rowspan'],
   col: ['span'],
   colgroup: ['span'],
-}
-
-const HEADING_TAGS = ['h2', 'h3', 'h4', 'h5', 'h6']
-
-/** The allowed attributes, with `id` on headings when there are heading ids to keep. */
-function allowedAttributes(headingIds: ReadonlySet<string> | undefined) {
-  if (!headingIds?.size) return ALLOWED_ATTRIBUTES
-  return {
-    ...ALLOWED_ATTRIBUTES,
-    ...Object.fromEntries(
-      HEADING_TAGS.map((tag) => [tag, [...(ALLOWED_ATTRIBUTES[tag] ?? []), 'id']]),
-    ),
-  }
-}
-
-/** A heading's `id` only when it is one of `headingIds` (and not empty); no other tag's. */
-function headingId(
-  tagName: string,
-  attribs: sanitizeHtml.Attributes,
-  headingIds: ReadonlySet<string> | undefined,
-): sanitizeHtml.Attributes {
-  if (attribs.id === undefined) return attribs
-  const { id, ...rest } = attribs
-  const kept = HEADING_TAGS.includes(tagName) && id !== '' && headingIds?.has(id) === true
-  return kept ? attribs : rest
 }
 
 /** Attributes kept only with one of these values (any tag); `target` is decided per link. */
@@ -209,9 +186,10 @@ export function sanitizeOperatorHtml(
   if (html.trim() === '') return ''
   const apiOrigin = originOf(apiUrl)
   const siteOrigin = originOf(options.siteUrl)
+  const headingId = headingIdFilter(options.headingIds)
   const clean = sanitizeHtml(html, {
     allowedTags: ALLOWED_TAGS,
-    allowedAttributes: allowedAttributes(options.headingIds),
+    allowedAttributes: withHeadingIds(ALLOWED_ATTRIBUTES, options.headingIds),
     allowedClasses: {},
     allowedStyles: {},
     allowedSchemes: ['http', 'https', 'mailto', 'tel'],
@@ -234,7 +212,7 @@ export function sanitizeOperatorHtml(
       // Runs after the tag's own transform (an h1 is an h2 here).
       '*': (tagName, attribs) => ({
         tagName,
-        attribs: knownValues(headingId(tagName, attribs, options.headingIds)),
+        attribs: knownValues(headingId(tagName, attribs)),
       }),
     },
   })
