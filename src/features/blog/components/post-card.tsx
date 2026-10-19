@@ -17,6 +17,12 @@ export interface PostCardProps {
   variant?: PostCardVariant
   /** The picture is above the fold (the first cards): loaded eagerly, first. */
   priority?: boolean
+  /**
+   * The card's `is_in_reading_list` is the viewer's own (a post's related posts, read per
+   * request as the visitor): the bookmark starts from it (`initialSaved`). Cached cards' flag is
+   * always false: leave it unset.
+   */
+  ownFlag?: boolean
 }
 
 /** The author's initial for the avatar without a picture («کاربر» gives «ک»). */
@@ -38,6 +44,7 @@ export function PostCard({
   categoryLinks,
   variant = 'list',
   priority = false,
+  ownFlag = false,
 }: PostCardProps) {
   const layout = CARD_LAYOUTS[variant]
   const titleId = useId()
@@ -112,7 +119,11 @@ export function PostCard({
             </time>
           )}
           <div className={cn(ABOVE_LINK, '-my-2 ms-auto -me-2 shrink-0')}>
-            <ReadingListButton post={{ id: post.id, slug: post.slug }} describedBy={titleId} />
+            <ReadingListButton
+              post={{ id: post.id, slug: post.slug }}
+              describedBy={titleId}
+              initialSaved={ownFlag ? post.is_in_reading_list : undefined}
+            />
           </div>
         </div>
       </div>

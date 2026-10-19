@@ -18,6 +18,8 @@ export interface PostGridProps {
   emptyState?: ReactNode
   /** How many leading cards load their picture eagerly; 0 below the fold. */
   priorityCount?: number
+  /** The cards were read as the visitor (a post's related posts): see `PostCard`'s `ownFlag`. */
+  ownFlags?: boolean
 }
 
 /**
@@ -30,6 +32,7 @@ export function PostGrid({
   label,
   emptyState,
   priorityCount = PRIORITY_COUNT,
+  ownFlags = false,
 }: PostGridProps) {
   if (posts.length === 0) {
     return emptyState ?? null
@@ -39,7 +42,12 @@ export function PostGrid({
       <ul aria-label={label} className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
         {posts.map((post, index) => (
           <li key={post.id} className="min-w-0">
-            <PostCard post={post} categoryLinks={categoryLinks} priority={index < priorityCount} />
+            <PostCard
+              post={post}
+              categoryLinks={categoryLinks}
+              priority={index < priorityCount}
+              ownFlag={ownFlags}
+            />
           </li>
         ))}
       </ul>

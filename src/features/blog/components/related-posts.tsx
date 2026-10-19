@@ -5,7 +5,8 @@ import { PostGrid } from './post-grid'
 /**
  * «مطالب مرتبط» (blog digest §1.5: `related_posts`, chosen on the server): post cards (their
  * links never prefetched: a post's page counts a view per render), one reading-list scope for
- * them all. Nothing when there are none.
+ * them all, each bookmark starting from the card's own `is_in_reading_list` (the post is read
+ * per request as the visitor, its related posts with it). Nothing when there are none.
  */
 export function RelatedPosts({
   posts,
@@ -23,7 +24,13 @@ export function RelatedPosts({
       >
         مطالب مرتبط
       </h2>
-      <PostGrid posts={posts} categoryLinks={categoryLinks} label="مطالب مرتبط" priorityCount={0} />
+      <PostGrid
+        posts={posts}
+        categoryLinks={categoryLinks}
+        label="مطالب مرتبط"
+        priorityCount={0}
+        ownFlags
+      />
     </section>
   )
 }

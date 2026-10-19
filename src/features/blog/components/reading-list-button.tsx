@@ -18,9 +18,9 @@ export interface ReadingListButtonProps {
   /** The id of the element naming the post (the card's title), for `aria-describedby`. */
   describedBy?: string
   /**
-   * The post's own `is_in_reading_list`, where the page was read as the visitor (a post's page,
-   * per request): shown from the server render until the visitor's saved ids are in, so the
-   * bookmark never flashes the wrong state. Cached pages (cards) have none.
+   * The post's own `is_in_reading_list`, where the page was read as the visitor (a post's page
+   * and its related posts' cards, per request): shown from the server render until the visitor's
+   * saved ids are in, so the bookmark never flashes the wrong state. Cached pages' cards have none.
    */
   initialSaved?: boolean
   className?: string
