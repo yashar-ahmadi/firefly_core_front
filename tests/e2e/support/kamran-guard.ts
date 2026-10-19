@@ -12,7 +12,7 @@ import {
   removeCheckoutMarkers,
   restoreKamran,
   type KamranData,
-} from './kamran-data'
+} from './account-data'
 import { KAMRAN, logIn } from './session'
 
 // The signed-in checkout journey's safety net (Plan 4 Task 2, ruling P4-R4: k.yazdi, never
@@ -20,7 +20,7 @@ import { KAMRAN, logIn } from './session'
 // puts back what an earlier run left (a snapshot on disk, deleted only once a restore is
 // verified; marker addresses), reads his cart and address book, and after the test, however it
 // ends, waits for them to settle (a write the page still had on its way), restores them exactly
-// (support/kamran-data.ts), then logs out (one more attempt; a non-2xx is said). It runs
+// (support/account-data.ts), then logs out (one more attempt; a non-2xx is said). It runs
 // in the `journeys` project only (one worker, after the device projects).
 
 export interface KamranGuard {
