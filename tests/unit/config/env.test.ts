@@ -115,6 +115,23 @@ describe('parseServerEnv', () => {
     )
   })
 
+  // The canonical links, cookie scope and CSRF origin check are built on it: a `?` or `#` would
+  // end up in the middle of every canonical URL.
+  it.each([
+    'https://shop.ir/?utm_source=x',
+    'https://shop.ir/fa?x',
+    'https://shop.ir/#top',
+    'https://shop.ir?',
+    'https://shop.ir/#',
+  ])('refuses a SITE_URL with a query or a fragment: %s', (value) => {
+    for (const NODE_ENV of ['production', 'development']) {
+      const message = errorOf(() => parseServerEnv({ ...base, NODE_ENV, SITE_URL: value }))
+      expect(message).toContain(
+        'SITE_URL: must be the bare site origin, without a query (?) or fragment (#)',
+      )
+    }
+  })
+
   it('parses booleans from true, false, 1 and 0', () => {
     expect(parseServerEnv({ ...base, FEATURE_COMPARE: 'false' }).FEATURE_COMPARE).toBe(false)
     expect(parseServerEnv({ ...base, FEATURE_COMPARE: '0' }).FEATURE_COMPARE).toBe(false)
