@@ -80,7 +80,7 @@ export function ReceiverFields({ values, onChange, errors }: ReceiverFieldsProps
         </Field>
       </div>
       <Field
-        label="شماره موبایل گیرنده"
+        label="شمارهٔ موبایل گیرنده"
         required
         hint="فقط شمارهٔ موبایل ایران؛ مانند ۰۹۱۲۱۲۳۴۵۶۷"
         error={messagesOf(errors.mobile)}

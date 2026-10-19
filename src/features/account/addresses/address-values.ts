@@ -142,7 +142,7 @@ export function checkReceiver(
     LIMITS.name,
     'نام خانوادگی گیرنده',
   )
-  if (values.mobile.trim() === '') add('mobile', 'شماره موبایل گیرنده را وارد کنید.')
+  if (values.mobile.trim() === '') add('mobile', 'شمارهٔ موبایل گیرنده را وارد کنید.')
   else if (!isIranMobile(values.mobile))
     add('mobile', 'شمارهٔ موبایل ایران را وارد کنید؛ مانند ۰۹۱۲۱۲۳۴۵۶۷.')
   return errors

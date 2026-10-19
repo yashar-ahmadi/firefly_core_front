@@ -41,7 +41,7 @@ describe('ReceiverSection, guest', () => {
     expect(postal).toHaveAttribute('aria-invalid', 'true')
     expect(postal).toHaveAccessibleDescription(/کد پستی را وارد کنید/)
     expect(screen.getByLabelText(/^نام گیرنده/)).toHaveFocus()
-    expect(screen.getByLabelText(/شماره موبایل گیرنده/)).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText(/شمارهٔ موبایل گیرنده/)).toHaveAttribute('aria-invalid', 'true')
     // The buyer's own number is optional: no error for leaving it out.
     expect(screen.getByLabelText(/پیگیری سفارش/)).not.toHaveAttribute('aria-invalid')
   })
@@ -53,7 +53,7 @@ describe('ReceiverSection, guest', () => {
     await chooseTehran(user)
     await user.type(screen.getByLabelText(/^نام گیرنده/), 'سارا')
     await user.type(screen.getByLabelText(/نام خانوادگی گیرنده/), 'احمدی')
-    await user.type(screen.getByLabelText(/شماره موبایل گیرنده/), '۰۹۱۲۱۲۳۴۵۰۱')
+    await user.type(screen.getByLabelText(/شمارهٔ موبایل گیرنده/), '۰۹۱۲۱۲۳۴۵۰۱')
     await user.type(screen.getByLabelText(/آدرس کامل/), 'خیابان ولیعصر')
     await user.type(screen.getByLabelText(/کد پستی/), '۱۲۳۴۵۶۷۸۹۰')
     await user.click(screen.getByRole('button', { name: 'ادامه' }))

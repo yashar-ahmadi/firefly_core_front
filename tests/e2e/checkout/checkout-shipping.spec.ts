@@ -66,7 +66,7 @@ test('a guest checks out up to shipping: receiver, Tehran, the default option ch
     await expect(receiver.getByRole('button', { name: 'ادامه' })).toBeEnabled()
     await receiver.getByLabel(/^نام گیرنده/).fill('آزمون')
     await receiver.getByLabel(/نام خانوادگی گیرنده/).fill('خودکار')
-    await receiver.getByLabel(/شماره موبایل گیرنده/).fill('۰۹۱۲۱۲۳۴۵۶۷')
+    await receiver.getByLabel(/شمارهٔ موبایل گیرنده/).fill('۰۹۱۲۱۲۳۴۵۶۷')
 
     // Tehran by its name, then a city of it from the live list (its own name, Tehran).
     const tehran = (await geo<Province>(page, 'province/list/?limit=1500')).find(

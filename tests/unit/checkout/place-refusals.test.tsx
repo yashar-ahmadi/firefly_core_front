@@ -207,7 +207,7 @@ describe('placement refusals', () => {
     await user.click(await ready())
     const receiver = await screen.findByRole('region', { name: /گیرنده و آدرس/ })
     await waitFor(() => expect(receiver).toHaveAttribute('data-state', 'active'))
-    const mobile = within(receiver).getByLabelText(/شماره موبایل گیرنده/)
+    const mobile = within(receiver).getByLabelText(/شمارهٔ موبایل گیرنده/)
     expect(mobile).toHaveAttribute('aria-invalid', 'true')
     expect(mobile).toHaveAccessibleDescription(/شماره\u{0654} موبایل ایران را وارد کنید/u)
     expect(within(receiver).getByLabelText(/کد پستی/)).toHaveAttribute('aria-invalid', 'true')

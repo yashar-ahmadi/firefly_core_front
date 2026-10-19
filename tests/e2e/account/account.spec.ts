@@ -92,7 +92,7 @@ test('address: one added (Tehran, a city, a mobile, a postal code), made the def
   if ((await me.count()) > 0 && (await me.isChecked())) await me.uncheck()
   await sheet.getByRole('textbox', { name: /^نام گیرنده/ }).fill('آزمون')
   await sheet.getByRole('textbox', { name: /^نام خانوادگی گیرنده/ }).fill('خودکار')
-  await sheet.getByRole('textbox', { name: /^شماره موبایل گیرنده/ }).fill('09121234567')
+  await sheet.getByRole('textbox', { name: /^شمارهٔ موبایل گیرنده/ }).fill('09121234567')
   // No location: the map stays closed (its tiles are a third party's).
   await sheet.getByRole('button', { name: 'ذخیرهٔ آدرس' }).click()
   await expect(sheet).toBeHidden()

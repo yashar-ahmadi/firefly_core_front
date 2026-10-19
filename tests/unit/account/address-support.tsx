@@ -87,7 +87,7 @@ export const field = {
   postalCode: () => screen.getByRole('textbox', { name: /^کد پستی/ }),
   firstName: () => screen.getByRole('textbox', { name: /^نام گیرنده/ }),
   lastName: () => screen.getByRole('textbox', { name: /^نام خانوادگی گیرنده/ }),
-  mobile: () => screen.getByRole('textbox', { name: /^شماره موبایل گیرنده/ }),
+  mobile: () => screen.getByRole('textbox', { name: /^شمارهٔ موبایل گیرنده/ }),
   save: () => screen.getByRole('button', { name: 'ذخیرهٔ آدرس' }),
   isDefault: () => screen.getByRole('switch', { name: /آدرس پیش‌فرض/ }),
 }

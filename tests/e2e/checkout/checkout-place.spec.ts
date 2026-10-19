@@ -77,7 +77,7 @@ test('a guest places an order; the dev bank is not configured: no navigation, th
     await expect(receiver.getByRole('button', { name: 'ادامه' })).toBeEnabled()
     await receiver.getByLabel(/^نام گیرنده/).fill('آزمون')
     await receiver.getByLabel(/نام خانوادگی گیرنده/).fill('ثبت سفارش')
-    await receiver.getByLabel(/شماره موبایل گیرنده/).fill(runMobile())
+    await receiver.getByLabel(/شمارهٔ موبایل گیرنده/).fill(runMobile())
     const tehran = (await geo<Province>(page, 'province/list/?limit=1500')).find(
       (province) => province.name === 'تهران',
     )!

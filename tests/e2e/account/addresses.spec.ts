@@ -137,7 +137,7 @@ signedInTest(
 
     // The checks before sending: messages under the fields, the first one focused.
     const title = sheet.getByRole('textbox', { name: /^عنوان آدرس/ })
-    await sheet.getByRole('textbox', { name: /^شماره موبایل گیرنده/ }).fill('0912123')
+    await sheet.getByRole('textbox', { name: /^شمارهٔ موبایل گیرنده/ }).fill('0912123')
     await sheet.getByRole('button', { name: 'ذخیرهٔ آدرس' }).click()
     await expect(title).toHaveAttribute('aria-invalid', 'true')
     await expect(title).toBeFocused()

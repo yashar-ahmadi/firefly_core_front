@@ -100,7 +100,7 @@ describe('AddressForm: a new address', () => {
     expect(field.title()).toHaveAttribute('aria-invalid', 'true')
     expect(field.title()).toHaveAccessibleDescription('عنوان آدرس را وارد کنید.')
     expect(field.mobile()).toHaveAccessibleDescription(
-      expect.stringContaining('شماره موبایل گیرنده را وارد کنید.'),
+      expect.stringContaining('شمارهٔ موبایل گیرنده را وارد کنید.'),
     )
     expect(field.title()).toHaveFocus()
     expect(api.write).not.toHaveBeenCalled()
