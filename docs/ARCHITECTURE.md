@@ -869,7 +869,9 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   journeys; the `kamran` guard of `tests/e2e/support/kamran-guard.ts` puts his cart's lines,
   destination and shipping choice and his address book back exactly; since Plan 4 Task 10 it also
   places his order through the review, the only signed-in placement of a routine run: the bank
-  refused, the order kept on the page with no console error, and his guard cancels it), so no
+  refused, the order kept on the page with no console error, and his guard cancels it, with any
+  other order of his awaiting payment that the test left and never handed over: it lists them
+  before the test and after), so no
   read-only spec sees that data change. His account's orders journey (`tests/e2e/account/orders-journey.spec.ts`) places one
   order of his through the BFF (`support/kamran-order.ts`, no intent), finds it in «سفارش‌های من»,
   presses «پرداخت» (the dev bank refuses the intent: one `payment_attempt`), cancels it from its

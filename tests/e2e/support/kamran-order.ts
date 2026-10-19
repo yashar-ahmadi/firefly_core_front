@@ -1,7 +1,8 @@
 import { expect, type APIRequestContext } from '@playwright/test'
 import { defaultOption } from '@/features/checkout/shipping-labels'
 import type { Cart } from '@/lib/api/types/cart'
-import type { OrderDetail } from '@/lib/api/types/order-detail'
+import type { Paginated } from '@/lib/api/types/common'
+import type { OrderDetail, OrderListItem } from '@/lib/api/types/order-detail'
 import type { OrderPlacementResult } from '@/lib/api/types/order'
 import type { ShippingOptionList } from '@/lib/api/types/shipping'
 import { requestCartWrite } from './cart-write'
@@ -78,4 +79,17 @@ export async function cancelKamranOrder(
     console.warn('[kamran-order] the order could not be cancelled (no answer)')
     return false
   }
+}
+
+/**
+ * The codes of his orders awaiting payment now (one page of 100: a test account's). The guard
+ * reads them before a test and after it: any new one is the test's, cancelled however it ended.
+ */
+export async function awaitingKamranOrders(request: APIRequestContext): Promise<string[]> {
+  const read = await request.get('/api/bff/order/list/?status_group=awaiting_payment&limit=100', {
+    headers: BFF,
+  })
+  expect(read.ok(), `his awaiting orders: ${read.status()}`).toBe(true)
+  const { results } = ((await read.json()) as { data: Paginated<OrderListItem> }).data
+  return results.map(({ order_code }) => order_code)
 }

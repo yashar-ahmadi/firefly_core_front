@@ -7,7 +7,7 @@ import {
 } from '@playwright/test'
 import type { AccountData } from './account-data'
 import { withAccountData } from './account-guard'
-import { cancelKamranOrder } from './kamran-order'
+import { awaitingKamranOrders, cancelKamranOrder } from './kamran-order'
 import { KAMRAN, logIn } from './session'
 
 // The signed-in checkout and orders journeys' safety net (Plan 4 Tasks 2 and 8, ruling P4-R4:
@@ -15,7 +15,9 @@ import { KAMRAN, logIn } from './session'
 // auth attempt) and keeps his cart and address book safe around the test (support/
 // account-guard.ts: an earlier run's leftovers put back, a snapshot, and after the test, however
 // it ends, the data settled and restored exactly), cancels every order of his the test handed
-// over (`track`; cancelled already is fine), then logs out (one more attempt; a non-2xx is said).
+// over (`track`; cancelled already is fine) and any other of his awaiting payment that was not
+// there before the test (one the test placed but never got to hand over: an answer it did not
+// read), then logs out (one more attempt; a non-2xx is said).
 // It runs in the `journeys` project only (one worker, after the device projects).
 
 export interface KamranGuard {
@@ -49,12 +51,18 @@ async function guardKamran(
   const placed: string[] = []
   const track = (code: string) => void placed.push(code)
   const left: string[] = []
+  /** His orders awaiting payment before the test (null: never read, then only `track`'s). */
+  let awaiting: Set<string> | null = null
   try {
+    awaiting = new Set(await awaitingKamranOrders(request))
     await withAccountData(request, info, { who: 'k.yazdi', file: 'kamran' }, (before) =>
       provide({ request, before, track }),
     )
   } finally {
-    for (const code of placed) if (!(await cancelKamranOrder(request, code))) left.push(code)
+    const known = awaiting
+    const now = known ? await awaitingKamranOrders(request).catch(() => [] as string[]) : []
+    const his = new Set([...placed, ...now.filter((code) => !known?.has(code))])
+    for (const code of his) if (!(await cancelKamranOrder(request, code))) left.push(code)
     await logOut(request, origin)
   }
   expect(left, 'every order of his the test placed is cancelled').toEqual([])
