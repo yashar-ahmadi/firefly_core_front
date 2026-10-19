@@ -780,10 +780,21 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
   router: a script loaded on the page before (an analytics history listener) would otherwise see
   the new URL. The reverse is harmless: from a credential page, a client navigation keeps the
   root layout it rendered, so the pages after it show no operator code until the next full load.
-- **Never looked up or logged.** The proxy never resolves a credential page as an operator
-  redirect source (its path never reaches the redirect API nor `[redirects]` log lines); the BFF
-  logs no paths; `next dev`'s request log ignores `/order/pay/` and `/payment/` (production logs
-  no requests). Errors are logged with their status and code, never the path.
+- **Never looked up or logged by the app.** The proxy never resolves a credential page as an
+  operator redirect source (its path never reaches the redirect API nor `[redirects]` log lines);
+  the BFF logs no paths; `next dev`'s request log ignores `/order/pay/` and `/payment/`, and the
+  production server (`server.js`) writes no request log at all. Errors are logged with their
+  status and code, never the path. The reverse proxy in front does log requests: the shipped
+  `deploy/nginx.conf.example` writes every access log through `log_format firefly_masked`, whose
+  URI (`$ff_safe_uri`, three `map`s over `$request_uri`) has `<token>` for the payment link's token
+  (`…/order/pay/`, `…/payment/link/`, `/login/?next=/order/pay/…` also `%2F`-spelled, the bank's
+  `/api/v1/payment/gateway/callback/<gateway>/<token>/`) and `<uuid>` for up to two uuids
+  (`/payment/card-transfer/`, `/payment/callback/?payment=`, `/api/bff/payment/<uuid>/…`, the
+  same API paths in the single-origin topology), and no Referer. Checked with nginx 1.27.5 on
+  credential-shaped requests (none reached the access log). nginx's error log cannot be masked: an
+  upstream failure writes the request line there (DEPLOYMENT.md says how to treat it). Any other
+  proxy or CDN in front must mask the same paths; a new credential route (below) adds its pattern
+  to those maps.
 - **The shop's own pages still hold them in the DOM.** The checkout (a `page`: snippets run)
   shows the pay-later link (`/order/pay/<token>/`) and an open card attempt's link
   (`/payment/card-transfer/<uuid>/`) as `href`s. Nothing sends them anywhere, but a session
@@ -835,7 +846,7 @@ A cancelled attempt's and an unknown uuid's pending entries are removed.
 query) must sit under one of `CREDENTIAL_PREFIXES` (`credential-routes.ts`), or add its prefix
 there in the same change. Every safeguard above follows from that list alone (the marker, the
 snippet gate, the referrer rule, the redirect lookup, the dev log); a route outside it gets none
-of them.
+of them. Its token or uuid also needs a pattern in the nginx example's log masks (above).
 
 Tests: `tests/unit/config/credential-routes.test.ts` (the rule),
 `credential-headers.test.ts` (Next's own header matcher, the SMS link's 308 keeping the token),

@@ -15,6 +15,43 @@
 #   load_module modules/ngx_http_brotli_filter_module.so;
 #   load_module modules/ngx_http_brotli_static_module.so;
 
+# --- Access log without payment credentials (http level; ONCE per host) ---------------------------
+# Some URLs carry a bearer credential (docs/ARCHITECTURE.md, "Payment credentials in URLs"):
+# whoever reads one can pay or cancel a guest's order. nginx's usual access log writes each
+# request line as it came, so every access_log of the shop below uses `firefly_masked`: the
+# request's URI with those parts replaced by <token> / <uuid> ($ff_safe_uri), and no Referer.
+# Masked, as pages, as /api/bff/... calls and (single origin) as /api/v1/... calls alike:
+#   .../order/pay/<token>/...                 the payment link (its page and its BFF reads, cancel)
+#   .../payment/link/<token>/...              the link's payment intent
+#   /login/?next=/order/pay/<token>/          the login leading back to it (also %2F-encoded)
+#   /api/v1/payment/gateway/callback/<gateway>/<token>/   the bank's return
+#   every uuid, two at most: /payment/card-transfer/<uuid>/, /payment/callback/?payment=<uuid>,
+#   /api/bff/payment/<uuid>/... (status, cards, receipt, cancel), payment/history/<uuid>/ ...
+# A second shop on this host reuses these (nginx refuses a second `log_format` of one name).
+# nginx's error log cannot be masked: a request that fails upstream (a 502, a timeout) is written
+# there with its request line. Keep that log's access and retention as tight as the
+# credentials'. Any other proxy, load balancer or CDN in front must mask the same paths.
+map $request_uri $ff_uri_tokens {
+    default $request_uri;
+    "~*^(?<ff_a>.*/order/pay/)[^/?#]+(?<ff_b>.*)$"                                  "${ff_a}<token>${ff_b}";
+    "~*^(?<ff_a>.*/payment/link/)[^/?#]+(?<ff_b>.*)$"                               "${ff_a}<token>${ff_b}";
+    "~*^(?<ff_a>.*[?&]next=(?:/|%2F)order(?:/|%2F)pay(?:/|%2F))[^/?&#%]+(?<ff_b>.*)$" "${ff_a}<token>${ff_b}";
+    "~*^(?<ff_a>.*/payment/gateway/callback/[^/?#]+/)[^/?#]+(?<ff_b>.*)$"            "${ff_a}<token>${ff_b}";
+}
+map $ff_uri_tokens $ff_uri_uuid {
+    default $ff_uri_tokens;
+    "~*^(?<ff_a>.*?)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?<ff_b>.*)$" "${ff_a}<uuid>${ff_b}";
+}
+map $ff_uri_uuid $ff_safe_uri {
+    default $ff_uri_uuid;
+    "~*^(?<ff_a>.*?)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?<ff_b>.*)$" "${ff_a}<uuid>${ff_b}";
+}
+# "combined" without the raw request line and without the Referer (a page's URL can hold one of
+# the credentials above; the payment pages send none, but not every client honours that).
+log_format firefly_masked '$remote_addr - $remote_user [$time_local] '
+                          '"$request_method $ff_safe_uri $server_protocol" $status $body_bytes_sent '
+                          '"$http_user_agent"';
+
 # One upstream per shop: a second shop on this host needs its own upstream name and port
 # (e.g. `upstream firefly_shop2 { server 127.0.0.1:3001; ... }`), referenced by its server block.
 upstream firefly_storefront {
@@ -30,6 +67,8 @@ server {
     listen 80;
     listen [::]:80;
     server_name <shop.example.ir> www.<shop.example.ir>;
+    # An old http:// payment link is logged masked too.
+    access_log /var/log/nginx/<shop>.access.log firefly_masked;
 
     location /.well-known/acme-challenge/ {
         root /var/www/letsencrypt;
@@ -46,6 +85,7 @@ server {
     listen [::]:443 ssl;
     http2 on;    # nginx 1.25.1+; older versions: `listen 443 ssl http2;` instead
     server_name www.<shop.example.ir>;
+    access_log /var/log/nginx/<shop>.access.log firefly_masked;
 
     ssl_certificate     /etc/letsencrypt/live/<shop.example.ir>/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/<shop.example.ir>/privkey.pem;
@@ -58,6 +98,10 @@ server {
     listen [::]:443 ssl;
     http2 on;    # nginx 1.25.1+; older versions: `listen 443 ssl http2;` instead
     server_name <shop.example.ir>;
+
+    # Every location of the shop logs through the masks above (one that sets its own access_log
+    # must name `firefly_masked` too). The health probe below logs nothing.
+    access_log /var/log/nginx/<shop>.access.log firefly_masked;
 
     # --- TLS (placeholders: point at your certificate) -----------------------------------------
     ssl_certificate     /etc/letsencrypt/live/<shop.example.ir>/fullchain.pem;
