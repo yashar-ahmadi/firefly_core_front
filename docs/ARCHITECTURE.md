@@ -797,7 +797,26 @@ off, so no worker sits between the other specs and their routes and mocks.
   `<main>` meanwhile, and is a static bar under reduced motion.
 - **Metadata.** The root `title.template` is `'%s | <store>'`; it applies to child segments only, so
   the home page and pages with a backend `page_title` use `title.absolute`. Open Graph and Twitter
-  titles are set explicitly. `metadataBase` is `SITE_URL`.
+  titles are set explicitly. `metadataBase` is `SITE_URL`, set once in the root layout
+  (`app/_shell/metadata.ts`). No builder writes a key set to `undefined` (it would wipe the
+  layout's value): `tests/unit/seo/no-undefined-metadata.test.ts`.
+- **SEO (Plan 5 Task 7; spec §8.13, seo digest §7 and §13), checked on the build by
+  `tests/e2e/seo.spec.ts` and `seo-urls.spec.ts`.** Every indexable route type (home, category,
+  brand and the brands index, curated list, product, blog home, post, blog category, content page,
+  FAQ, `/contact-us/`, `/links/`, the categories tab) serves one `<h1>`, a title, one absolute
+  canonical on `SITE_URL`'s origin ending with `/`, one description, `og:title` and its JSON-LD:
+  the backend's (Product, BlogPosting, CollectionPage, every BreadcrumbList) with every URL moved
+  onto the shop's origin, else the shop's own: Organization and WebSite with a SearchAction on
+  `/search/?q=` on the home page (`features/seo/organization-jsonld.tsx`, from the settings and
+  socials; the backend's homepage has no structured data, so nothing is merged), FAQPage,
+  a BreadcrumbList from the visible trail (brand, brands index, blog home, pages), a ProfilePage of
+  the shop on `/links/` (`linkerJsonLd`). All written by `JsonLd` (`<` escaped). The product's
+  JSON-LD keeps the API's Rial prices labelled `IRR` (for search engines only, never shown);
+  nothing the storefront builds carries a price. noindex: the cart, the checkout and its thanks
+  page, the account, search, compare, the generic listing, any filtered or sorted listing, the
+  auth pages, order tracking, the pay link, the payment pages, `/offline/` and both 404 shells;
+  the payment pages and the login that leads back to a pay link also send no referrer and name no
+  canonical.
 - **Hydration.** Anything that depends on "now" (relative dates) is computed client-side or given a
   fixed `now`. Mixed Latin/Persian titles use `dir="auto"`.
 - **Language and formatting.** `<html lang="fa" dir="rtl">`; Persian digits, «… تومان», Jalali dates

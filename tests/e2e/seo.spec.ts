@@ -1,0 +1,157 @@
+import { expect, test, type APIRequestContext } from '@playwright/test'
+import { signedInTest } from './support/session'
+import {
+  canonicalsIn,
+  expectCanonical,
+  h1CountIn,
+  jsonLdOf,
+  POST_PATH,
+  robotsMetas,
+  saysNoindex,
+  typesIn,
+} from './support/seo-head'
+import { watchErrors } from './support/watch-errors'
+
+// The SEO audit (Plan 5 Task 7; spec §8.13, seo digest §7 and §13) on the production build: every
+// indexable route type has one <h1>, a title, one absolute canonical on the shop's own origin
+// ending with `/`, JSON-LD that parses with the types it should have, `og:title` and no
+// noindex; every private, transactional or thin route says noindex (a robots meta tag or
+// `X-Robots-Tag`), and the pages whose URL holds a payment credential send no referrer. Read
+// only, desktop only (one pass a run). One blog post page only (ruling P5-R1: each GET of a post
+// counts a view).
+
+/**
+ * One page of each indexable route type, and the JSON-LD types it must carry (none required of
+ * the categories tab, which shows no trail; any block there must still parse).
+ */
+const INDEXABLE: [name: string, path: string, types: string[]][] = [
+  ['home', '/', ['Organization', 'WebSite']],
+  ['category', '/product-category/digital/mobile-phone/', ['BreadcrumbList']],
+  ['brand', '/brand/samsung/', ['BreadcrumbList']],
+  ['brands index', '/brand/', ['BreadcrumbList']],
+  ['categories tab', '/categories/', []],
+  ['list page', '/product/list/flagship-phones/', ['BreadcrumbList']],
+  ['product', '/product/samsung-galaxy-s25-ultra/', ['Product', 'BreadcrumbList']],
+  ['blog home', '/blog/', ['Blog', 'BreadcrumbList']],
+  ['post', POST_PATH, ['BlogPosting', 'BreadcrumbList']],
+  ['blog category', '/blog/category/buying-guide/', ['CollectionPage', 'BreadcrumbList']],
+  ['page', '/page/about-us/', ['BreadcrumbList']],
+  ['FAQ', '/faq/', ['FAQPage']],
+  ['contact', '/contact-us/', ['BreadcrumbList']],
+  ['linker', '/links/', ['ProfilePage']],
+]
+
+const CARD_TRANSFER = '/payment/card-transfer/00000000-0000-4000-8000-000000000000/'
+const PAY_LINK = '/order/pay/e2e-no-such-token/'
+
+/** Pages that must never be indexed, as a guest; `credential`: their URL holds a payment key. */
+const NOINDEX: [path: string, credential?: true][] = [
+  ['/cart/'],
+  ['/checkout/'],
+  ['/checkout/thanks/5550001234/'],
+  ['/search/'],
+  ['/compare/'],
+  ['/product/list/'],
+  ['/product/list/?has_discount=true'],
+  ['/product-category/digital/mobile-phone/?sort=price-asc'],
+  ['/login/'],
+  ['/register/'],
+  ['/forgot-password/'],
+  ['/order/track/'],
+  [PAY_LINK, true],
+  ['/payment/callback/', true],
+  ['/payment/callback/?result=failed&code=gateway_callback_invalid', true],
+  [CARD_TRANSFER, true],
+  [`/login/?next=${PAY_LINK}`, true],
+  ['/offline/'],
+  // The shop's 404 (an unknown URL, through the catch-all) and the light root 404 (a malformed
+  // thanks code, outside the shop layout: ruling P5-R2).
+  ['/this-page-does-not-exist/'],
+  ['/checkout/thanks/not-a-code/'],
+]
+
+async function served(request: APIRequestContext, path: string) {
+  const response = await request.get(path, { maxRedirects: 0 })
+  return { response, html: await response.text() }
+}
+
+test.describe('SEO', () => {
+  test.beforeAll(({}, workerInfo) => {
+    test.skip(workerInfo.project.name !== 'desktop', 'one pass a run (desktop project)')
+  })
+
+  for (const [name, path, types] of INDEXABLE) {
+    test(`indexable: ${name} (${path})`, async ({ page, baseURL }) => {
+      const errors = watchErrors(page)
+      const response = await page.goto(path)
+      expect(response?.status(), path).toBe(200)
+      const html = (await response?.text()) ?? ''
+      // In the HTML as served, before any script, and in the page as shown.
+      expect(h1CountIn(html), `${path}: one <h1> served`).toBe(1)
+      await expect(page.locator('h1'), `${path}: one <h1> shown`).toHaveCount(1)
+      expect((await page.title()).trim(), `${path}: a title`).not.toBe('')
+      const origin = new URL(baseURL!).origin
+      expect(await expectCanonical(page, origin, path)).toBe(new URL(path, origin).pathname)
+      const found = (await jsonLdOf(page)).flatMap(typesIn)
+      for (const type of types) expect(found, `${path}: JSON-LD ${type}`).toContain(type)
+      // One description: none wiped by a key set to undefined, none written twice.
+      const description = page.locator('meta[name="description"]')
+      await expect(description, `${path}: one description`).toHaveCount(1)
+      expect((await description.getAttribute('content'))?.trim(), path).toBeTruthy()
+      const ogTitle = page.locator('meta[property="og:title"]')
+      await expect(ogTitle, `${path}: og:title`).toHaveCount(1)
+      expect((await ogTitle.getAttribute('content'))?.trim(), `${path}: og:title`).toBeTruthy()
+      expect(
+        robotsMetas(html).filter((content) => /noindex/i.test(content)),
+        path,
+      ).toEqual([])
+      expect(response?.headers()['x-robots-tag'] ?? '', path).not.toMatch(/noindex/i)
+      expect(errors).toEqual([])
+    })
+  }
+
+  test('the product’s JSON-LD keeps the API’s Rial prices labelled as Rial (never shown)', async ({
+    request,
+  }) => {
+    const { html } = await served(request, '/product/samsung-galaxy-s25-ultra/')
+    const blocks = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)]
+    const product = blocks
+      .map((match) => JSON.parse(match[1]!) as Record<string, unknown>)
+      .find((block) => block['@type'] === 'Product')
+    expect((product?.offers as { priceCurrency?: string } | undefined)?.priceCurrency).toBe('IRR')
+  })
+
+  test('noindex: private, transactional and thin pages; no referrer from credential pages', async ({
+    request,
+  }) => {
+    for (const [path, credential] of NOINDEX) {
+      const { response, html } = await served(request, path)
+      expect(response.status(), path).toBeLessThan(500)
+      expect(saysNoindex(response, html), `${path}: noindex`).toBe(true)
+      // noindex with a canonical to another URL would be a mixed signal.
+      for (const canonical of canonicalsIn(html)) {
+        expect(new URL(canonical).pathname, `${path}: canonical`).toBe(
+          new URL(path, canonical).pathname,
+        )
+      }
+      if (credential) {
+        expect(response.headers()['referrer-policy'], `${path}: no referrer`).toBe('no-referrer')
+        expect(canonicalsIn(html), `${path}: names no URL`).toEqual([])
+      }
+    }
+  })
+})
+
+signedInTest.describe('SEO, signed in', () => {
+  signedInTest.beforeAll(({}, workerInfo) => {
+    signedInTest.skip(workerInfo.project.name !== 'desktop', 'one pass a run (desktop project)')
+  })
+
+  signedInTest('the account pages are noindex', async ({ page }) => {
+    for (const path of ['/account/', '/account/orders/', '/account/profile/']) {
+      const response = await page.request.get(path, { maxRedirects: 0 })
+      expect(response.status(), path).toBe(200)
+      expect(saysNoindex(response, await response.text()), `${path}: noindex`).toBe(true)
+    }
+  })
+})

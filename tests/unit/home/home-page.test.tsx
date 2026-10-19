@@ -22,6 +22,7 @@ vi.mock('server-only', () => ({}))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/features/settings/api', () => ({
   getSiteSettings: async () => mocks.settings,
+  getSocials: async () => [],
   getTranslations: async () => ({}),
 }))
 vi.mock('@/features/catalog/api', () => ({
@@ -153,6 +154,19 @@ describe('home page', () => {
     await renderPage()
     await act(async () => {})
     expect(screen.queryByRole('heading', { name: 'بازدیدهای اخیر' })).toBeNull()
+  })
+
+  it('carries the shop’s Organization and WebSite JSON-LD (Plan 5 Task 7), server-rendered', async () => {
+    mocks.settings = { name: 'فرش مهر', slogan: null } as SiteSettings
+    const { container } = await renderPage()
+    const blocks = [...container.querySelectorAll('script[type="application/ld+json"]')].map(
+      (script) => JSON.parse(script.textContent ?? ''),
+    )
+    expect(blocks.map((block) => block['@type'])).toEqual(['Organization', 'WebSite'])
+    expect(blocks[0]).toMatchObject({ name: 'فرش مهر', url: 'https://shop.ir/' })
+    expect(blocks[1].potentialAction.target.urlTemplate).toBe(
+      'https://shop.ir/search/?q={search_term_string}',
+    )
   })
 
   it('throws when the homepage cannot be loaded, so the error page answers', async () => {
