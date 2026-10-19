@@ -146,7 +146,7 @@ describe('ReadingListPage', () => {
     expect(history.replaced().at(-1)).toBe('/account/reading-list/?sort=added-asc')
   })
 
-  it('a failed read: «تلاش دوباره» reads it again; a 429 waits its retry_after', async () => {
+  it('a failed read (a 500): «تلاش دوباره» reads it again', async () => {
     let fail: ApiError | null = new ApiError({ status: 500, code: 'server_error' })
     list = () => fail ?? listPage(POSTS.slice(0, 1))
     const { user } = renderReadingList()
@@ -154,6 +154,18 @@ describe('ReadingListPage', () => {
     fail = null
     await user.click(screen.getByRole('button', { name: 'تلاش دوباره' }))
     expect(await screen.findByRole('article')).toBeInTheDocument()
+  })
+
+  it('a 429: asked to wait, and «تلاش دوباره» reads nothing until its retry_after is over', async () => {
+    list = () => new ApiError({ status: 429, code: 'throttled', retryAfter: 30 })
+    const { user } = renderReadingList()
+    expect(await screen.findByText('لطفاً کمی بعد دوباره تلاش کنید.')).toBeVisible()
+    const retry = screen.getByRole('button', { name: 'تلاش دوباره' })
+    expect(retry).toHaveAttribute('aria-disabled', 'true')
+    expect(retry).toHaveAccessibleDescription(/زمان باقی/)
+    const reads = pageReads().length
+    await user.click(retry)
+    expect(pageReads()).toHaveLength(reads)
   })
 
   it('with the blog switched off: the operator’s reason, and nothing read', async () => {
