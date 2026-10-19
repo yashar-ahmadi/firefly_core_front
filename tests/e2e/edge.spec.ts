@@ -173,6 +173,20 @@ test.describe('edge', () => {
     expect(res.headers()['cache-control']).toMatch(/\bno-store\b/)
   })
 
+  // A `Sec-Purpose` prefetch (alone, or beside `Purpose` as Chromium sent both ahead of a
+  // prerender) is kept for the click: looked up like a visit. `Purpose` alone stays quiet.
+  test('a kept browser prefetch of a redirect source is redirected; `Purpose` alone is not', async ({
+    request,
+  }) => {
+    const both = { purpose: 'prefetch', 'sec-purpose': 'prefetch;prerender' }
+    expect((await request.get('/festival/', { headers: both, maxRedirects: 0 })).status()).toBe(302)
+    const quiet = await request.get('/festival/', {
+      headers: { purpose: 'prefetch' },
+      maxRedirects: 0,
+    })
+    expect([quiet.status(), quiet.headers()['location']]).toEqual([404, undefined])
+  })
+
   // The App Router's own requests, as the browser sends them (tests/fixtures/rsc-request-
   // shapes.json), with Next's own `_rsc` hash so its check lets them through: a prefetch is
   // marked and nothing more (no account guard, no cookie touched, no redirect lookup); a client

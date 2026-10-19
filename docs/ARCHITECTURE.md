@@ -751,7 +751,8 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
   Chromium 141 (`tests/fixtures/browser-prefetch-shapes.json`, read by
   `tests/unit/http/prefetch-kept.test.ts`; the both-headers shape is recorded there, not captured:
   Chromium 141 no longer sends `Purpose`); `tests/e2e/edge.spec.ts` checks the `no-store` answer
-  such a document gets. A page ever answered cacheable would need `Purpose: prefetch` to stop
+  such a document gets, and that a both-headers prefetch of a redirect source is redirected while
+  `Purpose` alone is not. A page ever answered cacheable would need `Purpose: prefetch` to stop
   being quiet. The router's headers reach the proxy
   only because `next.config.ts` sets `skipProxyUrlNormalize`: by default Next removes `rsc`,
   `next-router-prefetch`, `next-router-segment-prefetch`, `next-router-state-tree` and the `_rsc`
