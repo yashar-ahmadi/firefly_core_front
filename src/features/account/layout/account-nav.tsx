@@ -11,6 +11,7 @@ import { useFeature } from '@/features/settings/feature-context'
 import { useT } from '@/lib/i18n/i18n-context'
 import { useSummary } from '../dashboard/use-summary'
 import { ACCOUNT_HOME, ACCOUNT_NAV, isCurrentPage, navBadge, type NavBadge } from './nav-items'
+import { useWalletEntry } from './wallet-entry'
 
 export type AccountNavVariant = 'sidebar' | 'hub'
 
@@ -76,7 +77,8 @@ function Badge({ badge }: { badge: NavBadge }) {
  * The account area's navigation (`nav` «حساب کاربری»): the pages of the brief's table with
  * their badges (`useSummary`; the unread count the account shell keeps), the page on screen marked
  * `aria-current="page"`, and «خروج» last (`useLogout`, shared with the header menu). Rows of a
- * switched-off feature (the blog's reading list, the wallet) are left out. `sidebar`: the side
+ * switched-off feature (the blog's reading list) are left out; the wallet's stays while the
+ * visitor has something there, for viewing (`useWalletEntry`). `sidebar`: the side
  * column from lg. `hub`: the dashboard's list of large rows below lg (without «پیشخوان»: it is
  * the page they are on).
  */
@@ -91,7 +93,8 @@ export function AccountNav({
   const pathname = usePathname() ?? ''
   const { data: summary } = useSummary()
   const unread = useUnreadNotificationCount()
-  const switches = { blog: useFeature('blog').enabled, wallet: useFeature('wallet').enabled }
+  const wallet = useWalletEntry()
+  const switches = { blog: useFeature('blog').enabled, wallet: wallet !== 'none' }
   const { logout, pending } = useLogout()
   const style = STYLES[variant]
   const hub = variant === 'hub'
@@ -104,7 +107,7 @@ export function AccountNav({
     <nav aria-label={t('account_area')} className={className}>
       <ul className={style.list}>
         {items.map(({ key, href, label, icon: Icon }) => {
-          const badge = navBadge(key, summary, unread)
+          const badge = navBadge(key, summary, unread, { viewOnly: wallet === 'view' })
           return (
             <li key={key}>
               <Link

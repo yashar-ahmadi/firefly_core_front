@@ -28,6 +28,8 @@ vi.mock('@/lib/api/client', () => ({
   bffFetch: async (path: string) => {
     if (path === 'dashboard/summary/') return ok(await mocks.summary())
     if (path === 'account/profile/me/') return ok(await mocks.profile())
+    if (path === 'wallet/withdrawal/list/')
+      return ok({ count: 0, next: null, previous: null, results: [] })
     throw new Error(`unexpected ${path}`)
   },
 }))
@@ -170,7 +172,9 @@ describe('the summary cards', () => {
     expect(within(wishlist).getByText('هنوز خالی است')).toBeVisible()
   })
 
-  it('leave the wallet out while its switch is off', async () => {
+  it('leave the wallet out while its switch is off and nothing is there', async () => {
+    // No balance, no withdrawal on record (the other states: wallet-entry.test.tsx).
+    mocks.summary.mockResolvedValue(summary({ wallet: { balance: 0, is_frozen: false } }))
     renderSections({ wallet: { key: 'wallet', name: '', enabled: false, reason: null } })
     expect(await screen.findByRole('link', { name: /^در انتظار دیدگاه/ })).toBeVisible()
     expect(screen.queryByRole('link', { name: /^کیف پول/ })).toBeNull()

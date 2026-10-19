@@ -16,7 +16,7 @@ import { TopUpForm } from './top-up-form'
 import { useWalletUrl } from './use-wallet-url'
 import { walletAccess } from './wallet-access'
 import { parseWalletParams, WALLET_TABS, type WalletTab } from './wallet-params'
-import { useWallet, useWithdrawals } from './wallet-queries'
+import { useWallet, useWithdrawalRecord } from './wallet-queries'
 import { WalletTabs } from './wallet-tabs'
 
 // `/account/wallet/` «کیف پول» (order digest §3.3, §5.12, §7; Plan 4 Task 9): «موجودی» and
@@ -76,9 +76,6 @@ function Panel({ title, children }: { title: string; children: ReactNode }) {
 
 const tabHref = (tab: WalletTab) => (tab === 'transactions' ? '' : `tab=${tab}`)
 
-/** Is there a withdrawal request on record: one row (any status) is enough. */
-const RECORDS = { limit: 1 }
-
 export interface WalletPageProps {
   title: string
   catalog: PaymentCatalog
@@ -89,7 +86,7 @@ export function WalletPage({ title, catalog, supportPhone }: WalletPageProps) {
   const url = useWalletUrl()
   const wallet = useWallet()
   const walletSwitch = useFeature('wallet')
-  const records = useWithdrawals(RECORDS, !walletSwitch.enabled)
+  const records = useWithdrawalRecord(!walletSwitch.enabled)
   const access = walletAccess({
     wallet: walletSwitch,
     onlinePayment: useFeature('online_payment'),

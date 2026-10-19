@@ -35,7 +35,10 @@ export interface AccountNavItem {
   /** The label's dictionary key. */
   label: string
   icon: LucideIcon
-  /** Listed only while this switch is on: the summary counts regardless (digest §0.6). */
+  /**
+   * Listed only while this switch is on: the summary counts regardless (digest §0.6). The
+   * wallet's row also while the visitor has something there (wallet-entry.ts), for viewing.
+   */
   feature?: 'blog' | 'wallet'
 }
 
@@ -109,18 +112,21 @@ function countOf(key: AccountNavKey, summary: DashboardSummary): number | undefi
 
 /**
  * The badge of a page: its list's count from the summary (never computed here), the unread
- * count of the inbox, the wallet's balance in Toman. None for an empty list, nor before the
- * summary is in (the unread count does not wait for it).
+ * count of the inbox, the wallet's balance in Toman (said to be for viewing while the wallet is
+ * switched off: `viewOnly`). None for an empty list, nor before the summary is in (the unread
+ * count does not wait for it).
  */
 export function navBadge(
   key: AccountNavKey,
   summary: DashboardSummary | undefined,
   unread: number | undefined,
+  { viewOnly = false }: { viewOnly?: boolean } = {},
 ): NavBadge | null {
   if (key === 'wallet') {
     if (!summary) return null
     const balance = formatToman(summary.wallet.balance)
-    return { text: balance, label: `موجودی ${balance}`, kind: 'amount' }
+    const label = `موجودی ${balance}${viewOnly ? '، فقط برای مشاهده' : ''}`
+    return { text: balance, label, kind: 'amount' }
   }
   const noun = COUNT_NOUN[key]
   const count = key === 'notifications' ? unread : summary ? countOf(key, summary) : undefined

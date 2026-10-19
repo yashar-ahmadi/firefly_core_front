@@ -5,9 +5,9 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { cn } from '@/components/ui/cn'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useFeature } from '@/features/settings/feature-context'
 import type { DashboardSummary } from '@/lib/api/types/dashboard'
 import { formatNumber, formatToman } from '@/lib/format/number'
+import { useWalletEntry, type WalletEntry } from '../layout/wallet-entry'
 import { isLoadingSection } from '../use-account-query'
 import { ListError } from '../lists/list-error'
 import { useSummary } from './use-summary'
@@ -110,7 +110,13 @@ function CardSkeleton({ shape }: { shape: CardShape }) {
   )
 }
 
-function cards(summary: DashboardSummary, withWallet: boolean): CardContent[] {
+/** The wallet card's note: frozen, usable, or (switched off) for viewing only. */
+function walletNote(wallet: DashboardSummary['wallet'], entry: WalletEntry): string {
+  if (entry === 'view') return 'غیرفعال است؛ فقط برای مشاهده'
+  return wallet.is_frozen ? 'کیف پول شما موقتاً مسدود است' : 'قابل استفاده در خرید'
+}
+
+function cards(summary: DashboardSummary, entry: WalletEntry): CardContent[] {
   const { wallet, awaiting_review_count: reviews, wishlist_count: wishlist } = summary
   const list: CardContent[] = [
     {
@@ -136,7 +142,7 @@ function cards(summary: DashboardSummary, withWallet: boolean): CardContent[] {
       shape: 'narrow',
     },
   ]
-  if (!withWallet) return list
+  if (entry === 'none') return list
   return [
     {
       key: 'wallet',
@@ -146,8 +152,8 @@ function cards(summary: DashboardSummary, withWallet: boolean): CardContent[] {
       tone: 'bg-brand-50 text-brand-700',
       amount: formatToman(wallet.balance, { suffix: false }),
       unit: 'تومان',
-      note: wallet.is_frozen ? 'کیف پول شما موقتاً مسدود است' : 'قابل استفاده در خرید',
-      warning: wallet.is_frozen,
+      note: walletNote(wallet, entry),
+      warning: entry === 'open' && wallet.is_frozen,
       shape: 'wide',
     },
     ...list,
@@ -156,14 +162,16 @@ function cards(summary: DashboardSummary, withWallet: boolean): CardContent[] {
 
 /**
  * The dashboard's counters (`useSummary`): the wallet's balance in Toman (with a note while it
- * is frozen; left out while the wallet switch is off), the purchases awaiting a review and the
+ * is frozen; while the wallet switch is off, kept for viewing when the visitor has something
+ * there, else left out: `useWalletEntry`), the purchases awaiting a review and the
  * wishlist, each a link to its page. Phones: the wallet across, the two counters side by side;
  * from md one row. Skeletons hold the same boxes while the summary loads; a failed read offers
  * «تلاش دوباره».
  */
 export function SummaryCards() {
   const query = useSummary()
-  const withWallet = useFeature('wallet').enabled
+  const entry = useWalletEntry()
+  const withWallet = entry !== 'none'
   const loading = isLoadingSection(query)
   const grid = cn('grid grid-cols-2 gap-3 md:gap-4', withWallet && 'md:grid-cols-4')
 
@@ -190,7 +198,7 @@ export function SummaryCards() {
           <CardSkeleton shape="narrow" />
         </>
       ) : (
-        cards(query.data, withWallet).map((card) => <SummaryCard key={card.key} card={card} />)
+        cards(query.data, entry).map((card) => <SummaryCard key={card.key} card={card} />)
       )}
     </div>
   )

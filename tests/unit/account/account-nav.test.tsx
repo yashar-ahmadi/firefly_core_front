@@ -156,8 +156,10 @@ describe('AccountNav', () => {
 
   it.each([
     ['blog', 'لیست مطالعه'],
+    // With nothing there (no balance, no withdrawal on record: wallet-entry.test.tsx).
     ['wallet', 'کیف پول'],
   ] as const)('hides its row while the %s switch is off', async (key, label) => {
+    mocks.summary.mockResolvedValue(summary({ wallet: { balance: 0, is_frozen: false } }))
     renderNav('sidebar', off(key))
     await summaryShown()
     expect(within(nav()).queryByText(label)).toBeNull()
