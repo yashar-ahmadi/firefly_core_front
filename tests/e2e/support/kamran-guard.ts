@@ -9,6 +9,7 @@ import type { AccountData } from './account-data'
 import { withAccountData } from './account-guard'
 import { awaitingKamranOrders, cancelKamranOrder } from './kamran-order'
 import { KAMRAN, logIn } from './session'
+import { readForSweep } from './sweep-read'
 
 // The signed-in checkout and orders journeys' safety net (Plan 4 Tasks 2 and 8, ruling P4-R4:
 // k.yazdi, never sara): a test fixture that signs the test's browser context in as kamran (one
@@ -17,7 +18,8 @@ import { KAMRAN, logIn } from './session'
 // it ends, the data settled and restored exactly), cancels every order of his the test handed
 // over (`track`; cancelled already is fine) and any other of his awaiting payment that was not
 // there before the test (one the test placed but never got to hand over: an answer it did not
-// read), then logs out (one more attempt; a non-2xx is said).
+// read; when that second read fails the sweep is skipped, said with a warning), then logs out
+// (one more attempt; a non-2xx is said).
 // It runs in the `journeys` project only (one worker, after the device projects).
 
 export interface KamranGuard {
@@ -60,7 +62,8 @@ async function guardKamran(
     )
   } finally {
     const known = awaiting
-    const now = known ? await awaitingKamranOrders(request).catch(() => [] as string[]) : []
+    // A failed read skips the sweep, said (support/sweep-read.ts); the tracked ones go anyway.
+    const now = known ? await readForSweep(() => awaitingKamranOrders(request), 'k.yazdi') : []
     const his = new Set([...placed, ...now.filter((code) => !known?.has(code))])
     for (const code of his) if (!(await cancelKamranOrder(request, code))) left.push(code)
     await logOut(request, origin)
