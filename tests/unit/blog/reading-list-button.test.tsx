@@ -40,12 +40,15 @@ function savedList(ids: number[]) {
 
 const writes = () => mocks.bffFetch.mock.calls.filter(([, opts]) => opts?.method)
 
-function renderButton({ hasSession = true, onFeatureDisabled = vi.fn() } = {}) {
+function renderButton({ hasSession = true, onFeatureDisabled = vi.fn(), blogOn = true } = {}) {
   const client = createQueryClient({ onFeatureDisabled })
   const { wrapper: Session } = clientProviders({ hasSession, client })
+  const features = blogOn
+    ? {}
+    : { blog: { key: 'blog' as const, name: 'وبلاگ', enabled: false, reason: null } }
   const wrapper = ({ children }: { children: ReactNode }) => (
     <Session>
-      <FeatureProvider initial={{}}>{children}</FeatureProvider>
+      <FeatureProvider initial={features}>{children}</FeatureProvider>
     </Session>
   )
   render(
@@ -76,6 +79,26 @@ describe('ReadingListButton', () => {
     await userEvent.click(button)
     expect(mocks.push).toHaveBeenCalledWith('/login/')
     expect(mocks.bffFetch).not.toHaveBeenCalled()
+  })
+
+  it('is not there while the shell’s feature map has the blog off (guest or signed in)', () => {
+    mocks.bffFetch.mockResolvedValue(savedList([10001]))
+    renderButton({ blogOn: false })
+    expect(screen.queryByRole('button')).toBeNull()
+    renderButton({ hasSession: false, blogOn: false })
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getAllByRole('heading', { name: 'بهترین گوشی‌ها' })).toHaveLength(2)
+  })
+
+  it('ignores a press while a signed-in visitor’s ids load (it cannot know which way to go)', async () => {
+    mocks.bffFetch.mockReturnValue(new Promise(() => {}))
+    renderButton()
+    const button = screen.getByRole('button', { name: SAVE })
+    await waitFor(() => expect(button).toHaveAttribute('aria-disabled', 'true'))
+    await userEvent.click(button)
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+    expect(writes()).toEqual([])
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('signed in: the saved ids are read once (every page, 100 a time), and a saved post is pressed', async () => {
