@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,11 +6,13 @@ import { LoginFlow } from '@/features/auth/components/login-flow'
 import { ApiError } from '@/lib/api/errors'
 import { authProviders, everyMethodAuth } from '../support/auth-providers'
 import { stubBrowserApis } from '../support/dom-stubs'
-import { resetHandoff } from '../support/handoff'
+import { handedByClick, resetHandoff } from '../support/handoff'
 
 // «ورود با گوگل» on the login page's first step (auth digest F4): Google draws its button in a
 // frame of its own inside the slot. A 429 makes the slot inert while the wait runs, which would
-// drop the focus a visitor had in Google's frame: it moves to the wait note instead.
+// drop the focus a visitor had in Google's frame: it moves to the wait note instead. An account
+// Google knows but the shop does not (`auth_user_not_found`) is offered a plain registration
+// link: the identifier field is not what Google signed in with, so nothing is handed over.
 
 interface ScriptProps {
   src: string
@@ -44,6 +46,10 @@ const gis = {
     parent.append(Object.assign(document.createElement('button'), { textContent: 'Google' }))
   }),
 }
+
+const REGISTRATION_OFF = {
+  registration: { key: 'registration', name: 'ثبت نام', enabled: false, reason: null },
+} as const
 
 function renderLogin(features = {}) {
   const user = userEvent.setup()
@@ -93,5 +99,28 @@ describe('Google sign-in', () => {
     )
     await screen.findByText(/زمان باقی‌مانده تا تلاش دوباره/)
     expect(field).toHaveFocus()
+  })
+
+  it('an account the shop does not have: a plain «ثبت‌نام» link while registration is open', async () => {
+    const user = renderLogin()
+    // Typed before choosing Google: not the address Google signed in with.
+    await user.type(screen.getByLabelText('ایمیل یا شماره موبایل'), 'other@example.com')
+    await googleAnswers(
+      new ApiError({ status: 404, code: 'auth_user_not_found', detail: 'کاربری یافت نشد.' }),
+    )
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('کاربری یافت نشد.')
+    const register = within(alert).getByRole('link', { name: 'ثبت‌نام' })
+    expect(register).toHaveAttribute('href', '/register/')
+    expect(await handedByClick(register, '/register/')).toBe('')
+  })
+
+  it('no registration link while registration is closed', async () => {
+    renderLogin(REGISTRATION_OFF)
+    await googleAnswers(
+      new ApiError({ status: 404, code: 'auth_user_not_found', detail: 'کاربری یافت نشد.' }),
+    )
+    const alert = await screen.findByRole('alert')
+    expect(within(alert).queryByRole('link')).toBeNull()
   })
 })

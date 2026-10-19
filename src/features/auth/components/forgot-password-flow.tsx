@@ -55,7 +55,7 @@ export function ForgotPasswordFlow({
       notice={state.notice}
       identifier={entry.identifier}
       next={next}
-      canRegister={canRegister}
+      register={canRegister ? 'handoff' : null}
     />
   )
   const shared = { notice, busy: state.busy, titleRef }

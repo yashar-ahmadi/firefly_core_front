@@ -10,7 +10,7 @@ import { useAuthSettings } from '../use-auth-settings'
 import { TransitionCard } from './auth-card'
 import { GoogleButton } from './google-button'
 import { IdentifierStep } from './identifier-step'
-import { LoginNoticeAlert } from './login-fields'
+import { LoginNoticeAlert, type RegisterOffer } from './login-fields'
 import { initialLoginState, loginReducer } from './login-state'
 import { OtpStep } from './otp-step'
 import { PasswordStep } from './password-step'
@@ -64,15 +64,25 @@ export function LoginFlow({
     onSignedIn,
   })
   const google = actions.googleOff ? null : googleClientId(auth)
-  const canRegister =
-    registration.enabled && type !== null && auth.registration_methods.includes(type)
+  const registrationOpen = registration.enabled && auth.registration_methods.length > 0
+  // A notice on the identifier step is Google's answer (the step itself sends nothing; a TOTP
+  // challenge Google started comes back here): what the field holds is not what Google signed
+  // in with, so registration is offered plainly, without it.
+  const register: RegisterOffer =
+    state.step === 'identifier'
+      ? registrationOpen
+        ? 'plain'
+        : null
+      : registrationOpen && type !== null && auth.registration_methods.includes(type)
+        ? 'handoff'
+        : null
 
   const notice = state.notice && (
     <LoginNoticeAlert
       notice={state.notice}
       identifier={state.identifier}
       next={next}
-      canRegister={canRegister}
+      register={register}
     />
   )
   const errors = state.fieldErrors

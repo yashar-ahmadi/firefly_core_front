@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { Button } from '@/components/ui/button'
@@ -113,22 +114,29 @@ export function RememberMe({
 }
 
 /**
- * A notice of the step. When no account has the identifier, registration is offered with it,
- * if registration is open to this kind of identifier (`canRegister`).
+ * How a notice that no account has the identifier offers registration: `handoff`, with what was
+ * typed (registration is open to that kind of identifier); `plain`, a link to the page alone
+ * (Google's answer: the field is not what Google signed in with); null, not at all.
+ */
+export type RegisterOffer = 'handoff' | 'plain' | null
+
+/**
+ * A notice of the step. When no account has the identifier, registration is offered as
+ * `register` says («ثبت‌نام با همین مشخصات», or «ثبت‌نام»).
  */
 export function LoginNoticeAlert({
   notice,
   identifier,
   next,
-  canRegister,
+  register,
 }: {
   notice: LoginNotice
   identifier: string
   next: string
-  canRegister: boolean
+  register: RegisterOffer
 }) {
   let action: ReactNode = null
-  if (notice.code === 'auth_user_not_found' && canRegister) {
+  if (notice.code === 'auth_user_not_found' && register === 'handoff') {
     action = (
       <HandoffLink
         page="/register/"
@@ -138,6 +146,12 @@ export function LoginNoticeAlert({
       >
         ثبت‌نام با همین مشخصات
       </HandoffLink>
+    )
+  } else if (notice.code === 'auth_user_not_found' && register === 'plain') {
+    action = (
+      <Link href={registerHref(next)} className={TEXT_LINK}>
+        ثبت‌نام
+      </Link>
     )
   }
   return <FormAlert action={action}>{notice.detail}</FormAlert>
