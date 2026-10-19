@@ -999,9 +999,10 @@ their own without one).
   account's orders, order and wallet pages (through the payment catalog): 260–307 B less each.
   The content pages, which render it, load the same 32 modules as before in two chunks split
   differently: +132 B of compression. The dialog's code loads on the first
-  press, never on arrival: 38.7 KB in the review state (the kit's Dialog 6.0 KB, the overlays'
-  base 8.7 KB, and 23.9 KB of chunks Turbopack shares with the steps' form controls), with
-  «در حال باز شدن…» said meanwhile.
+  press, never on arrival, with «در حال باز شدن…» said meanwhile. The dialog's own first-open
+  cost is 15.1 KB: the kit's Dialog plus the Radix overlay base. The press also starts the review
+  form's idle preload of the placed-order payment panel (24.0 KB). That preload is intended, and
+  ticking the terms box starts it anyway.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
