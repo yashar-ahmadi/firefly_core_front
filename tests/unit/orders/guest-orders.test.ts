@@ -28,11 +28,11 @@ const order = (code: string, changes: Partial<GuestOrder> = {}): GuestOrder => (
   placedAt: new Date(Date.now() - 60_000).toISOString(),
   ...changes,
 })
-/** What the store holds for `order` saved now (its time on this device added). */
-const kept = (code: string, changes: Partial<GuestOrder> = {}) => ({
-  ...order(code, changes),
-  savedAt: expect.any(Number),
-})
+/**
+ * What the store holds for `saved` (its time on this device added). The very order saved, never
+ * one built again: `placedAt` reads the clock, which may have moved on by then.
+ */
+const kept = (saved: GuestOrder) => ({ ...saved, savedAt: expect.any(Number) })
 
 beforeEach(() => localStorage.clear())
 afterEach(() => vi.restoreAllMocks())
@@ -45,8 +45,9 @@ describe('guest orders', () => {
     expect(codes[0]).toBe('1000000011')
     expect(codes).not.toContain('1000000000')
     expect(codes).not.toContain('1000000001')
-    saveGuestOrder(order('1000000005', { A: 5 }))
-    expect(readGuestOrders()[0]).toEqual(kept('1000000005', { A: 5 }))
+    const again = order('1000000005', { A: 5 })
+    saveGuestOrder(again)
+    expect(readGuestOrders()[0]).toEqual(kept(again))
     expect(readGuestOrders()).toHaveLength(10)
     expect(findGuestOrder('1000000005')?.A).toBe(5)
     expect(findGuestOrder('0000000000')).toBeNull()
