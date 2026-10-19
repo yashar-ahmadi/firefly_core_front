@@ -922,9 +922,11 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   come from a status mocked in the browser (`page.route`), the polling schedule on Playwright's
   fake clock: the dev backend cannot run a bank. The guest's pay-on-delivery journey
   (`tests/e2e/checkout/guest-cod.spec.ts`) fills a guest cart past peyk Tehran's free line with
-  the coupon `TEA30` (its discount checked against the API's fields; the sample coupon runs until
-  2026-10-28, and the journey says so when it has expired), Tehran, the default courier with
-  «پرداخت در محل» (nothing charged online), and places the order. The checkout's own
+  a sample coupon (`TEA30`, else `FREESHIP`: `tests/e2e/support/sample-coupon.ts`), checked
+  against the API's fields for whichever it took. The sample codes run out (2026-10-28 and
+  2026-11-12) on a backend the suite only reads: with neither taken, the run says so in its
+  annotations and goes on without a coupon (`E2E_COUPONS` replaces the codes). Then Tehran, the
+  default courier with «پرداخت در محل» (nothing charged online), and it places the order. The checkout's own
   confirmation intent is held in the browser: a confirmed pure pay-on-delivery order is «در حال
   انجام» at once, which no customer can cancel, so the thanks page shows it awaiting confirmation,
   with its code and its link; tracking with the code and the receiver's mobile finds it, and the

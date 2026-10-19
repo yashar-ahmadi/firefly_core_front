@@ -25,8 +25,11 @@ export interface CartWriteSpec {
   path: string
   /** Picks this write among several to the same path, by the JSON body sent. */
   body?: (data: unknown) => boolean
-  /** The answer the test expects (a refusal it checks, say); by default any 2xx. */
-  status?: number
+  /**
+   * The answer the test expects (a refusal it checks, say), or the answers it reads either way
+   * (a coupon taken or refused); by default any 2xx.
+   */
+  status?: number | readonly number[]
   /** Names the write in a failure or a warning. */
   label?: string
 }
@@ -124,7 +127,11 @@ function isWrite(spec: CartWriteSpec) {
 }
 
 const accepted = (spec: CartWriteSpec, answer: Answer) =>
-  spec.status === undefined ? answer.ok() : answer.status() === spec.status
+  spec.status === undefined
+    ? answer.ok()
+    : typeof spec.status === 'number'
+      ? answer.status() === spec.status
+      : spec.status.includes(answer.status())
 
 /**
  * The write's answer to the page's next matching write: set before the action that leads to it

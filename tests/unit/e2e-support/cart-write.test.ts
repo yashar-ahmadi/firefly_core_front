@@ -66,6 +66,35 @@ describe('cartWrite', () => {
     expect(act).toHaveBeenCalledTimes(1)
   })
 
+  it('statuses listed: an answer among them is returned (a refusal the test reads)', async () => {
+    const coupon: CartWriteSpec = {
+      method: 'POST',
+      path: 'cart/coupon/apply/',
+      status: [200, 400],
+      label: 'a coupon',
+    }
+    const { page, act } = fakePage([{ status: 400, body: '{}', path: coupon.path }], [cart([])])
+    const answer = await cartWrite(page, coupon, act, { log: noLog })
+    expect(answer.status()).toBe(400)
+    expect(act).toHaveBeenCalledTimes(1)
+  })
+
+  it('statuses listed: an answer outside them still fails, saying what came', async () => {
+    const coupon: CartWriteSpec = {
+      method: 'POST',
+      path: 'cart/coupon/apply/',
+      status: [200, 400],
+      label: 'a coupon',
+    }
+    const { page, act } = fakePage(
+      [{ status: 409, body: 'conflict', path: coupon.path }],
+      [cart([])],
+    )
+    await expect(cartWrite(page, coupon, act, { log: noLog })).rejects.toThrow(
+      /a coupon: the BFF answered 409 conflict/,
+    )
+  })
+
   it('a locked database: checks the cart is unchanged, warns, and repeats the action once', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { page, act } = fakePage(

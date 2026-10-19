@@ -9,13 +9,16 @@ import { waitForCredentialPath } from '../support/credential-url'
 import { runMobile } from '../support/guest-order'
 import { shellHydrated } from '../support/hydrated'
 import { orderGuardTest as test } from '../support/order-guard'
+import { applySampleCoupon } from '../support/sample-coupon'
 import { chooseShipping, SHIPPING_SELECT } from '../support/shipping-choice'
 import { watchErrors } from '../support/watch-errors'
 
 // A guest's pay-on-delivery purchase against the dev backend (Plan 4 Task 10), in the `journeys`
-// project (ruling P4-R4: a guest, one at a time). Ahmad Tea and a perfume with `TEA30` (30% off
-// Ahmad Tea, cap 200,000; valid until 2026-10-28 in the sample data, cart-address.md §9: refresh
-// it when it expires), its discount as the API priced it; the receiver in Tehran; the operator's
+// project (ruling P4-R4: a guest, one at a time). Ahmad Tea and a perfume with a sample coupon:
+// `TEA30` (30% off Ahmad Tea, until 2026-10-28 in the sample data, cart-address.md §9), else
+// `FREESHIP` (until 2026-11-12), as the API priced it; with neither taken (both run out on a
+// read-only backend) the run says so in its annotations and goes on without one
+// (support/sample-coupon.ts; `E2E_COUPONS` replaces the codes). The receiver in Tehran; the operator's
 // default (peyk Tehran, COD-capable) with «پرداخت در محل». With COD the courier collects the goods,
 // the tax and the COD fee; the fare and the packaging stay online (backend `_due_on_delivery`), so
 // the goods are above 5,000,000 after the coupon, where peyk Tehran is free with no packaging:
@@ -27,12 +30,12 @@ import { watchErrors } from '../support/watch-errors'
 // and the order stays awaiting its confirmation: the thanks page says so, with the code, the
 // payment link and «تأیید سفارش» again. Tracking with the code and mobile finds it; it is
 // cancelled through its link page, and by the `orders` guard (support/order-guard.ts) if the
-// test ends before. Per run: 1 coupon apply, 1 placement, 0 payment intents (the one held),
+// test ends before. Per run: 1 coupon apply (2 once TEA30 has run out), 1 placement, 0 payment
+// intents (the one held),
 // 1 tracking lookup (`order_tracking` 20/min), about 4 `order_payment_link` calls, 1 cancel.
 
-/** TEA30's product, and enough beside it for free peyk (goods ≥ 5,000,000 after the coupon). */
+/** TEA30's product, and enough beside it for free peyk (goods ≥ 5,000,000 after any coupon). */
 const PRODUCTS = ['ahmad-tea-earl-grey', 'perfume-oud-royal']
-const COUPON = 'TEA30'
 const BFF = { 'X-Requested-With': 'ff' }
 const INTENT = /\/api\/bff\/payment\/link\/[^/]+\/intent\/$/
 /** A console error about the held confirmation (its URL closes the line). */
@@ -46,7 +49,7 @@ async function geo<T>(page: Page, path: string): Promise<T[]> {
   return ((await response.json()) as { data: Paginated<T> }).data.results
 }
 
-test('a guest: TEA30, Tehran, pay on delivery; thanks, tracked, cancelled through its link', async ({
+test('a guest: a sample coupon, Tehran, pay on delivery; thanks, tracked, cancelled through its link', async ({
   page,
   orders,
 }) => {
@@ -86,20 +89,30 @@ test('a guest: TEA30, Tehran, pay on delivery; thanks, tracked, cancelled throug
     )
   }
 
-  // The coupon on the cart page: the discount the API priced, shown as it gave it.
+  // A sample coupon on the cart page, shown as the API priced it (whichever it took).
   await page.goto('/cart/')
-  await page.getByLabel('کد تخفیف دارید؟').fill(COUPON)
-  const applied = await cartOf(
-    await cartWrite(page, { method: 'POST', path: 'cart/coupon/apply/', label: COUPON }, () =>
-      page.getByRole('button', { name: 'اعمال کد' }).click(),
-    ),
-  )
-  expect(applied.coupon.code, `${COUPON} on the cart (expired? see the note above)`).toBe(COUPON)
-  expect(applied.coupon_discount).toBeGreaterThan(0)
+  const { applied, refused } = await applySampleCoupon(page)
+  const coupon = applied?.code ?? null
+  const said = refused.map(({ code, refusal }) => `${code}: ${refusal}`).join(', ')
+  if (refused.length > 0) {
+    const description = applied
+      ? `${coupon} applied after ${said}`
+      : `no sample coupon taken (${said}): the journey goes on without one`
+    test.info().annotations.push({ type: 'coupon', description })
+  }
   const summary = page.getByRole('region', { name: 'خلاصه\u{0654} سبد خرید' })
-  await expect(summary).toContainText(COUPON)
-  await expect(summary).toContainText(toman(applied.coupon_discount))
-  await expect(summary).toContainText(toman(applied.total))
+  if (applied) {
+    const cart = applied.taken
+    expect(cart.coupon.code).toBe(coupon)
+    await expect(summary).toContainText(coupon!)
+    if (cart.coupon.discount_type === 'free_shipping') {
+      await expect(summary).toContainText('ارسال رایگان')
+    } else {
+      expect(cart.coupon_discount).toBeGreaterThan(0)
+      await expect(summary).toContainText(toman(cart.coupon_discount))
+    }
+    await expect(summary).toContainText(toman(cart.total))
+  }
 
   // The receiver in Tehran; the operator's default shipping, then «پرداخت در محل» on it.
   await page.goto('/checkout/')
@@ -130,7 +143,7 @@ test('a guest: TEA30, Tehran, pay on delivery; thanks, tracked, cancelled throug
     retry: () => page.reload(),
   })
   const prepaid = await cartOf(chosen)
-  expect(prepaid.coupon.code, 'the coupon kept through the destination').toBe(COUPON)
+  expect(prepaid.coupon.code, 'the coupon kept through the destination').toBe(coupon)
   await shipping.getByRole('button', { name: /ویرایش/ }).click()
   const codBox = shipping.getByRole('checkbox', { name: /پرداخت در محل/ })
   const cod = await cartOf(
