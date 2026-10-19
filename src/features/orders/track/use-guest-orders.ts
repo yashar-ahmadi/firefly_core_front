@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { readText } from '@/lib/store/json-storage'
 import {
   GUEST_ORDERS_KEY,
+  pruneGuestOrders,
   readGuestOrders,
   removeGuestOrder,
   type GuestOrder,
@@ -12,6 +13,8 @@ import {
 // This device's recent guest orders (`ff-guest-orders`), read after hydration only (the server has
 // no storage: the first render is empty, as the server's HTML was), kept in step with a removal
 // here and with another tab's writes (`storage` events). Without storage: none, never an error.
+// The orders this device kept for longer than the store's bound (30 days) leave its storage when
+// the list is first shown (they are not read either way).
 
 const listeners = new Set<() => void>()
 
@@ -31,6 +34,7 @@ export interface GuestOrders {
 }
 
 export function useGuestOrders(): GuestOrders {
+  useEffect(() => pruneGuestOrders(), [])
   const text = useSyncExternalStore(
     subscribe,
     () => readText('local', GUEST_ORDERS_KEY),

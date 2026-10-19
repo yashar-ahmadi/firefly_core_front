@@ -52,6 +52,16 @@ describe('the recent guest orders of this device', () => {
     expect(rows[1]).toHaveTextContent('۱۱۱۱۱۱۱۱۱۱')
   })
 
+  it('an order this device kept over 30 days ago: not listed, and gone from the storage', async () => {
+    keepGuestOrder()
+    const [current] = JSON.parse(localStorage.getItem(GUEST_ORDERS_KEY)!) as object[]
+    const old = { ...current, orderCode: '1111111111', savedAt: Date.now() - 31 * 86_400_000 }
+    localStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify([current, old]))
+    await renderTrack()
+    expect(within(list()).getAllByRole('listitem')).toHaveLength(1)
+    expect(localStorage.getItem(GUEST_ORDERS_KEY)).not.toContain('1111111111')
+  })
+
   it('an entry kept before totals were kept: no total, never one made up', async () => {
     keepGuestOrder({ total: undefined })
     await renderTrack()

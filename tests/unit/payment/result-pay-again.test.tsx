@@ -106,7 +106,6 @@ describe('a door this device knows', () => {
     saveGuestOrder({
       orderCode: '1411635340',
       linkToken: LINK_TOKEN,
-      paymentUrl: `http://localhost:3000/order/pay/${LINK_TOKEN}`,
       expiresAt: null,
       A: 1_049_000,
       D: 0,

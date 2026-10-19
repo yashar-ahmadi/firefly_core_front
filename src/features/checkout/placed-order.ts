@@ -115,11 +115,10 @@ export function recordEarlier(ctx: PlacedContext): void {
 }
 
 function saveGuest(ctx: PlacedContext): void {
-  if (!ctx.guest || !ctx.linkToken || !ctx.paymentUrl) return
+  if (!ctx.guest || !ctx.linkToken) return
   saveGuestOrder({
     orderCode: ctx.orderCode,
     linkToken: ctx.linkToken,
-    paymentUrl: ctx.paymentUrl,
     expiresAt: ctx.expiresAt,
     A: ctx.A,
     D: ctx.D,

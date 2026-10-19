@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   findGuestOrder,
   findGuestOrderByToken,
+  GUEST_ORDER_MAX_AGE_MS,
   GUEST_ORDERS_KEY,
+  pruneGuestOrders,
   readGuestOrders,
   removeGuestOrder,
   saveGuestOrder,
@@ -12,17 +14,24 @@ import { linkTokenOf, payLinkPath } from '@/features/orders/pay-link'
 
 // A guest's recent orders (order digest §5.2; Plan 4 Global Constraints): the last 10 in
 // `ff-guest-orders`, newest first, the guest's only way back to them on this device besides the
-// SMS. A storage that refuses never throws.
+// SMS. A storage that refuses never throws. Each is kept 30 days on this device (Plan 4 final fix
+// wave): its link only pays or cancels until the payment deadline (72 h, a week after a receipt),
+// and the code stays a month for tracking; the link's URL is never kept twice (`payLinkPath`).
 
+const DAY = 24 * 60 * 60 * 1000
 const order = (code: string, changes: Partial<GuestOrder> = {}): GuestOrder => ({
   orderCode: code,
   linkToken: `token-${code}`,
-  paymentUrl: `http://localhost:3000/order/pay/token-${code}`,
   expiresAt: '2026-10-21T05:38:01.005632+03:30',
   A: 1_049_000,
   D: 0,
-  placedAt: '2026-10-18T05:38:01.111517+03:30',
+  placedAt: new Date(Date.now() - 60_000).toISOString(),
   ...changes,
+})
+/** What the store holds for `order` saved now (its time on this device added). */
+const kept = (code: string, changes: Partial<GuestOrder> = {}) => ({
+  ...order(code, changes),
+  savedAt: expect.any(Number),
 })
 
 beforeEach(() => localStorage.clear())
@@ -37,7 +46,7 @@ describe('guest orders', () => {
     expect(codes).not.toContain('1000000000')
     expect(codes).not.toContain('1000000001')
     saveGuestOrder(order('1000000005', { A: 5 }))
-    expect(readGuestOrders()[0]).toEqual(order('1000000005', { A: 5 }))
+    expect(readGuestOrders()[0]).toEqual(kept('1000000005', { A: 5 }))
     expect(readGuestOrders()).toHaveLength(10)
     expect(findGuestOrder('1000000005')?.A).toBe(5)
     expect(findGuestOrder('0000000000')).toBeNull()
@@ -56,6 +65,55 @@ describe('guest orders', () => {
     })
     expect(() => saveGuestOrder(order('1234567890'))).not.toThrow()
     expect(readGuestOrders()).toEqual([])
+  })
+})
+
+describe('kept 30 days on this device', () => {
+  it('the bound: 30 days', () => {
+    expect(GUEST_ORDER_MAX_AGE_MS).toBe(30 * DAY)
+  })
+
+  it('an order kept longer is no longer read, and the next write drops it from storage', () => {
+    const old = { ...order('1000000001'), savedAt: Date.now() - 31 * DAY }
+    localStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify([old]))
+    expect(readGuestOrders()).toEqual([])
+    expect(findGuestOrderByToken('token-1000000001')).toBeNull()
+    saveGuestOrder(order('1000000002'))
+    const stored = JSON.parse(localStorage.getItem(GUEST_ORDERS_KEY)!) as GuestOrder[]
+    expect(stored.map((item) => item.orderCode)).toEqual(['1000000002'])
+  })
+
+  it('pruning on its own drops the old ones and keeps the rest', () => {
+    const old = { ...order('1000000001'), savedAt: Date.now() - 31 * DAY }
+    const young = { ...order('1000000002'), savedAt: Date.now() - 29 * DAY }
+    localStorage.setItem(GUEST_ORDERS_KEY, JSON.stringify([young, old]))
+    pruneGuestOrders()
+    const stored = JSON.parse(localStorage.getItem(GUEST_ORDERS_KEY)!) as GuestOrder[]
+    expect(stored.map((item) => item.orderCode)).toEqual(['1000000002'])
+  })
+
+  it('an entry kept before (its payment URL kept twice, no time): read, timed by its placement, rewritten without the URL', () => {
+    const legacy = (code: string, placedAt: string) => ({
+      ...order(code, { placedAt }),
+      paymentUrl: `http://localhost:3000/order/pay/token-${code}`,
+    })
+    localStorage.setItem(
+      GUEST_ORDERS_KEY,
+      JSON.stringify([
+        legacy('1000000001', new Date(Date.now() - DAY).toISOString()),
+        legacy('1000000002', new Date(Date.now() - 31 * DAY).toISOString()),
+      ]),
+    )
+    expect(readGuestOrders().map((item) => item.orderCode)).toEqual(['1000000001'])
+    expect(readGuestOrders()[0]).not.toHaveProperty('paymentUrl')
+    expect(findGuestOrder('1000000001')?.linkToken).toBe('token-1000000001')
+    saveGuestOrder(order('1000000003'))
+    const stored = localStorage.getItem(GUEST_ORDERS_KEY)!
+    expect(stored).not.toContain('paymentUrl')
+    expect((JSON.parse(stored) as GuestOrder[]).map((item) => item.orderCode)).toEqual([
+      '1000000003',
+      '1000000001',
+    ])
   })
 })
 

@@ -76,7 +76,6 @@ export const keepGuestOrder = (changes: Partial<GuestOrder> = {}) =>
   saveGuestOrder({
     orderCode: '3067562358',
     linkToken: 'tokenForTheAwaitingOrder000000000000000001',
-    paymentUrl: 'http://localhost:3000/order/pay/tokenForTheAwaitingOrder000000000000000001',
     expiresAt: '2026-10-21T15:00:00+03:30',
     A: 53_790_000,
     D: 0,

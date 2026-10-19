@@ -143,11 +143,10 @@ describe('ThanksPage', () => {
   })
 
   it('a guest order found on this device only: its link, no claim about its payment', async () => {
-    const { linkToken, paymentUrl, expiresAt, A, D, placedAt } = context()
+    const { linkToken, expiresAt, A, D, placedAt } = context()
     saveGuestOrder({
       orderCode: CODE,
       linkToken: linkToken!,
-      paymentUrl: paymentUrl!,
       expiresAt,
       A,
       D,
