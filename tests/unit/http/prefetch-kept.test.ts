@@ -34,4 +34,11 @@ describe('a document prefetch is quiet only if the browser never keeps it', () =
     expect(shapes.legacyPurposeHeader.keptUnderNoStore).toBe(false)
     expect(isQuietPrefetch(new Headers({ purpose: 'prefetch' }))).toBe(true)
   })
+
+  it('both headers at once (Chromium’s move to `Sec-Purpose`, a prefetch ahead of a prerender): kept, not quiet', () => {
+    const both = shapes.transitionBothHeaders
+    expect(both.keptAndShownOnClick).toBe(true)
+    expect(both.headers.purpose).toBe('prefetch')
+    expect(isQuietPrefetch(new Headers(both.headers))).toBe(false)
+  })
 })

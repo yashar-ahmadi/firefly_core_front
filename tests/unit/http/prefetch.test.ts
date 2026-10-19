@@ -60,4 +60,16 @@ describe('isQuietPrefetch', () => {
   ])('not %o', (headers) => {
     expect(isQuietPrefetch(new Headers(headers))).toBe(false)
   })
+
+  // Chromium sent both while it moved to `Sec-Purpose`: a prefetch ahead of a prerender keeps its
+  // `Purpose: prefetch` beside `Sec-Purpose: prefetch;prerender`, and it is shown on activation.
+  // The `Sec-Purpose` decides: with a prefetch token in it, the request is never quiet.
+  it.each([
+    [{ purpose: 'prefetch', 'sec-purpose': 'prefetch;prerender' }],
+    [{ purpose: 'prefetch', 'sec-purpose': 'prefetch' }],
+    [{ Purpose: 'Prefetch', 'Sec-Purpose': 'Prefetch;Prerender' }],
+    [{ purpose: 'prefetch', 'sec-purpose': 'prefetch;anonymous-client-ip' }],
+  ])('both headers (%o): not quiet, kept like any `Sec-Purpose` prefetch', (headers) => {
+    expect(isQuietPrefetch(new Headers(headers))).toBe(false)
+  })
 })

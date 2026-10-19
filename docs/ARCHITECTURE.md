@@ -257,8 +257,9 @@ refresh, a read of an account page without a usable refresh cookie (none, not a 
 has just rejected) answers 307 to `/login/?next=<the page and its query>` (Next's `_rsc` dropped),
 clearing leftover session cookies on the way. That covers document requests and client
 navigations alike. The account layout checks the refresh cookie again for the requests the
-proxy only marks (router and `Purpose` prefetches: no refresh and no guard there, so a prefetch
-in flight never sets the session cookies again after a logout in another tab; see
+proxy only marks (router prefetches and a `Purpose` prefetch without `Sec-Purpose`: no refresh
+and no guard there, so a prefetch in flight never sets the session cookies again after a logout
+in another tab; see
 [Payment credentials in URLs](#payment-credentials-in-urls)), with the dashboard as `next`.
 A redirect during a client navigation lands on login without the root layout rendering again,
 so the tab would still think it is signed in: the auth
@@ -733,20 +734,25 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
 - **No operator code.** The proxy marks every page it serves with `x-ff-route-kind: page` or
   `credential` (overwriting whatever the visitor sent), prefetches included: its matcher takes
   router prefetches (an RSC request, `rsc: 1`, with `next-router-prefetch`; the prefetch header on
-  a document request is treated as a visit) and `Purpose: prefetch` requests too (a prefetched
-  document or segment can be shown on the click), and for those the proxy only marks the render
+  a document request is treated as a visit) and browser prefetches too (a prefetched document or
+  segment can be shown on the click), and for the quiet ones the proxy only marks the render
   (`isQuietPrefetch()`: no redirect lookup, which would count a hit, no session refresh, no
   account guard; an undecodable one gets the 404 page). One rule decides which prefetches may be
   quiet: only those the browser never shows on the click. A router prefetch is the router's own
-  fetch. `Purpose: prefetch` is the older `<link rel=prefetch>` header (older Chromium, WebKit),
-  whose answer goes through the HTTP cache, and every page here is `no-store`: the click is a
-  visit of its own and gets the lookup and the refresh. `Sec-Purpose: prefetch` is not quiet: a
-  speculation-rules prefetch is kept even under `no-store` and shown on the click, so it goes
-  through both like a visit (current Chromium sends `Sec-Purpose` for `<link rel=prefetch>` too).
-  Captured from the preinstalled Chromium 141 (`tests/fixtures/browser-prefetch-shapes.json`, read
-  by `tests/unit/http/prefetch-kept.test.ts`); `tests/e2e/edge.spec.ts` checks the `no-store`
-  answer such a document gets. A page ever answered cacheable would need `Purpose: prefetch` to
-  stop being quiet. The router's headers reach the proxy
+  fetch. A `Sec-Purpose` holding the token `prefetch` is never quiet, whatever comes with it: a
+  speculation-rules prefetch is kept even under `no-store` and shown on the click, and so is a
+  prefetch ahead of a prerender, which Chromium sent with both `Sec-Purpose: prefetch;prerender`
+  and the older `Purpose: prefetch` while it moved to the new header (Chromium CL 5df53e05: "the
+  Purpose header is unchanged"); it goes through the lookup and the refresh like a visit.
+  `Purpose: prefetch` alone is quiet: it is the older `<link rel=prefetch>` header (older
+  Chromium, WebKit), whose answer goes through the HTTP cache, and every page here is
+  `no-store`, so the click is a visit of its own and gets the lookup and the refresh (current
+  Chromium sends `Sec-Purpose` for `<link rel=prefetch>` too). Captured from the preinstalled
+  Chromium 141 (`tests/fixtures/browser-prefetch-shapes.json`, read by
+  `tests/unit/http/prefetch-kept.test.ts`; the both-headers shape is recorded there, not captured:
+  Chromium 141 no longer sends `Purpose`); `tests/e2e/edge.spec.ts` checks the `no-store` answer
+  such a document gets. A page ever answered cacheable would need `Purpose: prefetch` to stop
+  being quiet. The router's headers reach the proxy
   only because `next.config.ts` sets `skipProxyUrlNormalize`: by default Next removes `rsc`,
   `next-router-prefetch`, `next-router-segment-prefetch`, `next-router-state-tree` and the `_rsc`
   query before the proxy runs (`next dev` and `next start` alike), so a router prefetch and a

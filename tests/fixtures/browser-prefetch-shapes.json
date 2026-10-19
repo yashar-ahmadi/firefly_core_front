@@ -30,5 +30,11 @@
     "path": "HTTP cache (as linkPrefetch above)",
     "keptUnderNoStore": false,
     "captured": false
+  },
+  "transitionBothHeaders": {
+    "headers": { "purpose": "prefetch", "sec-purpose": "prefetch;prerender" },
+    "sentFor": "a prefetch ahead of a prerender in Chromium while it moved to `Sec-Purpose` (Chromium CL 5df53e05: the `Purpose` header is unchanged)",
+    "keptAndShownOnClick": true,
+    "captured": false
   }
 }

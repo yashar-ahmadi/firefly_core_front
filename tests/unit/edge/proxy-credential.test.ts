@@ -98,10 +98,10 @@ describe('the route kind', () => {
     expect(res.headers.get('location')).toBeNull()
   })
 
-  // A prefetched document can be kept and shown on the click (a browser's `Purpose: prefetch`,
-  // an operator's instant.page), and the router may prefetch a page's segments: each is marked
-  // like the visit, so a normal page keeps its operator code and a payment page never gets it.
-  // Nothing else runs for a prefetch: no redirect lookup, no session refresh.
+  // A quiet prefetch (the router's segments; a browser's `Purpose: prefetch` alone, whose answer
+  // a `no-store` page never lets it keep: src/lib/http/prefetch.ts) is marked like the visit, so
+  // a normal page keeps its operator code and a payment page never gets it. Nothing else runs for
+  // it: no redirect lookup, no session refresh.
   it.each<[string, Record<string, string>]>([
     ['a browser prefetch', { purpose: 'prefetch' }],
     ['a router prefetch', { rsc: '1', 'next-router-prefetch': '1' }],
@@ -119,6 +119,24 @@ describe('the route kind', () => {
     expect(knownSources).not.toHaveBeenCalled()
     expect(resolveRedirect).not.toHaveBeenCalled()
     expect(refreshAccess).not.toHaveBeenCalled()
+  })
+
+  // A prefetch the browser keeps and shows on the click (`Sec-Purpose: prefetch`, alone or beside
+  // the older `Purpose: prefetch`, as Chromium sent both for a prefetch ahead of a prerender)
+  // gets what a visit gets: the redirect lookup and the session refresh, and its marker.
+  it.each<Record<string, string>>([
+    { 'sec-purpose': 'prefetch;prerender' },
+    { purpose: 'prefetch', 'sec-purpose': 'prefetch;prerender' },
+  ])('a kept browser prefetch (%o) is looked up and refreshed like a visit', async (headers) => {
+    refreshAccess.mockResolvedValue({ access: jwtExpiringIn(900) })
+    const { proxy } = await load()
+    const cookie = `ff_rt=${jwtExpiringIn(86_400)}`
+    const moved = await proxy(request('/festival/', headers, cookie))
+    expect(resolveRedirect).toHaveBeenCalledTimes(1)
+    expect(moved.headers.get('location')).toBe('https://shop.test/elsewhere/')
+    const page = await proxy(request('/', headers, cookie))
+    expect(refreshAccess).toHaveBeenCalledTimes(1)
+    expect(kindOf(page)).toBe('page')
   })
 
   // A path the proxy leaves alone still renders a page there (an asset-like URL under a catalog
