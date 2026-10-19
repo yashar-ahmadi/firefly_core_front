@@ -1,20 +1,20 @@
 import { readText, writeText } from '@/lib/store/json-storage'
+import { PLACEMENT_KEY_STORAGE, PLACEMENT_KEY_USED_STORAGE } from './placement-key-reach'
+
+export { PLACEMENT_KEY_STORAGE, PLACEMENT_KEY_USED_STORAGE }
 
 // Idempotency keys (order digest §1.1, §5.1; Plan 4 Global Constraints). The placement's key is
-// made when the review is reached and kept in this tab's sessionStorage until a 2xx arrives, so
-// a reload or an answer lost on the way retries the same purchase (the server answers 200 with
-// the order it placed); the next purchase gets a new one. Kept, within a bound: a key unused
-// (not reached, not sent) for longer than the placement's stock hold (`reservation_ttl_minutes`,
-// 30 minutes by default, digest §3.1.1) is dropped for a new one. A lost answer is retried within
-// moments; past the hold the order it may have placed holds no stock any more, and the next press
-// is a new purchase, which the backend would otherwise answer with that earlier order (it matches
-// a signed-in key alone, whatever the cart). Such an order is still in the account's orders. Every
-// payment intent gets a new key per click (`newIdempotencyKey`), reused only for that click's
-// automatic retries. Keys are never logged.
+// made when the review is reached (placement-key-reach.ts) and kept in this tab's sessionStorage
+// until a 2xx arrives, so a reload or an answer lost on the way retries the same purchase (the
+// server answers 200 with the order it placed); the next purchase gets a new one. Kept, within a
+// bound: at the press, a key unused (not made, not sent) for longer than the placement's stock
+// hold (`reservation_ttl_minutes`, 30 minutes by default, digest §3.1.1) is dropped for a new one.
+// A lost answer is retried within moments; past the hold the order it may have placed holds no
+// stock any more, and the next press is a new purchase, which the backend would otherwise answer
+// with that earlier order (it matches a signed-in key alone, whatever the cart). Such an order is
+// still in the account's orders. Every payment intent gets a new key per click
+// (`newIdempotencyKey`), reused only for that click's automatic retries. Keys are never logged.
 
-export const PLACEMENT_KEY_STORAGE = 'ff-checkout-placement-key'
-/** When the stored key was last used (made, reached, sent): epoch milliseconds. */
-export const PLACEMENT_KEY_USED_STORAGE = 'ff-checkout-placement-key-used'
 export const PLACEMENT_KEY_MAX_AGE_MS = 30 * 60_000
 
 /** The API takes keys of at most 64 characters: a UUID is 36. */
@@ -43,7 +43,7 @@ function kept(): KeptKey | null {
   return memory && KEY.test(memory.key) ? memory : null
 }
 
-/** This purchase's placement key: the kept one used within the bound, or a new one; used now. */
+/** The key to send: the kept one used within the bound, or a new one; used now (the press). */
 export function placementKey(): string {
   const now = Date.now()
   const found = kept()

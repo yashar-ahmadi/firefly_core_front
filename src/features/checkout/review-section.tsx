@@ -13,7 +13,7 @@ import { CartSummary } from '@/features/cart/components/cart-summary'
 import type { RouteChoiceState } from '@/features/payment/use-route-choice'
 import { CUSTOMER_NOTE_MAX } from '@/lib/api/types/order'
 import { toPersianDigits } from '@/lib/format'
-import { placementKey } from './idempotency'
+import { ensurePlacementKey } from './placement-key-reach'
 import { preloadPlacedPanel } from './placed/placed-loader'
 import { ReviewDetails, ReviewLines } from './review-parts'
 import { missingTerms, TermsChecks, type CheckoutTerms, type TermKey } from './terms-checks'
@@ -85,7 +85,7 @@ export function ReviewSection({ checkout, payment, placement, terms }: ReviewSec
   const verify = () =>
     checkout.cartQuery.refetch().then(({ isError }) => setCheck(isError ? 'failed' : 'done'))
   const reached = useEffectEvent(() => {
-    placementKey()
+    ensurePlacementKey()
     void verify()
   })
   useEffect(() => reached(), [])

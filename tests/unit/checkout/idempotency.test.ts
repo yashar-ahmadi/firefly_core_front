@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ensurePlacementKey } from '@/features/checkout/placement-key-reach'
 import {
   clearPlacementKey,
   newIdempotencyKey,
@@ -130,6 +131,32 @@ describe('the placement key is bounded by age', () => {
     at(20)
     expect(placementKey()).toBe(key)
     at(51)
+    expect(placementKey()).not.toBe(key)
+  })
+})
+
+describe('the review reached', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['Date'] }))
+
+  it('makes this purchase’s key when the tab has none, stored with its time', () => {
+    at(0)
+    ensurePlacementKey()
+    const key = sessionStorage.getItem(PLACEMENT_KEY_STORAGE)
+    expect(key).toMatch(UUID)
+    expect(sessionStorage.getItem(PLACEMENT_KEY_USED_STORAGE)).toBe(String(T0))
+    // The press sends that key.
+    at(5)
+    expect(placementKey()).toBe(key)
+  })
+
+  it('leaves a kept key as it is, its time too: only a send counts as a use', () => {
+    at(0)
+    const key = placementKey()
+    at(31)
+    ensurePlacementKey()
+    expect(sessionStorage.getItem(PLACEMENT_KEY_STORAGE)).toBe(key)
+    expect(sessionStorage.getItem(PLACEMENT_KEY_USED_STORAGE)).toBe(String(T0))
+    // Unused past the bound: the press replaces it.
     expect(placementKey()).not.toBe(key)
   })
 })
