@@ -41,7 +41,8 @@ function Row({
       <dt className={cn('text-ink-700', tone === 'total' && 'font-bold text-ink-900')}>{label}</dt>
       <dd
         className={cn(
-          'shrink-0 text-end font-medium text-ink-900 tabular-nums',
+          // A value pushed to its own line by a long label stays at the row's end.
+          'ms-auto shrink-0 text-end font-medium text-ink-900 tabular-nums',
           tone === 'saving' && 'text-sale',
           tone === 'total' && 'text-lg font-bold',
         )}
