@@ -217,8 +217,11 @@ test.describe('edge', () => {
         headers: treePrefetch.headers,
         maxRedirects: 0,
       })
-      // No such page, and no redirect: the lookup never ran.
-      expect(res.status()).toBe(404)
+      // No redirect: the lookup never ran. The tree answered is the shop's catch-all's (every
+      // unknown path is a route: src/app/(shop)/[...missing]); the click itself is redirected
+      // (route-table.spec.ts).
+      expect(res.status()).toBe(200)
+      expect(res.headers()['content-type']).toContain('text/x-component')
       expect(res.headers()['location']).toBeUndefined()
     })
 

@@ -11,6 +11,9 @@ import { signedInTest } from './support/session'
 
 const PAGE_404 = 'صفحه پیدا نشد'
 
+/** Next's App Router as `window.next.router` exposes it (its own tests drive it the same way). */
+type AppRouter = { prefetch: (href: string) => void; push: (href: string) => void }
+
 function get(request: APIRequestContext, path: string): Promise<APIResponse> {
   return request.get(path, { maxRedirects: 0 })
 }
@@ -142,6 +145,32 @@ test.describe('route table', () => {
       expect(response.status(), path).toBe(404)
       expect(await response.text(), path).not.toContain('window.dataLayer')
     }
+  })
+
+  test('a client navigation to a redirect source is redirected, after the router prefetched it', async ({
+    page,
+  }) => {
+    // The router's prefetch of `/festival/` (the operator's 302) gets the catch-all's route tree
+    // and no redirect (edge.spec.ts); the navigation that follows is looked up, and redirected.
+    await page.goto('/')
+    const prefetched = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/festival/' &&
+        response.request().headers()['next-router-prefetch'] === '1',
+    )
+    await page.evaluate(() => {
+      const { router } = (window as unknown as { next: { router: AppRouter } }).next
+      router.prefetch('/festival/')
+    })
+    const prefetch = await prefetched
+    expect([prefetch.status(), prefetch.headers()['location']]).toEqual([200, undefined])
+    await page.waitForLoadState('networkidle')
+    await page.evaluate(() => {
+      const { router } = (window as unknown as { next: { router: AppRouter } }).next
+      router.push('/festival/')
+    })
+    await expect(page).toHaveURL(/\/product-category\/digital\/mobile-phone\/$/)
+    await expect(page.getByRole('heading', { level: 1 })).not.toHaveText(PAGE_404)
   })
 
   test('unknown URLs and shop pages’ notFound(): the shop’s 404, a real 404', async ({ page }) => {

@@ -934,6 +934,10 @@ Plan 5 Task 4: `/faq/` and `/contact-us/` in the shop's layout, `/links/` in its
   - The proxy still runs first for every path (operator redirects, legacy page extensions, the
     blog switch): it runs before Next's routing. `tests/e2e/route-table.spec.ts` checks each route
     family's status, both 404 shells and the proxy's mark on unknown paths.
+  - Every path is a route now, so a router prefetch of an unknown path (a redirect source too)
+    gets the catch-all's route tree, 200, where it used to get a 404; still no redirect lookup
+    (`edge.spec.ts`). The navigation that follows is looked up like any visit: redirected, or the
+    shop's 404 (`route-table.spec.ts` prefetches `/festival/`, then follows it to its target).
 
   Effect (the guards, desktop and phone alike): every `/checkout/` state −27.5 to −27.6 KB (a
   guest 213.6, at the review 212.3, sara's refused writes 216.8 of 246), the thanks page 188.2,
