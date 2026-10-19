@@ -108,6 +108,24 @@ describe('refused with the session, answered without it', () => {
     expect(accountLinks()).toHaveLength(0)
   })
 
+  it('the outcome’s status reads go without the session from the first: no 403 again', async () => {
+    const user = userEvent.setup()
+    serve(mocks.bffFetch, {
+      [STATUS]: onlyAnonymous(() => ok(status())),
+      [CARDS]: onlyAnonymous(() => ok(cards())),
+      [RECEIPT]: onlyAnonymous(() => ok(RECEIPT_201, 201)),
+    })
+    await renderTransfer({ hasSession: true })
+    await fillReceipt(user)
+    await user.click(submitButton())
+    await screen.findByRole('heading', { level: 1, name: 'رسید ثبت شد و در صف بررسی است' })
+    await act(async () => {})
+    const reads = calls(mocks.bffFetch, STATUS)
+    // The page's first read (refused with the session, then anonymous), then the outcome's own.
+    expect(reads.filter(([, init]) => !isAnon(init))).toHaveLength(1)
+    expect(reads.filter(([, init]) => isAnon(init))).toHaveLength(2)
+  })
+
   it('read with the session, a receipt refused (403) is sent once more without it', async () => {
     const user = userEvent.setup()
     serve(mocks.bffFetch, {

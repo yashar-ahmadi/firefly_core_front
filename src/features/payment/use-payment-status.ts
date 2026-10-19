@@ -14,8 +14,9 @@ import { readPaymentStatus } from './status-api'
 // the 15 minutes, it stops without reading). A 429 waits its `retry_after`; no answer, the
 // schedule goes on. With the session first: a signed-in visitor refused another account's
 // payment (403 `payment_forbidden`, a guest order paid through its link) reads it again, and from
-// then on, without the session (`?anon=1`, §11 #7); the payment is then `foreign`. The uuid is a
-// credential: in the path only, never in a log.
+// then on, without the session (`?anon=1`, §11 #7); the payment is then `foreign`. A page that
+// already knows it is someone else's says so (`foreign`): its reads go without the session from
+// the first, no 403 round trip. The uuid is a credential: in the path only, never in a log.
 
 /** The waits after each read: 15 s ×4, 30 s ×4, then 60 s. */
 export function pollDelay(readsDone: number): number {
@@ -62,7 +63,10 @@ const idle = (uuid: string | null): Snapshot => ({
 const isForbidden = (error: unknown) =>
   error instanceof ApiError && error.status === 403 && error.code === 'payment_forbidden'
 
-export function usePaymentStatus(uuid: string | null): PaymentStatusState {
+export function usePaymentStatus(
+  uuid: string | null,
+  { foreign = false }: { foreign?: boolean } = {},
+): PaymentStatusState {
   const [snapshot, setSnapshot] = useState<Snapshot>(() => idle(uuid))
   const checkOnce = useRef<() => void>(() => {})
 
@@ -74,7 +78,7 @@ export function usePaymentStatus(uuid: string | null): PaymentStatusState {
       setSnapshot((current) => ({ ...(current.uuid === uuid ? current : idle(uuid)), ...changes }))
     let timer: ReturnType<typeof setTimeout> | undefined
     let readsDone = 0
-    let anonymous = false
+    let anonymous = foreign
     let inFlight = false
     let parked = false
     // Final, unreadable or stopped: the schedule is over (a `check` may still read once).
@@ -147,7 +151,7 @@ export function usePaymentStatus(uuid: string | null): PaymentStatusState {
       document.removeEventListener('visibilitychange', onVisible)
       checkOnce.current = () => {}
     }
-  }, [uuid])
+  }, [uuid, foreign])
 
   const current = snapshot.uuid === uuid ? snapshot : idle(uuid)
   return {

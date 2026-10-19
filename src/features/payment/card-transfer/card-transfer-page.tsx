@@ -160,6 +160,7 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
           initial={status}
           notice={phase.notice}
           ownership={ownership}
+          foreign={reads.foreign}
           support={support}
           headingRef={heading}
         />

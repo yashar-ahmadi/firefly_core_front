@@ -9,7 +9,8 @@ import { PAYMENT_UUID } from './fixtures'
 // then 15 s ×4, 30 s ×4 and 60 s on; stopped after 15 minutes; paused while the page is hidden
 // (resumed where it was); a 429's `retry_after` honoured; over at a final status; one read in
 // flight at a time. With the session first; refused it (403 `payment_forbidden`), the same read
-// again without it (`?anon=1`, §11 #7), and the payment is someone else's (`foreign`).
+// again without it (`?anon=1`, §11 #7), and the payment is someone else's (`foreign`); a page
+// that knows that already reads without the session from the first.
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
@@ -178,6 +179,16 @@ describe('refusals', () => {
     expect(result.current.foreign).toBe(true)
     await seconds(15)
     expect(reads()[2]?.[1]?.query).toEqual({ anon: '1' })
+  })
+
+  it('a payment the page already knows is someone else’s: without the session from the first', async () => {
+    const { result } = renderHook(() => usePaymentStatus(PAYMENT_UUID, { foreign: true }))
+    await flush()
+    expect(reads()).toHaveLength(1)
+    expect(reads()[0]?.[1]?.query).toEqual({ anon: '1' })
+    expect(result.current.foreign).toBe(true)
+    await seconds(15)
+    expect(reads()[1]?.[1]?.query).toEqual({ anon: '1' })
   })
 
   it.each<[string, ApiError[]]>([

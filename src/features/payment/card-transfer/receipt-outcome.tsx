@@ -54,6 +54,8 @@ export interface ReceiptOutcomeProps {
   notice: OutcomeNotice | null
   /** Whether the order is this account's (read once by the page). */
   ownership: Ownership
+  /** The page's reads were answered only without the session: someone else's payment. */
+  foreign: boolean
   support: SupportLine | null
   headingRef: Ref<HTMLHeadingElement>
 }
@@ -65,12 +67,16 @@ export function ReceiptOutcome({
   initial,
   notice,
   ownership,
+  foreign,
   support,
   headingRef,
 }: ReceiptOutcomeProps) {
   const client = useQueryClient()
   // Final already (approved, rejected, ended): the page's own read is all there is to know.
-  const polled = usePaymentStatus(initial && FINAL.has(initial.info.status) ? null : uuid)
+  // Someone else's payment (the page found out): read without the session from the first.
+  const polled = usePaymentStatus(initial && FINAL.has(initial.info.status) ? null : uuid, {
+    foreign,
+  })
   const info = polled.info ?? initial?.info ?? null
   const own = ownOrderOf(ownership)
   const orderCode = info?.order_code ?? null
