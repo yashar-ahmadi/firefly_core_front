@@ -173,3 +173,34 @@ signedInTest.describe('offline, signed in', () => {
     },
   )
 })
+
+test.describe('the bank’s return leg, with the worker in control', () => {
+  test('an unknown token: the API’s redirect to the result page, which sends no referrer', async ({
+    page,
+    context,
+  }) => {
+    const errors = watchErrors(page)
+    await page.goto('/')
+    await controlled(page)
+    // The dev data's result URL is on the production domain (GatewaySetting.result_url,
+    // https://firefly-core.ir/payment/callback/: backend finding, seo digest §14 #7). That one
+    // hop is answered as a deployed shop's result URL is, this shop's own page; nothing leaves
+    // the machine. No payment has this token: nothing is written.
+    const origin = new URL(page.url()).origin
+    await context.route(/^https:\/\/firefly-core\.ir\//, (route) => {
+      const { pathname, search } = new URL(route.request().url())
+      return route.fulfill({ status: 302, headers: { location: `${origin}${pathname}${search}` } })
+    })
+    const response = await page.goto('/api/v1/payment/gateway/callback/zarinpal/e2e-no-such-token/')
+    expect(new URL(page.url()).pathname).toBe('/payment/callback/')
+    expect(new URL(page.url()).searchParams.get('code')).toBe('gateway_callback_invalid')
+    // The worker answered the navigations (the callback's redirect passed on as it came, the
+    // result page from the network: neither is ever cached) and the page names no referrer.
+    expect(response?.fromServiceWorker()).toBe(true)
+    expect(response?.headers()['referrer-policy']).toBe('no-referrer')
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    expect(await keptPages(page)).toEqual(['/offline/', '/'])
+    await context.unrouteAll({ behavior: 'ignoreErrors' })
+    expect(errors).toEqual([])
+  })
+})
