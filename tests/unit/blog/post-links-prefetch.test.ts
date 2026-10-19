@@ -6,10 +6,11 @@ import { describe, expect, it } from 'vitest'
 
 // Ruling P5-R1, as a lint over the source: a post's page counts a view on every render (blog
 // digest §1.5: `GET blog/post/<slug>/` increments `view_count`, with no dedupe), so no link to a
-// post may be prefetched. Every `<Link>` whose `href` builds a post's URL (`blogPostPath(…)`, or
-// a template `/blog/${…}/`) says `prefetch={false}`, every link item object holding one says
-// `prefetch: false`, and nothing calls `router.prefetch` with one. Operator URLs (menus, banners)
-// are checked at run time instead (MenuLink, StoreLink: `isBlogPostPath`). And the post's route
+// post may be prefetched. Every `<Link>` whose `href` builds a post's URL (`blogPostPath(…)`,
+// `subjectHref(…)`, a template `/blog/${…}/`, or a name bound to one) says `prefetch={false}`,
+// every link item object holding one says `prefetch: false`, and nothing calls `router.prefetch`
+// with one. Operator URLs (menus, banners) are checked at run time instead (MenuLink, StoreLink:
+// `isBlogPostPath`). And the post's route
 // keeps what makes a default prefetch harmless anyway: no loading boundary at or above it, and
 // neither Cache Components nor partial prefetching (docs/ARCHITECTURE.md, «Blog post views»).
 
@@ -24,16 +25,39 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-/** Whether `node` builds a post's URL. */
-function isPostHref(node: ts.Node | undefined): boolean {
+/**
+ * Calls that can return a post's URL: `blogPostPath(slug)`, and `subjectHref(comment, …)` (my
+ * comments' subjects: a product, a post or a page).
+ */
+const POST_HREF_BUILDERS = new Set(['blogPostPath', 'subjectHref'])
+
+/**
+ * Whether `node` builds a post's URL: a builder's call, a template `/blog/${…}`, or a name the
+ * file binds to one (`const href = subjectHref(comment, blog)`: names in `bound`).
+ */
+function isPostHref(node: ts.Node | undefined, bound: ReadonlySet<string> = new Set()): boolean {
   if (node === undefined) return false
-  if (ts.isParenthesizedExpression(node)) return isPostHref(node.expression)
+  if (ts.isParenthesizedExpression(node)) return isPostHref(node.expression, bound)
   if (ts.isConditionalExpression(node))
-    return isPostHref(node.whenTrue) || isPostHref(node.whenFalse)
+    return isPostHref(node.whenTrue, bound) || isPostHref(node.whenFalse, bound)
+  if (ts.isIdentifier(node)) return bound.has(node.text)
   if (ts.isCallExpression(node)) {
-    return ts.isIdentifier(node.expression) && node.expression.text === 'blogPostPath'
+    return ts.isIdentifier(node.expression) && POST_HREF_BUILDERS.has(node.expression.text)
   }
   return ts.isTemplateExpression(node) && node.head.text === '/blog/'
+}
+
+/** The names `source` binds to a post's URL (`const href = subjectHref(…)`). */
+function postHrefNames(source: ts.SourceFile): Set<string> {
+  const names = new Set<string>()
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+      if (isPostHref(node.initializer)) names.add(node.name.text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return names
 }
 
 const isFalse = (node: ts.Node | undefined) => node?.kind === ts.SyntaxKind.FalseKeyword
@@ -68,6 +92,8 @@ function postLinks(file: string): Finding[] {
   const text = readFileSync(file, 'utf8')
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   const findings: Finding[] = []
+  const bound = postHrefNames(source)
+  const isPostLink = (node: ts.Node | undefined) => isPostHref(node, bound)
   const where = (node: ts.Node) => {
     const { line } = source.getLineAndCharacterOfPosition(node.getStart())
     return `${relative(ROOT, file)}:${line + 1}`
@@ -76,20 +102,20 @@ function postLinks(file: string): Finding[] {
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
       if (
         node.tagName.getText() === 'Link' &&
-        isPostHref(attributeValue(jsxAttribute(node, 'href')))
+        isPostLink(attributeValue(jsxAttribute(node, 'href')))
       ) {
         findings.push({
           where: where(node),
           ok: isFalse(attributeValue(jsxAttribute(node, 'prefetch'))),
         })
       }
-    } else if (ts.isObjectLiteralExpression(node) && isPostHref(propertyValue(node, 'href'))) {
+    } else if (ts.isObjectLiteralExpression(node) && isPostLink(propertyValue(node, 'href'))) {
       findings.push({ where: where(node), ok: isFalse(propertyValue(node, 'prefetch')) })
     } else if (
       ts.isCallExpression(node) &&
       ts.isPropertyAccessExpression(node.expression) &&
       node.expression.name.text === 'prefetch' &&
-      node.arguments.some((argument) => isPostHref(argument))
+      node.arguments.some((argument) => isPostLink(argument))
     ) {
       findings.push({ where: where(node), ok: false })
     }
@@ -102,13 +128,15 @@ function postLinks(file: string): Finding[] {
 const findings = sourceFiles(SRC).flatMap(postLinks)
 
 describe('P5-R1: links to a post are never prefetched', () => {
-  it('finds the post links it guards (cards, sidebar, search rows, the home’s carousel)', () => {
+  it('finds the post links it guards (cards, sidebar, search rows, the home’s carousel, my comments)', () => {
     const files = new Set(findings.map((finding) => finding.where.replace(/:\d+$/, '')))
     for (const file of [
       'src/features/blog/components/post-card.tsx',
       'src/features/blog/components/blog-sidebar.tsx',
       'src/features/search/results/search-results.tsx',
       'src/features/home/sections/post-carousel-section.tsx',
+      // `<Link href={href}>` with `const href = subjectHref(comment, blog)`: a post's, at times.
+      'src/features/account/comments/comment-row.tsx',
     ]) {
       expect(files, file).toContain(file)
     }
