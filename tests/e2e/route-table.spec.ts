@@ -47,6 +47,7 @@ const PAGES = [
   '/product-category/digital/mobile-phone/',
   '/brand/',
   '/brand/samsung/',
+  '/product/list/',
   '/product/list/flagship-phones/',
   '/search/',
   '/compare/',
@@ -113,6 +114,23 @@ test.describe('route table', () => {
     const shortLink = await get(request, '/s/zzzz-nope/')
     expect(shortLink.status()).toBe(404)
     expect(await shortLink.text()).not.toContain('/_next/static/')
+  })
+
+  test('the bank’s return leg answers as itself: an unknown token is the API’s redirect', async ({
+    request,
+  }) => {
+    // The route handler relays Django's answer (order digest §3.2.11: an unknown token is a 302
+    // to the result page, `gateway_callback_invalid`), never the catch-all's 404. No payment has
+    // this token: nothing is written.
+    const response = await get(
+      request,
+      '/api/v1/payment/gateway/callback/zarinpal/e2e-no-such-token/',
+    )
+    expect(response.status()).toBe(302)
+    expect(response.headers()['cache-control']).toBe('no-store')
+    const location = new URL(response.headers()['location'] ?? '', 'http://x')
+    expect(location.pathname).toBe('/payment/callback/')
+    expect(location.searchParams.get('code')).toBe('gateway_callback_invalid')
   })
 
   test('redirects run before any route: next.config’s and the account guard', async ({
@@ -194,11 +212,15 @@ test.describe('route table', () => {
     const thanks = await shown404(page, '/checkout/thanks/bad/')
     expect(thanks).toMatchObject({ status: 404, shop: false, light: true, mains: 1 })
     expect(thanks.title).toMatch(new RegExp(`^${PAGE_404} \\|`))
-    expect(await shown404(page, '/dev/ui/')).toMatchObject({
-      status: 404,
-      shop: false,
-      light: true,
-    })
+    // The development pages exist as routes (`/dev/ui/`, `/dev/listing/`), each a 404 in a
+    // production build (`assertDevOnly`): the light one, never the catch-all's shop 404.
+    for (const path of ['/dev/ui/', '/dev/listing/']) {
+      expect(await shown404(page, path), path).toMatchObject({
+        status: 404,
+        shop: false,
+        light: true,
+      })
+    }
   })
 })
 
@@ -208,7 +230,20 @@ signedInTest.describe('route table, signed in', () => {
   })
 
   signedInTest('account pages answer 200; an unknown one is the shop’s 404', async ({ page }) => {
-    for (const path of ['/account/', '/account/orders/', '/account/profile/']) {
+    // Every account page of the shop (src/app/(shop)/account/*), read with the project's shared
+    // session (no login of its own).
+    for (const path of [
+      '/account/',
+      '/account/addresses/',
+      '/account/comments/',
+      '/account/notifications/',
+      '/account/orders/',
+      '/account/profile/',
+      '/account/reading-list/',
+      '/account/reviews/',
+      '/account/wallet/',
+      '/account/wishlist/',
+    ]) {
       expect((await get(page.request, path)).status(), path).toBe(200)
     }
     expect(await shown404(page, '/account/nope/')).toMatchObject({
