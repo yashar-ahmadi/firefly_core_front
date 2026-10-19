@@ -65,7 +65,10 @@ function entry(order: GuestOrder): GuestOrder {
 export function readGuestOrders(now: number = Date.now()): GuestOrder[] {
   const stored = readJson('local', GUEST_ORDERS_KEY)
   if (!Array.isArray(stored)) return []
-  return stored.filter(isGuestOrder).filter((order) => fresh(order, now)).map(entry)
+  return stored
+    .filter(isGuestOrder)
+    .filter((order) => fresh(order, now))
+    .map(entry)
 }
 
 /** Puts `order` first (the same code moves up, kept from now), keeping the last 10. */
