@@ -25,13 +25,21 @@ export function prefetchKind(headers: Headers): PrefetchKind | null {
 /**
  * Whether the proxy only marks this request's render with its route kind, and does nothing else
  * (no redirect lookup, which would count a hit, no session refresh, no account guard): a router
- * prefetch or a browser's `Purpose: prefetch`. A router prefetch is an RSC request (`rsc: 1`)
- * with `next-router-prefetch`, as the router sends both; the prefetch header on a document
- * request is no prefetch of the router's, and gets what a visit gets. Not `Sec-Purpose:
- * prefetch`: those go through the redirect lookup like a visit, which a speculative prefetch of a
- * redirected URL needs (its answer is shown on the click). The router's headers reach the proxy
- * only because of `skipProxyUrlNormalize` (next.config.ts); tests/fixtures/rsc-request-
- * shapes.json holds what really arrives, with and without it.
+ * prefetch or a browser's `Purpose: prefetch`. One rule decides: a prefetch the browser can show
+ * on the click (kept) gets what a visit gets; only one it never shows may be quiet.
+ *
+ * - A router prefetch is an RSC request (`rsc: 1`) with `next-router-prefetch`, as the router
+ *   sends both; the prefetch header on a document request is no prefetch of the router's, and
+ *   gets what a visit gets. The router's headers reach the proxy only because of
+ *   `skipProxyUrlNormalize` (next.config.ts); tests/fixtures/rsc-request-shapes.json holds what
+ *   really arrives, with and without it.
+ * - `Sec-Purpose: prefetch` is kept: a speculation-rules prefetch is shown on the click even
+ *   though every page here is `no-store` (Chromium 141, captured: tests/fixtures/browser-prefetch-
+ *   shapes.json), so it goes through the redirect lookup and the refresh like a visit.
+ * - `Purpose: prefetch` is never kept: browsers send it only for `<link rel=prefetch>` (older
+ *   Chromium, WebKit), whose answer goes through the HTTP cache, which keeps nothing `no-store`:
+ *   the click is a visit of its own. Current Chromium sends `Sec-Purpose` for that too. Were a
+ *   page ever answered cacheable, this would have to change.
  */
 export function isQuietPrefetch(headers: Headers): boolean {
   return (

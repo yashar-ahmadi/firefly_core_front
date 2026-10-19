@@ -1,0 +1,34 @@
+{
+  "_about": "What a browser sends for a prefetched document, and whether the click then shows the prefetched answer (kept) or asks the server again, under the storefront's own Cache-Control (every page is force-dynamic: `private, no-cache, no-store, max-age=0, must-revalidate`). Captured on 2026-10-19 (Plan 4 final fix wave) with a throwaway local server and the preinstalled Chromium, one page per kind, the click a real link click. `<link rel=prefetch>` goes through the HTTP cache, which keeps nothing `no-store`: the click is a visit of its own (it gets the redirect lookup and the session refresh). A speculation-rules prefetch is kept even then and sends `Sec-Purpose: prefetch`, which the proxy treats as a visit. `Purpose: prefetch` is the older spelling of the `<link rel=prefetch>` header (Chromium before it moved to `Sec-Purpose`, WebKit's link prefetch): the same HTTP-cache path, so never kept under `no-store` either; no such browser is installed here to capture it. src/lib/http/prefetch.ts (`isQuietPrefetch`) and tests/unit/http/prefetch-kept.test.ts read this file.",
+  "browser": "Chromium 141.0.7390.37 (headless, the preinstalled /opt/pw-browsers build)",
+  "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+  "captured": {
+    "linkPrefetch": {
+      "markup": "<link rel=\"prefetch\" href=\"/target/\">",
+      "prefetch": {
+        "purpose": null,
+        "sec-purpose": "prefetch",
+        "sec-fetch-dest": "empty"
+      },
+      "clickReachedServer": true,
+      "keptAndShownOnClick": false
+    },
+    "speculationRules": {
+      "markup": "<script type=\"speculationrules\">{\"prefetch\":[{\"source\":\"list\",\"urls\":[\"/target/\"]}]}</script>",
+      "prefetch": {
+        "purpose": null,
+        "sec-purpose": "prefetch",
+        "sec-fetch-dest": "document"
+      },
+      "clickReachedServer": false,
+      "keptAndShownOnClick": true
+    }
+  },
+  "legacyPurposeHeader": {
+    "header": "purpose: prefetch",
+    "sentFor": "<link rel=\"prefetch\"> in older browsers",
+    "path": "HTTP cache (as linkPrefetch above)",
+    "keptUnderNoStore": false,
+    "captured": false
+  }
+}

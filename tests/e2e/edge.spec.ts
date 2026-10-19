@@ -163,6 +163,16 @@ test.describe('edge', () => {
     expect(res.headers()['content-type']).toBe('image/png')
   })
 
+  // `Purpose: prefetch` stays quiet (src/lib/http/prefetch.ts) only because a browser never keeps
+  // such a document: every page is answered `no-store` (tests/fixtures/browser-prefetch-shapes).
+  test('a `Purpose: prefetch` document is answered no-store: never kept for the click', async ({
+    request,
+  }) => {
+    const res = await request.get('/cart/', { headers: { purpose: 'prefetch' }, maxRedirects: 0 })
+    expect(res.status()).toBe(200)
+    expect(res.headers()['cache-control']).toMatch(/\bno-store\b/)
+  })
+
   // The App Router's own requests, as the browser sends them (tests/fixtures/rsc-request-
   // shapes.json), with Next's own `_rsc` hash so its check lets them through: a prefetch is
   // marked and nothing more (no account guard, no cookie touched, no redirect lookup); a client
