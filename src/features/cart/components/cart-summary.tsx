@@ -92,8 +92,9 @@ function CheckoutShares({ cart }: { cart: Cart }) {
 /**
  * The goods (and their count), product and coupon discounts (the code as a chip; a
  * free-shipping coupon says so), the goods after discounts, shipping (or «پس از انتخاب روش
- * ارسال»), packaging, the shipping discount, the COD fee, tax and the total; the online and
- * at-the-door shares when part is paid on delivery (with the prepayment), and «سود شما از این
+ * ارسال»), packaging, the shipping discount, tax, the COD fee and the total (the order's own
+ * words and order: order-money.tsx, digest §6.4); the online and at-the-door («پرداخت هنگام
+ * تحویل») shares when part is paid on delivery (with the prepayment), and «سود شما از این
  * خرید» when there is a saving. Rows the API has nothing for (0) are left out, tax excepted. At
  * the checkout the online share is always said once shipping is priced (`CheckoutShares`).
  */
@@ -109,7 +110,7 @@ export function CartSummary({ cart, variant, className, title }: CartSummaryProp
         {title ?? (variant === 'cart' ? 'خلاصه\u{0654} سبد خرید' : 'خلاصه\u{0654} سفارش')}
       </h2>
       <dl className="mt-2 text-base">
-        <Row label={`قیمت کالاها (${formatNumber(cart.item_count)})`}>
+        <Row label={`جمع کالاها (${formatNumber(cart.item_count)})`}>
           {formatToman(cart.goods_subtotal)}
         </Row>
         {cart.item_discount > 0 && (
@@ -149,10 +150,10 @@ export function CartSummary({ cart, variant, className, title }: CartSummaryProp
             {formatToman(cart.shipping_discount)}
           </Row>
         )}
+        <Row label="مالیات بر ارزش افزوده">{formatToman(cart.tax_amount)}</Row>
         {cart.cod_fee > 0 && (
           <Row label={'هزینه\u{0654} پرداخت در محل'}>{formatToman(cart.cod_fee)}</Row>
         )}
-        <Row label="مالیات بر ارزش افزوده">{formatToman(cart.tax_amount)}</Row>
         <Row label="مبلغ کل" tone="total">
           {formatToman(cart.total)}
         </Row>
@@ -163,7 +164,9 @@ export function CartSummary({ cart, variant, className, title }: CartSummaryProp
             {cart.amount_to_collect_on_delivery > 0 && (
               <>
                 <Row label="پرداخت آنلاین">{formatToman(cart.amount_charged_online)}</Row>
-                <Row label="پرداخت در محل">{formatToman(cart.amount_to_collect_on_delivery)}</Row>
+                <Row label="پرداخت هنگام تحویل">
+                  {formatToman(cart.amount_to_collect_on_delivery)}
+                </Row>
               </>
             )}
             {cart.prepayment > 0 && (

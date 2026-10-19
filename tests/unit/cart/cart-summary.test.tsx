@@ -7,7 +7,9 @@ import { couponCartFixture, freeshipCartFixture, itemsCartFixture } from './fixt
 import { EMPTY_SHIPPING } from './support'
 
 // The summary of the cart page (and, as `variant="checkout"`, of the checkout): every amount is
-// an API field (cart digest §5.3), nothing is added up here.
+// an API field (cart digest §5.3), nothing is added up here. Its words and its order are the
+// order's own (order-money.tsx; Plan 4 final fix wave): «جمع کالاها», tax before the
+// pay-on-delivery fee (digest §6.4), and the door's share «پرداخت هنگام تحویل» on both pages.
 
 function renderSummary(cart: Cart, variant: 'cart' | 'checkout' = 'cart') {
   render(<CartSummary cart={cart} variant={variant} />)
@@ -39,8 +41,9 @@ describe('CartSummary', () => {
 
   it('shows the live TEA30 cart row by row, from its fields', () => {
     const region = renderSummary(couponCartFixture())
-    expect(value(region, /^قیمت کالاها/)).toBe(formatToman(2_130_000))
-    expect(within(region).getByText(/^قیمت کالاها/)).toHaveTextContent('(۳)')
+    expect(value(region, /^جمع کالاها \(/)).toBe(formatToman(2_130_000))
+    expect(within(region).getByText(/^جمع کالاها \(/)).toHaveTextContent('(۳)')
+    expect(hasRow(region, /^قیمت کالاها/)).toBe(false)
     expect(value(region, /^کد تخفیف/)).toBe(formatToman(200_000))
     expect(within(region).getByText('TEA30')).toHaveAttribute('dir', 'ltr')
     expect(value(region, 'جمع کالاها پس از تخفیف')).toBe(formatToman(1_930_000))
@@ -49,7 +52,7 @@ describe('CartSummary', () => {
     expect(value(region, 'سود شما از این خرید')).toBe(formatToman(200_000))
     // No product discount in the live data, and nothing to pay at the door.
     expect(hasRow(region, 'تخفیف کالاها')).toBe(false)
-    expect(hasRow(region, 'پرداخت در محل')).toBe(false)
+    expect(hasRow(region, 'پرداخت هنگام تحویل')).toBe(false)
   })
 
   it('has no savings, discount or after-discount rows for a cart without any', () => {
@@ -74,6 +77,21 @@ describe('CartSummary', () => {
     expect(value(region, 'هزینه\u{0654} بسته\u{200C}بندی')).toBe(formatToman(8_000))
     expect(value(region, 'هزینه\u{0654} پرداخت در محل')).toBe(formatToman(25_000))
   })
+
+  it.each(['cart', 'checkout'] as const)(
+    '%s: the rows in the order’s own order, tax before the pay-on-delivery fee (digest §6.4)',
+    (variant) => {
+      const region = renderSummary(
+        itemsCartFixture({ packaging_cost: 8_000, cod_fee: 25_000 }),
+        variant,
+      )
+      const terms = [...region.querySelectorAll('dt')].map((term) => term.textContent ?? '')
+      const at = (label: RegExp) => terms.findIndex((term) => label.test(term))
+      expect(at(/^هزینه\u{0654} بسته/u)).toBeLessThan(at(/^مالیات/))
+      expect(at(/^مالیات/)).toBeLessThan(at(/^هزینه\u{0654} پرداخت در محل/u))
+      expect(at(/^هزینه\u{0654} پرداخت در محل/u)).toBeLessThan(at(/^مبلغ کل/))
+    },
+  )
 
   it('a coupon the API has just taken off (detached_reason) is no coupon row', () => {
     // Live: the answer that detaches FREESHIP still names it, with discount_type null.
@@ -133,7 +151,9 @@ describe('CartSummary', () => {
       }),
     )
     expect(value(region, 'پرداخت آنلاین')).toBe(formatToman(84_599_000))
-    expect(value(region, 'پرداخت در محل')).toBe(formatToman(21_000))
+    // The checkout's and the order's word for the door's share.
+    expect(value(region, 'پرداخت هنگام تحویل')).toBe(formatToman(21_000))
+    expect(hasRow(region, 'پرداخت در محل')).toBe(false)
     expect(value(region, /^بیعانه/)).toBe(formatToman(9_000))
   })
 
