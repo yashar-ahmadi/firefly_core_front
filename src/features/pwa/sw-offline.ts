@@ -63,6 +63,7 @@ const NAVIGATION_TIMEOUT_MS = ${NAVIGATION_TIMEOUT_MS}
 const IMAGE_LIMIT = ${IMAGE_LIMIT}
 const INSTALL_LIMIT_MS = 10000
 const COPY_MAX_AGE_MS = 600000
+const KEPT_AT_HEADER = 'x-ff-kept-at'
 const APP_FILE_LIMIT = 150
 
 const neverCached = (path) =>
@@ -115,12 +116,18 @@ async function keepAppFiles(html) {
   )
 }
 
+// Each copy is stamped with the worker's own time when kept: its age is measured on one clock,
+// never from the server's Date against the device's.
 async function keepPage(path) {
   const response = await quietly(anonymousCopy(path))
   if (!response) return
+  const body = await response.blob()
+  const headers = new Headers(response.headers)
+  headers.set(KEPT_AT_HEADER, String(Date.now()))
+  const copy = new Response(body, { status: response.status, statusText: response.statusText, headers })
   const cache = await caches.open(CACHES.pages)
-  await cache.put(path, response.clone())
-  await keepAppFiles(await response.text())
+  await cache.put(path, copy)
+  await keepAppFiles(await body.text())
 }
 
 async function keepPages() {
@@ -135,8 +142,9 @@ function refreshPage(path) {
   if (!refreshing.has(path)) {
     const run = (async () => {
       const kept = await keptPage(path)
-      const age = kept ? Date.now() - Date.parse(kept.headers.get('date') || '') : Infinity
-      if (!(age < COPY_MAX_AGE_MS)) await keepPage(path)
+      const age = kept ? Date.now() - Number(kept.headers.get(KEPT_AT_HEADER)) : Infinity
+      // No stamp (an earlier worker's copy) or a clock set back since: kept again.
+      if (!(age >= 0 && age < COPY_MAX_AGE_MS)) await keepPage(path)
     })()
     refreshing.set(path, quietly(run).finally(() => refreshing.delete(path)))
   }

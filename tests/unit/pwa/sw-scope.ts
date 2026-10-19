@@ -166,6 +166,10 @@ export function worker(
     // Read when called: a test's fake timers apply.
     setTimeout: (...args: Parameters<typeof setTimeout>) => setTimeout(...args),
     clearTimeout: (id: ReturnType<typeof setTimeout>) => clearTimeout(id),
+    // The device's clock, read when called: a test's fake clock applies.
+    get Date() {
+      return Date
+    },
   })
 
   /**

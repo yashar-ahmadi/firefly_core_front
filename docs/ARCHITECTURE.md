@@ -720,7 +720,9 @@ a plain 200 of type `basic` or `cors`, or carries `no-store` or `private`.
 **Why only two pages have an offline copy, and how.** Every page is sent `private, no-store` (the
 root layout is dynamic) and carries the visitor (`hasSession`, the header's account state), so the
 worker never keeps the visitor's own navigation responses. It asks for the copies itself, at
-install and when a kept copy is over 10 minutes old on a visit to that page: `x-ff-offline:
+install and when a kept copy is over 10 minutes old on a visit to that page (measured on the
+worker's own clock: each copy is stamped `x-ff-kept-at` when kept, never aged from the server's
+`Date`, since the device's clock may run ahead or behind): `x-ff-offline:
 snapshot`, `credentials: 'omit'` (no cookie at all: the page renders for nobody, no session, no
 guest cart). The proxy answers that request, and only that one, with `Cache-Control: no-cache` and
 the header back (`lib/edge/offline-copy.ts`: GET, the header, no `Cookie`, no `Authorization`, a

@@ -39,6 +39,8 @@ export interface ShopOptions {
   /** Headers of the anonymous copy instead of the consent (a server that does not allow it). */
   copyHeaders?: Record<string, string>
   copyStatus?: number
+  /** How far the server's clock (its `Date` header) is ahead of the device's, in ms. */
+  serverClockAheadMs?: number
 }
 
 /** The shop's server: `online` false makes every request fail as without a network. */
@@ -52,7 +54,7 @@ export function shop(state = { online: true }, options: ShopOptions = {}): Netwo
         status: options.copyStatus ?? 200,
         headers: {
           'content-type': HTML,
-          date: new Date().toUTCString(),
+          date: new Date(Date.now() + (options.serverClockAheadMs ?? 0)).toUTCString(),
           ...(consent ? (options.copyHeaders ?? CONSENT) : { 'cache-control': NO_STORE }),
         },
       })
