@@ -16,7 +16,7 @@ import {
 import { hasQuery } from '@/features/catalog/listing-routes'
 import { seoMetadata } from '@/features/seo/metadata'
 import { shopName } from '@/features/seo/shop-name'
-import { getCategoryTree } from '@/features/settings/api'
+import { getCategoryTree, getFeatureStatus } from '@/features/settings/api'
 import { formatNumber } from '@/lib/format'
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -99,14 +99,18 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   if (results.total === 0) {
     return page(heading, <NoResults query={results.query} categories={await getCategoryTree()} />)
   }
-  const settings = await getProductSettings()
+  const [settings, features] = await Promise.all([getProductSettings(), getFeatureStatus()])
   return page(
     heading,
     <>
       <p className="-mt-2 mb-6 text-base text-ink-600 md:-mt-4">
         {`${formatNumber(results.total)} نتیجه`}
       </p>
-      <SearchResults results={results} showOutOfStockLabel={settings.show_out_of_stock_label} />
+      <SearchResults
+        results={results}
+        showOutOfStockLabel={settings.show_out_of_stock_label}
+        blogEnabled={features.blog.enabled}
+      />
     </>,
   )
 }

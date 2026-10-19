@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import { listingHref, parseListingParams } from '@/features/catalog/listing-params'
+import { blogSearchHref } from '@/features/blog/blog-routes'
 import { LISTING_PATH } from '@/features/catalog/listing-routes'
 import type { SearchGroup } from '@/lib/api/types/search'
 import { formatNumber } from '@/lib/format'
@@ -13,14 +14,20 @@ export type ResultKind = 'products' | 'product_categories' | 'brands' | 'blog_po
 /**
  * Where a group's «مشاهدهٔ همه» goes (content digest §7.1): only when the group has more than
  * it shows and a `listing_query`. Products go to the generic listing of that query, through
- * the listing helpers, so the parameters keep the API's names (`search`, `special_first`).
+ * the listing helpers, so the parameters keep the API's names (`search`, `special_first`);
+ * blog posts to the blog's archive of the post list's `search` (`/blog/?search=…`). The query's
+ * own term, never the one typed: the API strips the operator's ignored words from `q` only.
  * The other groups have no listing page in this storefront (the guide's `/search/categories/`
  * and friends are not planned), so they get none: their heading still says how many matched.
  */
 export function seeAllHref(kind: ResultKind, group: SearchGroup<unknown>): string | null {
   if (group.listing_query === null || group.count <= group.items.length) return null
-  if (kind !== 'products') return null
-  return listingHref(LISTING_PATH, parseListingParams(group.listing_query))
+  if (kind === 'products') return listingHref(LISTING_PATH, parseListingParams(group.listing_query))
+  if (kind === 'blog_posts') {
+    const term = group.listing_query.search?.trim()
+    return term ? blogSearchHref(term) : null
+  }
+  return null
 }
 
 /** One group of results: a heading with its count, «مشاهدهٔ همه» when there is more, the items. */
@@ -69,7 +76,7 @@ export interface CompactItem {
   description?: string | null
   /** A decorative picture or icon before the name. */
   thumb: ReactNode
-  /** Off for routes later plans build (blog posts, content pages): nothing to prefetch yet. */
+  /** Off for a route not built yet (content pages, Task 3): nothing to prefetch there. */
   prefetch?: false
 }
 

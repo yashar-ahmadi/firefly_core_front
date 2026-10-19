@@ -1,11 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { carriesCredential, ROUTE_KIND_HEADER, type RouteKind } from '@/config/credential-routes'
+import { carriesCredential, type RouteKind } from '@/config/credential-routes'
 import { getServerEnv, type ServerEnv } from '@/config/env'
 import { COOKIE } from '@/lib/auth/cookies'
 import { isExpiring } from '@/lib/auth/jwt'
 import { refreshAccess } from '@/lib/auth/refresh'
 import { CookieJar, readSession } from '@/lib/bff/session'
 import { accountLoginPath, isAccountPath } from '@/lib/edge/account-guard'
+import { isBlogPath } from '@/lib/edge/blog-gate'
+import { blogSwitchOff } from '@/lib/edge/blog-switch'
+import { leftAlone, pageHeaders, renderPage, type PageMark } from '@/lib/edge/page-render'
 import { isDecodable, isForwarded, isSkipped } from '@/lib/edge/proxy-paths'
 import { knownSources, resolveRedirect, ruleSpelling } from '@/lib/edge/redirects'
 import { statusPage } from '@/lib/edge/status-page'
@@ -27,6 +30,9 @@ import { isQuietPrefetch } from '@/lib/http/prefetch'
  * 6. The account area's guard (ruling P3-R3, see `account-guard.ts`): a read of an account page
  *    without a session (no refresh cookie, or one the API has just rejected) is sent to login,
  *    with the page and its query as `next`; leftover session cookies are cleared on the way.
+ *
+ * A blog page while the blog is switched off renders with 503 and `Retry-After` (its body is
+ * the blog's «unavailable» page, told by `x-ff-blog-off`: page-render.ts, blog-switch.ts).
  *
  * Every page that renders is marked for the layouts (`x-ff-route-kind`, never the visitor's own),
  * a prefetch too (it is marked and nothing else: no redirect lookup, no session refresh, no
@@ -106,10 +112,11 @@ function cookieHeader(raw: string | null, drop: string[], add: Record<string, st
 
 const isSecure = (env: ServerEnv) => new URL(env.SITE_URL).protocol === 'https:'
 
+const isRead = ({ method }: NextRequest) => method === 'GET' || method === 'HEAD'
+
 /** A read of an account page: what the account guard answers (writes are left to the page). */
 function isGuarded(request: NextRequest): boolean {
-  const { method, nextUrl } = request
-  return (method === 'GET' || method === 'HEAD') && isAccountPath(nextUrl.pathname)
+  return isRead(request) && isAccountPath(request.nextUrl.pathname)
 }
 
 /** The account guard's answer: login, with the page as `next`; `clear` drops the session cookies. */
@@ -124,33 +131,15 @@ function toLogin(request: NextRequest, env: ServerEnv, clear: boolean): NextResp
   return response
 }
 
-/**
- * A path the proxy leaves alone is never marked; a visitor's own marker is dropped on the way,
- * so what renders there (an asset-like URL's 404 page) is unmarked and gets no operator code.
- */
-function leftAlone(request: NextRequest): NextResponse {
-  if (!request.headers.has(ROUTE_KIND_HEADER)) return NextResponse.next()
-  const headers = new Headers(request.headers)
-  headers.delete(ROUTE_KIND_HEADER)
-  return NextResponse.next({ request: { headers } })
-}
-
-/** The request headers the page renders with: the visitor's, with the proxy's own route kind. */
-function pageHeaders(request: NextRequest, kind: RouteKind): Headers {
-  const headers = new Headers(request.headers)
-  headers.set(ROUTE_KIND_HEADER, kind)
-  return headers
-}
-
 async function withSession(
   request: NextRequest,
   env: ServerEnv,
   forwardedFor: string | null,
-  kind: RouteKind,
+  mark: PageMark,
 ): Promise<NextResponse> {
   const { access, refresh, marker } = readSession(request)
   const guarded = isGuarded(request)
-  const render = () => NextResponse.next({ request: { headers: pageHeaders(request, kind) } })
+  const render = () => renderPage(request, mark)
   if (refresh === null) {
     if (!guarded) return render()
     // A flag or access cookie left behind would show login a session that is not there.
@@ -181,10 +170,10 @@ async function withSession(
   }
 
   // Server Components read the new cookies from the forwarded request.
-  const headers = pageHeaders(request, kind)
+  const headers = pageHeaders(request, mark)
   if (cookie) headers.set('cookie', cookie)
   else headers.delete('cookie')
-  const response = NextResponse.next({ request: { headers } })
+  const response = renderPage(request, mark, headers)
   jar.applyTo(response, isSecure(env))
   return response
 }
@@ -202,11 +191,16 @@ export async function proxy(request: NextRequest): Promise<Response> {
   if (isSkipped(pathname, decodable)) return leftAlone(request)
 
   const kind: RouteKind = carriesCredential(request.nextUrl) ? 'credential' : 'page'
+  // A blog page while the blog is switched off renders with 503 (read from memory, at most once
+  // a minute from the API: blog-switch.ts).
+  const blogOff =
+    decodable && isRead(request) && isBlogPath(pathname) ? await blogSwitchOff() : null
+  const mark: PageMark = { kind, blogOff }
   // A prefetch is marked like the visit (a kept document is shown on the click, and the snippet
   // gate fails closed) and nothing more: no redirect lookup (it would count a hit), no refresh.
   if (isQuietPrefetch(request.headers)) {
     if (!decodable) return notFoundPage()
-    return NextResponse.next({ request: { headers: pageHeaders(request, kind) } })
+    return renderPage(request, mark)
   }
 
   const env = getServerEnv()
@@ -215,7 +209,7 @@ export async function proxy(request: NextRequest): Promise<Response> {
   if (redirect !== null) return redirect
   // No route can read it: no session refresh either.
   if (!decodable) return notFoundPage()
-  return withSession(request, env, forwardedFor, kind)
+  return withSession(request, env, forwardedFor, mark)
 }
 
 // Next reads `config` statically at build time: literals only, no shared constants.

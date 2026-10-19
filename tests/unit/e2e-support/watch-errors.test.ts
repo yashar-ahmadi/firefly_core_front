@@ -72,6 +72,30 @@ describe('isExpectedFailure', () => {
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/checkout/')).toBe(false)
   })
 
+  it('reports a 404 from the blog home and its category pages (Plan 5 Task 1)', () => {
+    for (const path of [
+      '/blog/',
+      '/blog/?page=2',
+      '/blog/?_rsc=abc',
+      '/blog/category/tech-news/',
+      '/blog/category/tech-news/mobile-blog/?_rsc=abc',
+      '/blog/category/no-such/',
+    ]) {
+      expect(isExpectedFailure(NOT_FOUND, `http://localhost:3000${path}`), path).toBe(false)
+    }
+  })
+
+  it('still lets through a post page’s 404 until its route lands (Task 2), and only a 404', () => {
+    const post = 'http://localhost:3000/blog/best-phones-under-30m/?_rsc=abc'
+    expect(isExpectedFailure(NOT_FOUND, post)).toBe(true)
+    expect(
+      isExpectedFailure(NOT_FOUND, 'http://localhost:3000/blog/%DA%AF%D9%88%D8%B4%DB%8C/'),
+    ).toBe(true)
+    expect(isExpectedFailure(SERVER_ERROR, post)).toBe(false)
+    // Deeper paths under /blog/ are no post: a 404 there is reported.
+    expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/blog/a/b/')).toBe(false)
+  })
+
   it('reports a 404 from the search page, which exists now', () => {
     expect(isExpectedFailure(NOT_FOUND, 'http://localhost:3000/search/?_rsc=abc')).toBe(false)
   })

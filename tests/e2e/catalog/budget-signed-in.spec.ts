@@ -71,6 +71,9 @@ const ROUTES: SignedInRoute[] = [
   { name: 'home', path: '/' },
   { name: 'category', path: '/product-category/digital/mobile-phone/' },
   { name: 'product', path: '/product/samsung-galaxy-s25-ultra/' },
+  // The blog as she sees it: her reading list read once for the bookmarks (no write).
+  { name: 'blog', path: '/blog/', ready: cardsShown },
+  { name: 'blog-category', path: '/blog/category/buying-guide/', ready: cardsShown },
   { name: 'account', path: '/account/' },
   { name: 'profile', path: '/account/profile/' },
   { name: 'notifications', path: '/account/notifications/' },

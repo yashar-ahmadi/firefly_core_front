@@ -56,6 +56,7 @@ vi.mock('@/features/settings/api', () => ({
   getTranslations: async () => ({}),
   getSiteSettings: async () => ({ name: 'فایرفلای' }),
   getCategoryTree: async () => sampleTree(),
+  getFeatureStatus: async () => ({ blog: { key: 'blog', name: '', enabled: true, reason: null } }),
 }))
 vi.mock('@/features/catalog/api', () => ({
   getProductSettings: async () => ({ show_out_of_stock_label: true }),

@@ -66,6 +66,7 @@ Browser ──► Next.js (storefront origin)
              │    2. skip _next, /api/*, /s/*, /icons/*, /healthz/, asset files
              │    3. GET/HEAD: redirect rules (redirects/resolve/) ──► 301 / 302 / 410 page
              │    4. access token expiring? refresh it (Set-Cookie + forwarded Cookie for this render)
+             │    5. a blog page while the blog is switched off: rendered with 503 (see «The blog switch»)
              ├─ Server Components ──apiFetch──► Firefly API     (X-API-Key; cached anonymous reads)
              ├─ /api/bff/[...path] ──────────► Firefly API     (browser actions: cart, auth, account…)
              ├─ /api/v1/payment/gateway/callback/<gateway>/<token>/ ──► Django (GET+POST, body as is)
@@ -379,6 +380,10 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 | `global/extra-snippets/` | `getSnippets()` | 300 s | `snippets` |
 | `global/get-translation/fa/` (fallback `global/languages/`) | `getTranslations()` | 300 s | `translations` |
 | `product/category/list/` (all pages) | `getCategoryTree()` | 300 s | `categories` |
+| `blog/home/` | `getBlogHome()` (`features/blog/api.ts`) | 60 s | `blog:home`, `blog` |
+| `blog/post/list/?category=…&search=…&page=…` | `getBlogPosts()`: the archive, a category's posts; a search sends the visitor IP (its own entry and rate, like a long-tail listing) | 60 s | `blog` |
+| `blog/category/list/` (all pages), `blog/category/<slug>/` | `getBlogCategories()`, `getBlogCategory()` (a 404 remembered a minute in process memory) | 300 s | `blog`, `blog-category:<slug>` |
+| `global/feature-status/blog/` | `blogSwitchOff()` (`lib/edge/blog-switch.ts`), the proxy's, in process memory | 60 s (a failed read: retried after 15 s, the last known state kept) | — |
 | `product/detail/<slug>/comment/list/?comment_type=…&page=1` | `getFirstComments()`: page 1 of the reviews and of the questions, server-rendered in their own in-page `<Suspense>` after the product (spec §8.13); later pages, and page 1 again for a signed-in visitor (`is_current_user`), come through the BFF | 60 s | `product:<slug>`, `catalog` |
 | `robots/?format=txt` | `/robots.txt` route | 300 s (fetch level) | — |
 | `redirects/list/` (rule sources only) | `knownSources()`, in process memory | 5 min (a failed load is retried after 30 s) | — |
@@ -412,6 +417,28 @@ out («ورود | ثبت‌نام») from the first byte, without a flash. Pages
 with `Cache-Control: private, no-store`; a shared or edge cache of HTML (CDN, nginx `proxy_cache`)
 must either vary on the `ff_auth` cookie or not cache HTML at all, or it would serve one visitor's
 signed-in header to another.
+
+### The blog switch
+
+An operator can switch the blog off at any moment (`blog`; every blog endpoint then answers
+`503 feature_disabled`). Its pages must then answer a real HTTP 503 with the operator's reason,
+but an App Router page cannot set its status in Next 16 (`notFound()` is 404, `forbidden()` and
+`unauthorized()` 403/401 behind a flag; streaming commits to 200). So the proxy does it: on a GET or
+HEAD of `/blog` or under it, it reads the switch (`blogSwitchOff()`, above) and, while it is off,
+lets the page render with `status: 503` and `Retry-After: 300` (`renderPage`,
+`lib/edge/page-render.ts`), telling the page through `x-ff-blog-off` (the reason, percent-encoded;
+a visitor's own header is always dropped). Next keeps the proxy's status for that render, documents
+and RSC requests alike (checked on the build); a client navigation whose RSC fetch gets the 503
+loads the page as a document, which shows the same. The page (`loadBlog`,
+`features/blog/availability.ts`) renders «وبلاگ موقتاً در دسترس نیست» with the reason, noindex,
+inside the shop's layout. When the switch goes off after the proxy last read it, the API refuses
+the page's read (`BlogUnavailableError`): the page shows the same, with 200 this once, and
+`noteBlogOff()` turns the proxy's state off at once, so the next request is a 503 (state on
+`globalThis`: the proxy and the pages are separate bundles of one process). Back on: within the
+minute. Storefront-owned blog links follow the shell's feature map (`getFeatureStatus()`): the
+account's «لیست مطالعه» row, my comments' post links, the search results' posts group, and the
+reading-list bookmarks (also turned off by a refused write); the operator's menus come pre-filtered
+by the API.
 
 ## Rendering rules
 
@@ -948,7 +975,13 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   dev bank refuses (one `wallet/top-up/`, no money moves), then files ONE withdrawal request and
   cancels it in the same test (the money back at once: her balance asserted exactly as before);
   a guard cancels any open request of hers before and after (`wallet_withdrawal` is five an hour,
-  counted on success: one request per run). A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
+  counted on success: one request per run). Her reading list (`tests/e2e/blog/reading-list.spec.ts`,
+  journeys; Plan 5 Task 1): one post saved and removed from a card, one request per press (POST,
+  then DELETE), her list snapshotted first and put back exactly by the fixture's teardown (two
+  writes a run when it passes). The blog's read-only spec (`tests/e2e/blog/blog.spec.ts`, every
+  device project) reads the home, its pages, a category and the search's «مشاهدهٔ همه» as a guest;
+  until Task 2 builds a post's page, `watch-errors.ts` lets a 404 of `/blog/<slug>/` through (and of
+  `/page/<slug>/`, Task 3), never one of the blog home or a category. A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
   mobile each run, for the guest's unpaid-orders ceiling; the dev backend answers a bank intent
   `400 gateway_unknown` when a gateway is named (the chooser shows), and the page withdraws that
   gateway for itself and tries the other with a press, refused too, until the bank routes close;

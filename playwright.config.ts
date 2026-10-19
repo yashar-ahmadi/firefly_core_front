@@ -16,7 +16,7 @@ const launchOptions = existsSync(chromiumPath) ? { executablePath: chromiumPath 
 const DESKTOP = { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }
 /** Specs of the `journeys` project only. */
 const JOURNEYS =
-  /\/(?:account\/(?:auth|account|orders-journey|wallet-journey)|checkout\/(?:checkout-(?:signed-in|place)|pay-link|card-transfer|guest-cod|user-wallet))\.spec\.ts$/
+  /\/(?:account\/(?:auth|account|orders-journey|wallet-journey)|checkout\/(?:checkout-(?:signed-in|place)|pay-link|card-transfer|guest-cod|user-wallet)|blog\/reading-list)\.spec\.ts$/
 /** The JS budget's specs: the `desktop` project measures them, and `budget-push` again. */
 const BUDGET = /\/catalog\/budget(?:-signed-in)?\.spec\.ts$/
 
@@ -81,7 +81,8 @@ export default defineConfig({
       // placed, cancelled and bought again; both cancelled by his guard; ruling P4-R4) or shirin's
       // (tests/e2e/account/wallet-journey.spec.ts: a top-up the dev bank refuses, one withdrawal
       // requested and cancelled; orders-journey.spec.ts: her delivered order bought again, her cart
-      // put back; tests/e2e/checkout/user-wallet.spec.ts: a wallet-paid order, opt-in), or place a
+      // put back; tests/e2e/checkout/user-wallet.spec.ts: a wallet-paid order, opt-in;
+      // tests/e2e/blog/reading-list.spec.ts: a post saved and removed, her list put back), or place a
       // guest's order (tests/e2e/checkout/checkout-place.spec.ts, pay-link.spec.ts,
       // card-transfer.spec.ts and guest-cod.spec.ts, cancelled after by the `orders` guard; the
       // card transfer's live receipt opt-in): on a desktop,

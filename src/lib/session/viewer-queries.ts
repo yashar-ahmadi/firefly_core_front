@@ -38,9 +38,10 @@ export const ORDERS_KEY = ['orders'] as const
  * for anyone else: removed. The profile, the account summary, the wallet, everything under `['dashboard']`
  * (the dashboard's lists, `MY_COMMENTS_KEY`), under `['wishlist']` (`WISHLIST_IDS_KEY`, the
  * wishlist page's lists), under `['notifications']` (the inbox and its unread count,
- * `UNREAD_NOTIFICATIONS_KEY`), the address book (`['addresses']`) and the orders (`ORDERS_KEY`).
+ * `UNREAD_NOTIFICATIONS_KEY`), the address book (`['addresses']`), the orders (`ORDERS_KEY`) and
+ * the reading list (`['reading-list']`: the post cards' saved ids, the account page's lists).
  *
- * Every new per-visitor query (the wallet's lists, the reading list…) goes under one of these
+ * Every new per-visitor query (the wallet's lists, the reading list's page…) goes under one of these
  * prefixes, or adds its own here: `useAccountQuery` refuses any other key (`isSessionQuery`), and
  * tests/unit/session/session-query-keys.test.tsx lists the keys of the other session-only reads.
  */
@@ -53,6 +54,7 @@ const SESSION_QUERIES: readonly QueryKey[] = [
   ['notifications'],
   ['addresses'],
   ORDERS_KEY,
+  ['reading-list'],
 ]
 
 /** Whether `queryKey` is under a `SESSION_QUERIES` prefix: a logout removes it. */

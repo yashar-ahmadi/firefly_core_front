@@ -1,4 +1,5 @@
 /** `GET homepage/` (content digest §2 and §6). Pure types. */
+import type { PostCard } from '@/lib/api/types/blog'
 import type { ProductCard } from '@/lib/api/types/catalog/product'
 import type { CategoryCard } from '@/lib/api/types/settings'
 
@@ -29,24 +30,8 @@ export interface HomeItem {
   link: HomeLink | null
 }
 
-/** A blog post card (also `GET blog/post/list/` and search). Link: `/blog/{slug}/`. */
-export interface PostCard {
-  id: number
-  name: string
-  slug: string
-  description: string | null
-  image: string
-  author: { full_name: string; avatar: string | null } | null
-  categories: { id: number; name: string; slug: string; parent_id: number | null }[]
-  comment_count: number
-  question_count: number
-  view_count: number
-  /** Viewer-specific; false in the shared response. */
-  is_in_reading_list: boolean
-  published_at: string | null
-  created: string
-  updated: string
-}
+/** A blog post card (also `GET blog/post/list/` and search): the blog's own type. */
+export type { PostCard } from '@/lib/api/types/blog'
 
 export interface HomeSectionHead {
   /** React key. */

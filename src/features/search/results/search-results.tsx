@@ -2,6 +2,7 @@ import { FileText } from 'lucide-react'
 import { CategoryThumb } from '@/components/layout/category-thumb'
 import { toCardProduct } from '@/features/catalog/card-product'
 import { ProductGrid } from '@/features/catalog/components/product-grid'
+import { blogPostPath } from '@/features/blog/blog-routes'
 import { brandPath, categoryPath } from '@/features/catalog/listing-routes'
 import type { SearchResults as Results } from '@/lib/api/types/search'
 import {
@@ -44,12 +45,13 @@ function compactItems(results: Results, kind: Exclude<ResultKind, 'products'>): 
     case 'blog_posts':
       return results.blog_posts.items.map((post) => ({
         key: post.id,
-        href: `/blog/${encodeURIComponent(post.slug)}/`,
+        href: blogPostPath(post.slug),
         name: post.name,
         description: post.description,
         // The cover, or the title's first letter while the API has only its placeholder.
+        // Prefetched as Next decides: a post's page renders no view for a prefetch (no
+        // loading.tsx, so the prefetch stops at the layouts).
         thumb: <CategoryThumb category={post} sizes="44px" className={SQUARE_THUMB} />,
-        prefetch: false,
       }))
     case 'pages':
       return results.pages.items.map((page) => ({
@@ -76,14 +78,17 @@ const COMPACT_KINDS = ['product_categories', 'brands', 'blog_posts', 'pages'] as
  * The results of a search, group by group in the API's order: products as the listing grid
  * (with the shared add slot: one tap for a simple product, quick view for a variable one),
  * then categories, brands, blog posts and pages as compact lists. A group with nothing found
- * is left out (content digest §7.1).
+ * is left out (content digest §7.1), and so are the posts while the blog is switched off
+ * (`blogEnabled`; the API sends none then anyway).
  */
 export function SearchResults({
   results,
   showOutOfStockLabel,
+  blogEnabled = true,
 }: {
   results: Results
   showOutOfStockLabel: boolean
+  blogEnabled?: boolean
 }) {
   const { products } = results
   return (
@@ -105,7 +110,7 @@ export function SearchResults({
       )}
       {COMPACT_KINDS.map((kind) => {
         const group = results[kind]
-        if (group.items.length === 0) return null
+        if (group.items.length === 0 || (kind === 'blog_posts' && !blogEnabled)) return null
         return (
           <ResultGroup
             key={kind}

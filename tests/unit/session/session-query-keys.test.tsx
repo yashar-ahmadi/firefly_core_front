@@ -28,6 +28,7 @@ import {
   withdrawalsKey,
 } from '@/features/wallet/api'
 import { WISHLIST_IDS_KEY } from '@/features/wishlist/hooks'
+import { READING_LIST_IDS_KEY, READING_LIST_KEY } from '@/features/blog/reading-list'
 import { createQueryClient } from '@/lib/query/query-client'
 import {
   clearViewerQueries,
@@ -79,6 +80,10 @@ const SESSION_READ_KEYS = [
   OPEN_WITHDRAWAL_KEY,
   paymentsKey({ applies_to: 'wallet_topup', page: 3 }),
   paymentKey('0b6f5a9e-3c1d-4f7a-9e2b-1a2b3c4d5e6f'),
+  // The reading list (Plan 5 Task 1): the post cards' saved ids; the account page's lists (Task
+  // 2) go under the same prefix.
+  READING_LIST_IDS_KEY,
+  [...READING_LIST_KEY, 'list', { sort: 'added-asc', page: 2 }],
 ]
 
 describe('SESSION_QUERIES', () => {
@@ -96,6 +101,7 @@ describe('SESSION_QUERIES', () => {
     [['orders-archive', 'x']],
     [['geo', 'provinces']],
     [['me-not', 'x']],
+    [['reading-lists', 'x']],
   ])('%j is not', (key) => {
     expect(isSessionQuery(key)).toBe(false)
   })

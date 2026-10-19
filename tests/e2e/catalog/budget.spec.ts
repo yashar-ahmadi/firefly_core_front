@@ -29,6 +29,10 @@ const ROUTES: BudgetRoute[] = [
   { name: 'compare', path: '/compare/' },
   { name: 'brand', path: '/brand/samsung/' },
   { name: 'brands', path: '/brand/' },
+  // Plan 5 Task 1: the blog counts as catalog-like (250 KB); its reading-list code stays off the
+  // catalog's routes.
+  { name: 'blog', path: '/blog/' },
+  { name: 'blog-category', path: '/blog/category/buying-guide/' },
   // Plan 3: the auth code lives on these routes alone (none of it on the catalog's).
   { name: 'login', path: '/login/' },
   { name: 'register', path: '/register/' },
