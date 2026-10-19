@@ -16,7 +16,8 @@ import { TopUpForm } from './top-up-form'
 import { useWalletUrl } from './use-wallet-url'
 import { walletAccess } from './wallet-access'
 import { parseWalletParams, WALLET_TABS, type WalletTab } from './wallet-params'
-import { useWallet, useWithdrawalRecord } from './wallet-queries'
+import { useWallet } from './wallet-queries'
+import { useWithdrawalRecord } from './withdrawal-record'
 import { WalletTabs } from './wallet-tabs'
 
 // `/account/wallet/` «کیف پول» (order digest §3.3, §5.12, §7; Plan 4 Task 9): «موجودی» and

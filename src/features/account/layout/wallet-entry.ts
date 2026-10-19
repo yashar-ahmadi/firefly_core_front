@@ -1,7 +1,7 @@
 'use client'
 
 import { useFeature } from '@/features/settings/feature-context'
-import { useWithdrawalRecord } from '@/features/wallet/wallet-queries'
+import { useWithdrawalRecord } from '@/features/wallet/withdrawal-record'
 import { useSummary } from '../dashboard/use-summary'
 
 // The way to the wallet page from the account's nav and the dashboard (Plan 4 final fix wave;

@@ -11,6 +11,14 @@ import type {
 } from '@/lib/api/types/wallet'
 import { WALLET_KEY } from '@/lib/session/viewer-queries'
 import { bankUrl, UnsafeHandoffError } from '@/features/payment/handoff-url'
+import { fetchWithdrawals, WITHDRAWALS_KEY } from './withdrawal-record'
+
+export {
+  fetchWithdrawals,
+  WITHDRAWALS_KEY,
+  withdrawalsKey,
+  type WithdrawalsPage,
+} from './withdrawal-record'
 
 // The wallet page's calls through the BFF, with the session only (order digest §3.2.9–3.2.10,
 // §3.3), every key under `WALLET_KEY` (SESSION_QUERIES: a login or a logout removes them; the
@@ -18,29 +26,19 @@ import { bankUrl, UnsafeHandoffError } from '@/features/payment/handoff-url'
 // uuid is a bearer credential: in a path and this tab's memory only, never in a URL or a log.
 
 export type LedgerPage = Paginated<WalletTransaction>
-export type WithdrawalsPage = Paginated<WithdrawalRequest>
 export type PaymentsPage = Paginated<PaymentHistoryItem>
 
 export const LEDGER_KEY = [...WALLET_KEY, 'transactions'] as const
-export const WITHDRAWALS_KEY = [...WALLET_KEY, 'withdrawals'] as const
 /** The one open request (requested or approved), whatever the list's filters. */
 export const OPEN_WITHDRAWAL_KEY = [...WITHDRAWALS_KEY, 'open'] as const
 export const PAYMENTS_KEY = [...WALLET_KEY, 'payments'] as const
 
 export const ledgerKey = (query: QueryInit) => [...LEDGER_KEY, query] as const
-export const withdrawalsKey = (query: QueryInit) => [...WITHDRAWALS_KEY, query] as const
 export const paymentsKey = (query: QueryInit) => [...PAYMENTS_KEY, query] as const
 export const paymentKey = (uuid: string) => [...WALLET_KEY, 'payment', uuid] as const
 
 export async function fetchLedger(query: QueryInit, signal?: AbortSignal): Promise<LedgerPage> {
   return (await bffFetch<LedgerPage>('wallet/transaction/list/', { query, signal })).data
-}
-
-export async function fetchWithdrawals(
-  query: QueryInit,
-  signal?: AbortSignal,
-): Promise<WithdrawalsPage> {
-  return (await bffFetch<WithdrawalsPage>('wallet/withdrawal/list/', { query, signal })).data
 }
 
 /** The open request, if any (one at a time: `requested` or `approved`, §7). */

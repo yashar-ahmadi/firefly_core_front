@@ -52,17 +52,6 @@ export function useWithdrawals(query: QueryInit, enabled = true): UseQueryResult
   })
 }
 
-/** Is there a withdrawal request on record (any status): one row is enough. */
-const RECORD = { limit: 1 }
-
-/**
- * The withdrawal record's first row: asked while the `wallet` switch is off, by the wallet page
- * (its withdrawals tab) and the account's nav and dashboard (their way to the page), one read.
- */
-export function useWithdrawalRecord(enabled: boolean): UseQueryResult<WithdrawalsPage> {
-  return useWithdrawals(RECORD, enabled)
-}
-
 export function useOpenWithdrawal(enabled = true): UseQueryResult<WithdrawalRequest | null> {
   return useAccountQuery({
     queryKey: OPEN_WITHDRAWAL_KEY,
