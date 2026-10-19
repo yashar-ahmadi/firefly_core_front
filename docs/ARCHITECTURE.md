@@ -432,10 +432,13 @@ and RSC requests alike (checked on the build); a client navigation whose RSC fet
 loads the page as a document, which shows the same. The page (`loadBlog`,
 `features/blog/availability.ts`) renders «وبلاگ موقتاً در دسترس نیست» with the reason, noindex,
 inside the shop's layout. When the switch goes off after the proxy last read it, the API refuses
-the page's read (`BlogUnavailableError`): the page shows the same, with 200 this once, and
-`noteBlogOff()` turns the proxy's state off at once, so the next request is a 503 (state on
-`globalThis`: the proxy and the pages are separate bundles of one process). Back on: within the
-minute. Storefront-owned blog links follow the shell's feature map (`getFeatureStatus()`): the
+the page's read (`BlogUnavailableError`): the page shows the same, with 200 this once **per server
+process** (still noindex, and `private, no-store` like every page), and `noteBlogOff()` turns that
+process's proxy state off at once, so its next request is a 503 (state on `globalThis`: the proxy
+and the pages are separate bundles of one process). A read of the switch already on its way then
+answers older news and is ignored (a generation counter), so it cannot turn the blog back on. The
+state is per process: each instance of a multi-instance deploy learns the switch on its own (its
+own minute's read, or its own first refused page). Back on: within the minute. Storefront-owned blog links follow the shell's feature map (`getFeatureStatus()`): the
 account's «لیست مطالعه» row, my comments' post links, the search results' posts group, and the
 reading-list bookmarks (also turned off by a refused write); the operator's menus come pre-filtered
 by the API.
