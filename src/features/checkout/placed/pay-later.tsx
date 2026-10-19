@@ -21,6 +21,8 @@ export interface PayLaterProps {
   expiresAt: string | null
   /** Whether the order still owes something (the link and deadline are shown then). */
   payable: boolean
+  /** Nothing is charged online (pay on delivery): its link confirms the order, not pays it. */
+  confirmOnly?: boolean
   className?: string
 }
 
@@ -30,6 +32,7 @@ export function PayLater({
   linkToken,
   expiresAt,
   payable,
+  confirmOnly = false,
   className,
 }: PayLaterProps) {
   if (!guest) {
@@ -61,8 +64,9 @@ export function PayLater({
       {payable && linkToken && (
         <>
           <p>
-            تا پایان مهلت پرداخت، این سفارش را با لینک پرداخت آن هم می‌توانید پرداخت کنید؛ این لینک
-            با پیامک هم برایتان فرستاده می‌شود.
+            {confirmOnly
+              ? 'تا پایان مهلت، این سفارش را با لینک آن هم می\u{200C}توانید تأیید کنید؛ این لینک با پیامک هم برایتان فرستاده می\u{200C}شود.'
+              : 'تا پایان مهلت پرداخت، این سفارش را با لینک پرداخت آن هم می\u{200C}توانید پرداخت کنید؛ این لینک با پیامک هم برایتان فرستاده می\u{200C}شود.'}
           </p>
           {/* A full page load (its URL holds the token): credential-routes.ts. */}
           <a
@@ -76,7 +80,7 @@ export function PayLater({
             <p className="flex flex-wrap items-center gap-x-2">
               <CalendarClock aria-hidden className="size-5 text-ink-500" />
               <span>
-                {'مهلت پرداخت: '}
+                {confirmOnly ? 'مهلت تأیید: ' : 'مهلت پرداخت: '}
                 <time dateTime={expiresAt}>{formatJalaliDateTime(expiresAt)}</time>
               </span>
               <span className="text-ink-600">

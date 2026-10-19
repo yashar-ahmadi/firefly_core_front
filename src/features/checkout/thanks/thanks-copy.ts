@@ -33,7 +33,7 @@ export function thanksCopy(
           title: 'سفارش شما تأیید شد',
           body: ctx.free
             ? 'سفارش رایگان شما ثبت و تأیید شد و به\u{200C}زودی آماده\u{0654} ارسال می\u{200C}شود.'
-            : `سفارش شما تأیید شد؛ مبلغ ${formatToman(ctx.D)} هنگام تحویل پرداخت می\u{200C}شود.`,
+            : `مبلغ ${formatToman(ctx.D)} هنگام تحویل پرداخت می\u{200C}شود.`,
           confirm: false,
           payable: false,
         }
@@ -41,7 +41,7 @@ export function thanksCopy(
         return {
           tone: 'success',
           title: 'سفارش شما پرداخت شد',
-          body: 'پرداخت با کیف پول انجام شد و سفارش شما در حال پردازش است.',
+          body: 'پرداخت با کیف پول انجام شد و سفارش شما در حال انجام است.',
           confirm: false,
           payable: false,
         }
@@ -49,7 +49,7 @@ export function thanksCopy(
         return {
           tone: 'warning',
           title: 'سفارش ثبت شد اما هنوز تأیید نشده است',
-          body: `${ctx.failure ? `${ctx.failure} ` : ''}تا پایان مهلت پرداخت می\u{200C}توانید سفارش را تأیید کنید؛ پس از تأیید، مبلغ هنگام تحویل پرداخت می\u{200C}شود.`,
+          body: `${ctx.failure ? `${ctx.failure} ` : ''}تا پایان مهلت تأیید می\u{200C}توانید سفارش را تأیید کنید؛ پس از تأیید، مبلغ هنگام تحویل پرداخت می\u{200C}شود.`,
           confirm: true,
           payable: true,
         }

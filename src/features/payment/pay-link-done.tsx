@@ -31,12 +31,12 @@ function copy(outcome: LinkOutcome, link: OrderPaymentLink): { title: string; bo
     case 'paid':
       return {
         title: 'سفارش شما پرداخت شد',
-        body: `پرداخت سفارش ${code} با کیف پول انجام شد و سفارش در حال پردازش است.`,
+        body: `پرداخت سفارش ${code} با کیف پول انجام شد و سفارش در حال انجام است.`,
       }
     case 'settled':
       return {
         title: 'پرداخت سفارش انجام شد',
-        body: `پرداخت سفارش ${code} ثبت شد و سفارش در حال پردازش است.`,
+        body: `پرداخت سفارش ${code} ثبت شد و سفارش در حال انجام است.`,
       }
     case 'cancelled':
       return {

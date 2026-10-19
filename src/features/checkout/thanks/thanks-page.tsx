@@ -125,6 +125,7 @@ export function ThanksPage({ code, supportPhone }: { code: string; supportPhone:
         linkToken={linkToken}
         expiresAt={expiresAt}
         payable={copy.payable}
+        confirmOnly={(ctx?.A ?? guestOrder?.A) === 0}
       />
       {/* Opened signed in without this tab's record: tracking works for any order too. */}
       {!guest && !ctx && (

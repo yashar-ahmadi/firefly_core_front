@@ -73,9 +73,11 @@ describe('ThanksPage', () => {
     savePlaced(context({ outcome: 'confirmed', D: 2_438_000 }))
     const view = renderThanks()
     expect(await screen.findByRole('heading', { name: 'سفارش شما تأیید شد' })).toBeInTheDocument()
+    // Said once, in the title: the body says what comes next.
     expect(document.body).toHaveTextContent(
-      'سفارش شما تأیید شد؛ مبلغ ۲٬۴۳۸٬۰۰۰ تومان هنگام تحویل پرداخت می\u{200C}شود.',
+      'مبلغ ۲٬۴۳۸٬۰۰۰ تومان هنگام تحویل پرداخت می\u{200C}شود.',
     )
+    expect(screen.getAllByText(/سفارش شما تأیید شد/)).toHaveLength(1)
     expect(screen.queryByRole('link', { name: 'لینک پرداخت سفارش' })).not.toBeInTheDocument()
     view.unmount()
     savePlaced(context({ outcome: 'confirmed', free: true, D: 0 }))
@@ -86,7 +88,13 @@ describe('ThanksPage', () => {
   it('a confirmation that failed: «تأیید سفارش» again (a new key), then confirmed', async () => {
     const user = userEvent.setup()
     savePlaced(
-      context({ outcome: 'unconfirmed', route: 'pay_on_delivery', failure: 'خطا.', D: 2_438_000 }),
+      context({
+        outcome: 'unconfirmed',
+        route: 'pay_on_delivery',
+        failure: 'خطا.',
+        A: 0,
+        D: 2_438_000,
+      }),
     )
     mocks.bffFetch
       .mockRejectedValueOnce(
@@ -97,6 +105,12 @@ describe('ThanksPage', () => {
     expect(
       await screen.findByRole('heading', { name: 'سفارش ثبت شد اما هنوز تأیید نشده است' }),
     ).toBeInTheDocument()
+    // Nothing is paid online: its link confirms it, before the deadline to confirm.
+    expect(document.body).toHaveTextContent(
+      'تا پایان مهلت، این سفارش را با لینک آن هم می\u{200C}توانید تأیید کنید',
+    )
+    expect(document.body).toHaveTextContent('مهلت تأیید:')
+    expect(document.body).not.toHaveTextContent(/مهلت پرداخت|پرداخت کنید/)
     await user.click(screen.getByRole('button', { name: 'تأیید سفارش' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('درگاه بانک پاسخ نداد')
     await user.click(screen.getByRole('button', { name: 'تأیید سفارش' }))
@@ -112,6 +126,10 @@ describe('ThanksPage', () => {
     savePlaced(context({ outcome: 'paid' }, false))
     renderThanks(true)
     expect(await screen.findByRole('heading', { name: 'سفارش شما پرداخت شد' })).toBeInTheDocument()
+    // The order's status in the API's own word («در حال انجام»), as the result page says it.
+    expect(document.body).toHaveTextContent(
+      'پرداخت با کیف پول انجام شد و سفارش شما در حال انجام است.',
+    )
     expect(
       screen.getByRole('link', { name: 'مشاهده\u{0654} سفارش در حساب کاربری' }),
     ).toHaveAttribute('href', `/account/orders/${CODE}/`)

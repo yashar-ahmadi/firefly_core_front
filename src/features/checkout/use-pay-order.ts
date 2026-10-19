@@ -45,7 +45,7 @@ export interface PayState {
 const IDLE: PayState = { phase: 'choosing', error: null, handoff: null, bankLoadFailed: false }
 
 /** What the thanks page says of an order whose open attempt settled meanwhile. */
-const PAID = 'پرداخت این سفارش ثبت شد و سفارش شما در حال پردازش است.'
+const PAID = 'پرداخت این سفارش ثبت شد و سفارش شما در حال انجام است.'
 
 /** The redirect, loaded on the click that needs it. Rejects when its chunk cannot load. */
 const loadGoToBank = () => import('@/features/payment/go-to-bank').then((module) => module.goToBank)
