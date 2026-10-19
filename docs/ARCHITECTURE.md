@@ -390,9 +390,13 @@ Never cached (`cache: 'no-store'`, and `Cache-Control: no-store` on our response
 - every BFF call (cart, auth, account, orders, payment status, search…);
 - `redirects/resolve/` (counts hits; a disabled rule must stop at once) — 1 s timeout, fails open;
 - `shortener/<code>/` (each 200 counts a visit; the answer is always a 302, never a 301). A
-  prefetch of `/s/<code>` (`next-router-prefetch`, `Purpose: prefetch`, `Sec-Purpose: prefetch`)
-  gets an uncached 204 without an API call, and storefront links to `/s/` are plain `<a>` elements
-  (`isShortLinkPath()` in `lib/links/short-link.ts`), never a prefetching Next `Link`;
+  prefetch of `/s/<code>` never calls the API and is answered uncached (`src/app/s/[code]/route.ts`,
+  `prefetchKind()` in `lib/http/prefetch.ts`): the Next router's (`next-router-prefetch`) gets a
+  204; a browser's speculative one (`Purpose: prefetch` or `Sec-Purpose: prefetch`) gets a 503,
+  because the browser keeps a 2xx and serves it on the click, which would then never reach us,
+  while a non-2xx is discarded and the click navigates and is counted. Storefront links to `/s/`
+  are plain `<a>` elements (`isShortLinkPath()` in `lib/links/short-link.ts`), never a
+  prefetching Next `Link`;
 - token refresh, the bank callback, the robots 503 fallback and `/healthz/`;
 - forwarded `/media/`, `/static/` and `/sitemap.xml` (proxied as is; the backend's headers apply).
 
