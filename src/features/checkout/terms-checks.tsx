@@ -27,10 +27,12 @@ export function missingTerms(terms: CheckoutTerms, accepted: TermsAccepted): Ter
 /**
  * The operator's `terms` and `return-policy` slots as dialog links («مطالعهٔ قوانین», «رویهٔ
  * بازگرداندن کالا»: DynamicSlot, rendered by the route), under the terms' sentence, in line with
- * its words. Hidden when both slots are empty (each renders nothing then).
+ * its words (`indent`: with a checkbox to line up with). Hidden when both slots are empty (each
+ * renders nothing then): `display: none`, so no gap is left for it in the form's column.
  */
-function TermsLinks({ links }: { links: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-x-5 ps-9 empty:hidden">{links}</div>
+function TermsLinks({ links, indent = true }: { links: ReactNode; indent?: boolean }) {
+  const row = 'flex flex-wrap items-center gap-x-5 empty:hidden'
+  return <div className={indent ? `${row} ps-9` : row}>{links}</div>
 }
 
 export function TermsChecks({
@@ -48,7 +50,9 @@ export function TermsChecks({
   links?: ReactNode
 }) {
   const keys = (['accept', 'legalAge'] as const).filter((key) => terms[key])
-  if (keys.length === 0 && !links) return null
+  // No sentence: the links alone, straight in the form's column (no wrapper of their own, which
+  // would keep a gap there with both slots empty), and nothing to line them up with.
+  if (keys.length === 0) return links ? <TermsLinks links={links} indent={false} /> : null
   return (
     <div className="flex flex-col gap-1">
       {!terms.accept && links && <TermsLinks links={links} />}
