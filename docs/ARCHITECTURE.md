@@ -795,7 +795,13 @@ the address bar and the tab's history; a reload of what is left reads it back fr
 (only when its `result` and `code` match, so another return in the tab never takes it). The page
 stays under the `/payment/` prefix either way. The uuid is also in `localStorage`'s pending
 payments (Plan 4, saved before the bank) on every page of the origin; the result page removes its
-entry once the payment settled.
+entry once the payment settled, entries older than 7 days go at the next save, and a logout
+(every outcome that ends the session, `forgetSignedInStorage` in `use-logout.ts`) removes the
+ones saved while signed in (each entry is marked with whether the flag cookie was set; entries
+kept before that mark go too, a guest's own stay), with this tab's last placed order
+(`ff-checkout-placed`) and its placement key. A guest's recent orders (`ff-guest-orders`, the link
+token once, no URL beside it) are kept 30 days on the device: the link pays only until the payment
+deadline (72 hours, a week after a receipt), the code stays for tracking.
 
 **The way to the bank** (`src/features/payment/go-to-bank.ts`) leaves only for a handoff URL that
 `bankUrl()` (`handoff-url.ts`) accepts: `https:`, and `http:` only in a build that is not

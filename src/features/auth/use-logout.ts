@@ -20,6 +20,7 @@ import { useSession } from '@/lib/session/session-context'
 import { clearViewerQueries } from '@/lib/session/viewer-queries'
 import { authApi } from './api'
 import { LOGOUT_STEP_TIMEOUT_MS, runBeforeLogout } from './logout-hooks'
+import { forgetSignedInStorage } from './logout-storage'
 
 export interface LogoutOptions {
   /** Every device (`logout-all/`), not only this one. */
@@ -77,7 +78,8 @@ function tell(kind: 'success' | 'error', message: string): void {
  *    disabled before anything else, so none of them asks again and meets a 401, and each counts
  *    as unobserved for the sweep below.
  * 2. `clearViewerQueries`: the registered session queries go (and a checkout receiver kept in the
- *    tab, `clearReceiverDraft`), the cart and product payloads on
+ *    tab, `clearReceiverDraft`; the pending payments saved while signed in, the tab's last placed
+ *    order and placement key, `forgetSignedInStorage`), the cart and product payloads on
  *    screen read again as a guest's (hearts, the cart badge, the comment «شما» marks).
  * 3. Every query no enabled observer reads goes. Queries still read on screen stay attached
  *    (removing an observed query would detach its component from the cache).
@@ -88,6 +90,7 @@ function forgetVisitor(client: QueryClient, setHasSession: (value: boolean) => v
   flushSync(() => setHasSession(false))
   const cleared = clearViewerQueries(client)
   clearReceiverDraft()
+  forgetSignedInStorage()
   client.removeQueries({ type: 'inactive' })
   if (window.location.pathname !== '/') sweepAfterNavigation()
   return cleared

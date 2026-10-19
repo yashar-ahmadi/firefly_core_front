@@ -200,6 +200,8 @@ describe('the press', () => {
         route: 'bank_gateway',
         amount: 250_000,
         startedAt: expect.any(Number),
+        // Whether a session was on (the flag cookie): a logout forgets the session's.
+        session: expect.any(Boolean),
       },
     })
   })

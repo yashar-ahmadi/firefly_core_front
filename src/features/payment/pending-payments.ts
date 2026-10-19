@@ -1,11 +1,15 @@
 import type { PaymentRoute } from '@/lib/api/types/payment'
+import { flagCookieSet } from '@/lib/session/flag-cookie'
 import { isRecord, readJson, writeJson } from '@/lib/store/json-storage'
 
 // What the result page needs to find its way back after the bank (Plan 4 Global Constraints;
 // order digest §5.4 step 3): saved in localStorage BEFORE the browser leaves for the bank, by
 // payment uuid (`ff-pending-payments`), since the status endpoint returns neither the link token
 // nor the order uuid and a guest has no history. Entries older than 7 days are dropped. A uuid
-// and a link token are bearer credentials: they stay in this store, never in a log.
+// and a link token are bearer credentials: they stay in this store, never in a log. Each entry
+// says whether it was saved with a session (the flag cookie set then): a logout forgets those
+// (`forgetSessionPayments`), and the entries kept before that mark, whose owner cannot be told;
+// a guest's own stay for the guest's way back.
 
 export const PENDING_KEY = 'ff-pending-payments'
 export const PENDING_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
@@ -22,6 +26,8 @@ export interface PendingPayment {
   amount: number
   /** Epoch milliseconds. */
   startedAt: number
+  /** Saved while signed in (set by `savePending`; absent from entries kept before it was). */
+  session?: boolean
 }
 
 const isPending = (value: unknown): value is PendingPayment =>
@@ -29,7 +35,8 @@ const isPending = (value: unknown): value is PendingPayment =>
   (value.kind === 'order' || value.kind === 'topup') &&
   typeof value.route === 'string' &&
   typeof value.amount === 'number' &&
-  typeof value.startedAt === 'number'
+  typeof value.startedAt === 'number' &&
+  (value.session === undefined || typeof value.session === 'boolean')
 
 function readAll(): Record<string, PendingPayment> {
   const stored = readJson('local', PENDING_KEY)
@@ -44,9 +51,13 @@ const fresh = (entries: Record<string, PendingPayment>, now: number) =>
     Object.entries(entries).filter(([, entry]) => now - entry.startedAt <= PENDING_MAX_AGE_MS),
   )
 
-/** Saves `ctx` under `uuid` (the old entries pruned first); false when the storage refused. */
+/**
+ * Saves `ctx` under `uuid` (the old entries pruned first), marked with whether a session is on;
+ * false when the storage refused.
+ */
 export function savePending(uuid: string, ctx: PendingPayment): boolean {
-  return writeJson('local', PENDING_KEY, { ...fresh(readAll(), Date.now()), [uuid]: ctx })
+  const entry = { ...ctx, session: flagCookieSet() }
+  return writeJson('local', PENDING_KEY, { ...fresh(readAll(), Date.now()), [uuid]: entry })
 }
 
 export function getPending(uuid: string): PendingPayment | null {
@@ -57,6 +68,16 @@ export function getPending(uuid: string): PendingPayment | null {
 export function prunePending(now: number = Date.now()): void {
   const entries = readAll()
   const kept = fresh(entries, now)
+  if (Object.keys(kept).length !== Object.keys(entries).length)
+    writeJson('local', PENDING_KEY, kept)
+}
+
+/** A logout: forgets every entry but a guest's own (saved without a session, and so marked). */
+export function forgetSessionPayments(): void {
+  const entries = readAll()
+  const kept = Object.fromEntries(
+    Object.entries(entries).filter(([, entry]) => entry.session === false),
+  )
   if (Object.keys(kept).length !== Object.keys(entries).length)
     writeJson('local', PENDING_KEY, kept)
 }
