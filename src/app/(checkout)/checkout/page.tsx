@@ -4,12 +4,17 @@ import { cn } from '@/components/ui/cn'
 import { CHECKOUT_HEADING_ID } from '@/features/checkout/checkout-heading'
 import { CheckoutPage } from '@/features/checkout/checkout-page'
 import { checkoutTerms } from '@/features/checkout/terms'
+import { DynamicSlot } from '@/features/content/dynamic/dynamic-slot'
+import { SLOT_KEYS } from '@/features/content/dynamic/slot-keys'
 import { getPaymentCatalog } from '@/features/payment/catalog'
 import { seoMetadata } from '@/features/seo/metadata'
 import { shopName } from '@/features/seo/shop-name'
 import { getSiteSettings } from '@/features/settings/api'
 
 const TITLE = 'تکمیل خرید'
+/** The terms slots' dialog links, beside the review's terms checkbox. */
+const TERMS_LINK = 'مطالعهٔ قوانین'
+const RETURN_POLICY_LINK = 'رویهٔ بازگرداندن کالا'
 const PATH = '/checkout/'
 
 // The visitor's own checkout: rendered on every request and never cached (Plan 4: noindex and
@@ -40,9 +45,27 @@ export default async function CheckoutRoute() {
       >
         {TITLE}
       </h1>
+      {/* The operator's `checkout` message slot; its links, like the terms', in a new tab. */}
+      <DynamicSlot pageType={SLOT_KEYS.checkout} variant="inline" newTabLinks />
       <CheckoutPage
         catalog={catalog}
         terms={checkoutTerms(settings)}
+        termsLinks={
+          <>
+            <DynamicSlot
+              pageType={SLOT_KEYS.terms}
+              variant="dialog-link"
+              label={TERMS_LINK}
+              newTabLinks
+            />
+            <DynamicSlot
+              pageType={SLOT_KEYS.returnPolicy}
+              variant="dialog-link"
+              label={RETURN_POLICY_LINK}
+              newTabLinks
+            />
+          </>
+        }
         supportPhone={settings?.phone?.trim() || null}
       />
     </div>

@@ -29,6 +29,8 @@ const SEAL =
 const mocks = vi.hoisted(() => ({ menu: [] as unknown[], snippets: [] as unknown[] }))
 
 vi.mock('server-only', () => ({}))
+// The message slots are checkout-slots.test.tsx's: none here.
+vi.mock('@/features/content/dynamic/api', () => ({ getDynamicContent: async () => null }))
 vi.mock('next/headers', () => ({
   // An ordinary page, as the proxy marks it (operator code renders only there).
   headers: async () => new Headers({ 'x-ff-route-kind': 'page' }),
@@ -51,7 +53,11 @@ vi.mock('@/features/settings/api', () => ({
   getMenu: async () => mocks.menu,
 }))
 vi.mock('@/config/store-config', () => ({
-  getStoreConfig: () => ({ name: 'فایرفلای', siteUrl: 'http://localhost:3000' }),
+  getStoreConfig: () => ({
+    name: 'فایرفلای',
+    siteUrl: 'http://localhost:3000',
+    apiUrl: 'http://localhost:8000',
+  }),
 }))
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -175,7 +181,7 @@ describe('/checkout/', () => {
   })
 
   it('renders its heading, then the checkout read in the browser', async () => {
-    render(await resolveServerTree(CheckoutRoute()), { wrapper })
+    render(await resolveServerTree(await CheckoutRoute()), { wrapper })
     expect(screen.getByRole('heading', { level: 1, name: 'تکمیل خرید' })).toBeInTheDocument()
     expect(screen.getByRole('status', { name: 'در حال بارگذاری' })).toBeInTheDocument()
   })

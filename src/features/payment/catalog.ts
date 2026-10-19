@@ -1,6 +1,6 @@
 import 'server-only'
 import { cache } from 'react'
-import { richContentHtml } from '@/features/content/rich-content'
+import { richContentHtml } from '@/features/content/rich-content-html'
 import { ApiError } from '@/lib/api/errors'
 import { apiFetch } from '@/lib/api/server'
 import type { Paginated } from '@/lib/api/types/common'

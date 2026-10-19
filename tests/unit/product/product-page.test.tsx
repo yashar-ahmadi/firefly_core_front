@@ -33,6 +33,8 @@ vi.mock('@/features/catalog/api', () => ({
   getProductSettings: mocks.getProductSettings,
   getFirstComments: mocks.getFirstComments,
 }))
+// The `product` message slot is its own test's (product-slot.test.tsx): none here.
+vi.mock('@/features/content/dynamic/api', () => ({ getDynamicContent: async () => null }))
 vi.mock('@/features/settings/api', () => ({
   getTranslations: async () => ({}),
   getSiteSettings: async () => ({ name: 'فایرفلای', phone: '+982191000000' }),

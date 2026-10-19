@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from 'react'
 import { getProductSettings } from '@/features/catalog/api'
 import { hasImage } from '@/features/home/promo-tile'
 import { getTranslations } from '@/features/settings/api'
@@ -59,11 +60,18 @@ function Section({ section, ...context }: { section: HomeSection } & SectionCont
  * left with nothing to show, render nothing. Only the first picture of the first slider or
  * banner group loads eagerly with high priority (the LCP rule), even after a rich text.
  */
-export async function SectionRenderer({ sections }: { sections: HomeSection[] }) {
+export async function SectionRenderer({
+  sections,
+  notice,
+}: {
+  sections: HomeSection[]
+  /** Placed after the first section (the operator's `home` message slot), or first with none. */
+  notice?: ReactNode
+}) {
   const [settings, translations] = await Promise.all([getProductSettings(), getTranslations()])
   const seeAllLabel = createTranslator(translations)('see_all')
   const lcp = firstImageSection(sections)
-  return sections.map((section, index) => (
+  const rendered = sections.map((section, index) => (
     <Section
       key={section.id}
       section={section}
@@ -72,4 +80,6 @@ export async function SectionRenderer({ sections }: { sections: HomeSection[] })
       seeAllLabel={seeAllLabel}
     />
   ))
+  if (notice) rendered.splice(1, 0, <Fragment key="notice">{notice}</Fragment>)
+  return rendered
 }

@@ -1,5 +1,5 @@
 import 'server-only'
-import { richContentHtml } from '@/features/content/rich-content'
+import { richContentHtml } from '@/features/content/rich-content-html'
 import type { SiteSettings } from '@/lib/api/types/settings'
 import type { CheckoutTerms } from './terms-checks'
 

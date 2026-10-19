@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { ListError } from '@/features/account/lists/list-error'
 import { useCart } from '@/features/cart/hooks'
@@ -56,9 +56,16 @@ export interface CheckoutPageProps {
   terms: CheckoutTerms
   /** The shop's support line (E.164), for a payment the shop cannot take. */
   supportPhone: string | null
+  /** The operator's `terms` and `return-policy` dialog links (DynamicSlot), for the review. */
+  termsLinks?: ReactNode
 }
 
-export function CheckoutPage({ catalog: initial, terms, supportPhone }: CheckoutPageProps) {
+export function CheckoutPage({
+  catalog: initial,
+  terms,
+  supportPhone,
+  termsLinks,
+}: CheckoutPageProps) {
   const catalog = usePaymentCatalog(initial)
   const { data: current } = useCart()
   const { hasSession } = useSession()
@@ -190,6 +197,7 @@ export function CheckoutPage({ catalog: initial, terms, supportPhone }: Checkout
             payment={payment}
             placement={placement}
             terms={terms}
+            termsLinks={termsLinks}
           />
         </StepSection>
       </div>

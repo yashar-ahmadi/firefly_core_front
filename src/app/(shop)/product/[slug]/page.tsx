@@ -8,6 +8,8 @@ import { isPlaceholderImage } from '@/components/layout/menu-tree'
 import { cn } from '@/components/ui/cn'
 import { getStoreConfig } from '@/config/store-config'
 import { getFirstComments, getProductDetail, getProductSettings } from '@/features/catalog/api'
+import { InlineSlot } from '@/features/content/dynamic/inline-slot'
+import { SLOT_KEYS } from '@/features/content/dynamic/slot-keys'
 import { AdminFaq } from '@/features/catalog/components/admin-faq'
 import { ConsiderBeforeBuying } from '@/features/catalog/components/consider-before-buying'
 import { categoryPath, productPath } from '@/features/catalog/listing-routes'
@@ -153,6 +155,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </div>
       </div>
       <div className={cn(CONTAINER, 'flex flex-col gap-6 pb-10 md:gap-8 md:pb-14')}>
+        {/* The operator's `product` message slot (every product page), under the buy box as a
+            phone reads it, before the sections: server HTML, no code (CUSTOMIZATION). */}
+        <InlineSlot pageType={SLOT_KEYS.product} />
         {/* The bar stays stuck while these four sections pass, then leaves with them. */}
         <div className="flex flex-col gap-4 md:gap-6">
           <ProductSectionsNav items={sections} />

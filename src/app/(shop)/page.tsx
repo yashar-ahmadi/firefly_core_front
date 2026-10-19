@@ -4,6 +4,8 @@ import { CONTAINER } from '@/components/layout/container'
 import { cn } from '@/components/ui/cn'
 import { getStoreConfig } from '@/config/store-config'
 import { getHomePage } from '@/features/catalog/api'
+import { InlineSlot } from '@/features/content/dynamic/inline-slot'
+import { SLOT_KEYS } from '@/features/content/dynamic/slot-keys'
 import { buildHomeMetadata } from '@/features/home/home-metadata'
 import { SectionRenderer } from '@/features/home/sections/section-renderer'
 import { RecentlyViewedStrip } from '@/features/recently-viewed/strip'
@@ -36,7 +38,12 @@ export default async function ShopHomePage() {
       ))}
       <h1 className="sr-only">{storeName(config, settings)}</h1>
       <div className={cn(CONTAINER, 'flex flex-col gap-8 pt-4 pb-10 md:gap-12 md:pt-6 md:pb-14')}>
-        <SectionRenderer sections={home.sections} />
+        {/* The operator's `home` message slot, under the first section (the hero, usually):
+            seen early, without pushing the page's main picture down (CUSTOMIZATION). */}
+        <SectionRenderer
+          sections={home.sections}
+          notice={<InlineSlot pageType={SLOT_KEYS.home} />}
+        />
         {config.features.recentlyViewed && <RecentlyViewedStrip />}
       </div>
     </>

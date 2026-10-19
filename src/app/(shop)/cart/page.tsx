@@ -4,6 +4,8 @@ import { CONTAINER } from '@/components/layout/container'
 import { cn } from '@/components/ui/cn'
 import { CART_HEADING_ID } from '@/features/cart/cart-heading'
 import { CartPage } from '@/features/cart/components/cart-page'
+import { InlineSlot } from '@/features/content/dynamic/inline-slot'
+import { SLOT_KEYS } from '@/features/content/dynamic/slot-keys'
 import { seoMetadata } from '@/features/seo/metadata'
 import { shopName } from '@/features/seo/shop-name'
 
@@ -37,6 +39,8 @@ export default function CartRoute() {
       >
         {TITLE}
       </h1>
+      {/* The operator's `cart` message slot, above the cart: server HTML, no code on the page. */}
+      <InlineSlot pageType={SLOT_KEYS.cart} />
       <CartPage />
     </div>
   )

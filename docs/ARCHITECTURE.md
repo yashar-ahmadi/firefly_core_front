@@ -397,6 +397,7 @@ cart token. React `cache()` dedupes loaders within one render. The backend sends
 | `faq/category/list/?limit=100&page=…` (all pages) | `getFaqCategories()` (`features/faq/api.ts`): the help centre, anonymous | 600 s | `faq` |
 | `contact-us/subject/list/?limit=100&page=…` (all pages) | `getContactSubjects()` (`features/contact/api.ts`): the contact form's subjects; expired at once by the BFF when a message is refused for a stale list (see Help centre, contact page and linker) | 300 s | `contact-subjects` |
 | `linker/` | `getLinker()` (`features/linker/api.ts`): `/links/` | 300 s | `linker` |
+| `global/dynamic-content/<key>/` | `getDynamicContent()` (`features/content/dynamic/api.ts`): the message slots (home, product, cart, checkout, the review's terms dialogs); a 404 remembered a minute in process memory | 300 s | `dynamic-content:<key>`, `dynamic-content` |
 | `product/detail/<slug>/comment/list/?comment_type=…&page=1` | `getFirstComments()`: page 1 of the reviews and of the questions, server-rendered in their own in-page `<Suspense>` after the product (spec §8.13); later pages, and page 1 again for a signed-in visitor (`is_current_user`), come through the BFF | 60 s | `product:<slug>`, `catalog` |
 | `robots/?format=txt` | `/robots.txt` route | 300 s (fetch level) | — |
 | `redirects/list/` (rule sources only) | `knownSources()`, in process memory | 5 min (a failed load is retried after 30 s) | — |
@@ -648,8 +649,47 @@ Plan 5 Task 4: `/faq/` and `/contact-us/` in the shop's layout, `/links/` in its
   without the origin); any other video a button; an unknown type nothing. The site's CSP has
   `frame-ancestors` only (who may frame the shop), no `frame-src`, so the embeds need no CSP
   change; adding a `frame-src` alone would block every other frame (Google's sign-in button, an
-  operator snippet's) unless listed too. A linker never saved (`name === ''`) is a real 404; the page is indexable, its title the
-  name, its canonical `/links/`. A server component: the route ships the root layout's code alone.
+  operator snippet's) unless listed too. A linker never saved (`name === ''`) is a real 404; the
+  page is indexable, its title the name, its canonical `/links/`. A server component: the route
+  ships the root layout's code alone.
+
+### Message slots (dynamic content)
+
+Plan 5 Task 5 (auth-settings digest §7.8–7.9). A content page type is a message slot, not a page:
+the operator creates one in the panel with a slug-style key and fills it with description and
+warning items. The storefront's keys and places are in `SLOT_KEYS`
+(`features/content/dynamic/slot-keys.ts`) and CUSTOMIZATION («جای پیام‌ها»): `home` (under the
+home page's first section: `SectionRenderer`'s `notice`), `product` (under the buy box, before the
+sections), `cart` and `checkout` (under the page heading), `terms` and `return-policy` (dialog
+links «مطالعهٔ قوانین» and «رویهٔ بازگرداندن کالا» right after the review's terms checkbox, or on
+their own without one).
+
+- **The read** (`getDynamicContent`, `features/content/dynamic/api.ts`):
+  `global/dynamic-content/<key>/`, anonymous, cached 300 s, tagged `dynamic-content:<key>` and
+  `dynamic-content`. A 404 (no
+  such slot, or switched off) is remembered a minute in process memory, as the catalog's are (Next
+  caches only 200s), so an empty slot costs no API call per visit. Any other failure gives null,
+  logged with its status alone. Only slug-style keys are read. It never throws.
+- **The content** (`slotContent`): each item's HTML through the shared sanitiser on the server
+  (`richContentHtml`, from `content/rich-content-html.ts`), relative `/media` and `/static` made
+  absolute (the API leaves them relative); an item with nothing visible is dropped; no item, no
+  slot.
+- **`DynamicSlot({ pageType, variant })`** (`dynamic-slot.tsx`): `inline` is server HTML only
+  (`slotBody`: host elements, an inline SVG icon): descriptions as content blocks (their title a
+  heading), warnings as an `aside role="note"` with the icon and their title, or «توجه», in words.
+  Its links are plain links: a post's is never prefetched (P5-R1), a short link counts once.
+  `dialog-link` is a tiny client island (`SlotDialogLink`): a button whose dialog's code
+  (`slot-dialog.tsx`, the kit's Dialog) loads on the first press or when the pointer or focus
+  reaches it. The content comes rendered from the server as the island's children: no BFF entry,
+  no client fetch, no sanitiser in the browser. The server knows from the same cached read whether
+  to render the button at all. The dialog is named by the slot's title; the focus goes to its
+  «بستن» (×), never to a link in the content, and back to the button on close.
+- **`InlineSlot`** (`inline-slot.tsx`) is the inline variant on its own, for pages with no
+  dialog-link slot (home, product, cart): Turbopack puts every client component a page's server
+  modules import into that page's chunks, rendered or not, so importing `DynamicSlot` cost those
+  pages 0.2–0.7 KB with every slot empty (`tests/unit/content/slot-imports.test.ts` guards it).
+  The same holds for `RichContentBody`: `richContentHtml` lives apart from `RichContent`, and the
+  checkout's server helpers import it from there.
 
 ## Rendering rules
 
@@ -947,6 +987,21 @@ Plan 5 Task 4: `/faq/` and `/contact-us/` in the shop's layout, `/links/` in its
   an unknown URL costs 202.0 KB (was 196.7: the shop layout's extras, such as the compare bar,
   now come with it). The HTML of a checkout page halved (82 → 43 KB). A future root-level boundary
   (not-found, error, forbidden) must stay as light: whatever it renders is on every page.
+- **Message slots (Plan 5 Task 5).** An inline slot is server HTML: home, product, catalog and
+  `/cart/` are byte-identical with their slots (empty in dev, and the mock's full ones measured
+  the same). That holds only because those pages import `InlineSlot`, never `DynamicSlot`:
+  Turbopack puts every client component a page's server modules import into that page's chunks,
+  rendered or not (importing `DynamicSlot` cost them 0.2–0.7 KB with every slot empty). The
+  checkout pays for the dialog-link button: +19 B for a guest and sara's refused writes, +97 B at
+  the review (the guards: 213.6, 216.9 and 212.4 KB), because the button (about 0.4 KB) replaced
+  `RichContentBody`, which the checkout had carried only through its server helpers' import of
+  `richContentHtml` (now `content/rich-content-html.ts`). The same move took it out of the
+  account's orders, order and wallet pages (through the payment catalog): 260–307 B less each.
+  The content pages, which render it, load the same 32 modules as before in two chunks split
+  differently: +132 B of compression. The dialog's code loads on the first
+  press, never on arrival: 38.7 KB in the review state (the kit's Dialog 6.0 KB, the overlays'
+  base 8.7 KB, and 23.9 KB of chunks Turbopack shares with the steps' form controls), with
+  «در حال باز شدن…» said meanwhile.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each

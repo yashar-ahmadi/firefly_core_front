@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
 import { AuthForm } from '@/components/form/auth-form'
 import { useSubmitWait } from '@/components/form/code-timers'
 import { SubmitButton } from '@/components/form/submit-button'
@@ -75,9 +75,17 @@ export interface ReviewSectionProps {
   payment: RouteChoiceState
   placement: Placement
   terms: CheckoutTerms
+  /** The operator's terms dialog links (rendered by the route), beside the terms' checkbox. */
+  termsLinks?: ReactNode
 }
 
-export function ReviewSection({ checkout, payment, placement, terms }: ReviewSectionProps) {
+export function ReviewSection({
+  checkout,
+  payment,
+  placement,
+  terms,
+  termsLinks,
+}: ReviewSectionProps) {
   const cart = checkout.cart!
   // The cart read again on arrival (prices are live): the button works once it is back; a read
   // that failed says so, with another try (never a press on a cart not read).
@@ -150,6 +158,7 @@ export function ReviewSection({ checkout, payment, placement, terms }: ReviewSec
         </Field>
         <TermsChecks
           terms={terms}
+          links={termsLinks}
           accepted={accepted}
           errors={termErrors}
           onChange={(key, checked) => {

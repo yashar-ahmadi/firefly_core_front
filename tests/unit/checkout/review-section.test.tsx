@@ -158,6 +158,47 @@ describe('ReviewSection', () => {
     })
   })
 
+  it('the slots’ dialog links sit right after the terms’ checkbox (Plan 5 Task 5)', async () => {
+    serve(mocks.bffFetch, () => onlineCart())
+    renderCheckout({
+      cart: onlineCart(),
+      props: {
+        terms: TERMS,
+        termsLinks: (
+          <>
+            <button type="button">مطالعهٔ قوانین</button>
+            <button type="button">رویهٔ بازگرداندن کالا</button>
+          </>
+        ),
+      },
+    })
+    await placeButton()
+    const form = within(review())
+    const [accept, legalAge] = form.getAllByRole('checkbox')
+    const links = form.getAllByRole('button', { name: /مطالعهٔ قوانین|رویهٔ بازگرداندن کالا/ })
+    expect(links).toHaveLength(2)
+    for (const link of links) {
+      expect(accept!.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(
+        link.compareDocumentPosition(legalAge!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    }
+    // Reading them is no answer: the box stays unticked.
+    await userEvent.setup().click(links[0]!)
+    expect(accept).not.toBeChecked()
+  })
+
+  it('no sentences from the operator: no checkboxes, the slots’ links all the same', async () => {
+    serve(mocks.bffFetch, () => onlineCart())
+    renderCheckout({
+      cart: onlineCart(),
+      props: { termsLinks: <button type="button">مطالعهٔ قوانین</button> },
+    })
+    await placeButton()
+    expect(within(review()).queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(within(review()).getByRole('button', { name: 'مطالعهٔ قوانین' })).toBeInTheDocument()
+  })
+
   it('no sentences from the operator: no checkboxes', async () => {
     serve(mocks.bffFetch, () => onlineCart())
     renderCheckout({ cart: onlineCart() })

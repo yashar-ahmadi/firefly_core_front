@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   settings: null as SiteSettings | null,
   home: null as HomePage | Error | null,
   recentlyViewed: true,
+  slots: {} as Record<string, unknown>,
 }))
 
 vi.mock('server-only', () => ({}))
@@ -34,6 +35,9 @@ vi.mock('@/features/catalog/api', () => ({
     related_items_display_status: true,
     related_items_number: 8,
   }),
+}))
+vi.mock('@/features/content/dynamic/api', () => ({
+  getDynamicContent: async (key: string) => mocks.slots[key] ?? null,
 }))
 vi.mock('@/config/store-config', async () => {
   const pure = await import('@/config/resolve-store-config')
@@ -74,6 +78,7 @@ beforeEach(() => {
   mocks.settings = null
   mocks.home = homePage()
   mocks.recentlyViewed = true
+  mocks.slots = {}
   localStorage.clear()
   useRecentlyViewed.setState({ items: [] })
 })
@@ -108,6 +113,31 @@ describe('home page', () => {
       'پرفروش\u{200C}ها',
       'پیشنهاد ویژه\u{0654} فایرفلای',
     ])
+  })
+
+  it('shows the operator’s `home` slot after the first section (Plan 5 Task 5)', async () => {
+    mocks.home = homePage({
+      sections: [productCarousel({ title: 'پرفروش\u{200C}ها' }), productCarousel({ id: 2 })],
+    })
+    mocks.slots.home = {
+      page_type: 1,
+      page_type_key: 'home',
+      page_display_name: 'پیام صفحهٔ اصلی',
+      descriptions: [],
+      warnings: [{ id: 7, title: 'تعطیلات نوروز', content: '<p>ارسال از ۵ فروردین.</p>' }],
+    }
+    const { container } = await renderPage()
+    const note = screen.getByRole('note')
+    expect(note).toHaveTextContent('تعطیلات نوروز')
+    const [first, second] = screen.getAllByRole('heading', { level: 2 })
+    expect(first!.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(note.compareDocumentPosition(second!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.querySelectorAll('[data-slot="home"]')).toHaveLength(1)
+  })
+
+  it('without a `home` slot, nothing of it', async () => {
+    const { container } = await renderPage()
+    expect(container.querySelector('[data-slot]')).toBeNull()
   })
 
   it('shows the recently viewed products after the sections', async () => {
