@@ -4,6 +4,7 @@
  */
 import { parseListingParams, type ListingApiQuery } from '@/features/catalog/listing-params'
 import { normalizeSlug } from '@/lib/url/slug'
+import { withoutTracking } from '@/lib/url/tracking-params'
 
 type RawParams = Record<string, string | string[] | undefined>
 
@@ -74,16 +75,18 @@ export interface ListingIndexing {
 }
 
 /**
- * Canonical, robots and page of a listing URL:
- * - any parameter other than `page` (filters, sort, tracking): `noindex, follow` and no canonical
- *   (a canonical to the clean page would contradict the noindex: a mixed signal);
+ * Canonical, robots and page of a listing URL. Tracking parameters (`utm_*`, `gclid`, `fbclid`…:
+ * `isTrackingParam`) are no filters: left out first, as if absent.
+ * - any other parameter but `page` (filters, sort): `noindex, follow` and no canonical (a
+ *   canonical to the clean page would contradict the noindex: a mixed signal);
  * - page N > 1 alone: indexable, canonical to itself with `?page=N`, «صفحهٔ N» in the title;
  * - page 1: indexable, canonical to the operator's `canonical_link`, else the path.
  */
 export function listingIndexing(
-  sp: RawParams,
+  raw: RawParams,
   { path, canonicalLink = null }: { path: string; canonicalLink?: string | null },
 ): ListingIndexing {
+  const sp = withoutTracking(raw)
   const clean = canonicalLink?.trim() || path
   const noindex = Object.entries(sp).some(([key, value]) => key !== 'page' && value !== undefined)
   if (noindex) return { noindex, noCanonical: true }
@@ -93,9 +96,12 @@ export function listingIndexing(
     : { canonical: clean, noindex }
 }
 
-/** Whether the page's URL carries any query parameter (it is then another URL than its path). */
+/**
+ * Whether the page's URL carries any query parameter but tracking ones (it is then another URL
+ * than its path).
+ */
 export function hasQuery(sp: RawParams): boolean {
-  return Object.values(sp).some((value) => value !== undefined)
+  return Object.values(withoutTracking(sp)).some((value) => value !== undefined)
 }
 
 /**

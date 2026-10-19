@@ -70,14 +70,19 @@ describe('listingIndexing', () => {
     })
   })
 
-  it('any other parameter is noindex, follow, with no canonical (not one to another URL)', () => {
+  it('any other parameter but tracking is noindex, follow, with no canonical (not one to another URL)', () => {
     expect(listingIndexing({ brand: 'apple', page: '2' }, { path })).toEqual({
       noindex: true,
       noCanonical: true,
     })
-    expect(listingIndexing({ utm_source: 'x' }, { path, canonicalLink: null })).toEqual({
+    expect(listingIndexing({ foo: 'x' }, { path, canonicalLink: null })).toEqual({
       noindex: true,
       noCanonical: true,
+    })
+    // Tracking parameters are not filters (tracking-listing.test.ts).
+    expect(listingIndexing({ utm_source: 'x' }, { path })).toEqual({
+      canonical: path,
+      noindex: false,
     })
     // An unreadable page is no page: the clean canonical.
     expect(listingIndexing({ page: 'abc' }, { path })).toEqual({ canonical: path, noindex: false })

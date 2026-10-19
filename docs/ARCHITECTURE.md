@@ -430,6 +430,15 @@ IP); personal data (wishlist hearts, cart contents and
 count, account details) is fetched client-side through the BFF, never rendered into the HTML; fetch
 blog post detail once per render (`GET` increments the view counter).
 
+**Normalised query strings** (seo digest §13): a listing's API query is built from the API's own
+parameter names only (`parseListingParams`, keys sorted by `toSearchParams`), so equal listings
+share one Data Cache entry whatever else the URL holds. Tracking parameters (`utm_*`, `gclid`,
+`gbraid`, `wbraid`, `fbclid`, `msclkid`, `yclid`, `_ga`, `_gl`, `srsltid`: `lib/url/tracking-params.ts`)
+are never filters: they never reach the API, and `listingIndexing` and `hasQuery` leave them out,
+so a campaign link to a listing is indexed as its clean URL with the clean canonical (any other
+parameter but `page` still makes it `noindex, follow` without a canonical). The home page's
+canonical is always `/` (the installed app's `/?source=pwa` included).
+
 The HTML is nevertheless not identical for every visitor: the root layout reads the `ff_auth` flag
 cookie on the server (`hasSession`), so the header is rendered signed in (account menu) or signed
 out («ورود | ثبت‌نام») from the first byte, without a flash. Pages are rendered per request and sent
