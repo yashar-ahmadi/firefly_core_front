@@ -31,6 +31,7 @@ const SHELL_IDS = [
   'footer-socials',
   'footer-apps',
   'not-found-categories',
+  'not-found-title',
 ]
 
 export const RESERVED_IDS: ReadonlySet<string> = new Set([

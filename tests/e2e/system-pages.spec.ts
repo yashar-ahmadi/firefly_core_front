@@ -49,6 +49,36 @@ test.describe('system pages', () => {
     expect(errors).toEqual([])
   })
 
+  test('notFound() outside the shop layout: the light 404 in the checkout’s frame', async ({
+    page,
+  }) => {
+    // A malformed thanks code (ruling P5-R2): the root 404, no shop header, search or menus.
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    const response = await page.goto('/checkout/thanks/bad/')
+    expect(response?.status()).toBe(404)
+    const region = page.getByRole('region', { name: 'صفحه پیدا نشد' })
+    await expect(region.getByRole('heading', { level: 1 })).toHaveText('صفحه پیدا نشد')
+    await expect(page).toHaveTitle(/^صفحه پیدا نشد \| /)
+    // Next's own for the 404, and the checkout layout's: each says noindex.
+    const robots = await page
+      .locator('meta[name="robots"]')
+      .evaluateAll((metas) => metas.map((meta) => meta.getAttribute('content') ?? ''))
+    expect(robots.length).toBeGreaterThan(0)
+    for (const content of robots) expect(content).toMatch(/noindex/)
+    const ways = region.getByRole('navigation', { name: 'راه\u{200C}های ادامه' }).getByRole('link')
+    await expect(ways).toHaveCount(3)
+    expect(
+      await ways.evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
+    ).toEqual(['/', '/search/', '/contact-us/'])
+    // The checkout's own frame (its header and <main>), and nothing of the shop's.
+    await expect(page.locator('main')).toHaveCount(1)
+    await expect(page.getByRole('link', { name: 'بازگشت به سبد خرید' })).toBeVisible()
+    await expect(page.getByRole('search')).toHaveCount(0)
+    await page.waitForLoadState('load')
+    expect(errors).toEqual([])
+  })
+
   test('the footer shows the footer menu, phone and copyright from the backend', async ({
     page,
     request,

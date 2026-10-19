@@ -12,8 +12,10 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * `notFound()` from a shop page: the 404 body inside the shop layout (header and footer stay).
- * Unknown URLs never get here; the root not-found.tsx handles them.
+ * The shop's 404: `notFound()` from a shop page, and every unknown URL (the catch-all
+ * `[...missing]/page.tsx`): the 404 body (search, the main categories) inside the shop layout,
+ * whose header and footer stay. The root not-found.tsx is the light one, for 404s outside the
+ * shop layout.
  */
 export default function ShopNotFound() {
   return <NotFoundView />

@@ -15,6 +15,12 @@ const eslintConfig = defineConfig([
     'next-env.d.ts',
     '.superpowers/**',
   ]),
+  {
+    // Tests render plain anchors as fixtures, never as the app's navigation. Since the shop's
+    // catch-all (`src/app/(shop)/[...missing]`) every internal path is a page to this rule.
+    files: ['tests/**'],
+    rules: { '@next/next/no-html-link-for-pages': 'off' },
+  },
 ])
 
 export default eslintConfig

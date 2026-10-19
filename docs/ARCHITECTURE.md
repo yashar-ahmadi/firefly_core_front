@@ -916,6 +916,33 @@ Plan 5 Task 4: `/faq/` and `/contact-us/` in the shop's layout, `/links/` in its
   pages 0.1–0.2 KB more (217.1: Turbopack moved the Radix tabs code their comments use into a
   chunk now shared with `/categories/`, whose total is unchanged); two account rows 0.1 KB
   (rounding).
+- **The root 404 is light (Plan 5 Task 5, ruling P5-R2).** Next 16.4.1 builds every segment's
+  not-found element on every request and passes it to that segment's `LayoutRouter`
+  (`create-component-tree.js`, `createBoundaryConventionElement`): the root `not-found.tsx`'s
+  rendered tree is in the payload of every page under the root layout, shown or not, and the
+  browser loads the code of every client component in a payload. It used to render the shop
+  shell, so every page outside the shop layout downloaded the shop's header, search, menus and
+  bottom navigation, some of it twice (sara's checkout loaded 30 modules in two chunks). Now:
+  - unknown URLs go through the shop group's catch-all `(shop)/[...missing]/page.tsx` (only
+    `notFound()` and the 404 title; Next ranks a catch-all below every other route): the shop's
+    `not-found.tsx` (search, the main categories) inside the shop layout;
+  - the root `not-found.tsx` is server HTML only, with no client module in its import graph
+    (`tests/unit/layout/root-not-found.test.tsx` walks it): the store's name, «صفحه پیدا نشد», a
+    sentence, and plain links to home, `/search/` and `/contact-us/`. Next shows it inside the
+    nearest layout of the page that threw (a malformed thanks code inside the checkout's frame, an
+    unsaved linker inside the linker's), so it is a labelled region, never a second `<main>`.
+  - The proxy still runs first for every path (operator redirects, legacy page extensions, the
+    blog switch): it runs before Next's routing. `tests/e2e/route-table.spec.ts` checks each route
+    family's status, both 404 shells and the proxy's mark on unknown paths.
+
+  Effect (the guards, desktop and phone alike): every `/checkout/` state −27.5 to −27.6 KB (a
+  guest 213.6, at the review 212.3, sara's refused writes 216.8 of 246), the thanks page 188.2,
+  `/login/` 208.3, `/register/` 209.3, `/forgot-password/` 205.4, `/links/` 169.2, the bank's
+  return page 192.7 (the scratch measure); every page in the shop layout byte-identical (151 of
+  188 guard lines unchanged; the contact page signed in +0.1 from a longer phone hint). A 404 for
+  an unknown URL costs 202.0 KB (was 196.7: the shop layout's extras, such as the compare bar,
+  now come with it). The HTML of a checkout page halved (82 → 43 KB). A future root-level boundary
+  (not-found, error, forbidden) must stay as light: whatever it renders is on every page.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -978,8 +1005,9 @@ Plan 5 Task 4: `/faq/` and `/contact-us/` in the shop's layout, `/links/` in its
   absent backend therefore degrades the shell instead of breaking it.
 - `503 feature_disabled` from any client query or mutation turns that switch off in the
   `FeatureProvider`; such errors are never retried.
-- Errors render `error.tsx` (shop segment) or `global-error.tsx`; unknown paths render the Persian
-  not-found page with a 404 status. The edge's own 404/410/503 pages come from
+- Errors render `error.tsx` (shop segment) or `global-error.tsx`; unknown paths render the shop's
+  Persian not-found page with a 404 status (through the catch-all `(shop)/[...missing]`; the root
+  `not-found.tsx` is the light one, see Performance). The edge's own 404/410/503 pages come from
   `lib/edge/status-page.ts`.
 
 ## Operator content: sanitised HTML versus snippets

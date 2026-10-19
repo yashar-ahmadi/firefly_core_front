@@ -86,14 +86,14 @@ describe('NotFoundView', () => {
 })
 
 describe('not-found.tsx and the shop shell', () => {
-  it('wraps unknown URLs in the shop shell, titled with the shop name', async () => {
-    const page = NotFound()
-    expect(page.type).toBe(ShopShell)
-    expect((page.props as { children: ReactElement }).children.type).toBe(NotFoundView)
+  it('leaves the shop shell to the shop layout: the root 404 is light (root-not-found.test.tsx)', async () => {
+    const page = (await NotFound()) as ReactElement
+    expect(page.type).not.toBe(ShopShell)
+    expect(page.type).toBe('section')
     expect((await notFoundMetadata()).title).toEqual({ absolute: 'صفحه پیدا نشد | فایرفلای' })
   })
 
-  it('shows only the 404 body for notFound() inside the shop layout', () => {
+  it('shows the full 404 body inside the shop layout (unknown URLs, through the catch-all)', () => {
     expect(ShopNotFound().type).toBe(NotFoundView)
     expect(ShopLayout({ children: null }).type).toBe(ShopShell)
   })
