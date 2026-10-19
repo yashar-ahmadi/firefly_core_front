@@ -8,8 +8,13 @@ import { EMPTY_SHIPPING } from './support'
 
 // The summary of the cart page (and, as `variant="checkout"`, of the checkout): every amount is
 // an API field (cart digest §5.3), nothing is added up here. Its words and its order are the
-// order's own (order-money.tsx; Plan 4 final fix wave): «جمع کالاها», tax before the
-// pay-on-delivery fee (digest §6.4), and the door's share «پرداخت هنگام تحویل» on both pages.
+// order's own (order-money.tsx; Plan 4 final fix wave): «جمع کالاها», «پس از تخفیف کالاها»
+// (goods_total) after the product discounts and «مبلغ کالاها پس از کد تخفیف» (goods_payable) after
+// the coupon, the shipping discount beside the shipping before packaging, tax before the
+// pay-on-delivery fee (order digest §6.4), and the door's share «پرداخت هنگام تحویل» on both pages.
+
+const AFTER_ITEMS = 'پس از تخفیف کالاها'
+const AFTER_COUPON = 'مبلغ کالاها پس از کد تخفیف'
 
 function renderSummary(cart: Cart, variant: 'cart' | 'checkout' = 'cart') {
   render(<CartSummary cart={cart} variant={variant} />)
@@ -46,7 +51,9 @@ describe('CartSummary', () => {
     expect(hasRow(region, /^قیمت کالاها/)).toBe(false)
     expect(value(region, /^کد تخفیف/)).toBe(formatToman(200_000))
     expect(within(region).getByText('TEA30')).toHaveAttribute('dir', 'ltr')
-    expect(value(region, 'جمع کالاها پس از تخفیف')).toBe(formatToman(1_930_000))
+    expect(value(region, AFTER_COUPON)).toBe(formatToman(1_930_000))
+    expect(hasRow(region, AFTER_ITEMS)).toBe(false)
+    expect(hasRow(region, 'جمع کالاها پس از تخفیف')).toBe(false)
     expect(value(region, 'مالیات بر ارزش افزوده')).toBe(formatToman(193_000))
     expect(value(region, 'مبلغ کل')).toBe(formatToman(2_123_000))
     expect(value(region, 'سود شما از این خرید')).toBe(formatToman(200_000))
@@ -57,7 +64,7 @@ describe('CartSummary', () => {
 
   it('has no savings, discount or after-discount rows for a cart without any', () => {
     const region = renderSummary(itemsCartFixture())
-    for (const label of ['سود شما از این خرید', 'تخفیف کالاها', 'جمع کالاها پس از تخفیف']) {
+    for (const label of ['سود شما از این خرید', 'تخفیف کالاها', AFTER_ITEMS, AFTER_COUPON]) {
       expect(hasRow(region, label), label).toBe(false)
     }
     expect(hasRow(region, /^کد تخفیف/)).toBe(false)
@@ -73,20 +80,41 @@ describe('CartSummary', () => {
       }),
     )
     expect(value(region, 'تخفیف کالاها')).toBe(formatToman(120_000))
+    expect(hasRow(region, AFTER_COUPON)).toBe(false)
     expect(value(region, 'تخفیف ارسال')).toBe(formatToman(113_200))
     expect(value(region, 'هزینه\u{0654} بسته\u{200C}بندی')).toBe(formatToman(8_000))
     expect(value(region, 'هزینه\u{0654} پرداخت در محل')).toBe(formatToman(25_000))
   })
 
+  it('product discounts and a coupon: each subtotal after its own discount, as the order shows them', () => {
+    const region = renderSummary(
+      couponCartFixture({ item_discount: 130_000, goods_subtotal: 2_260_000 }),
+    )
+    expect(value(region, AFTER_ITEMS)).toBe(formatToman(2_130_000))
+    expect(value(region, AFTER_COUPON)).toBe(formatToman(1_930_000))
+    const terms = [...region.querySelectorAll('dt')].map((term) => term.textContent ?? '')
+    const at = (label: RegExp) => terms.findIndex((term) => label.test(term))
+    expect([
+      at(/^جمع کالاها \(/),
+      at(/^تخفیف کالاها/),
+      at(/^پس از تخفیف کالاها/),
+      at(/^کد تخفیف/),
+      at(/^مبلغ کالاها پس از کد تخفیف/),
+    ]).toEqual([0, 1, 2, 3, 4])
+  })
+
   it.each(['cart', 'checkout'] as const)(
-    '%s: the rows in the order’s own order, tax before the pay-on-delivery fee (digest §6.4)',
+    '%s: the rows in the order’s own order: shipping and its discount, packaging, tax, then the pay-on-delivery fee (digest §6.4)',
     (variant) => {
       const region = renderSummary(
-        itemsCartFixture({ packaging_cost: 8_000, cod_fee: 25_000 }),
+        itemsCartFixture({ packaging_cost: 8_000, shipping_discount: 60_000, cod_fee: 25_000 }),
         variant,
       )
       const terms = [...region.querySelectorAll('dt')].map((term) => term.textContent ?? '')
       const at = (label: RegExp) => terms.findIndex((term) => label.test(term))
+      expect(at(/^هزینه\u{0654} ارسال/u)).toBeLessThan(at(/^تخفیف ارسال/))
+      expect(at(/^تخفیف ارسال/)).toBe(at(/^هزینه\u{0654} ارسال/u) + 1)
+      expect(at(/^تخفیف ارسال/)).toBeLessThan(at(/^هزینه\u{0654} بسته/u))
       expect(at(/^هزینه\u{0654} بسته/u)).toBeLessThan(at(/^مالیات/))
       expect(at(/^مالیات/)).toBeLessThan(at(/^هزینه\u{0654} پرداخت در محل/u))
       expect(at(/^هزینه\u{0654} پرداخت در محل/u)).toBeLessThan(at(/^مبلغ کل/))
@@ -103,13 +131,15 @@ describe('CartSummary', () => {
     }
     const region = renderSummary({ ...cart, coupon: detached })
     expect(hasRow(region, /^کد تخفیف/)).toBe(false)
-    expect(hasRow(region, 'جمع کالاها پس از تخفیف')).toBe(false)
+    expect(hasRow(region, AFTER_COUPON)).toBe(false)
   })
 
   it('a free-shipping coupon says so instead of an amount', () => {
     const region = renderSummary(freeshipCartFixture())
     expect(value(region, /^کد تخفیف/)).toBe('ارسال رایگان')
     expect(within(region).getByText('FREESHIP')).toBeInTheDocument()
+    // Nothing off the goods: no subtotal after it (the order shows none either).
+    expect(hasRow(region, AFTER_COUPON)).toBe(false)
   })
 
   describe('shipping', () => {

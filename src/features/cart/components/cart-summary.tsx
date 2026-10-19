@@ -90,10 +90,10 @@ function CheckoutShares({ cart }: { cart: Cart }) {
 }
 
 /**
- * The goods (and their count), product and coupon discounts (the code as a chip; a
- * free-shipping coupon says so), the goods after discounts, shipping (or «پس از انتخاب روش
- * ارسال»), packaging, the shipping discount, tax, the COD fee and the total (the order's own
- * words and order: order-money.tsx, digest §6.4); the online and at-the-door («پرداخت هنگام
+ * The goods (and their count), the product discount and the goods after it, the coupon (the
+ * code as a chip; a free-shipping coupon says so) and the goods after it, shipping (or «پس از
+ * انتخاب روش ارسال») and its discount, packaging, tax, the COD fee and the total (the order's
+ * own words and order: order-money.tsx, digest §6.4); the online and at-the-door («پرداخت هنگام
  * تحویل») shares when part is paid on delivery (with the prepayment), and «سود شما از این
  * خرید» when there is a saving. Rows the API has nothing for (0) are left out, tax excepted. At
  * the checkout the online share is always said once shipping is priced (`CheckoutShares`).
@@ -102,7 +102,6 @@ export function CartSummary({ cart, variant, className, title }: CartSummaryProp
   const headingId = useId()
   const { coupon, shipping } = cart
   const applied = couponApplied(coupon)
-  const discounted = cart.item_discount > 0 || applied
   const stale = shipping.is_selected && !shipping.is_available
   return (
     <section aria-labelledby={headingId} className={className}>
@@ -117,6 +116,9 @@ export function CartSummary({ cart, variant, className, title }: CartSummaryProp
           <Row label="تخفیف کالاها" tone="saving">
             {formatToman(cart.item_discount)}
           </Row>
+        )}
+        {cart.item_discount > 0 && (
+          <Row label="پس از تخفیف کالاها">{formatToman(cart.goods_total)}</Row>
         )}
         {applied && (
           <Row
@@ -138,17 +140,19 @@ export function CartSummary({ cart, variant, className, title }: CartSummaryProp
               : formatToman(cart.coupon_discount)}
           </Row>
         )}
-        {discounted && <Row label="جمع کالاها پس از تخفیف">{formatToman(cart.goods_payable)}</Row>}
+        {applied && cart.coupon_discount > 0 && (
+          <Row label="مبلغ کالاها پس از کد تخفیف">{formatToman(cart.goods_payable)}</Row>
+        )}
         <Row label={'هزینه\u{0654} ارسال'} note={stale ? shipping.reason : null}>
           {shippingValue(cart)}
         </Row>
-        {cart.packaging_cost > 0 && (
-          <Row label={'هزینه\u{0654} بسته\u{200C}بندی'}>{formatToman(cart.packaging_cost)}</Row>
-        )}
         {cart.shipping_discount > 0 && (
           <Row label="تخفیف ارسال" tone="saving">
             {formatToman(cart.shipping_discount)}
           </Row>
+        )}
+        {cart.packaging_cost > 0 && (
+          <Row label={'هزینه\u{0654} بسته\u{200C}بندی'}>{formatToman(cart.packaging_cost)}</Row>
         )}
         <Row label="مالیات بر ارزش افزوده">{formatToman(cart.tax_amount)}</Row>
         {cart.cod_fee > 0 && (
