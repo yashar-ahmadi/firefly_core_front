@@ -1,6 +1,7 @@
 import { expect, type APIRequestContext, type Page, type Request } from '@playwright/test'
 import type { Paginated } from '@/lib/api/types/common'
 import type { ReadingListPost } from '@/lib/api/types/blog'
+import { shellHydrated } from '../support/hydrated'
 import { shirinTest } from '../support/shirin'
 
 // The reading-list bookmark signed in (Plan 5 Task 1), as shirin (ruling P4-R4: never sara for
@@ -49,7 +50,8 @@ const test = shirinTest.extend<{ readingList: ReadingListGuard }>({
           expect(response.ok(), `restoring ${slug}: ${response.status()}`).toBe(true)
         }
         info.annotations.push({ type: 'writes', description: `teardown: ${restores.length}` })
-        expect(await savedSlugs(request)).toEqual(before)
+        // The same posts (a removed one put back is saved last: the order may differ).
+        expect((await savedSlugs(request)).toSorted()).toEqual(before.toSorted())
       } finally {
         await request.dispose()
       }
@@ -77,7 +79,14 @@ test('a bookmark saves a post at once with one request, and a second press remov
   readingList,
 }) => {
   const writes = recordWrites(page)
+  // Her saved ids: the bookmarks know which way a press goes once they are in.
+  const ids = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === '/api/bff/blog/reading-list/list/' && response.ok(),
+  )
   await page.goto('/blog/?page=2')
+  await shellHydrated(page)
+  await ids
   const archive = page.getByRole('main').getByRole('region', { name: 'همه\u{0654} مطالب' })
   // The first card whose post is not in her list (the bookmarks fill in once her ids are read),
   // then that card by its post's link: a locator filtered by its button would move on once the
