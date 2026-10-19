@@ -48,6 +48,17 @@ map $ff_uri_uuid $ff_safe_uri {
     default $ff_uri_uuid;
     "~*^(?<ff_a>.*?)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?<ff_b>.*)$" "${ff_a}<uuid>${ff_b}";
 }
+# The service worker's offline copies (`/` and `/offline/`, asked for with `X-FF-Offline: snapshot`
+# and no cookie at all) are the only pages the app lets be stored: `Cache-Control: no-cache` and
+# `x-ff-offline: snapshot` back (src/lib/edge/offline-copy.ts). Next writes every page's `Vary`
+# itself, so the app cannot add `X-FF-Offline` to it: nginx does (`location /` below), so a shared
+# cache reuses such a copy only for the worker's own request, never for a visitor's navigation.
+# Any other response maps to "", and nginx adds no header with an empty value.
+map $upstream_http_x_ff_offline $ff_offline_vary {
+    default  "";
+    snapshot "X-FF-Offline";
+}
+
 # "combined" without the raw request line and without the Referer (a page's URL can hold one of
 # the credentials above; the payment pages send none, but not every client honours that).
 log_format firefly_masked '$remote_addr - $remote_user [$time_local] '
@@ -194,6 +205,10 @@ server {
         proxy_pass http://firefly_storefront;
         # Pages stream (React Suspense): pass chunks on as they come.
         proxy_buffering off;
+        # The offline copies vary on the worker's header (the map above); every other response
+        # gets no extra Vary. A location with its own add_header drops the server's: HSTS again.
+        add_header Vary $ff_offline_vary;
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
 
     # Single-origin topology only (Django is served from this same host, FIREFLY_API_URL is

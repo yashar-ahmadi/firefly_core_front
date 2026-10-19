@@ -731,9 +731,12 @@ proxy set on a dynamic page, checked on the build); the worker keeps a page only
 consent, so its own rule against `no-store`/`private` holds as stated. Every other response,
 including the same page asked for with any cookie, stays `private, no-store`. A shared cache in
 front may store such a copy (`no-cache`) but must revalidate it before any reuse, and it is the
-page any guest gets; the consent also sends `Vary: X-FF-Offline` (Next appends its own names), so
-such a cache can reuse it only for the worker's own request, never for a visitor's navigation.
-The worker reads its copies by path with `ignoreVary` (one copy per path). The app files the kept HTML names (styles, scripts, the font) are kept with
+page any guest gets. Such a cache must also vary it on `X-FF-Offline`, so it reuses the copy only
+for the worker's own request, never for a visitor's navigation: Next writes every page's `Vary`
+itself (`res.setHeader('Vary', …)` in its app-page runtime, replacing any the proxy set: seen on
+the 16.4.1 build), so nginx adds it (`deploy/nginx.conf.example`: `map $upstream_http_x_ff_offline`,
+`add_header Vary $ff_offline_vary`). The worker reads its copies by path with `ignoreVary` (one
+copy per path). The app files the kept HTML names (styles, scripts, the font) are kept with
 it, so the copy renders and hydrates offline. Offline, a signed-in visitor sees the guest's home
 page (the anonymous copy): nothing of theirs is ever stored. Logout tells the worker to forget the
 kept pages and pictures (`features/pwa/purge-offline-pages.ts`, from `forgetSignedInStorage`;

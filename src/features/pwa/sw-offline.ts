@@ -134,8 +134,8 @@ async function keepPages() {
   for (const path of OFFLINE_PAGES) await quietly(keepPage(path))
 }
 
-// By path, whatever the copy varies on (the consent's \`Vary: X-FF-Offline\`, Next's router
-// headers): one copy per path, and the copy is served to the visitor's own navigation.
+// By path, whatever the copy varies on (\`X-FF-Offline\`, added by the edge in front; Next's
+// router headers): one copy per path, and the copy is served to the visitor's own navigation.
 const keptPage = async (path) =>
   (await caches.open(CACHES.pages)).match(path, { ignoreVary: true })
 

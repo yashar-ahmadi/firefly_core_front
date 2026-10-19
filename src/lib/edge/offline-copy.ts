@@ -12,14 +12,14 @@ import { prefetchKind } from '@/lib/http/prefetch'
 // another page, a router fetch) leaves Next's `private, no-store` as it is.
 
 /**
- * The response headers that let the worker keep a page's anonymous copy. `Vary: X-FF-Offline`:
- * a shared cache in front may reuse the copy only for a request carrying the same header (the
- * worker's own), never for a visitor's navigation. Next adds its own `Vary` names after these
- * (appended, checked on the build).
+ * The response headers that let the worker keep a page's anonymous copy. No `Vary` here: Next
+ * writes every page's `Vary` itself (`res.setHeader('Vary', …)` in its app-page runtime), replacing
+ * any the proxy set (seen on the 16.4.1 build). `Vary: X-FF-Offline`, so a shared cache reuses the
+ * copy only for the worker's own request, is the edge's: deploy/nginx.conf.example adds it to
+ * every response carrying `x-ff-offline: snapshot` back.
  */
 export const OFFLINE_COPY_HEADERS: Readonly<Record<string, string>> = {
   'Cache-Control': 'no-cache',
-  Vary: 'X-FF-Offline',
   [OFFLINE_COPY_HEADER]: OFFLINE_COPY,
 }
 

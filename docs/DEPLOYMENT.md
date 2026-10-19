@@ -227,9 +227,11 @@ musl آن (`@img/sharp-linuxmusl-x64` و `@img/sharp-libvips-linuxmusl-x64`) ر�
   سربرگ وضعیت ورود کاربر را از همان HTML اول نشان می‌دهد (برنامه `Cache-Control: private, no-store`
   می‌فرستد). فقط `/_next/static/` برای همه یکسان و قابل کش است. تنها استثنا نسخهٔ بی‌نام صفحهٔ اصلی و صفحهٔ
   `/offline/` است که سرویس‌ورکر خودش (با هدر `X-FF-Offline: snapshot` و بدون هیچ کوکی) می‌خواهد و با
-  `Cache-Control: no-cache` و `Vary: X-FF-Offline` جواب می‌گیرد؛ این هدر درخواست را حذف نکنید (nginx به‌طور
-  پیش‌فرض آن را می‌فرستد) و `Vary` پاسخ را هم دست نزنید: کش اشتراکی جلوی برنامه فقط با آن می‌فهمد که این نسخه
-  مال درخواست خود سرویس‌ورکر است، نه بازدید یک کاربر.
+  `Cache-Control: no-cache` و هدر `x-ff-offline: snapshot` جواب می‌گیرد؛ این هدر درخواست را حذف نکنید (nginx
+  به‌طور پیش‌فرض آن را می‌فرستد). Next هدر `Vary` هر صفحه را خودش می‌نویسد، پس `Vary: X-FF-Offline` این پاسخ‌ها را
+  nginx اضافه می‌کند (`map $upstream_http_x_ff_offline` و `add_header Vary $ff_offline_vary` در
+  `deploy/nginx.conf.example`): کش اشتراکی فقط با آن می‌فهمد که این نسخه مال درخواست خود سرویس‌ورکر است، نه
+  بازدید یک کاربر. اگر CDN یا پروکسی دیگری جلوی nginx است، همین را آنجا هم نگه دارید.
 - **`/sw.js` و `/manifest.webmanifest` را کش نکنید:** برنامه `/sw.js` را با `Cache-Control: no-cache` و
   `Service-Worker-Allowed: /` می‌فرستد تا مرورگر هر بار نسخهٔ تازه را بررسی کند؛ این هدرها را دست نزنید.
 - **لاگ دسترسی بدون کلید پرداخت.** نشانی برخی صفحه‌ها و درخواست‌ها کلید پرداخت سفارش را در خود دارد:
@@ -564,6 +566,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Accept-Encoding "";   # nginx فشرده می‌کند
         proxy_buffering off;
+        add_header Vary $ff_offline_vary;      # map آن در deploy/nginx.conf.example
     }
 }
 ```

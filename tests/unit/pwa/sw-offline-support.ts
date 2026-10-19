@@ -34,7 +34,8 @@ export const anonymousCopy = (path: string) => (path === '/offline/' ? OFFLINE_C
 
 /**
  * The server's consent to keep a page's anonymous copy (src/lib/edge/offline-copy.ts), with the
- * `Vary` the build sends: Next's own, then the proxy's `X-FF-Offline`.
+ * `Vary` it reaches the worker with in production: Next's own, then nginx's `X-FF-Offline`
+ * (deploy/nginx.conf.example).
  */
 export const CONSENT = {
   'cache-control': 'no-cache',
