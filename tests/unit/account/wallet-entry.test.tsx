@@ -4,6 +4,7 @@ import { SummaryCards } from '@/features/account/dashboard/summary-cards'
 import { AccountNav } from '@/features/account/layout/account-nav'
 import { walletEntry } from '@/features/account/layout/wallet-entry'
 import type { FeatureMap } from '@/features/settings/feature-context'
+import { ApiError } from '@/lib/api/errors'
 import { SARA } from '../auth/fixtures'
 import { cart, result } from '../cart/support'
 import { authProviders } from '../support/auth-providers'
@@ -14,7 +15,9 @@ import { ok, summary } from './fixtures'
 // something there (a balance, a withdrawal on record: held money, its «لغو درخواست»), worded for
 // viewing; with nothing there both go, as before. The summary's balance says it without a request;
 // only a zero balance asks for one row of the withdrawal record (the wallet page's own read, shared
-// by the nav and the card).
+// by the nav and the card). Until that is known (round 2) both places are held by a hidden
+// placeholder of the same size, so nothing below them moves when they come; with nothing there the
+// placeholders go (once, and only with the switch off).
 
 const mocks = vi.hoisted(() => ({ summary: vi.fn(), records: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({
@@ -41,16 +44,26 @@ beforeEach(() => {
   mocks.records.mockResolvedValue(page(0))
 })
 
-async function renderAccount(features: Partial<FeatureMap> = {}) {
-  const { bffFetch } = await import('@/lib/api/client')
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => (resolve = done))
+  return { promise, resolve }
+}
+
+function renderShell(features: Partial<FeatureMap> = {}, variant: 'sidebar' | 'hub' = 'sidebar') {
   const providers = authProviders({ hasSession: true, features })
   render(
     <>
-      <AccountNav variant="sidebar" />
+      <AccountNav variant={variant} />
       <SummaryCards />
     </>,
     { wrapper: providers.wrapper },
   )
+}
+
+async function renderAccount(features: Partial<FeatureMap> = {}) {
+  const { bffFetch } = await import('@/lib/api/client')
+  renderShell(features)
   // The summary is in once the orders' badge shows.
   await within(nav()).findByRole('link', { name: 'سفارش‌ها، ۷ سفارش' })
   const recordReads = () =>
@@ -61,6 +74,14 @@ async function renderAccount(features: Partial<FeatureMap> = {}) {
 const nav = () => screen.getByRole('navigation', { name: 'حساب کاربری' })
 const navRow = () => within(nav()).queryByRole('link', { name: /^کیف پول/ })
 const card = () => screen.getByTestId('summary-cards').querySelector('a[href="/account/wallet/"]')
+/** The nav's hidden placeholder for the wallet's row, and the dashboard's for its card. */
+const rowSlot = () => nav().querySelector<HTMLElement>('li[data-placeholder="wallet"]')
+const cardSlot = () =>
+  screen.getByTestId('summary-cards').querySelector('[data-card][data-shape="wide"][aria-hidden]')
+const hrefNear = (slot: HTMLElement, side: 'previous' | 'next') =>
+  (side === 'previous' ? slot.previousElementSibling : slot.nextElementSibling)
+    ?.querySelector('a')
+    ?.getAttribute('href')
 
 describe('walletEntry', () => {
   it.each([
@@ -71,6 +92,10 @@ describe('walletEntry', () => {
     // Not known yet (the summary, or the record's one row): not shown until it is.
     [{ on: false, balance: undefined, hasRecord: undefined }, 'none'],
     [{ on: false, balance: 0, hasRecord: undefined }, 'none'],
+    // Being read: undecided, its place held.
+    [{ on: false, balance: 'pending', hasRecord: undefined }, 'pending'],
+    [{ on: false, balance: 0, hasRecord: 'pending' }, 'pending'],
+    [{ on: true, balance: 'pending', hasRecord: undefined }, 'open'],
   ] as const)('%o → %s', (input, entry) => {
     expect(walletEntry(input)).toBe(entry)
   })
@@ -117,10 +142,69 @@ describe('the wallet’s nav row and dashboard card', () => {
 
   it('the switch off, no balance, the record unreadable: left out (nothing to show for sure)', async () => {
     mocks.summary.mockResolvedValue(summary({ wallet: { balance: 0, is_frozen: false } }))
-    mocks.records.mockRejectedValue(new Error('offline'))
+    // Not tried again (a lost connection is, twice: its place stays held meanwhile).
+    mocks.records.mockRejectedValue(new ApiError({ status: 429, code: 'throttled', detail: 'x' }))
     const { recordReads } = await renderAccount(OFF)
     await waitFor(() => expect(recordReads()).toBeGreaterThan(0))
+    await waitFor(() => expect(rowSlot()).toBeNull())
+    expect(cardSlot()).toBeNull()
     expect(navRow()).toBeNull()
     expect(card()).toBeNull()
+  })
+})
+
+describe('while the wallet’s entry is undecided (the switch off)', () => {
+  it('the summary on its way: the row’s and the card’s places are held, hidden, then filled', async () => {
+    const later = deferred<ReturnType<typeof summary>>()
+    mocks.summary.mockReturnValue(later.promise)
+    renderShell(OFF)
+    await waitFor(() => expect(rowSlot()).not.toBeNull())
+    const slot = rowSlot()!
+    expect(slot).toHaveAttribute('aria-hidden', 'true')
+    expect(slot.firstElementChild).toHaveClass('min-h-11')
+    expect([hrefNear(slot, 'previous'), hrefNear(slot, 'next')]).toEqual([
+      '/account/addresses/',
+      '/account/notifications/',
+    ])
+    expect(navRow()).toBeNull()
+    expect(cardSlot()).not.toBeNull()
+    expect(screen.getByTestId('summary-cards')).toHaveClass('md:grid-cols-4')
+
+    later.resolve(summary())
+    await waitFor(() => expect(navRow()).not.toBeNull())
+    expect(rowSlot()).toBeNull()
+    expect(card()).toHaveTextContent('غیرفعال است؛ فقط برای مشاهده')
+    expect(cardSlot()).toBeNull()
+  })
+
+  it('no balance, the record on its way: still held beside the counters; nothing there: both go', async () => {
+    mocks.summary.mockResolvedValue(summary({ wallet: { balance: 0, is_frozen: false } }))
+    const later = deferred<ReturnType<typeof page>>()
+    mocks.records.mockReturnValue(later.promise)
+    await renderAccount(OFF)
+    expect(rowSlot()).not.toBeNull()
+    expect(cardSlot()).not.toBeNull()
+    expect(screen.getByTestId('summary-cards').querySelectorAll('a[data-card]')).toHaveLength(2)
+
+    later.resolve(page(0))
+    await waitFor(() => expect(rowSlot()).toBeNull())
+    expect(cardSlot()).toBeNull()
+    expect(navRow()).toBeNull()
+    expect(card()).toBeNull()
+  })
+
+  it('the phone’s hub holds a row of its own size', async () => {
+    mocks.summary.mockReturnValue(new Promise(() => {}))
+    renderShell(OFF, 'hub')
+    await waitFor(() => expect(rowSlot()).not.toBeNull())
+    const slot = rowSlot()!
+    expect(slot.firstElementChild).toHaveClass('min-h-14')
+  })
+
+  it('the switch on: never held, the row is there from the start', () => {
+    mocks.summary.mockReturnValue(new Promise(() => {}))
+    renderShell()
+    expect(rowSlot()).toBeNull()
+    expect(navRow()).not.toBeNull()
   })
 })

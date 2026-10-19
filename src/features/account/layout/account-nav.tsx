@@ -4,6 +4,7 @@ import { ChevronLeft, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/components/ui/cn'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { useLogout } from '@/features/auth/use-logout'
 import { useUnreadNotificationCount } from '@/features/notifications/unread'
@@ -73,12 +74,27 @@ function Badge({ badge }: { badge: NavBadge }) {
   )
 }
 
+/** The wallet's row while its entry is undecided (`pending`): the row's size, hidden. */
+function RowPlaceholder({ variant }: { variant: AccountNavVariant }) {
+  return (
+    <li aria-hidden data-placeholder="wallet">
+      <div className={STYLES[variant].row}>
+        <Skeleton
+          className={cn('shrink-0 rounded-full', variant === 'hub' ? 'size-10' : 'size-5')}
+        />
+        <Skeleton className="h-3.5 w-20" />
+      </div>
+    </li>
+  )
+}
+
 /**
  * The account area's navigation (`nav` «حساب کاربری»): the pages of the brief's table with
  * their badges (`useSummary`; the unread count the account shell keeps), the page on screen marked
  * `aria-current="page"`, and «خروج» last (`useLogout`, shared with the header menu). Rows of a
  * switched-off feature (the blog's reading list) are left out; the wallet's stays while the
- * visitor has something there, for viewing (`useWalletEntry`). `sidebar`: the side
+ * visitor has something there, for viewing (`useWalletEntry`; its place held while that is
+ * read). `sidebar`: the side
  * column from lg. `hub`: the dashboard's list of large rows below lg (without «پیشخوان»: it is
  * the page they are on).
  */
@@ -107,6 +123,9 @@ export function AccountNav({
     <nav aria-label={t('account_area')} className={className}>
       <ul className={style.list}>
         {items.map(({ key, href, label, icon: Icon }) => {
+          if (key === 'wallet' && wallet === 'pending') {
+            return <RowPlaceholder key={key} variant={variant} />
+          }
           const badge = navBadge(key, summary, unread, { viewOnly: wallet === 'view' })
           return (
             <li key={key}>

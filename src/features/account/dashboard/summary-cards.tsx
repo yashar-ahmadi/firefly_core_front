@@ -93,7 +93,7 @@ function SummaryCard({ card }: { card: CardContent }) {
 function CardSkeleton({ shape }: { shape: CardShape }) {
   const tile = <Skeleton className="size-11 rounded-full" />
   return (
-    <div data-card="" aria-hidden className={cn(BOX, SHAPE[shape])}>
+    <div data-card="" data-shape={shape} aria-hidden className={cn(BOX, SHAPE[shape])}>
       {shape === 'narrow' ? <span className="flex h-11 items-center">{tile}</span> : tile}
       <Lines>
         <span className="flex h-6 items-center">
@@ -142,7 +142,7 @@ function cards(summary: DashboardSummary, entry: WalletEntry): CardContent[] {
       shape: 'narrow',
     },
   ]
-  if (entry === 'none') return list
+  if (entry === 'none' || entry === 'pending') return list
   return [
     {
       key: 'wallet',
@@ -165,8 +165,9 @@ function cards(summary: DashboardSummary, entry: WalletEntry): CardContent[] {
  * is frozen; while the wallet switch is off, kept for viewing when the visitor has something
  * there, else left out: `useWalletEntry`), the purchases awaiting a review and the
  * wishlist, each a link to its page. Phones: the wallet across, the two counters side by side;
- * from md one row. Skeletons hold the same boxes while the summary loads; a failed read offers
- * «تلاش دوباره».
+ * from md one row. Skeletons hold the same boxes while the summary loads (the wallet's, with the
+ * switch off, until its entry is known: it goes when there is nothing there); a failed read
+ * offers «تلاش دوباره».
  */
 export function SummaryCards() {
   const query = useSummary()
@@ -198,7 +199,12 @@ export function SummaryCards() {
           <CardSkeleton shape="narrow" />
         </>
       ) : (
-        cards(query.data, entry).map((card) => <SummaryCard key={card.key} card={card} />)
+        <>
+          {entry === 'pending' && <CardSkeleton shape="wide" />}
+          {cards(query.data, entry).map((card) => (
+            <SummaryCard key={card.key} card={card} />
+          ))}
+        </>
       )}
     </div>
   )
