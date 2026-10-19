@@ -30,7 +30,9 @@
 # A second shop on this host reuses these (nginx refuses a second `log_format` of one name).
 # nginx's error log cannot be masked: a request that fails upstream (a 502, a timeout) is written
 # there with its request line. Keep that log's access and retention as tight as the
-# credentials'. Any other proxy, load balancer or CDN in front must mask the same paths.
+# credentials', or keep those lines out with the dedicated `error_log ... crit` location in
+# docs/DEPLOYMENT.md (it repeats `proxy_pass` and `proxy_buffering off` from `location /`).
+# Any other proxy, load balancer or CDN in front must mask the same paths.
 map $request_uri $ff_uri_tokens {
     default $request_uri;
     "~*^(?<ff_a>.*/order/pay/)[^/?#]+(?<ff_b>.*)$"                                  "${ff_a}<token>${ff_b}";

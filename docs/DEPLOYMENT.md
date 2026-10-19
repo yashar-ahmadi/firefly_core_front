@@ -230,9 +230,8 @@ services:
     وگرنه قالب پیش‌فرض نشانی کامل را می‌نویسد.
   - **لاگ خطای nginx را نمی‌شود پوشاند:** درخواستی که به برنامه نرسد (۵۰۲، پایان مهلت) با خط کامل درخواست
     در `error_log` نوشته می‌شود. دسترسی و مدت نگه‌داری این لاگ را به اندازهٔ خود این کلیدها محدود کنید. اگر
-    نمی‌خواهید آن خطوط نوشته شوند، برای پیشوندهای `/order/pay/`، `/payment/`، `/api/bff/order/pay/` و
-    `/api/bff/payment/` یک `location` جدا با `error_log … crit` بسازید (و همهٔ `proxy_set_header`ها را آنجا
-    تکرار کنید)؛ آن‌وقت خطاهای upstream همین مسیرها اصلاً ثبت نمی‌شوند.
+    نمی‌خواهید آن خطوط نوشته شوند، `location` جدای بخش [لاگ خطا بدون کلید پرداخت](#لاگ-خطا-بدون-کلید-پرداخت-اختیاری)
+    را بگذارید.
   - **هر پروکسی، load balancer یا CDN دیگری** جلوی فروشگاه (یا در حالت تک‌دامنه بین فروشگاه و API) هم باید
     همین مسیرها را بپوشاند یا لاگ نکند. در حالت تک‌دامنه درخواست‌های خود فروشگاه به `/api/v1/order/pay/…`،
     `/api/v1/payment/link/…` و `/api/v1/payment/<uuid>/…` از همین nginx می‌گذرند و همین `map`ها آن‌ها را هم
@@ -246,6 +245,64 @@ services:
 همهٔ مسیرها به کانتینر می‌روند؛ خود فروشگاه `/media/`، `/static/`، `/sitemap.xml` و مسیر بازگشت بانک
 `/api/v1/payment/gateway/callback/…` را با همان متد و بدنه و اسلش پایانی به API می‌فرستد. پس در حالت
 دامنه‌های جدا، nginx فروشگاه قاعدهٔ خاصی برای این مسیرها لازم ندارد.
+
+### لاگ خطا بدون کلید پرداخت (اختیاری)
+
+خطای upstream (۵۰۲، پایان مهلت) با سطح `error` و خط کامل درخواست در `error_log` ثبت می‌شود. یک
+`location` جدا برای مسیرهایی که کلید پرداخت را در نشانی دارند، با `error_log … crit`، این خطاها را اصلاً
+ثبت نمی‌کند (فقط خطاهای بحرانی خود nginx می‌مانند). در حالت دامنه‌های جدا، داخل `server` فروشگاه و پیش از
+`location /`:
+
+```nginx
+# صفحه‌ها و درخواست‌های BFF با کلید پرداخت، صفحه‌های ورود که `next` آن‌ها کلید را دارد
+# (/login/?next=/order/pay/<token>/) و بازگشت بانک، که خود فروشگاه به API می‌فرستد.
+location ~* ^/(order/pay|payment|login|register|forgot-password|api/bff/order/pay|api/bff/payment|api/v1/payment/gateway/callback)/ {
+    error_log /var/log/nginx/<shop>.error.log crit;
+    proxy_pass http://firefly_storefront;
+    # صفحه‌های /order/pay/ و /payment/ جریانی ارسال می‌شوند، مثل `location /`.
+    proxy_buffering off;
+}
+```
+
+- `proxy_pass` به ارث نمی‌رسد و `proxy_buffering off` در فایل نمونه فقط در `location /` است (یک
+  `location` از `location` دیگر چیزی به ارث نمی‌برد)؛ پس هر دو باید همین‌جا باشند (بدون
+  `proxy_buffering off` اولین بایت صفحه تا پر شدن بافر یا پایان پاسخ برنامه منتظر می‌ماند). اگر
+  `location /` شما دستور دیگری هم دارد، **همهٔ** دستورهای آن را اینجا تکرار کنید.
+- `proxy_set_header`های سطح `server` (`Host`، `X-Real-IP`، `X-Forwarded-*` و `Accept-Encoding ""`) فقط
+  وقتی به این `location` می‌رسند که خودش **هیچ** `proxy_set_header`ی نداشته باشد؛ با اولین
+  `proxy_set_header` در آن، همه را اینجا تکرار کنید (وگرنه مثلاً `X-Real-IP` نمی‌رسد و همهٔ مهمان‌ها با IP
+  خود nginx شمرده می‌شوند). `add_header` (HSTS) هم همین قاعده را دارد. `access_log` سطح `server`
+  (`firefly_masked`) هم به ارث می‌رسد، مگر این `location` `access_log` خودش را داشته باشد.
+- `~*` به بزرگی و کوچکی حروف حساس نیست (مثل `map`های لاگ دسترسی) و چون regex است، بر `location /` (و در
+  حالت تک‌دامنه بر `location /api/v1/`) مقدم است.
+- خطاهای upstream مسیرهای دیگر همین پیشوندها (مثلاً `/api/bff/payment/methods/` یا ورود بدون `next`) هم
+  ثبت نمی‌شوند؛ دسترس‌بودن را با `/healthz/` و لاگ دسترسی پایش کنید.
+
+در حالت تک‌دامنه، `location /` و `location /api/v1/` هر کدام `proxy_set_header` خودشان را دارند (پس از
+سطح `server` چیزی نمی‌گیرند) و مسیرهای کلیددار `/api/v1/` (درخواست‌های خود فروشگاه به `/api/v1/order/pay/…`،
+`/api/v1/payment/link/…` و `/api/v1/payment/<uuid>/…`، و بازگشت بانک) باید به Django بروند، نه به فروشگاه، وگرنه
+حلقه درست می‌شود. پس دو بلوک لازم است و هر کدام **همهٔ** دستورهای `location` اصلی خود را تکرار می‌کند:
+
+```nginx
+location ~* ^/(order/pay|payment|login|register|forgot-password|api/bff/order/pay|api/bff/payment)/ {
+    error_log /var/log/nginx/shop.error.log crit;
+    proxy_pass http://127.0.0.1:3000;            # همهٔ دستورهای `location /`
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Accept-Encoding "";
+    proxy_buffering off;
+}
+location ~* ^/api/v1/(order/pay|payment)/ {
+    error_log /var/log/nginx/shop.error.log crit;
+    proxy_pass http://127.0.0.1:8000;            # همهٔ دستورهای `location /api/v1/`
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+}
+```
+
+هر دو شکل با nginx 1.27 آزموده شده‌اند (`nginx -t` و درخواست‌های واقعی): هدرها و پاسخ جریانی همان
+`location /` را دارند و ۵۰۲ این مسیرها هیچ خطی در `error_log` نمی‌نویسد.
 
 ### IP بازدیدکننده: `X-Real-IP` و `CLIENT_IP_HEADER`
 
