@@ -480,6 +480,15 @@ load counts one view, so does a client navigation (its RSC request); a router pr
 for a guest and `list` are real 404s. `tests/e2e/blog/post.spec.ts` counts one more view for a
 click from the blog and one for a reload.
 
+**A HEAD request counts a view too.** Next renders a page for `HEAD` exactly as for `GET` and
+only drops the body when it sends the answer (`send-payload.js`), so `generateMetadata` and the
+page run and `getPost()` reads the post. It is not avoided, because a HEAD must answer what the
+GET would: 200, a 404 for a missing post or a draft, a 503 while the blog is off. Only that
+counted read knows which. The API has no read of a post that counts nothing: its own `HEAD` is
+Django's `GET` (`retrieve()` increments `view_count` for a published post). So a monitor or link
+checker that sends `HEAD` to post URLs inflates their views. Point uptime checks at `/healthz/`,
+and keep crawlers' HEAD-only checks off `/blog/<slug>/`.
+
 ## Rendering rules
 
 - **R5 — the root layout is `force-dynamic`.** It reads runtime config (theme, store config,
