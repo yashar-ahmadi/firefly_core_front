@@ -32,8 +32,15 @@ export const visitorPage = (path: string) => `<html><body>${path} برای سا�
 
 export const anonymousCopy = (path: string) => (path === '/offline/' ? OFFLINE_COPY : HOME_COPY)
 
-/** The server's consent to keep a page's anonymous copy (src/lib/edge/offline-copy.ts). */
-export const CONSENT = { 'cache-control': 'no-cache', 'x-ff-offline': 'snapshot' }
+/**
+ * The server's consent to keep a page's anonymous copy (src/lib/edge/offline-copy.ts), with the
+ * `Vary` the build sends: Next's own, then the proxy's `X-FF-Offline`.
+ */
+export const CONSENT = {
+  'cache-control': 'no-cache',
+  'x-ff-offline': 'snapshot',
+  vary: 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, X-FF-Offline',
+}
 
 export interface ShopOptions {
   /** Headers of the anonymous copy instead of the consent (a server that does not allow it). */

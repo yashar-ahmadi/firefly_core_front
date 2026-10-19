@@ -115,6 +115,16 @@ describe('a navigation to the home page (network first)', () => {
     expect(await text(await sw.request(navigation('/?source=pwa')))).toBe(HOME_COPY)
   })
 
+  it('a copy that varies on X-FF-Offline (the consent) is served all the same, by path', async () => {
+    const state = { online: true }
+    const sw = await installed(state)
+    const copy = await (await sw.caches.open(CACHES.pages)).match('/', { ignoreVary: true })
+    expect(copy?.headers.get('vary')).toContain('X-FF-Offline')
+    state.online = false
+    expect(await text(await sw.request(navigation('/')))).toBe(HOME_COPY)
+    expect(await text(await sw.request(navigation('/product/x/')))).toBe(OFFLINE_COPY)
+  })
+
   it('offline with no copy kept: the offline page', async () => {
     const state = { online: true }
     const sw = await installed(state)

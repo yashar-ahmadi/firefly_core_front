@@ -11,9 +11,15 @@ import { prefetchKind } from '@/lib/http/prefetch'
 // any reuse) with the header back; anything else about the request (a cookie, `Authorization`,
 // another page, a router fetch) leaves Next's `private, no-store` as it is.
 
-/** The response headers that let the worker keep a page's anonymous copy. */
+/**
+ * The response headers that let the worker keep a page's anonymous copy. `Vary: X-FF-Offline`:
+ * a shared cache in front may reuse the copy only for a request carrying the same header (the
+ * worker's own), never for a visitor's navigation. Next adds its own `Vary` names after these
+ * (appended, checked on the build).
+ */
 export const OFFLINE_COPY_HEADERS: Readonly<Record<string, string>> = {
   'Cache-Control': 'no-cache',
+  Vary: 'X-FF-Offline',
   [OFFLINE_COPY_HEADER]: OFFLINE_COPY,
 }
 

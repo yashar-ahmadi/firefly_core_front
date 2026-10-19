@@ -79,6 +79,8 @@ describe('the proxy’s answer', () => {
     const res = await proxy(request('/', COPY))
     expect(res.headers.get('cache-control')).toBe('no-cache')
     expect(res.headers.get('x-ff-offline')).toBe('snapshot')
+    // A shared cache in front may reuse this copy only for the worker's own request.
+    expect(res.headers.get('vary')?.toLowerCase().split(/,\s*/)).toContain('x-ff-offline')
     // Still the page as rendered for anyone: marked for the layouts, like any page.
     expect(res.headers.get('x-middleware-request-x-ff-route-kind')).toBe('page')
   })
@@ -93,5 +95,6 @@ describe('the proxy’s answer', () => {
     const res = await proxy(request(path, headers))
     expect(res.headers.get('cache-control')).toBeNull()
     expect(res.headers.get('x-ff-offline')).toBeNull()
+    expect(res.headers.get('vary')).toBeNull()
   })
 })

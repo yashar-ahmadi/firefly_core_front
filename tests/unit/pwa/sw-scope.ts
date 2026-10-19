@@ -34,16 +34,37 @@ type Key = string | Request
 const keyOf = (request: Key) =>
   typeof request === 'string' ? new URL(request, ORIGIN).href : request.url
 
+const asRequest = (request: Key) =>
+  typeof request === 'string' ? new Request(new URL(request, ORIGIN)) : request
+
+/**
+ * The Cache API's `Vary` rule: a stored response matches only a request whose value for each
+ * header it varies on equals the stored request's (both absent counts as equal); `*` never
+ * matches. `ignoreVary` skips the rule.
+ */
+function varyMatches(stored: Request, response: Response, query: Request): boolean {
+  const names = (response.headers.get('vary') ?? '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+  return names.every((name) => name !== '*' && stored.headers.get(name) === query.headers.get(name))
+}
+
 /** One cache: entries in the order they were stored (as the Cache API keeps them). */
 export class FakeCache {
-  readonly entries = new Map<string, Response>()
-  async match(request: Key) {
-    return this.entries.get(keyOf(request))?.clone()
+  readonly entries = new Map<string, { request: Request; response: Response }>()
+  async match(request: Key, options: { ignoreVary?: boolean } = {}) {
+    const entry = this.entries.get(keyOf(request))
+    if (!entry) return undefined
+    if (!options.ignoreVary && !varyMatches(entry.request, entry.response, asRequest(request))) {
+      return undefined
+    }
+    return entry.response.clone()
   }
   async put(request: Key, response: Response) {
     const key = keyOf(request)
     this.entries.delete(key)
-    this.entries.set(key, response)
+    this.entries.set(key, { request: asRequest(request), response })
   }
   async delete(request: Key) {
     return this.entries.delete(keyOf(request))
@@ -72,10 +93,10 @@ export class FakeCacheStorage {
   async has(name: string) {
     return this.stores.has(name)
   }
-  async match(request: Key, options: { cacheName?: string } = {}) {
+  async match(request: Key, options: { cacheName?: string; ignoreVary?: boolean } = {}) {
     const names = options.cacheName ? [options.cacheName] : [...this.stores.keys()]
     for (const name of names) {
-      const found = await this.stores.get(name)?.match(request)
+      const found = await this.stores.get(name)?.match(request, options)
       if (found) return found
     }
     return undefined
