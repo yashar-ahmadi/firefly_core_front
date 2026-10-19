@@ -223,10 +223,11 @@ export const config = {
   matcher: [
     {
       // Pages only: no Next internals, route handlers, robots.txt, the health check, icons or
-      // asset files (`.xml` and legacy page extensions are kept, as in ASSET_FILE). Prefetches
-      // too: each render is marked with its route kind, and nothing else (`isQuietPrefetch`).
+      // asset files (`.xml` and legacy page extensions are kept in any letter case, as in
+      // ASSET_FILE: Next compiles a matcher without regex flags, hence the letter classes).
+      // Prefetches too: each render is marked with its route kind, and nothing else.
       source:
-        '/((?!_next/|api/|s/|icons/|favicon\\.ico|robots\\.txt|healthz/?$|.*\\.(?!xml$|html?$|php$|aspx?$)[^/.]+$).*)',
+        '/((?!_next/|api/|s/|icons/|favicon\\.ico|robots\\.txt|healthz/?$|.*\\.(?![xX][mM][lL]$|[hH][tT][mM][lL]?$|[pP][hH][pP]$|[aA][sS][pP][xX]?$)[^/.]+$).*)',
     },
     {
       // Catalog paths with an extension too (`/product/x%ZZ.png`): no file lives there, and an

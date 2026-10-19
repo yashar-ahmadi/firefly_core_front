@@ -33,6 +33,13 @@ describe('matcher', () => {
     '/product.php?id=7',
     '/default.asp',
     '/shop/list.aspx',
+    // Legacy extensions in any letter case.
+    '/OLD-PAGE.HTML',
+    '/catalog/Item.Htm',
+    '/Index.PHP',
+    '/DEFAULT.ASP',
+    '/shop/List.AsPx',
+    '/feed.XML',
     '/healthz-tips/',
     // Undecodable: the proxy answers 404 itself.
     '/product-category/abc%ZZ/',
@@ -62,7 +69,9 @@ describe('matcher', () => {
     '/favicon.ico',
     '/icons/icon-192.png',
     '/logo.svg',
+    '/logo.SVG',
     '/app.js',
+    '/App.JS',
     '/style.css',
     '/manifest.webmanifest',
   ])('skips %s', async (url) => {

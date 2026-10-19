@@ -5,9 +5,10 @@ const SKIPPED_PREFIX = /^\/(?:_next|api|s|icons)\//
 const HEALTH_CHECK = /^\/healthz\/?$/
 /**
  * The last segment has a file extension, other than `.xml` and the legacy page extensions that
- * operators may redirect from older platforms (`.html`, `.htm`, `.php`, `.asp`, `.aspx`).
+ * operators may redirect from older platforms (`.html`, `.htm`, `.php`, `.asp`, `.aspx`), in any
+ * letter case (`/Index.PHP`). The proxy's matcher spells the same rule out letter by letter.
  */
-const ASSET_FILE = /\/[^/]*\.(?!xml$|html?$|php$|aspx?$)[^/.]+$/
+const ASSET_FILE = /\/[^/]*\.(?!xml$|html?$|php$|aspx?$)[^/.]+$/i
 
 /** Whether every `%` in the path starts a valid UTF-8 escape (`%ZZ` or a cut `%E0%A4%A` do not). */
 export function isDecodable(pathname: string): boolean {

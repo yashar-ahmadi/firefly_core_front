@@ -248,17 +248,22 @@ describe('redirects', () => {
     expect(res.headers.get('location')).toBeNull()
   })
 
-  it.each(['/old-page.html', '/catalog/item.htm', '/index.php', '/default.asp', '/list.aspx'])(
-    'resolves the legacy page URL %s',
-    async (path) => {
-      knownSources.mockResolvedValue(new Set([path]))
-      resolveRedirect.mockResolvedValue({ status: 301, target: '/new/' })
-      const { proxy } = await load()
-      const res = await proxy(request(path))
-      expect(resolveRedirect).toHaveBeenCalledWith(path, '203.0.113.9')
-      expect(res.status).toBe(301)
-    },
-  )
+  it.each([
+    '/old-page.html',
+    '/catalog/item.htm',
+    '/index.php',
+    '/default.asp',
+    '/list.aspx',
+    '/OLD-PAGE.HTML',
+    '/Index.PHP',
+  ])('resolves the legacy page URL %s', async (path) => {
+    knownSources.mockResolvedValue(new Set([path]))
+    resolveRedirect.mockResolvedValue({ status: 301, target: '/new/' })
+    const { proxy } = await load()
+    const res = await proxy(request(path))
+    expect(resolveRedirect).toHaveBeenCalledWith(path, '203.0.113.9')
+    expect(res.status).toBe(301)
+  })
 
   it('never redirects writes', async () => {
     resolveRedirect.mockResolvedValue({ status: 302, target: '/x/' })
