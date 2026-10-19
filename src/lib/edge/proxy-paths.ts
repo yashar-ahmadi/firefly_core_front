@@ -27,10 +27,16 @@ export function isForwarded(pathname: string): boolean {
 
 /** Catalog routes, which never serve files (the matcher sends extension-bearing ones here too). */
 const CATALOG_PATH = /^\/(?:product-category|brand|product)\//
+/**
+ * The blog's routes (`blog-gate.ts`'s `isBlogPath`): no file lives there either, so a slug that
+ * looks like one (`/blog/guide.png`) is a page, and gets the blog switch's 503 like the others.
+ */
+const BLOG_PATH = /^\/blog(?:\/|$)/
 
 /** Next internals, route handlers, the health check and asset files: left alone. */
 export function isSkipped(pathname: string, decodable: boolean): boolean {
   if (SKIPPED_PREFIX.test(pathname) || HEALTH_CHECK.test(pathname)) return true
+  if (BLOG_PATH.test(pathname)) return false
   // An undecodable catalog path is a page URL gone wrong: it goes on to the 404 guard.
   return ASSET_FILE.test(pathname) && (decodable || !CATALOG_PATH.test(pathname))
 }

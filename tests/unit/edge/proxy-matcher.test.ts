@@ -49,6 +49,12 @@ describe('matcher', () => {
     '/product-category/digital/x%ZZ.webp',
     '/brand/x%ZZ.jpg',
     '/product/x%ZZ.png',
+    // Blog paths too: a post or category slug that looks like a file still gets the blog switch's
+    // 503, and a visitor's own x-ff-blog-off is still dropped before the page reads it.
+    '/blog/v1.5/',
+    '/blog/guide.png',
+    '/blog/category/tech-news/x.webp',
+    '/blog/x%ZZ.jpg',
     // The payment link, as the SMS spells it and as the page is served (its route kind marked).
     '/order/pay/k3J9f0qLx2mN8pR1sT4uV7wY0zA3bC6dE9gH2jK5mN8',
     '/order/pay/k3J9f0qLx2mN8pR1sT4uV7wY0zA3bC6dE9gH2jK5mN8/',

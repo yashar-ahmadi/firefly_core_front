@@ -32,4 +32,14 @@ describe('isSkipped', () => {
   it('an undecodable catalog path is never an asset file, in any case', () => {
     expect(isSkipped('/product/x%ZZ.PNG', false)).toBe(false)
   })
+
+  // No file lives under /blog/: a slug that looks like one is a post or a category, and must get
+  // the blog switch's 503 (and lose a visitor's own x-ff-blog-off) like any other blog page.
+  it.each(['/blog/guide.png', '/blog/v1.5', '/blog/category/tech-news/x.WEBP'])(
+    'runs the proxy on the blog page %s',
+    (path) => {
+      expect(isSkipped(path, true)).toBe(false)
+      expect(isSkipped(path, false)).toBe(false)
+    },
+  )
 })

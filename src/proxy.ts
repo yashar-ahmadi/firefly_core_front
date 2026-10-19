@@ -22,6 +22,7 @@ import { isQuietPrefetch } from '@/lib/http/prefetch'
  * 2. Next internals, route handlers (`/api/*`, `/s/*`, `/healthz/`) and asset files are left alone
  *    (unmarked: a visitor's own `x-ff-route-kind` is dropped on the way).
  *    Catalog paths are never asset files: one with an extension that cannot be decoded goes on.
+ *    Blog paths never are, decodable or not (the blog switch's 503 covers every blog page).
  * 3. GET/HEAD: operator redirect rules answer 301/302, or 410 with a status page. Only a path
  *    whose spelling is a known rule source costs an API call (see `redirects.ts`), so a legacy
  *    non-UTF-8 URL an operator redirects still works, and random garbage stays free.
@@ -227,6 +228,11 @@ export const config = {
       // Catalog paths with an extension too (`/product/x%ZZ.png`): no file lives there, and an
       // undecodable one must reach the 404 guard instead of failing in Next with a 500.
       source: '/(product-category|brand|product)/:path*',
+    },
+    {
+      // Blog paths with an extension too (`/blog/guide.png`): no file lives there either, and
+      // every blog page must get the blog switch's 503, its visitor's own x-ff-blog-off dropped.
+      source: '/blog/:path*',
     },
     '/media/:path*',
     '/static/:path*',

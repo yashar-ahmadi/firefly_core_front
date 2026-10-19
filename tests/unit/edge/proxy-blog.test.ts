@@ -71,6 +71,16 @@ describe('a blog page while the blog is switched off', () => {
     },
   )
 
+  it.each(['/blog/guide.png', '/blog/category/tech-news/x.webp'])(
+    '%s (a slug that looks like a file) gets the 503 too',
+    async (path) => {
+      const { proxy } = await load()
+      const res = await proxy(request(path, { headers: { 'x-ff-blog-off': 'forged' } }))
+      expect(res.status).toBe(503)
+      expect(decodeURIComponent(forwarded(res, 'x-ff-blog-off') ?? '')).toBe(REASON)
+    },
+  )
+
   it('without a reason: the header is there, empty', async () => {
     blogSwitchOff.mockResolvedValue({ reason: null })
     const { proxy } = await load()
