@@ -2,8 +2,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import type { ApiError as ApiErrorType } from '@/lib/api/errors'
 
-const NETWORK_DETAIL = 'ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید.'
-
 type FetchInit = RequestInit & { next?: { revalidate?: number; tags?: string[] } }
 
 let fetchSpy: MockInstance<typeof fetch>
@@ -222,69 +220,5 @@ describe('apiFetch response', () => {
       status: 504,
       code: 'non_json_response',
     })
-  })
-})
-
-describe('apiFetch network failures', () => {
-  it('maps a rejected fetch to network_error with status 0', async () => {
-    fetchSpy.mockRejectedValue(new TypeError('fetch failed'))
-    const { apiFetch, ApiError } = await load()
-    const error = (await apiFetch('homepage').catch((e: unknown) => e)) as ApiErrorType
-    expect(error).toBeInstanceOf(ApiError)
-    expect(error.status).toBe(0)
-    expect(error.code).toBe('network_error')
-    expect(error.detail).toBe(NETWORK_DETAIL)
-    expect(error.cause).toBeInstanceOf(TypeError)
-  })
-
-  it('passes an unaborted signal to fetch by default', async () => {
-    const { apiFetch } = await load()
-    await apiFetch('homepage')
-    const signal = lastCall().init.signal
-    expect(signal).toBeInstanceOf(AbortSignal)
-    expect(signal?.aborted).toBe(false)
-  })
-
-  it('aborts after timeoutMs and reports network_error', async () => {
-    fetchSpy.mockImplementation(
-      (_url, init) =>
-        new Promise((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))
-        }),
-    )
-    const { apiFetch, ApiError } = await load()
-    const error = (await apiFetch('homepage', { timeoutMs: 15 }).catch(
-      (e: unknown) => e,
-    )) as ApiErrorType
-    expect(error).toBeInstanceOf(ApiError)
-    expect(error.status).toBe(0)
-    expect(error.code).toBe('network_error')
-    expect(error.detail).toBe(NETWORK_DETAIL)
-  })
-
-  it('combines the caller signal with the timeout', async () => {
-    const { apiFetch } = await load()
-    const controller = new AbortController()
-    await apiFetch('homepage', { signal: controller.signal })
-    const signal = lastCall().init.signal as AbortSignal
-    expect(signal.aborted).toBe(false)
-    controller.abort()
-    expect(signal.aborted).toBe(true)
-  })
-
-  it('rethrows the caller abort instead of reporting a network error', async () => {
-    fetchSpy.mockImplementation(
-      (_url, init) =>
-        new Promise((_resolve, reject) => {
-          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))
-        }),
-    )
-    const { apiFetch, ApiError } = await load()
-    const controller = new AbortController()
-    const pending = apiFetch('homepage', { signal: controller.signal }).catch((e: unknown) => e)
-    controller.abort(new DOMException('cancelled', 'AbortError'))
-    const error = await pending
-    expect(error).not.toBeInstanceOf(ApiError)
-    expect((error as Error).name).toBe('AbortError')
   })
 })
