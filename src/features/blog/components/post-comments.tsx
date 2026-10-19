@@ -4,19 +4,11 @@ import { BookX } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BLOG_UNAVAILABLE_TITLE } from '@/features/blog/blog-copy'
+import { TabCount } from '@/features/comments/tab-count'
 import { useFeature } from '@/features/settings/feature-context'
-import { formatNumber } from '@/lib/format/number'
 import { COMMENTS_HEADING_ID, COMMENTS_ID } from '@/lib/html/reserved-ids'
 import { PostCommentComposer } from './post-comment-composer'
 import { PostCommentList } from './post-comment-list'
-
-function Count({ value }: { value: number }) {
-  return (
-    <span className="min-w-6 rounded-pill bg-ink-100 px-1.5 text-center text-sm leading-6 text-ink-700">
-      {formatNumber(value)}
-    </span>
-  )
-}
 
 export interface PostCommentsProps {
   slug: string
@@ -29,9 +21,9 @@ export interface PostCommentsProps {
 
 /**
  * «دیدگاه‌ها و پرسش‌ها» (blog digest §1.7): two tabs, «دیدگاه‌ها» (first) and «پرسش و پاسخ», with
- * the post's counts, keyboard-operable (Radix, RTL: the arrows follow the reading order). Each has
- * its composer (the form loads on first use) above its list; the questions are read once their
- * tab is opened. While the blog is switched off (a refused read or write, or the shell's feature
+ * the post's counts (TabCount: «دیدگاه‌ها، ۲ دیدگاه» to a screen reader), keyboard-operable
+ * (Radix, RTL: the arrows follow the reading order). Each has its composer (the form loads on
+ * first use) above its list; the questions are read once their tab is opened. While the blog is switched off (a refused read or write, or the shell's feature
  * map) the section says «وبلاگ موقتاً در دسترس نیست» with the operator's reason instead.
  */
 export function PostComments({ slug, commentCount, questionCount, children }: PostCommentsProps) {
@@ -53,11 +45,11 @@ export function PostComments({ slug, commentCount, questionCount, children }: Po
           <TabsList aria-label={'دیدگاه\u{200C}ها و پرسش\u{200C}ها'} className="-mx-1">
             <TabsTrigger value="comment">
               {'دیدگاه\u{200C}ها'}
-              <Count value={commentCount} />
+              <TabCount value={commentCount} unit="دیدگاه" />
             </TabsTrigger>
             <TabsTrigger value="question">
               پرسش و پاسخ
-              <Count value={questionCount} />
+              <TabCount value={questionCount} unit="پرسش" />
             </TabsTrigger>
           </TabsList>
           <TabsContent value="comment" className="flex flex-col gap-2">

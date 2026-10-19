@@ -86,7 +86,10 @@ describe('PostComments', () => {
   it('two tabs named with the post’s counts; the comments first, from the server’s page', () => {
     renderSection({ questions: [commentFixture({ comment_type: 'question' })] })
     const tabs = within(screen.getByRole('tablist')).getAllByRole('tab')
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['دیدگاه\u{200C}ها۲', 'پرسش و پاسخ۱'])
+    // The badge is seen; a screen reader hears the count as words, never glued to the label.
+    expect(tabs[0]).toHaveAccessibleName('دیدگاه\u{200C}ها، ۲ دیدگاه')
+    expect(tabs[1]).toHaveAccessibleName('پرسش و پاسخ، ۱ پرسش')
+    expect(within(tabs[0]!).getByText('۲')).toHaveAttribute('aria-hidden', 'true')
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
     const list = screen.getByRole('list', { name: 'دیدگاه\u{200C}ها' })
     expect(within(list).getAllByRole('article')).toHaveLength(3)
