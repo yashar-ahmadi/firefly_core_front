@@ -33,7 +33,8 @@ import path from 'node:path'
 // configured, runs the projects one after the other (mobile, tablet, desktop, then journeys, which
 // waits for the others), each project's account specs first: measured from the backend's log,
 // at most 8 in any minute of a run (Plan 4 Task 2; 5 in Plan 3 Task 10, before the signed-in
-// checkout) and 9 across two runs back to back (Task 10). That is an
+// checkout; 10 in Plan 4 Task 10, the journeys' 11 within about a minute) and 9 across two runs
+// back to back (Plan 3 Task 10). That is an
 // observation of the scheduler, not a guarantee (more workers or a filtered run can bunch them):
 // keep a run's total low, and a spec that adds attempts adds its count here.
 

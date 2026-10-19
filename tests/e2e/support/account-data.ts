@@ -3,18 +3,18 @@ import type { Address } from '@/lib/api/types/address'
 import type { Cart } from '@/lib/api/types/cart'
 import type { Paginated } from '@/lib/api/types/common'
 
-// What the signed-in checkout journey changes in k.yazdi's account (ruling P4-R4: never sara for
-// order journeys), read before it starts and put back exactly afterwards (support/
-// kamran-guard.ts): his cart's lines, its destination and shipping choice, and his address book
-// (its default included). Through the BFF with his session (`request`: the test's own browser
-// context, signed in as him).
+// What the signed-in order journeys change in a demo account (ruling P4-R4: k.yazdi's checkout
+// and orders, shirin's reorder and wallet order; never sara's), read before a test starts and put
+// back exactly afterwards (support/account-guard.ts): the cart's lines, its destination and
+// shipping choice, and the address book (its default included). Through the BFF with that
+// account's session (`request`).
 
 /** An address the guard adds for a moment (a destination cannot be cleared otherwise). */
 export const CHECKOUT_MARKER = 'آزمون خودکار پرداخت'
 
 const HEADERS = { 'X-Requested-With': 'ff' }
 
-export interface KamranData {
+export interface AccountData {
   /** The cart's lines: variant and quantity, sorted by variant. */
   lines: { variant: number; quantity: number }[]
   destination: { address: number } | { province: number; city: number } | null
@@ -41,14 +41,14 @@ async function write<T = unknown>(
   return (text ? (JSON.parse(text) as { data: T }).data : null) as T
 }
 
-function destinationOf(cart: Cart): KamranData['destination'] {
+function destinationOf(cart: Cart): AccountData['destination'] {
   const { destination } = cart
   if (!destination || destination.city_id === null) return null
   if (destination.address) return { address: destination.address.id }
   return { province: destination.province_id!, city: destination.city_id }
 }
 
-export async function readKamranData(request: APIRequestContext): Promise<KamranData> {
+export async function readAccountData(request: APIRequestContext): Promise<AccountData> {
   const [cart, book] = await Promise.all([
     get<Cart>(request, 'cart/'),
     get<Paginated<Address>>(request, 'account/address/list/?limit=100'),
@@ -71,9 +71,9 @@ export async function readKamranData(request: APIRequestContext): Promise<Kamran
 }
 
 /** The lines as `before`: new ones removed, quantities set back, lost ones added. */
-async function restoreLines(request: APIRequestContext, before: KamranData['lines']) {
+async function restoreLines(request: APIRequestContext, before: AccountData['lines']) {
   const wanted = new Map(before.map(({ variant, quantity }) => [variant, quantity]))
-  const now = (await readKamranData(request)).lines
+  const now = (await readAccountData(request)).lines
   for (const { variant, quantity } of now) {
     const quantityBefore = wanted.get(variant)
     if (quantityBefore === undefined) await write(request, 'DELETE', `cart/item/${variant}/remove/`)
@@ -87,10 +87,10 @@ async function restoreLines(request: APIRequestContext, before: KamranData['line
 }
 
 /** The book as `before`: addresses added since deleted, the default set back. */
-async function restoreAddresses(request: APIRequestContext, before: KamranData['addresses']) {
+async function restoreAddresses(request: APIRequestContext, before: AccountData['addresses']) {
   const kept = new Set(before.map(({ id }) => id))
   const def = before.find(({ isDefault }) => isDefault)
-  const now = (await readKamranData(request)).addresses
+  const now = (await readAccountData(request)).addresses
   if (def && !now.find(({ id }) => id === def.id)?.isDefault) {
     await write(request, 'POST', `account/address/${def.id}/set-default/`)
   }
@@ -104,9 +104,9 @@ async function restoreAddresses(request: APIRequestContext, before: KamranData['
  * destination call clears it). No destination at all cannot be asked for: a marker address
  * becomes the destination and is deleted, which leaves none (cart digest §7.4).
  */
-async function restoreDestination(request: APIRequestContext, before: KamranData['destination']) {
+async function restoreDestination(request: APIRequestContext, before: AccountData['destination']) {
   if (before) return void (await write(request, 'POST', 'cart/destination/', before))
-  const now = await readKamranData(request)
+  const now = await readAccountData(request)
   if (now.destination === null && now.shipping === null) return
   const marker = await write<Address>(request, 'POST', 'account/address/create/', {
     title: CHECKOUT_MARKER,
@@ -122,8 +122,15 @@ async function restoreDestination(request: APIRequestContext, before: KamranData
   await write(request, 'DELETE', `account/address/${marker.id}/delete/`)
 }
 
-/** All of it as `before` (the order matters: lines and book, then destination, then choice). */
-export async function restoreKamran(request: APIRequestContext, before: KamranData) {
+/**
+ * All of it as `before` (the order matters: lines and book, then destination, then choice); `who`
+ * names the account in the failure.
+ */
+export async function restoreAccountData(
+  request: APIRequestContext,
+  before: AccountData,
+  who: string,
+) {
   await restoreLines(request, before.lines)
   await restoreAddresses(request, before.addresses)
   await restoreDestination(request, before.destination)
@@ -133,14 +140,14 @@ export async function restoreKamran(request: APIRequestContext, before: KamranDa
       cash_on_delivery: before.shipping.cod,
     })
   }
-  expect(await readKamranData(request), 'k.yazdi’s cart and address book as they were').toEqual(
+  expect(await readAccountData(request), `${who}’s cart and address book as they were`).toEqual(
     before,
   )
 }
 
 /** Takes out the marker addresses an earlier run left (it stopped before its restore). */
 export async function removeCheckoutMarkers(request: APIRequestContext): Promise<void> {
-  for (const { id, title } of (await readKamranData(request)).addresses) {
+  for (const { id, title } of (await readAccountData(request)).addresses) {
     if (title === CHECKOUT_MARKER) await write(request, 'DELETE', `account/address/${id}/delete/`)
   }
 }

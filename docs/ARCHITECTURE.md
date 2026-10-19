@@ -613,11 +613,24 @@ signed-in header to another.
   radio group cost every view about 11 KB on load), the withdrawal form, its cancel question and
   a payment's detail sheet (`wallet-page.tsx`, `withdrawals.tsx`, `top-up-gateway.tsx`,
   `top-up-parts.tsx`). Measured by the signed-in guard (sara's wallet, read only; also answered
-  frozen): 229.5–233.4 KB on a desktop and a phone, 235.1 KB at most with push on. Adding the
+  frozen): 229.5–233.4 KB on a desktop and a phone, 235.1 KB at most with push on (230.7–234.4 KB
+  and 236.0 KB since Plan 4 Task 10, below). Adding the
   route regrouped shared chunks for other pages without adding code to them (Turbopack groups
   modules by the routes that load them): `/checkout/` −0.2 KB, the product page −1.3 KB, login
   −0.3 KB, the card-transfer page −0.3 KB, the payment result −0.1–0.2 KB, `/register/` +0.8 KB,
   `/forgot-password/` +0.2 KB, the catalog's listings ±0.0–0.1 KB.
+- **Plan 4's last figures** (Task 10, the full suite's guards on the final build; Task 9's last run
+  for the comparison). Every Plan 4 route is under its 246 KB in every state measured: `/checkout/`
+  unchanged (a guest 241.1, at the review 239.7, signed in 239.7, sara's refused writes 244.3 KB,
+  the costliest), the payment link 239.1 / 228.3 (an open attempt) / 201.2 KB (refused), the
+  payment result 219.6–220.4 KB, the card-transfer page 240.9 KB, order tracking 213.8 KB, the
+  orders 223.2–227.2 KB, an order 224.7–228.7 KB, the reviews 217.8–221.8 KB, the wallet
+  230.7–236.0 KB (push on included). The wallet grew 0.9–1.3 KB with Task 9's carried fixes, which
+  load with the page (the withdrawal record read while the `wallet` switch is off, the rules for
+  a balance under the minimum, the top-up's sentence for a gateway's own range); the orders list
+  0.2–0.3 KB (its overlays' focus rule) and an order 0.1 KB (its way up). The catalog moved by at
+  most 0.1 KB (rounding and regrouping; no code added to it): the costliest is a signed-in
+  category with push on, 243.8 KB of 250; `/cart/` 228.4–232.4 KB.
 - **Keeping under it.** Interactive widgets that are not on screen at first paint load on first
   use: overlays and panels through `next/dynamic` (`ssr: false`), menus through `DeferredMenu`
   (`components/ui/deferred-menu.tsx`), toasts through the lazy Sonner view behind `notify()`. Each
@@ -854,11 +867,14 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   data (`tests/e2e/account/auth.spec.ts`, `account.spec.ts`), and the signed-in checkout as
   k.yazdi (`tests/e2e/checkout/checkout-signed-in.spec.ts`, ruling P4-R4: never sara for order
   journeys; the `kamran` guard of `tests/e2e/support/kamran-guard.ts` puts his cart's lines,
-  destination and shipping choice and his address book back exactly), so no read-only spec sees that data
-  change. His account's orders journey (`tests/e2e/account/orders-journey.spec.ts`) places one
+  destination and shipping choice and his address book back exactly; since Plan 4 Task 10 it also
+  places his order through the review, the only signed-in placement of a routine run: the bank
+  refused, the order kept on the page with no console error, and his guard cancels it), so no
+  read-only spec sees that data change. His account's orders journey (`tests/e2e/account/orders-journey.spec.ts`) places one
   order of his through the BFF (`support/kamran-order.ts`, no intent), finds it in «سفارش‌های من»,
   presses «پرداخت» (the dev bank refuses the intent: one `payment_attempt`), cancels it from its
-  page (an API guard cancels it when the test ends earlier) and buys it again (one `cart/reorder/`;
+  page (the `kamran` guard's teardown cancels it when the test ends earlier, a timeout included)
+  and buys it again (one `cart/reorder/`;
   the guard empties his cart again). The read-only orders spec (`tests/e2e/account/orders.spec.ts`,
   every device project, sara) aborts any write the pages could make and answers the review's
   submission itself (a live review cannot be taken back). The wallet's read-only spec
@@ -873,36 +889,73 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   `400 gateway_unknown` when a gateway is named (the chooser shows), and the page withdraws that
   gateway for itself and tries the other with a press, refused too, until the bank routes close;
   `503 gateway_not_configured` when none is named; two of the 30 an hour of `payment_attempt`)
-  and cancels it
-  through its link afterwards, whatever happened (the token is taken from any 2xx placement
-  before anything is asserted), so the dev database keeps no open unpaid order. The payment link
+  and hands it to the `orders` guard (`tests/e2e/support/order-guard.ts`), so the dev database
+  keeps no open unpaid order: a fixture whose teardown runs however the test ends (a timeout
+  included), with request contexts of its own, cancels every payment attempt the test opened and
+  every order it handed over (a guest's through its link, the token taken from any 2xx placement
+  before anything is asserted; an account's from that account), and fails when one could not be
+  cancelled; an order left on purpose (`keep`) is only named. The payment link
   journey (`tests/e2e/checkout/pay-link.spec.ts`) places one more guest order through the BFF
   (`support/guest-order.ts`, no intent), opens its link as the SMS spells it (no trailing slash:
   the 308 keeps the token), refuses the bank as above, opens a card-transfer attempt, resumes and
   abandons it on the link, reads that cancelled attempt's real status on the bank's return page
   (`/payment/callback/`), measures the link's pages, and cancels the order through the page's
-  dialog (an API guard cancels it when the test ends earlier): four `payment_attempt` calls,
+  dialog (the `orders` guard cancels it when the test ends earlier): four `payment_attempt` calls,
   about ten `order_payment_link` calls and one payment status read per run. Its budget lines
   print `/order/pay/<token>/`, never the token. The card-transfer journey
   (`tests/e2e/checkout/card-transfer.spec.ts`) places one more guest order, opens a live card
   attempt from its link page, checks the live cards, their copy buttons and the attempt's
-  cut-off, fills the receipt with `tests/fixtures/receipt.png` and MOCKS its upload (a live
-  upload moves the order to «در انتظار بررسی», which cannot be cancelled; Plan 4 Task 10 makes the
-  one live upload), then cancels the attempt and the order (in `finally`): two `payment_attempt`
-  calls and four `payment_status` reads per run. The page's other states
+  cut-off, fills the receipt with a 400×400 PNG (`tests/fixtures/receipt-400.png`) and MOCKS its
+  upload, then the `orders` guard cancels the attempt and the order: two `payment_attempt` calls
+  and four `payment_status` reads per run. `E2E_LIVE_RECEIPT=1` sends that receipt for real
+  instead (Plan 4 Task 10 ran it once: order 8492370249, left under review; `payment_receipt_upload`
+  is ten an hour). Its multipart body is read through a route that sends it on unchanged: a
+  `request` listener gets no body for a request holding a file (that one run failed there, after
+  the server had taken the receipt). It is opt-in
+  because a live upload moves the order to «در انتظار بررسی», which neither the customer nor the
+  link can cancel: every such run leaves one order in the dev database for the shop's operator
+  to reject (its code is printed; the guard cancels the order as usual until the receipt is
+  taken). The page's other states
   (`card-transfer-states.spec.ts`, every device project) come from mocked answers, a real PNG
   decoded by the browser included. The return page's other states
   (`tests/e2e/checkout/payment-result.spec.ts`, every device project, a guest, no backend write)
   come from a status mocked in the browser (`page.route`), the polling schedule on Playwright's
-  fake clock: the dev backend cannot run a bank. A failure the
+  fake clock: the dev backend cannot run a bank. The guest's pay-on-delivery journey
+  (`tests/e2e/checkout/guest-cod.spec.ts`) fills a guest cart past peyk Tehran's free line with
+  the coupon `TEA30` (its discount checked against the API's fields; the sample coupon runs until
+  2026-10-28, and the journey says so when it has expired), Tehran, the default courier with
+  «پرداخت در محل» (nothing charged online), and places the order. The checkout's own
+  confirmation intent is held in the browser: a confirmed pure pay-on-delivery order is «در حال
+  انجام» at once, which no customer can cancel, so the thanks page shows it awaiting confirmation,
+  with its code and its link; tracking with the code and the receiver's mobile finds it, and the
+  link page's dialog cancels it (the `orders` guard otherwise). The wallet purchase
+  (`tests/e2e/checkout/user-wallet.spec.ts`, shirin) is opt-in, `E2E_LIVE_WALLET_ORDER=1`, for
+  the same reason: a wallet payment settles at once and the order is «در حال انجام», so the money
+  stays spent and the order stays (her balance is asserted less exactly the order's online
+  amount; the code and the amount are printed). Plan 4 Task 10 ran it once: order 1557203863,
+  268,000 Toman from her wallet (45,170,000 → 44,902,000). «خرید دوباره» on one of shirin's delivered orders
+  (`orders-journey.spec.ts`) fills her cart and its toast leads there; the `shirin` guard
+  (`tests/e2e/support/shirin-guard.ts`, her shared session, no login of its own) puts her cart
+  and address book back exactly, as the `kamran` guard does his (both through
+  `tests/e2e/support/account-guard.ts`: a snapshot in `tests/e2e/.state/` until the restore is
+  verified). A full routine run's writes (Plan 4 Task 10, from the backend's log): 6 orders placed
+  (4 guests': checkout-place, pay-link, card-transfer, guest-cod; 2 of k.yazdi's:
+  checkout-signed-in, orders-journey), all 6 cancelled; 8 payment intents (2 card-transfer
+  attempts opened, 6 refused by the dev bank) and 2 attempt cancels (`payment_attempt`, 30 an hour:
+  8 a run for the guests' address, 2 for k.yazdi); 1 coupon applied (and 3 codes refused by the
+  cart spec); 7 tracking lookups (6 by the tracking spec, 1 by guest-cod); 2 reorders (k.yazdi,
+  shirin); 1 wallet top-up the dev bank refuses and 1 withdrawal filed and cancelled (shirin); no
+  receipt upload, no wallet spend; 29 auth attempts; carts and address books restored. Each opt-in run adds one order it cannot
+  take back: a receipt under review, or a wallet-paid order. A failure the
   dev backend gives by design is forgiven by its status (`forgiveFailure(page, url, status)` in
   `watch-errors.ts`). Playwright skips it when a project before it failed, and a filter on the command line
   does not drop its dependencies (one journey file still runs the three device suites first):
   `pnpm test:e2e:journeys` (`--project=journeys --no-deps`) runs the journeys alone. An already running server on the base URL is reused;
-  `E2E_BASE_URL` points elsewhere. One full run makes about 220 anonymous API requests (about 400
-  before the BFF served a guest's empty cart from a shared copy), all from one address, and the
-  sample backend allows 2000 an hour per address (`THROTTLE_ANON`, a sliding hour): about eight
-  runs an hour, fewer with local browsing. Past that the backend answers 429
+  `E2E_BASE_URL` points elsewhere. One full run makes about 1,900 API requests (Plan 4 Task 10),
+  about 700 of them anonymous (estimated from the throttle's own window when it ran out), all from
+  one address, and the sample backend allows 2000 an hour per address (`THROTTLE_ANON`, a sliding
+  hour): two runs an hour, three at most, fewer with local browsing (Task 10's third run within
+  an hour met the 429 midway). Past that the backend answers 429
   `throttled` (`retryAfter` in the server log) and many specs fail at once. For back-to-back runs,
   start the backend with a larger budget, e.g. `THROTTLE_ANON=20000/hour`. A global setup
   (`tests/e2e/global-setup.ts`) probes the backend once before the run and stops it with that
@@ -919,7 +972,8 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   specs never log in per test or in a loop (`tests/e2e/support/session.ts`, which counts a full
   run's attempts: 29). Measured from the backend's log, Playwright's project-by-project order kept
   them to at most 8 in any minute of a run (Plan 4 Task 2; 5 before the journeys project gained
-  the signed-in checkout) and 9 across two runs back to back (Plan 3); that is the
+  the signed-in checkout; 10 in Plan 4 Task 10, all in the minute the journeys' 11 log in and
+  out) and 9 across two runs back to back (Plan 3); that is the
   scheduler's behaviour as configured, not a guarantee, so keep the total low. A spec that only reads with a session uses
   `signedInTest` from there: its `page` shares one login per project per run (a storage-state file
   in the output folder, written by the first worker that asks for it while the others wait; if

@@ -1,22 +1,26 @@
 import { expect, type APIResponse, type Response } from '@playwright/test'
 import type { Cart } from '@/lib/api/types/cart'
+import type { OrderPlacementResult } from '@/lib/api/types/order'
 import { cartAnswer, cartWrite, requestCartWrite } from '../support/cart-write'
 import { enforce, measure, measurePhone, type BudgetRoute } from '../support/js-budget'
 import { kamranTest } from '../support/kamran-guard'
 import { chooseShipping, SHIPPING_SELECT } from '../support/shipping-choice'
-import { watchErrors } from '../support/watch-errors'
+import { forgiveFailure, watchErrors } from '../support/watch-errors'
 
-// The signed-in checkout up to shipping (Plan 4 Task 2), in the `journeys` project only
+// The signed-in checkout (Plan 4 Task 2), in the `journeys` project only
 // (playwright.config.ts): k.yazdi (ruling P4-R4), signed in by the `kamran` guard, which puts
 // his cart (lines, destination, shipping choice) and address book back exactly afterwards. His
 // default address becomes the destination for him, the operator's default option is chosen (or,
 // with none, the section asks and the test chooses: support/shipping-choice.ts), and the
 // summary shows the API's row; «افزودن آدرس جدید» opens the address book's sheet (its
-// code loads then), closed unsaved. Nothing is ordered (Task 3).
+// code loads then), closed unsaved.
 // The JavaScript budget signed in (Task 3's amendment; support/js-budget.ts): the first visit
 // (the page's own writes, one after the other) is measured as it happens, the context's first
 // page; then the checkout at the review, as he would find it again, in fresh contexts on a
 // desktop and on a phone. No other login: his session, his cart, the guard's restore.
+// Then the order is placed through the review (Plan 4 Task 10): the bank, the default, refused by
+// the dev backend (digest §11 #3), the order kept on the page; the `kamran` guard cancels it.
+// Per run: 1 placement, 1 payment intent (refused; his own `payment_attempt` budget), 1 cancel.
 
 kamranTest.describe.configure({ mode: 'serial' })
 
@@ -27,9 +31,14 @@ const cartOf = async (response: Response | APIResponse) =>
   ((await response.json()) as { data: Cart }).data
 const FIRST: BudgetRoute = { name: 'checkout', path: '/checkout/', checkout: 'signed-in-first' }
 const REVIEW: BudgetRoute = { name: 'checkout', path: '/checkout/', checkout: 'signed-in-review' }
+const isPlacement = (response: Response) =>
+  new URL(response.url()).pathname === '/api/bff/order/place/' &&
+  response.request().method() === 'POST'
+const isIntent = (response: Response) =>
+  /\/api\/bff\/payment\/order\/[^/]+\/intent\/$/.test(new URL(response.url()).pathname)
 
 kamranTest(
-  'signed in: the default address is the destination, the default option is chosen',
+  'signed in: the default address is the destination, the default option is chosen; placed',
   async ({ page, kamran, browser }, info) => {
     const errors = watchErrors(page)
     const home = kamran.before.addresses[0]
@@ -111,5 +120,27 @@ kamranTest(
     } finally {
       await context.close()
     }
+
+    // The order placed through the review (Task 10: the only signed-in placement of a routine
+    // run). The bank is the default and the dev backend refuses it: the order stays, here, and
+    // the page asks for nothing the spent cart no longer has (its shipping options: 404).
+    await page.goto('/checkout/')
+    const review = page.getByRole('region', { name: /بازبینی و ثبت سفارش/ })
+    await expect(review).toHaveAttribute('data-state', 'active')
+    for (const name of [/قوانین و مقررات/, /سن قانونی/])
+      await review.getByRole('checkbox', { name }).check()
+    const placement = page.waitForResponse(isPlacement)
+    const intent = page.waitForResponse(isIntent)
+    await review.getByRole('button', { name: 'ثبت سفارش و پرداخت' }).click()
+    expect((await placement).status(), 'a new order').toBe(201)
+    const order = ((await (await placement).json()) as { data: OrderPlacementResult }).data
+    kamran.track(order.order_code)
+    expect((await placement).request().postDataJSON()).toEqual({ expected_total: cart.total })
+    const bank = await intent
+    expect([400, 503], 'the dev bank refuses').toContain(bank.status())
+    forgiveFailure(page, bank.url(), bank.status())
+    await expect(page.getByRole('region', { name: 'سفارش شما ثبت شد' })).toBeVisible()
+    expect(new URL(page.url()).pathname, 'no navigation').toBe('/checkout/')
+    expect(errors).toEqual([])
   },
 )

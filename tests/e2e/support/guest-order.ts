@@ -7,9 +7,9 @@ import { seedGuestCart } from './checkout-states'
 // ruling P4-R4: a guest, never a demo account): this context's cart (a product, Tehran, the
 // operator's default shipping: `seedGuestCart`, the cart writes through the dev-lock guard), then
 // `POST order/place/` with a receiver whose mobile is new each run (the unpaid-orders ceiling
-// counts per mobile) and the cart's total. No payment intent. The caller cancels the order
-// (`cancelGuestOrder`, also its guard when the test fails earlier). The link token is a
-// credential: never printed.
+// counts per mobile) and the cart's total. No payment intent. The caller hands the order to the
+// `orders` guard (support/order-guard.ts), which cancels it through its link however the test
+// ends. The link token is a credential: never printed.
 
 const BFF = { 'X-Requested-With': 'ff' }
 
@@ -43,23 +43,4 @@ export async function placeGuestOrder(page: Page): Promise<GuestOrderHandle> {
   const order = ((await placed.json()) as { data: OrderPlacementResult }).data
   const token = new URL(order.payment_url!).pathname.split('/').filter(Boolean).at(-1)!
   return { token, orderCode: order.order_code }
-}
-
-/**
- * The order cancelled through its link while it awaits payment (order digest §3.1.10); true when
- * it is cancelled now or was already (its link then answers 404). Never throws.
- */
-export async function cancelGuestOrder(page: Page, token: string): Promise<boolean> {
-  try {
-    const response = await page.request.post(`/api/bff/order/pay/${token}/cancel/`, {
-      headers: BFF,
-      data: {},
-    })
-    if (response.ok() || response.status() === 404) return true
-    console.warn(`[guest-order] the order was not cancelled: ${response.status()}`)
-    return false
-  } catch {
-    console.warn('[guest-order] the order could not be cancelled (no answer)')
-    return false
-  }
 }

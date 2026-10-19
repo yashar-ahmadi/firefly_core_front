@@ -16,7 +16,7 @@ const launchOptions = existsSync(chromiumPath) ? { executablePath: chromiumPath 
 const DESKTOP = { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }
 /** Specs of the `journeys` project only. */
 const JOURNEYS =
-  /\/(?:account\/(?:auth|account|orders-journey|wallet-journey)|checkout\/(?:checkout-(?:signed-in|place)|pay-link|card-transfer))\.spec\.ts$/
+  /\/(?:account\/(?:auth|account|orders-journey|wallet-journey)|checkout\/(?:checkout-(?:signed-in|place)|pay-link|card-transfer|guest-cod|user-wallet))\.spec\.ts$/
 /** The JS budget's specs: the `desktop` project measures them, and `budget-push` again. */
 const BUDGET = /\/catalog\/budget(?:-signed-in)?\.spec\.ts$/
 
@@ -76,12 +76,15 @@ export default defineConfig({
     },
     {
       // The journeys that log in through the form or write sara's data (tests/e2e/account/
-      // auth.spec.ts, account.spec.ts) or k.yazdi's (tests/e2e/checkout/checkout-signed-in.spec.ts,
-      // tests/e2e/account/orders-journey.spec.ts: an order of his placed, cancelled and bought
-      // again; ruling P4-R4) or shirin's wallet (tests/e2e/account/wallet-journey.spec.ts: a
-      // top-up the dev bank refuses, one withdrawal requested and cancelled), or place an order
-      // (tests/e2e/checkout/checkout-place.spec.ts, pay-link.spec.ts and card-transfer.spec.ts, a
-      // guest's, cancelled after): on a desktop,
+      // auth.spec.ts, account.spec.ts) or k.yazdi's (tests/e2e/checkout/checkout-signed-in.spec.ts:
+      // an order of his placed through the checkout; tests/e2e/account/orders-journey.spec.ts: one
+      // placed, cancelled and bought again; both cancelled by his guard; ruling P4-R4) or shirin's
+      // (tests/e2e/account/wallet-journey.spec.ts: a top-up the dev bank refuses, one withdrawal
+      // requested and cancelled; orders-journey.spec.ts: her delivered order bought again, her cart
+      // put back; tests/e2e/checkout/user-wallet.spec.ts: a wallet-paid order, opt-in), or place a
+      // guest's order (tests/e2e/checkout/checkout-place.spec.ts, pay-link.spec.ts,
+      // card-transfer.spec.ts and guest-cod.spec.ts, cancelled after by the `orders` guard; the
+      // card transfer's live receipt opt-in): on a desktop,
       // one at a time, after every other project (no read-only spec is looking at her address
       // book, wishlist or cart while they change, and their logins come apart from the
       // others'). Skipped when a project before them failed;

@@ -10,8 +10,8 @@ import { requestCartWrite } from './cart-write'
 // with his session (`request`: the journey's browser context, signed in by the `kamran` guard):
 // his cart emptied, one simple product, his default address as the destination, the operator's
 // default shipping, then `POST order/place/` with the cart's total and a new Idempotency-Key. No
-// payment intent (the journey presses «پرداخت» itself). The caller cancels it
-// (`cancelKamranOrder`, also its guard when the test fails earlier); the `kamran` guard puts his
+// payment intent (the journey presses «پرداخت» itself). The caller hands it to the `kamran`
+// guard (`track`), whose teardown cancels it (`cancelKamranOrder`) whatever happened, and puts his
 // cart back. Cart writes go through the dev-lock guard (support/cart-write.ts).
 
 const BFF = { 'X-Requested-With': 'ff' }
