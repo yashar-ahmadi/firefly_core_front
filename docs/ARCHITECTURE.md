@@ -732,8 +732,9 @@ front may store such a copy (`no-cache`) but must revalidate it before any reuse
 page any guest gets. The app files the kept HTML names (styles, scripts, the font) are kept with
 it, so the copy renders and hydrates offline. Offline, a signed-in visitor sees the guest's home
 page (the anonymous copy): nothing of theirs is ever stored. Logout tells the worker to forget the
-kept pages (`features/pwa/purge-offline-pages.ts`, from `forgetSignedInStorage`), which then keeps
-the anonymous copies again: belt and braces, as none holds a visitor's data.
+kept pages and pictures (`features/pwa/purge-offline-pages.ts`, from `forgetSignedInStorage`;
+the avatar is a picture kept through `/_next/image`), which then keeps the anonymous copies
+again: belt and braces for the pages, as none holds a visitor's data.
 
 **Registration and the install prompt cost no chunk on arrival.** The root layout writes a few
 lines of inline script (`features/pwa/register-sw.tsx`, production builds with `FEATURE_PWA` only):

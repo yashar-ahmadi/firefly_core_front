@@ -23,7 +23,8 @@ import { fetchSection } from './sw-offline-fetch'
 //   cache;
 // - caches are named after the build; activate deletes every other `ff-` cache and turns on
 //   navigation preload where the browser has it (a navigation then uses the preloaded response);
-//   the logout's message forgets every page kept (each kept again as the anonymous copy).
+//   the logout's message forgets every page and picture kept (the pages kept again as the
+//   anonymous copies).
 
 /** The worker's caches for `version` (the build id). */
 export function offlineCacheNames(version: string) {
@@ -186,9 +187,13 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+// The logout's purge: the pages and the pictures (the avatar comes through /_next/image) go;
+// the anonymous copies are kept again. The app's own files hold nothing of the visitor's.
 self.addEventListener('message', (event) => {
   if (!event.data || event.data.type !== PURGE_MESSAGE) return
-  event.waitUntil(caches.delete(CACHES.pages).then(keepPages))
+  event.waitUntil(
+    Promise.all([caches.delete(CACHES.images), caches.delete(CACHES.pages)]).then(keepPages),
+  )
 })`
 }
 

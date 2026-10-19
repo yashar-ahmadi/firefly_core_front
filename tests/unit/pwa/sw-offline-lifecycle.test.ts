@@ -117,6 +117,19 @@ describe('the logout’s purge', () => {
     expect(await (await kept.match('/offline/'))?.text()).toBe(OFFLINE_COPY)
   })
 
+  it('forgets every picture kept too: the avatar is one (through /_next/image)', async () => {
+    const sw = worker(SOURCE, { network: shop() })
+    await sw.fire('install')
+    const avatar = new Request('https://shop.test/_next/image/?url=%2Fmedia%2Favatars%2Fs.jpg&w=96')
+    Object.defineProperty(avatar, 'destination', { value: 'image' })
+    await sw.request(avatar)
+    expect((await sw.caches.open(CACHES.images)).paths()).toHaveLength(1)
+    await sw.fire('message', { data: { type: PURGE_PAGES_MESSAGE } })
+    expect(await sw.caches.has(CACHES.images)).toBe(false)
+    // The app's own files stay: they hold nothing of the visitor's.
+    expect(await sw.caches.has(CACHES.static)).toBe(true)
+  })
+
   it('ignores any other message', async () => {
     const sw = worker(SOURCE, { network: shop() })
     await sw.fire('install')
