@@ -1,28 +1,23 @@
 import 'server-only'
+import { apiFileUrl, readApiImage, type ApiImage } from './api-image'
 
 // The shop's favicon for `/favicon.ico` (src/app/favicon.ico/route.ts): browsers ask for it on
 // their own when a page's icon fails to load, and a 404 there is noise in every console.
 //
-// Read with `cache: 'no-store'`: Next's patched fetch would buffer the whole body for its Data
-// Cache before our 100 KB cap could stop it. What was read (capped) is kept here instead, in
-// memory, a day per URL, a few URLs at most (`MAX_BYTES` × `MAX_ENTRIES` bounds it); a failure
-// for five minutes. A new favicon is a new file, so a new URL: read at once.
+// Read from the API host by `readApiImage` (api-image.ts: its /media/ or /static/ path only, no
+// redirect, 3 s, 100 KB, a raster image). What was read is kept here, in memory, a day per URL, a
+// few URLs at most (the cap × `MAX_ENTRIES` bounds it); a failure for five minutes. A new favicon
+// is a new file, so a new URL: read at once.
 
-export interface Icon {
-  bytes: Uint8Array<ArrayBuffer>
-  type: string
-}
+export type Icon = ApiImage
 
 /** A favicon changes rarely (a new one comes with a new URL): kept, and cached by browsers, a day. */
 export const FAVICON_REVALIDATE_SECONDS = 86_400
 /** How long a favicon that could not be read waits before it is asked for again. */
 const FAILURE_SECONDS = 300
-const TIMEOUT_MS = 3_000
-const MAX_BYTES = 100 * 1024
+const LIMITS = { maxBytes: 100 * 1024, timeoutMs: 3_000 }
 /** The favicons kept at once (the settings name one; old ones linger until pushed out). */
 const MAX_ENTRIES = 4
-/** The only paths the API serves files from. */
-const MEDIA_PATH = /^\/(?:media|static)\//
 
 /**
  * 32×32 PNG: a slate rounded square with a white shopping bag, no brand colour (any shop). Served
@@ -33,75 +28,6 @@ const DEFAULT_PNG =
 
 export function defaultFavicon(): Icon {
   return { bytes: new Uint8Array(Buffer.from(DEFAULT_PNG, 'base64')), type: 'image/png' }
-}
-
-/**
- * The favicon's file on the API host itself: its path (under `/media/` or `/static/`) and query
- * on `apiUrl`, whatever host the settings' absolute URL names (the API builds it from the Host it
- * was asked on). Null for anything else.
- */
-function sourceUrl(favicon: string, apiUrl: string): string | null {
-  let url: URL
-  try {
-    url = new URL(favicon, apiUrl)
-  } catch {
-    return null
-  }
-  return MEDIA_PATH.test(url.pathname) ? `${apiUrl}${url.pathname}${url.search}` : null
-}
-
-/**
- * A raster image only: an SVG served from the shop's own origin could run script when opened as
- * a page.
- */
-function isRaster(type: string | null): type is string {
-  return type !== null && type.startsWith('image/') && !type.startsWith('image/svg')
-}
-
-/** The body, or null as soon as it passes `MAX_BYTES`. */
-async function readCapped(res: Response): Promise<Uint8Array<ArrayBuffer> | null> {
-  if (!res.body) return null
-  const reader = res.body.getReader()
-  const chunks: Uint8Array[] = []
-  let total = 0
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    total += value.byteLength
-    if (total > MAX_BYTES) {
-      await reader.cancel().catch(() => undefined)
-      return null
-    }
-    chunks.push(value)
-  }
-  const bytes = new Uint8Array(total)
-  let offset = 0
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return bytes
-}
-
-/** The file at `url`, or null (see `loadFavicon`). Never throws. */
-async function readFavicon(url: string): Promise<Icon | null> {
-  try {
-    const res = await fetch(url, {
-      redirect: 'manual',
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      cache: 'no-store',
-    })
-    const type = res.headers.get('content-type')
-    const declared = Number(res.headers.get('content-length') ?? 0)
-    if (!res.ok || !isRaster(type) || declared > MAX_BYTES) {
-      await res.body?.cancel().catch(() => undefined)
-      return null
-    }
-    const bytes = await readCapped(res)
-    return bytes && bytes.byteLength > 0 ? { bytes, type } : null
-  } catch {
-    return null
-  }
 }
 
 /** What was read per URL, until when (epoch ms). Oldest first (a Map keeps insertion order). */
@@ -115,11 +41,11 @@ export async function loadFavicon(
   favicon: string | null | undefined,
   apiUrl: string,
 ): Promise<Icon | null> {
-  const url = favicon ? sourceUrl(favicon, apiUrl) : null
+  const url = favicon ? apiFileUrl(favicon, apiUrl) : null
   if (url === null) return null
   const copy = kept.get(url)
   if (copy && copy.until > Date.now()) return copy.icon
-  const icon = await readFavicon(url)
+  const icon = await readApiImage(url, LIMITS)
   const seconds = icon ? FAVICON_REVALIDATE_SECONDS : FAILURE_SECONDS
   kept.delete(url)
   kept.set(url, { icon, until: Date.now() + seconds * 1000 })

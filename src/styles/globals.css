@@ -308,6 +308,15 @@ body[data-cart-bar-shown] [data-bottom-nav] {
   }
 }
 
+/*
+ * The PWA's install prompt (phones only) floats where the compare bar does; with both on screen
+ * it stands above the compare bar (its row of 2.75rem controls, padded: about 3.75rem) instead
+ * of covering it. A browser without `:has()` lets them overlap; the prompt is dismissible.
+ */
+:root:has([data-compare-bar]) [data-install-prompt] {
+  bottom: calc(var(--bottom-bar-room) + 4.75rem);
+}
+
 @layer base {
   html {
     font-size: 16px;

@@ -3,8 +3,11 @@ import { existsSync } from 'node:fs'
 
 const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:3000'
 /**
- * The same build as a shop with web push: a second server with dummy FIREBASE_* values (the
- * config is read at runtime), for the JS budget of push shops (the `budget-push` project).
+ * The same build as a shop with web push and the PWA: a second server with dummy FIREBASE_*
+ * values and FEATURE_PWA on (the config is read at runtime), for the JS budget of push shops
+ * with the PWA's service worker registered (the `budget-push` project) and the PWA's own specs
+ * (the `pwa` project). The main server runs with FEATURE_PWA off: no service worker answers its
+ * pages' requests, so every other spec's routes and mocks see the page's own.
  */
 const pushBaseURL = process.env.E2E_PUSH_BASE_URL ?? 'http://localhost:3001'
 
@@ -19,9 +22,11 @@ const JOURNEYS =
   /\/(?:account\/(?:auth|account|orders-journey|wallet-journey)|checkout\/(?:checkout-(?:signed-in|place)|pay-link|card-transfer|guest-cod|user-wallet)|blog\/reading-list)\.spec\.ts$/
 /** The JS budget's specs: the `desktop` project measures them, and `budget-push` again. */
 const BUDGET = /\/catalog\/budget(?:-signed-in)?\.spec\.ts$/
+/** The PWA's specs: the `pwa` project only, on the server with FEATURE_PWA on. */
+const PWA = /\/pwa(?:-install)?\.spec\.ts$/
 
 /** What both servers run with (the dev backend's key gate is off, so any key works). */
-function serverEnv(url: string): Record<string, string> {
+function serverEnv(url: string, { pwa }: { pwa: boolean }): Record<string, string> {
   const { hostname, port } = new URL(url)
   return {
     FIREFLY_API_URL: 'http://localhost:8000',
@@ -31,6 +36,8 @@ function serverEnv(url: string): Record<string, string> {
     PORT: port || '3000',
     // server.js listens on HOSTNAME; some shells export the machine name under that variable.
     HOSTNAME: hostname,
+    // On by default in production; set either way here (see `pushBaseURL`).
+    FEATURE_PWA: pwa ? '1' : '0',
   }
 }
 
@@ -57,17 +64,28 @@ export default defineConfig({
     launchOptions,
   },
   projects: [
-    { name: 'mobile', testIgnore: JOURNEYS, use: { ...devices['Pixel 7'] } },
+    { name: 'mobile', testIgnore: [JOURNEYS, PWA], use: { ...devices['Pixel 7'] } },
     {
       name: 'tablet',
-      testIgnore: JOURNEYS,
+      testIgnore: [JOURNEYS, PWA],
       // The iPad descriptor defaults to WebKit; only Chromium is available here.
       use: { ...devices['iPad (gen 7) landscape'], browserName: 'chromium' },
     },
-    { name: 'desktop', testIgnore: JOURNEYS, use: DESKTOP },
+    { name: 'desktop', testIgnore: [JOURNEYS, PWA], use: DESKTOP },
     {
-      // The JS budget again, on the push shop's server (dummy FIREBASE_*): the guest's catalog
-      // must not pay for web push, nor a signed-in visitor without it on. Signed in through the
+      // The PWA (Plan 5 Task 6): the manifest, the service worker's registration and offline
+      // pages, the install prompt; on a desktop, on the server with FEATURE_PWA on (the push
+      // shop's: both share the one worker). Signed in through the desktop project's shared
+      // session (no login of its own).
+      name: 'pwa',
+      testMatch: PWA,
+      use: { ...DESKTOP, baseURL: pushBaseURL },
+      metadata: { session: 'desktop' },
+    },
+    {
+      // The JS budget again, on the push shop's server (dummy FIREBASE_*, FEATURE_PWA on): the
+      // guest's catalog must not pay for web push, nor a signed-in visitor without it on, and the
+      // PWA's registration and install prompt cost nothing on arrival. Signed in through the
       // desktop project's shared session (one login for both: `metadata.session`).
       name: 'budget-push',
       testMatch: BUDGET,
@@ -111,14 +129,14 @@ export default defineConfig({
       url: baseURL,
       reuseExistingServer: true,
       timeout: 300_000,
-      env: serverEnv(baseURL),
+      env: serverEnv(baseURL, { pwa: false }),
     },
     {
       command: 'pnpm start:standalone',
       url: pushBaseURL,
       reuseExistingServer: true,
       timeout: 60_000,
-      env: { ...serverEnv(pushBaseURL), ...DUMMY_FIREBASE },
+      env: { ...serverEnv(pushBaseURL, { pwa: true }), ...DUMMY_FIREBASE },
     },
   ],
 })

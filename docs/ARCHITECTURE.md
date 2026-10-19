@@ -691,6 +691,73 @@ their own without one).
   The same holds for `RichContentBody`: `richContentHtml` lives apart from `RichContent`, and the
   checkout's server helpers import it from there.
 
+### The PWA: the service worker's caches (Plan 5 Task 6)
+
+The site has one service worker, `/sw.js` (`src/app/sw.js/route.ts`, scope `/`), built from
+sections (`features/pwa/sw-source.ts`): web push (Plan 3: the push and click handlers, unchanged)
+and, with `FEATURE_PWA` on, offline caching (`features/pwa/sw-offline.ts`). With the flag off the
+worker answers no request at all (no `fetch` handler) and deletes every `ff-` cache an earlier one
+kept; web push still registers it on opt-in. Its caches are named after the running build
+(`.next/BUILD_ID`, `features/pwa/build-version.ts`): `ff-<build>-static`, `ff-<build>-images`,
+`ff-<build>-pages`; activate deletes every other `ff-` cache, so a deploy starts clean.
+
+| Request | Strategy |
+| --- | --- |
+| `/_next/static/*` | cache first (immutable files) |
+| an image under `/_next/image`, `/media/`, `/static/` (same origin) | stale while revalidate, at most 200 kept, the least recently stored first to go |
+| a navigation to `/offline/` or `/` (`OFFLINE_PAGES`) | network first; after 4 s, or when the network fails, the anonymous copy kept; else the offline page. With nothing kept a slow network is waited for (no offline page at 4 s for a page that is merely slow) |
+| a navigation to any other page | the network; when it fails, the offline page (never a copy: none is ever kept) |
+| everything else (RSC fetches, the BFF, JSON, other origins) | not answered: the browser's own request |
+
+**Never kept, never served from a cache** (`SW_NEVER_CACHED` in `features/pwa/offline-rules.ts`,
+the one list, embedded in the worker and checked by its tests): `/api/` (the BFF and `/api/v1/`),
+`/account/`, `/cart/`, `/checkout/` (its thanks page too), `/payment/`, `/order/`, `/login/`,
+`/register/`, `/forgot-password/`, `/s/` (short links count visits), `/sw.js`,
+`/manifest.webmanifest`, `/healthz/`; any non-GET; any request with `Authorization`; any other
+origin (the API host's images, when served directly, are opaque anyway); any response that is not
+a plain 200 of type `basic` or `cors`, or carries `no-store` or `private`.
+
+**Why only two pages have an offline copy, and how.** Every page is sent `private, no-store` (the
+root layout is dynamic) and carries the visitor (`hasSession`, the header's account state), so the
+worker never keeps the visitor's own navigation responses. It asks for the copies itself, at
+install and when a kept copy is over 10 minutes old on a visit to that page: `x-ff-offline:
+snapshot`, `credentials: 'omit'` (no cookie at all: the page renders for nobody, no session, no
+guest cart). The proxy answers that request, and only that one, with `Cache-Control: no-cache` and
+the header back (`lib/edge/offline-copy.ts`: GET, the header, no `Cookie`, no `Authorization`, a
+document not a router fetch or prefetch, an `OFFLINE_PAGES` path; Next keeps a Cache-Control the
+proxy set on a dynamic page, checked on the build); the worker keeps a page only with that
+consent, so its own rule against `no-store`/`private` holds as stated. Every other response,
+including the same page asked for with any cookie, stays `private, no-store`. A shared cache in
+front may store such a copy (`no-cache`) but must revalidate it before any reuse, and it is the
+page any guest gets. The app files the kept HTML names (styles, scripts, the font) are kept with
+it, so the copy renders and hydrates offline. Offline, a signed-in visitor sees the guest's home
+page (the anonymous copy): nothing of theirs is ever stored. Logout tells the worker to forget the
+kept pages (`features/pwa/purge-offline-pages.ts`, from `forgetSignedInStorage`), which then keeps
+the anonymous copies again: belt and braces, as none holds a visitor's data.
+
+**Registration and the install prompt cost no chunk on arrival.** The root layout writes a few
+lines of inline script (`features/pwa/register-sw.tsx`, production builds with `FEATURE_PWA` only):
+after `load`, once idle, `navigator.serviceWorker.register('/sw.js', { scope: '/' })`, the same
+call as web push's opt-in (one registration). It also counts visits (one per tab session), decides
+whether this device may be offered the install (a phone, the second visit on, never dismissed,
+not the installed app, not landing on the visitor's own pages) and keeps Chromium's
+`beforeinstallprompt` (its own banner suppressed). The shop layout's gate
+(`install-prompt-gate.tsx`, about 0.16 KB on every shop route, rendered or not: the floor for a
+React mount point) loads the prompt (`install-prompt.tsx`) for such a device alone. A CSP with a
+`script-src` (deferred, see DEPLOYMENT) must allow that inline script (nonce or hash).
+
+**Turbopack gotcha: never `import` sharp.** `sharp` (the icons' generator,
+`features/pwa/app-icon.ts`) is a server external; imported as ESM (`import`, static or `import()`)
+Turbopack loads it as an async module, and one async module anywhere in the app adds Turbopack's
+async-module runtime to the browser runtime every page loads (+0.45 KB gzip on every route,
+measured). It is required through `createRequire` instead: a CommonJS external.
+
+**Testing offline in Playwright.** `context.setOffline(true)` cuts the pages' requests but not the
+service worker's own fetches (Chromium, seen on this build): `tests/e2e/support/pwa.ts` also
+aborts every request through `context.route`, which reaches the worker's. The PWA specs run in the
+`pwa` project, on the push shop's server with `FEATURE_PWA` on; the main e2e server runs with it
+off, so no worker sits between the other specs and their routes and mocks.
+
 ## Rendering rules
 
 - **R5 — the root layout is `force-dynamic`.** It reads runtime config (theme, store config,

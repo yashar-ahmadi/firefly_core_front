@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ShopLayout from '@/app/(shop)/layout'
 
-const mocks = vi.hoisted(() => ({ compare: true, quickView: true, compareFails: false }))
+const mocks = vi.hoisted(() => ({ compare: true, quickView: true, pwa: true, compareFails: false }))
 
 vi.mock('server-only', () => ({}))
 vi.mock('@/components/layout/shop-shell', () => ({
@@ -23,21 +23,28 @@ vi.mock('@/features/compare/compare-bar', () => ({
 vi.mock('@/features/quick-view/quick-view-host', () => ({
   QuickViewHost: () => <div>quick-view-host</div>,
 }))
+vi.mock('@/features/pwa/install-prompt-slot', () => ({
+  InstallPromptSlot: () => <div>install-prompt</div>,
+}))
 vi.mock('@/config/store-config', () => ({
-  getStoreConfig: () => ({ features: { compare: mocks.compare, quickView: mocks.quickView } }),
+  getStoreConfig: () => ({
+    features: { compare: mocks.compare, quickView: mocks.quickView, pwa: mocks.pwa },
+  }),
 }))
 
 beforeEach(() => {
   mocks.compare = true
   mocks.quickView = true
+  mocks.pwa = true
   mocks.compareFails = false
 })
 
 describe('the shop layout', () => {
-  it('mounts the compare bar and the quick view host once, around every shop page', () => {
+  it('mounts the compare bar, the quick view host and the install prompt’s slot once', () => {
     render(<ShopLayout>page</ShopLayout>)
     expect(screen.getByText('compare-bar')).toBeInTheDocument()
     expect(screen.getByText('quick-view-host')).toBeInTheDocument()
+    expect(screen.getByText('install-prompt')).toBeInTheDocument()
   })
 
   it('keeps the page and the other widgets when one widget fails to render', () => {
@@ -61,8 +68,10 @@ describe('the shop layout', () => {
   it('leaves out what the shop has switched off', () => {
     mocks.compare = false
     mocks.quickView = false
+    mocks.pwa = false
     render(<ShopLayout>page</ShopLayout>)
     expect(screen.queryByText('compare-bar')).toBeNull()
     expect(screen.queryByText('quick-view-host')).toBeNull()
+    expect(screen.queryByText('install-prompt')).toBeNull()
   })
 })

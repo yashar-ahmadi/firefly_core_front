@@ -1,63 +1,28 @@
 // @vitest-environment node
 import vm from 'node:vm'
 import { describe, expect, it, vi } from 'vitest'
-import { buildServiceWorker, REFRESH_MESSAGE } from '@/features/pwa/sw-source'
+import { OFFLINE_COPY_HEADER, OFFLINE_PAGES, SW_NEVER_CACHED } from '@/features/pwa/offline-rules'
+import {
+  buildServiceWorker,
+  REFRESH_MESSAGE,
+  serviceWorkerSections,
+} from '@/features/pwa/sw-source'
+import { ORIGIN, windowAt, worker as standIn, type FakeClient } from './sw-scope'
 
 // `/sw.js` (the site's single worker): checked as text, then run in a stand-in worker scope (its
 // `self`, clients and registration recorded) to see what each event does. It shows FCM's pushes
 // itself (`{notification: {title, body, image}}`, no data, no link: digest §4.4) and a click
-// brings up the inbox.
+// brings up the inbox, the same with offline caching on (FEATURE_PWA, Plan 5 Task 6) or off.
 
-const SOURCE = buildServiceWorker({ inboxPath: '/account/notifications/', icon: '/favicon.ico' })
-const ORIGIN = 'https://shop.test'
+const OPTIONS = { inboxPath: '/account/notifications/', icon: '/favicon.ico', version: 'build-x' }
+const PUSH_ONLY = buildServiceWorker({ ...OPTIONS, offline: false })
+const WITH_OFFLINE = buildServiceWorker({ ...OPTIONS, offline: true })
 const INBOX = `${ORIGIN}/account/notifications/`
 
-interface FakeClient {
-  url: string
-  focused: boolean
-  /** Controlled by this worker (it can navigate it). */
-  controlled: boolean
-  postMessage: ReturnType<typeof vi.fn>
-  focus: ReturnType<typeof vi.fn>
-  navigate: ReturnType<typeof vi.fn>
-}
-
-function windowAt(path: string, { focused = false, controlled = true } = {}): FakeClient {
-  const client: FakeClient = {
-    url: `${ORIGIN}${path}`,
-    focused,
-    controlled,
-    postMessage: vi.fn(),
-    focus: vi.fn(async () => client),
-    navigate: vi.fn(async (url: string) => ({ ...client, url })),
-  }
-  return client
-}
-
-function worker(windows: FakeClient[] = []) {
-  const handlers: Record<string, (event: unknown) => void> = {}
-  const self = {
-    addEventListener: (type: string, handler: (event: unknown) => void) =>
-      (handlers[type] = handler),
-    skipWaiting: vi.fn(),
-    location: { origin: ORIGIN },
-    registration: { showNotification: vi.fn(async () => undefined) },
-    clients: {
-      claim: vi.fn(async () => undefined),
-      openWindow: vi.fn(async () => null),
-      matchAll: vi.fn(async ({ includeUncontrolled = false } = {}) =>
-        includeUncontrolled ? windows : windows.filter((client) => client.controlled),
-      ),
-    },
-  }
-  vm.runInNewContext(SOURCE, { self, URL })
-  const fire = async (type: string, fields: object = {}) => {
-    const waits: Promise<unknown>[] = []
-    handlers[type]!({ ...fields, waitUntil: (promise: Promise<unknown>) => waits.push(promise) })
-    await Promise.all(waits)
-  }
-  return { self, fire }
-}
+const BUILDS = [
+  ['offline caching off', PUSH_ONLY],
+  ['offline caching on', WITH_OFFLINE],
+] as const
 
 const pushData = (payload: unknown) => ({
   data: {
@@ -69,26 +34,71 @@ const pushData = (payload: unknown) => ({
 })
 
 describe('the service worker source', () => {
-  it('is one plain script with the lifecycle, push and click handlers, and no Firebase', () => {
-    expect(() => new vm.Script(SOURCE)).not.toThrow()
-    for (const handler of ['install', 'activate', 'push', 'notificationclick']) {
-      expect(SOURCE).toContain(`self.addEventListener('${handler}'`)
+  it.each(BUILDS)(
+    '%s: one plain script with the lifecycle, push and click handlers, and no Firebase',
+    (_, source) => {
+      expect(() => new vm.Script(source)).not.toThrow()
+      for (const handler of ['install', 'activate', 'push', 'notificationclick']) {
+        expect(source).toContain(`self.addEventListener('${handler}'`)
+      }
+      expect(source).toContain('"/account/notifications/"')
+      // Firebase's message shape (isFirebaseMessaging) only, never its SDK.
+      expect(source).not.toMatch(/importScripts|firebasejs|firebase-messaging|gstatic/i)
+    },
+  )
+
+  it('with offline caching, every path never cached is in its bypass list (the brief’s test)', () => {
+    const bypass = /const NEVER_CACHED = (\[.*\])\n/.exec(WITH_OFFLINE)?.[1]
+    expect(JSON.parse(bypass ?? 'null')).toEqual([...SW_NEVER_CACHED])
+    for (const path of [
+      '/api/',
+      '/account/',
+      '/cart/',
+      '/checkout/',
+      '/payment/',
+      '/order/',
+      '/login/',
+      '/register/',
+      '/forgot-password/',
+      '/s/',
+      '/sw.js',
+      '/manifest.webmanifest',
+      '/healthz/',
+    ]) {
+      expect(SW_NEVER_CACHED, path).toContain(path)
+      expect(WITH_OFFLINE, path).toContain(JSON.stringify(path))
     }
-    expect(SOURCE).toContain('"/account/notifications/"')
-    // Firebase's message shape (isFirebaseMessaging) only, never its SDK.
-    expect(SOURCE).not.toMatch(/importScripts|firebasejs|firebase-messaging|gstatic/i)
+    expect(WITH_OFFLINE).toContain(JSON.stringify(OFFLINE_PAGES))
+    expect(WITH_OFFLINE).toContain(JSON.stringify(OFFLINE_COPY_HEADER))
+    expect(WITH_OFFLINE).toContain('"build-x"')
   })
 
-  it('takes over at once: skipWaiting on install, clients.claim on activate', async () => {
-    const { self, fire } = worker()
-    await fire('install')
-    expect(self.skipWaiting).toHaveBeenCalledTimes(1)
-    await fire('activate')
-    expect(self.clients.claim).toHaveBeenCalledTimes(1)
+  it('caching is a section of its own: the push and click sections are the same text', () => {
+    // The header, what the sections share, the lifecycle, the push and the click: identical.
+    const off = serviceWorkerSections({ ...OPTIONS, offline: false })
+    const on = serviceWorkerSections({ ...OPTIONS, offline: true })
+    expect(on.slice(0, 5)).toEqual(off.slice(0, 5))
+    expect(on.slice(5)).not.toEqual(off.slice(5))
+    expect(WITH_OFFLINE).toBe(on.join('\n'))
+    // Off, the worker answers no request (it only shows pushes): no fetch handler at all.
+    expect(PUSH_ONLY).not.toContain("addEventListener('fetch'")
+    expect(WITH_OFFLINE).toContain("addEventListener('fetch'")
   })
+
+  it.each(BUILDS)(
+    '%s: takes over at once: skipWaiting on install, clients.claim on activate',
+    async (_, source) => {
+      const { self, fire } = standIn(source)
+      await fire('install')
+      expect(self.skipWaiting).toHaveBeenCalledTimes(1)
+      await fire('activate')
+      expect(self.clients.claim).toHaveBeenCalledTimes(1)
+    },
+  )
 })
 
-describe('a push', () => {
+describe.each(BUILDS)('a push (%s)', (_, source) => {
+  const worker = (windows: FakeClient[] = []) => standIn(source, { windows })
   const FCM = { notification: { title: 'جشنواره', body: 'تا ۴۰ درصد', image: 'https://x/i.png' } }
 
   it('shows FCM’s notification right to left, with the shop’s icon', async () => {
@@ -134,7 +144,8 @@ describe('a push', () => {
   })
 })
 
-describe('a click on a notification', () => {
+describe.each(BUILDS)('a click on a notification (%s)', (_, source) => {
+  const worker = (windows: FakeClient[] = []) => standIn(source, { windows })
   const click = () => ({ notification: { close: vi.fn() } })
 
   it('closes it and brings up the inbox window already open, which reads itself again', async () => {

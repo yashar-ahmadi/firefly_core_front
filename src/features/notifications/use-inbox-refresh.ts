@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { REFRESH_MESSAGE } from '@/features/pwa/sw-source'
+import { REFRESH_MESSAGE } from '@/features/pwa/sw-messages'
 import { refreshInbox } from './notifications-cache'
 
 /**

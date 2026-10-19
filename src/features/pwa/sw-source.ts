@@ -1,19 +1,30 @@
+import { cleanupSection, offlineSections } from './sw-offline'
+import { REFRESH_MESSAGE } from './sw-messages'
+
 // The source of the site's single service worker, `/sw.js` (src/app/sw.js/route.ts), scope `/`.
-// Built from sections, each a block of plain browser JavaScript run in the worker: Plan 5 adds
-// offline caching as one more section. No Firebase in the worker: Firebase's own messaging
-// worker is not needed, because the page gets its token through this worker's registration and
-// the pushes (FCM's `notification` block only: no data, no link, digest §4.4) are shown here.
-// Pure; the strings are tested as text and run against a stand-in worker scope.
+// Built from sections, each a block of plain browser JavaScript run in the worker: web push
+// (Plan 3) and, with FEATURE_PWA, offline caching (Plan 5 Task 6, sw-offline.ts), a section of
+// its own that leaves the push and click handlers as they are. No Firebase in the worker:
+// Firebase's own messaging worker is not needed, because the page gets its token through this
+// worker's registration and the pushes (FCM's `notification` block only: no data, no link, digest
+// §4.4) are shown here. Pure; the strings are tested as text and run against a stand-in worker
+// scope.
 
 export interface ServiceWorkerOptions {
   /** Where a notification click goes (the inbox). */
   inboxPath: string
   /** The notification's small icon: a same-origin path. */
   icon: string
+  /** The build this worker comes with (its build id): its caches are named after it. */
+  version: string
+  /**
+   * Offline caching (FEATURE_PWA). Off, the worker shows pushes only, answers no request, and
+   * deletes the caches an earlier worker kept.
+   */
+  offline: boolean
 }
 
-/** The message pages receive after a click: the inbox reads itself again. */
-export const REFRESH_MESSAGE = 'ff:notifications-refresh'
+export { REFRESH_MESSAGE }
 
 /** What the sections share: the options, and the shop's open windows. */
 function sharedSection({ inboxPath, icon }: ServiceWorkerOptions): string {
@@ -112,13 +123,22 @@ self.addEventListener('notificationclick', (event) => {
 })`
 }
 
-/** The whole worker script. */
-export function buildServiceWorker(options: ServiceWorkerOptions): string {
+/**
+ * The worker's sections in order: the header, what they share, the lifecycle, the push, the
+ * click, then offline caching (or, with it off, the clean-up of an earlier worker's caches).
+ */
+export function serviceWorkerSections(options: ServiceWorkerOptions): string[] {
   return [
     `'use strict'\n// Firefly storefront service worker (built by src/features/pwa/sw-source.ts).`,
     sharedSection(options),
     lifecycleSection(),
     pushSection(),
     clickSection(),
-  ].join('\n')
+    ...(options.offline ? offlineSections(options.version) : [cleanupSection()]),
+  ]
+}
+
+/** The whole worker script. */
+export function buildServiceWorker(options: ServiceWorkerOptions): string {
+  return serviceWorkerSections(options).join('\n')
 }

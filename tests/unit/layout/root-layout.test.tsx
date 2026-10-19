@@ -5,6 +5,7 @@ import { ThemeHead } from '@/app/_shell/theme-head'
 import RootLayout, { generateMetadata, generateViewport } from '@/app/layout'
 import { Providers } from '@/app/providers'
 import { SkipLink } from '@/components/layout/skip-link'
+import { RegisterServiceWorker } from '@/features/pwa/register-sw'
 import { parseServerEnv } from '@/config/env-schema'
 import { resolveStoreConfig, type StoreConfig } from '@/config/resolve-store-config'
 import { SnippetHtmlZone, Snippets } from '@/features/settings/snippets'
@@ -135,10 +136,26 @@ describe('RootLayout', () => {
       [SnippetHtmlZone, 'top'],
       [Snippets, 'top_of_body'],
       [Providers, undefined],
+      // The service worker's registration (inline, FEATURE_PWA): after the app, before the
+      // operator's last scripts.
+      [RegisterServiceWorker, undefined],
       // The bottom zone (trust seals) is placed by the shop footer, not here (R8).
       [Snippets, 'bottom_of_body'],
     ])
   })
+
+  it.each([
+    ['on', '1', true],
+    ['off', '0', false],
+  ])(
+    'registers the service worker with FEATURE_PWA %s (read at request time)',
+    async (_, flag, on) => {
+      mocks.config = configWith({ FEATURE_PWA: flag })
+      const tree = await RootLayout({ children: null })
+      const register = elements(tree).find((element) => element.type === RegisterServiceWorker)
+      expect(register?.props.enabled).toBe(on)
+    },
+  )
 
   it('labels the skip link from the dictionary, with operator overrides', async () => {
     const tree = await RootLayout({ children: null })

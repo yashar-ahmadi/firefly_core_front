@@ -29,6 +29,12 @@ const nextConfig: NextConfig = {
   // uuid (src/config/credential-routes.ts), the BFF's paths to them included. Production logs no
   // requests.
   logging: { incomingRequests: { ignore: [/\/order\/pay\//i, /\/payment\//i] } },
+  // The app icons' monogram (`/icons/<size>/`, src/features/pwa/app-icon.ts) draws the bundled
+  // Vazirmatn from its source file, which no import names: traced into the standalone output for
+  // that route (the Docker image has no system fonts).
+  outputFileTracingIncludes: {
+    '/icons/\\[size\\]': ['./src/assets/fonts/vazirmatn/Vazirmatn-wght.woff2'],
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     // The API's origin from FIREFLY_API_URL at build time, else a permissive fallback

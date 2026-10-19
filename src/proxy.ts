@@ -8,6 +8,7 @@ import { CookieJar, readSession } from '@/lib/bff/session'
 import { accountLoginPath, isAccountPath } from '@/lib/edge/account-guard'
 import { isBlogPath } from '@/lib/edge/blog-gate'
 import { blogSwitchOff } from '@/lib/edge/blog-switch'
+import { isOfflineCopyRequest } from '@/lib/edge/offline-copy'
 import { leftAlone, pageHeaders, renderPage, type PageMark } from '@/lib/edge/page-render'
 import { isDecodable, isForwarded, isSkipped } from '@/lib/edge/proxy-paths'
 import { knownSources, resolveRedirect, ruleSpelling } from '@/lib/edge/redirects'
@@ -196,7 +197,10 @@ export async function proxy(request: NextRequest): Promise<Response> {
   // a minute from the API: blog-switch.ts).
   const blogOff =
     decodable && isRead(request) && isBlogPath(pathname) ? await blogSwitchOff() : null
-  const mark: PageMark = { kind, blogOff }
+  // The service worker's request for an offline page's anonymous copy (no cookie: it renders
+  // for nobody) is answered with the consent to keep it (offline-copy.ts).
+  const offlineCopy = kind === 'page' && !blogOff && isOfflineCopyRequest(request)
+  const mark: PageMark = { kind, blogOff, offlineCopy }
   // A prefetch is marked like the visit (a kept document is shown on the click, and the snippet
   // gate fails closed) and nothing more: no redirect lookup (it would count a hit), no refresh.
   if (isQuietPrefetch(request.headers)) {

@@ -6,6 +6,7 @@ import { ThemeHead } from '@/app/_shell/theme-head'
 import { Providers } from '@/app/providers'
 import { SkipLink } from '@/components/layout/skip-link'
 import { getStoreConfig, toPublicConfig } from '@/config/store-config'
+import { RegisterServiceWorker } from '@/features/pwa/register-sw'
 import {
   disabledAuth,
   getFeatureStatus,
@@ -60,6 +61,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           {children}
         </Providers>
+        {/* The service worker's registration (FEATURE_PWA, production): a few inline lines that
+            wait for `load` and idle; no chunk to download. */}
+        <RegisterServiceWorker enabled={config.features.pwa} />
         {/* The bottom HTML zone (trust seals) is in the shop footer, which renders before
             these scripts; layouts without that footer place <SnippetHtmlZone position="bottom" />. */}
         <Snippets position="bottom_of_body" />

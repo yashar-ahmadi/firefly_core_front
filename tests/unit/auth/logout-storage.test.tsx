@@ -4,6 +4,7 @@ import { useLogout } from '@/features/auth/use-logout'
 import { PLACEMENT_KEY_STORAGE, placementKey } from '@/features/checkout/idempotency'
 import { PLACED_KEY } from '@/features/checkout/placed/last-placed'
 import { PENDING_KEY, type PendingPayment } from '@/features/payment/pending-payments'
+import { PURGE_PAGES_MESSAGE } from '@/features/pwa/purge-offline-pages'
 import { ApiError } from '@/lib/api/errors'
 import { clientProviders } from '../support/providers'
 
@@ -12,7 +13,9 @@ import { clientProviders } from '../support/providers'
 // way back from a bank), this tab's last placed order (`ff-checkout-placed`: it would show that
 // order to the next visitor of the tab) and the placement key. A guest's own pending payments
 // stay. Every outcome that ends the session forgets them; a logout that never reached the BFF
-// (the session survives) forgets nothing.
+// (the session survives) forgets nothing. The service worker is told to forget the pages it
+// keeps for offline use (Plan 5 Task 6: anonymous copies only, so nothing of the visitor's is in
+// them; told all the same).
 
 const mocks = vi.hoisted(() => {
   const replace = vi.fn()
@@ -44,9 +47,19 @@ function flagCookie(present: boolean) {
   document.cookie = present ? 'ff_auth=login-a-0123456789; path=/' : 'ff_auth=; max-age=0; path=/'
 }
 
+const worker = { postMessage: vi.fn() }
+
+function serviceWorker(controller: typeof worker | null) {
+  Object.defineProperty(navigator, 'serviceWorker', {
+    configurable: true,
+    value: { controller, getRegistration: async () => undefined },
+  })
+}
+
 let key = ''
 beforeEach(() => {
   vi.clearAllMocks()
+  serviceWorker(worker)
   localStorage.clear()
   sessionStorage.clear()
   flagCookie(true)
@@ -61,7 +74,10 @@ beforeEach(() => {
   mocks.logout.mockImplementation(dropped)
   mocks.logoutAll.mockImplementation(dropped)
 })
-afterEach(() => flagCookie(false))
+afterEach(() => {
+  flagCookie(false)
+  Reflect.deleteProperty(navigator, 'serviceWorker')
+})
 
 function logout(options = {}) {
   const { wrapper } = clientProviders({ hasSession: true })
@@ -84,8 +100,18 @@ describe('a logout forgets the signed-in traces on this device', () => {
       expect(sessionStorage.getItem(PLACEMENT_KEY_STORAGE)).toBeNull()
       // The tab's in-memory copy too: the next purchase gets a new key.
       expect(placementKey()).not.toBe(key)
+      expect(worker.postMessage).toHaveBeenCalledExactlyOnceWith({ type: PURGE_PAGES_MESSAGE })
     },
   )
+
+  it('a page no service worker controls: the logout goes on, nothing to tell', async () => {
+    serviceWorker(null)
+    await logout()
+    expect(pendingLeft()).toEqual(['guest'])
+    Reflect.deleteProperty(navigator, 'serviceWorker')
+    await logout()
+    expect(pendingLeft()).toEqual(['guest'])
+  })
 
   it('the answer lost after the BFF dropped the cookies: signed out, forgotten all the same', async () => {
     mocks.logout.mockImplementationOnce(async () => {
@@ -103,5 +129,6 @@ describe('a logout forgets the signed-in traces on this device', () => {
     expect(pendingLeft()).toEqual(['mine', 'guest'])
     expect(sessionStorage.getItem(PLACED_KEY)).not.toBeNull()
     expect(sessionStorage.getItem(PLACEMENT_KEY_STORAGE)).toBe(key)
+    expect(worker.postMessage).not.toHaveBeenCalled()
   })
 })
