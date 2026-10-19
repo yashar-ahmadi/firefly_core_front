@@ -1,6 +1,7 @@
 import 'server-only'
 import sanitizeHtml from 'sanitize-html'
 import { headingIdFilter, withHeadingIds } from '@/lib/html/heading-ids'
+import { wrapImages } from '@/lib/html/image-regions'
 
 /**
  * Operator HTML (the footer text, FAQ answers, dynamic content) made safe to render with
@@ -21,7 +22,8 @@ import { headingIdFilter, withHeadingIds } from '@/lib/html/heading-ids'
  *   `rel="noopener noreferrer"`;
  * - images load lazily and get `alt=""` when the operator gave none; images without a usable
  *   source are dropped;
- * - each table is wrapped in a focusable, labelled scroll region (`.table-wrap`).
+ * - each table is wrapped in a focusable, labelled scroll region (`.table-wrap`), and with
+ *   `wideImages` each picture outside a link too (`.image-wrap`).
  */
 
 export interface SanitizeOptions {
@@ -38,6 +40,12 @@ export interface SanitizeOptions {
    * page's own (`RESERVED_IDS`); every other id dropped as usual (`headingIdFilter`).
    */
   headingIds?: ReadonlySet<string>
+  /**
+   * Each picture outside a link is wrapped in a focusable, labelled scroll region
+   * (`.image-wrap`, `image-regions.ts`), as each table is: for a content page's `full_width`
+   * layout, where a wide picture keeps its own width on phones and scrolls in its own box.
+   */
+  wideImages?: boolean
 }
 
 /** Tags kept (others are dropped, their text kept unless listed in NON_TEXT_TAGS). */
@@ -217,9 +225,10 @@ export function sanitizeOperatorHtml(
     },
   })
   // The output is re-serialised with `<` escaped in text and attribute values, so a literal
-  // "<table" can only be a real table tag here.
-  return clean
+  // "<table" (or "<img") can only be a real tag here.
+  const wrapped = clean
     .replace(TABLE_OPEN, `${TABLE_WRAP}<table`)
     .replace(TABLE_CLOSE, '</table></div>')
     .trim()
+  return options.wideImages ? wrapImages(wrapped) : wrapped
 }

@@ -518,9 +518,12 @@ links prefetch as any shop link: the search results' page rows, the aside, menus
   slugs are percent-encoded once for the API (`oneSegment`).
 - **Layouts** (`pageLayout()`, unknown values read as `default`; the frame says `data-layout`):
   `default`, one readable column (`max-w-3xl`); `full_width`, the container's whole width, where
-  tables scroll in their own focusable region and, on phones, pictures keep their own width, the
-  block holding one scrolling sideways (`.rich-content-wide`; from 768 px they fit the column; the
-  content's box is the last guard, so the page itself never scrolls sideways);
+  tables scroll in their own focusable region and, on phones, pictures keep their own width, each
+  scrolling sideways in a focusable, labelled region of its own as a table does (the sanitiser's
+  `wideImages`: `<span class="image-wrap" role="region" tabindex="0" aria-label="تصویر">`, so the
+  keyboard scrolls it too; a picture inside a link is left unwrapped, the link taking the focus;
+  `.rich-content-wide`; from 768 px they fit the column; the content's box is the last guard, so
+  the page itself never scrolls sideways);
   `with_sidebar`, the text and an `<aside>` «صفحه‌های دیگر» (every other published page,
   `getPageCards()`, read for that layout only), beside it from lg and sticky, below it on phones.
   None ships client code of its own: `ContentPage` is a server component.

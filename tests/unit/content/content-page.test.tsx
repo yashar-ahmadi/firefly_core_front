@@ -116,6 +116,21 @@ describe('a content page’s layout', () => {
     expect(region).toHaveAttribute('tabindex', '0')
     expect(within(region).getByRole('table')).toBeInTheDocument()
   })
+
+  it('full_width: a wide picture scrolls in its own labelled region, as a table does', async () => {
+    const content = '<p><img src="/media/size-chart.png" alt="جدول اندازه"></p>'
+    await show({ page: pageFixture({ layout: 'full_width', content }) })
+    const region = within(article()).getByRole('region', { name: 'تصویر' })
+    expect(region).toHaveAttribute('tabindex', '0')
+    expect(within(region).getByRole('img', { name: 'جدول اندازه' })).toBeInTheDocument()
+  })
+
+  it('default: the same picture fits the column, with no region of its own', async () => {
+    const content = '<p><img src="/media/size-chart.png" alt="جدول اندازه"></p>'
+    await show({ page: pageFixture({ content }) })
+    expect(within(article()).getByRole('img', { name: 'جدول اندازه' })).toBeInTheDocument()
+    expect(within(article()).queryByRole('region')).toBeNull()
+  })
 })
 
 describe('a content page’s content', () => {

@@ -22,7 +22,7 @@ const FRAMES: Record<PageLayout, string> = {
   // One column of a readable width (about 70 characters of 16px Persian text).
   default: 'mx-auto max-w-3xl',
   // The container's whole width, for wide pictures and tables, which keep their width and scroll
-  // sideways in their own box on phones (`.rich-content-wide`, rich-content.css).
+  // sideways in their own focusable box on phones (`.rich-content-wide`, rich-content.css).
   full_width: 'w-full',
   // The text, and the aside beside it from lg (below it on phones: it follows in the document).
   with_sidebar: 'grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-8',
@@ -47,7 +47,10 @@ export interface ContentPageProps {
 export async function ContentPage({ page, jsonLd }: ContentPageProps) {
   const layout = pageLayout(page.layout)
   const others = layout === 'with_sidebar' ? otherPages(await getPageCards(), page.slug) : []
-  const html = page.content ? richContentHtml(page.content) : null
+  // `full_width`: each picture outside a link is a focusable scroll region, as tables are.
+  const html = page.content
+    ? richContentHtml(page.content, { wideImages: layout === 'full_width' })
+    : null
   const comments = commentsShown(page)
   const head = layout === 'default' ? FRAMES.default : undefined
 
