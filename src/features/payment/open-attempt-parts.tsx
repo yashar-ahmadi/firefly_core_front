@@ -46,6 +46,8 @@ export const POLL_EXHAUSTED =
 export const POLL_UNREADABLE =
   'وضعیت این پرداخت اینجا خوانده نشد؛ کمی بعد این صفحه را دوباره باز کنید.'
 export const BANK_LOAD_FAILED = 'انتقال به درگاه انجام نشد؛ دوباره تلاش کنید.'
+/** A handoff that leads to no bank's page: said as `gateway_unavailable` is (intent-messages.ts). */
+export const BANK_UNAVAILABLE = 'درگاه بانک پاسخ نداد؛ کمی بعد دوباره تلاش کنید.'
 
 /**
  * A cancellation refused with 403 `payment_forbidden`: signed in, this attempt is another

@@ -10,6 +10,7 @@ import type {
   WithdrawalRequest,
 } from '@/lib/api/types/wallet'
 import { WALLET_KEY } from '@/lib/session/viewer-queries'
+import { bankUrl, UnsafeHandoffError } from '@/features/payment/handoff-url'
 
 // The wallet page's calls through the BFF, with the session only (order digest §3.2.9–3.2.10,
 // §3.3), every key under `WALLET_KEY` (SESSION_QUERIES: a login or a logout removes them; the
@@ -60,15 +61,21 @@ export async function fetchPayment(
   return (await bffFetch<PaymentHistoryFull>(`payment/history/${uuid}/`, { signal })).data
 }
 
-/** `POST wallet/top-up/` with the click's Idempotency-Key: 201 → the attempt and its handoff. */
+/**
+ * `POST wallet/top-up/` with the click's Idempotency-Key: 201 → the attempt and its handoff. A
+ * handoff that leads to no bank's page (`bankUrl`) throws `UnsafeHandoffError` (the box says the
+ * bank did not answer: top-up-refusal.ts).
+ */
 export async function postTopUp(input: WalletTopUpInput, key: string): Promise<PaymentIntent> {
-  return (
+  const intent = (
     await bffFetch<PaymentIntent>('wallet/top-up/', {
       method: 'POST',
       body: input,
       idempotencyKey: key,
     })
   ).data
+  if (intent.handoff && !bankUrl(intent.handoff.url)) throw new UnsafeHandoffError()
+  return intent
 }
 
 /** `POST wallet/withdrawal/request/`: 201 → the request (the money left the balance now). */

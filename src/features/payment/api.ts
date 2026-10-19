@@ -8,6 +8,7 @@ import type {
   PaymentRoute,
 } from '@/lib/api/types/payment'
 import { isSessionExpiredError } from '@/lib/session/viewer-queries'
+import { bankUrl, UnsafeHandoffError } from './handoff-url'
 
 // The payment intents the browser opens through the BFF (order digest §3.2.3–3.2.4; the lists
 // and the wallet are read in ./reads). An intent
@@ -149,22 +150,32 @@ const intentPath = (door: PaymentDoor) =>
     ? `payment/order/${door.orderUuid}/intent/`
     : `payment/link/${door.token}/intent/`
 
-/** Opens a payment attempt; throws `IntentError` for every refusal. */
+/**
+ * Opens a payment attempt; throws `IntentError` for every refusal. A handoff that leads to no
+ * bank's page (`bankUrl`: not https) is the bank not answering (`gateway_unavailable`): the
+ * caller saves nothing and goes nowhere.
+ */
 export async function startPayment(input: StartPaymentInput): Promise<PaymentIntentResult> {
   const body: PaymentIntentRequest = { route: input.route }
   if (input.gatewayCode) body.gateway_code = input.gatewayCode
   for (let attempt = 0; ; attempt++) {
+    let intent: PaymentIntent
     try {
       const answer = await bffFetch<PaymentIntent>(intentPath(input.door), {
         method: 'POST',
         idempotencyKey: input.key,
         body,
       })
-      return answer.data
+      intent = answer.data
     } catch (error) {
       const starting = error instanceof ApiError && error.code === 'payment_attempt_starting'
       if (!starting || attempt >= STARTING_RETRIES) throw problemOf(error)
       await sleep(STARTING_RETRY_MS)
+      continue
     }
+    if (intent.handoff && !bankUrl(intent.handoff.url)) {
+      throw new IntentError('gateway_unavailable', new UnsafeHandoffError())
+    }
+    return intent
   }
 }

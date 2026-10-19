@@ -14,11 +14,13 @@ import { BANK_LEAVING_MS, useReleaseIfStillHere } from '@/lib/navigation/leaving
 import type { PaymentDoor } from './api'
 import { cancelAttempt } from './attempt-api'
 import { attemptRow, type AttemptRow } from './attempt-row'
+import { bankUrl } from './handoff-url'
 import {
   AttemptButton,
   AttemptError,
   AttemptNote,
   BANK_LOAD_FAILED,
+  BANK_UNAVAILABLE,
   CANCEL_FORBIDDEN,
   CANCELLED,
   CANCELLED_REPAY,
@@ -138,6 +140,8 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
   async function continueAtBank() {
     const handoff = attempt.handoff
     if (inFlight.current || !handoff) return
+    // No bank's page (handoff-url.ts): the bank not answering; nothing saved, nowhere to go.
+    if (!bankUrl(handoff.url)) return setError(BANK_UNAVAILABLE)
     inFlight.current = true
     setBusy('bank')
     setError(null)

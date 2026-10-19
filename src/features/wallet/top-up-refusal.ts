@@ -1,3 +1,4 @@
+import { UnsafeHandoffError } from '@/features/payment/handoff-url'
 import { ApiError, GENERIC_ERROR_DETAIL } from '@/lib/api/errors'
 import type { FeatureKey } from '@/lib/api/types/common'
 import { isSessionExpiredError } from '@/lib/session/viewer-queries'
@@ -16,7 +17,10 @@ export type TopUpRefusal =
   | { kind: 'gateway_unknown'; message: string }
   /** `gateway_not_configured` / `gateway_result_url_invalid`: no bank here; support. */
   | { kind: 'gateway_broken'; message: string }
-  /** 503 `gateway_unavailable`: the bank did not answer; later, with a new key. */
+  /**
+   * 503 `gateway_unavailable`: the bank did not answer; later, with a new key. Also a handoff
+   * that leads to no bank's page (`UnsafeHandoffError`): nothing to go to.
+   */
   | { kind: 'gateway_unavailable'; message: string }
   /** 502 `gateway_rejected`: the bank said no; another gateway, no automatic retry. */
   | { kind: 'gateway_rejected'; message: string }
@@ -54,6 +58,8 @@ const KINDS: Record<string, Said> = {
 
 export function topUpRefusal(error: unknown): TopUpRefusal {
   if (isSessionExpiredError(error)) return { kind: 'session' }
+  if (error instanceof UnsafeHandoffError)
+    return { kind: 'gateway_unavailable', message: GENERIC_ERROR_DETAIL }
   if (!(error instanceof ApiError)) return { kind: 'other', message: GENERIC_ERROR_DETAIL }
   if (error.status === 503 && error.isFeatureDisabled() && error.feature)
     return { kind: 'feature_off', feature: error.feature, reason: error.detail }

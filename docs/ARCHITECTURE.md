@@ -794,6 +794,17 @@ stays under the `/payment/` prefix either way. The uuid is also in `localStorage
 payments (Plan 4, saved before the bank) on every page of the origin; the result page removes its
 entry once the payment settled.
 
+**The way to the bank** (`src/features/payment/go-to-bank.ts`) leaves only for a handoff URL that
+`bankUrl()` (`handoff-url.ts`) accepts: `https:`, and `http:` only in a build that is not
+production (`next dev` and the unit tests, for a sandbox gateway on a developer's machine; the
+browser does not know the backend's base URL, and every gateway's payment page is https). The URL
+comes from the API, and a `javascript:` or `data:` one given to `location.assign` or a form's
+`action` would run on the shop's origin. Where a handoff arrives (an intent's answer, a top-up's,
+an open attempt's «ادامه در …») one that is refused is the bank not answering
+(`gateway_unavailable`): nothing is saved for the way back and nothing navigates; `goToBank`
+itself throws `UnsafeHandoffError` before touching either. Tests: `tests/unit/payment/
+handoff-url.test.ts`, `go-to-bank.test.ts`, `unsafe-handoff.test.tsx`.
+
 **The card-transfer page** (`/payment/card-transfer/<uuid>/`) is under the `/payment/` prefix
 (operator code off, `no-referrer`) and is reached only by full page loads (the checkout, the link
 page, the resume UI, its own «پرداخت دوباره»); a uuid of the wrong shape is a 404 with no API call.
