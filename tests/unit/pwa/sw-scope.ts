@@ -112,6 +112,11 @@ export function subresource(path: string, destination: RequestDestination = '', 
   return request
 }
 
+/** The registration's navigation preload, as browsers that support it have it. */
+export function navigationPreloadManager() {
+  return { enable: vi.fn(async () => undefined), disable: vi.fn(async () => undefined) }
+}
+
 export function worker(
   source: string,
   {
@@ -119,6 +124,10 @@ export function worker(
     network = (() => {
       throw new TypeError('Failed to fetch')
     }) as Network,
+    /** The registration's `navigationPreload`; null for a browser without it. */
+    navigationPreload = navigationPreloadManager() as ReturnType<
+      typeof navigationPreloadManager
+    > | null,
   } = {},
 ) {
   const handlers: Record<string, ((event: unknown) => void)[]> = {}
@@ -134,7 +143,10 @@ export function worker(
       (handlers[type] ??= []).push(handler),
     skipWaiting: vi.fn(),
     location: { origin: ORIGIN },
-    registration: { showNotification: vi.fn(async () => undefined) },
+    registration: {
+      showNotification: vi.fn(async () => undefined),
+      ...(navigationPreload ? { navigationPreload } : {}),
+    },
     clients: {
       claim: vi.fn(async () => undefined),
       openWindow: vi.fn(async () => null),

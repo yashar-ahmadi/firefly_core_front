@@ -21,8 +21,9 @@ import { fetchSection } from './sw-offline-fetch'
 // - SW_NEVER_CACHED, a non-GET, `Authorization`, another origin, a response that is not a plain
 //   200 of type basic/cors, or one with `no-store`/`private`: never kept, never served from a
 //   cache;
-// - caches are named after the build; activate deletes every other `ff-` cache; the logout's
-//   message forgets every page kept (each kept again as the anonymous copy).
+// - caches are named after the build; activate deletes every other `ff-` cache and turns on
+//   navigation preload where the browser has it (a navigation then uses the preloaded response);
+//   the logout's message forgets every page kept (each kept again as the anonymous copy).
 
 /** The worker's caches for `version` (the build id). */
 export function offlineCacheNames(version: string) {
@@ -162,16 +163,26 @@ self.addEventListener('install', (event) => {
   event.waitUntil(withLimit(keepPages(), INSTALL_LIMIT_MS))
 })
 
+// Navigation preload, where the browser has it: a navigation's request leaves while the worker
+// starts, and the fetch handler takes its response (sw-offline-fetch.ts).
+const enableNavigationPreload = () =>
+  self.registration.navigationPreload
+    ? quietly(self.registration.navigationPreload.enable())
+    : Promise.resolve()
+
 self.addEventListener('activate', (event) => {
   const current = Object.values(CACHES)
   event.waitUntil(
-    caches.keys().then((names) =>
-      Promise.all(
-        names
-          .filter((name) => name.startsWith('ff-') && !current.includes(name))
-          .map((name) => caches.delete(name)),
+    Promise.all([
+      enableNavigationPreload(),
+      caches.keys().then((names) =>
+        Promise.all(
+          names
+            .filter((name) => name.startsWith('ff-') && !current.includes(name))
+            .map((name) => caches.delete(name)),
+        ),
       ),
-    ),
+    ]),
   )
 })
 

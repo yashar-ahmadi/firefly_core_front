@@ -2,7 +2,8 @@
 // sw-offline.ts, plain browser JavaScript run after its shared and pages sections, whose
 // constants and helpers it uses): cache first for the app's files, stale while revalidate for the
 // shop's images, network first for the kept pages, the network alone (then the offline page) for
-// every other navigation, and nothing at all for anything never cached.
+// every other navigation, and nothing at all for anything never cached. A navigation's network
+// answer is the browser's preloaded response when navigation preload is on.
 
 /** The requests the worker answers, and how. */
 export function fetchSection(): string {
@@ -37,9 +38,17 @@ async function staleWhileRevalidate(event) {
   return kept
 }
 
-async function networkOnly(request) {
+// A navigation's page: the browser's preloaded response when navigation preload is on (its
+// request left while the worker was starting), else the worker's own fetch.
+function navigationResponse(event) {
+  return Promise.resolve(event.preloadResponse).then(
+    (preloaded) => preloaded || fetch(event.request),
+  )
+}
+
+async function networkOnly(event) {
   try {
-    return await fetch(request)
+    return await navigationResponse(event)
   } catch (error) {
     return offlinePage()
   }
@@ -49,7 +58,7 @@ const TIMED_OUT = {}
 const FAILED = {}
 
 async function networkFirst(event, path) {
-  const network = fetch(event.request)
+  const network = navigationResponse(event)
   let timer
   const late = new Promise((resolve) => {
     timer = setTimeout(resolve, NAVIGATION_TIMEOUT_MS, TIMED_OUT)
@@ -83,7 +92,7 @@ self.addEventListener('fetch', (event) => {
   const path = url.pathname
   if (request.mode === 'navigate') {
     const kept = !neverCached(path) && OFFLINE_PAGES.includes(path)
-    event.respondWith(kept ? networkFirst(event, path) : networkOnly(request))
+    event.respondWith(kept ? networkFirst(event, path) : networkOnly(event))
     return
   }
   // First, whatever the path looks like: no rule below may ever reach one of these.
