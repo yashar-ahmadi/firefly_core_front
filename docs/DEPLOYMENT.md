@@ -289,6 +289,7 @@ location ~* ^/(order/pay|payment|login|register|forgot-password|api/bff/order/pa
     proxy_pass http://127.0.0.1:3000;            # همهٔ دستورهای `location /`
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Accept-Encoding "";
     proxy_buffering off;
 }
@@ -510,10 +511,28 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
     }
-    location = /sitemap.xml      { proxy_pass http://127.0.0.1:8000; proxy_set_header Host $host; }
-    location /static/            { proxy_pass http://127.0.0.1:8000; proxy_set_header Host $host; }
-    location /secureAccessPanel/ { proxy_pass http://127.0.0.1:8000; proxy_set_header Host $host; }
-    location /ckeditor/          { proxy_pass http://127.0.0.1:8000; proxy_set_header Host $host; }
+    # هر بلوک Django خودش X-Forwarded-Proto را می‌فرستد (از سطح server به ارث نمی‌رسد)؛ بدون آن
+    # Django با USE_HTTPS درخواست را http می‌بیند و به https برمی‌گرداند: حلقهٔ ریدایرکت.
+    location = /sitemap.xml {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location /static/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location /secureAccessPanel/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location /ckeditor/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
     location /media/ {
         alias /srv/firefly/media/;
         add_header X-Content-Type-Options nosniff;
@@ -524,6 +543,7 @@ server {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Accept-Encoding "";   # nginx فشرده می‌کند
         proxy_buffering off;
     }
