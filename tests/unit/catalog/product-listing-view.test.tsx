@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { stubBrowserApis } from '../support/dom-stubs'
+import { minWidth, stubBrowserApis } from '../support/dom-stubs'
 import { cardFixture } from './card-fixtures'
 import { MOBILE_FILTERS } from './filter-fixtures'
 import {
@@ -27,7 +27,8 @@ vi.mock('@/features/settings/api', () => settings)
 vi.mock('@/lib/api/client', () => ({ bffFetch: bff.fetch }))
 vi.mock('next/navigation', async () => (await import('./navigation-harness')).navigationMock)
 
-stubBrowserApis()
+// A desktop: the sidebar's filters render from lg only (sidebar-filters.tsx).
+stubBrowserApis(minWidth(64))
 
 beforeEach(() => {
   vi.clearAllMocks()

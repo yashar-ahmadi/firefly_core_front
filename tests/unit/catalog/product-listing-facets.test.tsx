@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ListingContext } from '@/features/catalog/listing-params'
 import type { ProductListPageDetail } from '@/lib/api/types/catalog'
-import { stubBrowserApis } from '../support/dom-stubs'
+import { minWidth, stubBrowserApis } from '../support/dom-stubs'
 import { cardFixture } from './card-fixtures'
 import { LIST_CATEGORIES, MOBILE_FILTERS } from './filter-fixtures'
 import {
@@ -27,7 +27,8 @@ vi.mock('@/features/catalog/api', () => api)
 vi.mock('@/features/settings/api', () => settings)
 vi.mock('next/navigation', async () => (await import('./navigation-harness')).navigationMock)
 
-stubBrowserApis()
+// A desktop: the sidebar's filters render from lg only (sidebar-filters.tsx).
+stubBrowserApis(minWidth(64))
 
 /** `filters/` by context: mobile-phone has attributes, the store and lists do not. */
 async function filtersFor(ctx: ListingContext) {

@@ -25,11 +25,11 @@ import type { CategoryNode } from '@/lib/api/types/settings'
 import { toPersianDigits } from '@/lib/format'
 import { ProductGrid } from '../product-grid'
 import { ActiveFilterChips, ClearFiltersButton } from './active-filter-chips'
-import { FilterPanel } from './filter-panel'
 import { LISTING_RESULTS_ID } from './listing-focus'
 import { ListingResults } from './listing-results'
 import { ListingToolbar } from './listing-toolbar'
 import { LoadMore } from './load-more'
+import { SidebarFilters } from './sidebar-filters'
 import { ListingUrlProvider } from './use-listing-url'
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -148,7 +148,7 @@ export async function ProductListing({
             </h2>
             <ClearFiltersButton variant="link" size="sm" label="حذف همه" onlyWhenActive />
           </div>
-          <FilterPanel groups={groups} />
+          <SidebarFilters groups={groups} />
         </aside>
 
         <section aria-labelledby={LISTING_RESULTS_ID} className="flex min-w-0 flex-col gap-3">
