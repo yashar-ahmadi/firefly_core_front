@@ -8,8 +8,8 @@ import type { CheckoutStep } from './checkout-steps'
 // The checkout's step bodies (Task 3's amendment: the JS budget counts what visitors load). The
 // page itself is the steps' frame: each step's numbered heading, a done step's summary in a
 // line, a locked step's heading alone. Only the open step's body is code the page fetches, when
-// it opens: the guest's receiver form or the signed-in address picker, the shipping options, the
-// payment routes, the review. A shopper back at the checkout with everything chosen loads the
+// it opens: the guest's receiver form, the signed-in address picker or, in a shop that takes no
+// guest orders, the guest's way to log in; the shipping options, the payment routes, the review. A shopper back at the checkout with everything chosen loads the
 // review's alone. Each body is its own chunk; while it comes, its section keeps its heading (the
 // focus can go there at once) over a skeleton. A chunk that cannot load (a deploy since the page
 // loaded, the connection) says so in its section with a reload; the cart and the receiver's
@@ -85,6 +85,9 @@ export const GuestReceiverForm = stepBody(() =>
 export const AddressPicker = stepBody(() =>
   import('./address-picker').then((module) => module.AddressPicker),
 )
+export const LoginPrompt = stepBody(() =>
+  import('./login-prompt').then((module) => module.LoginPrompt),
+)
 export const ShippingSection = stepBody(() =>
   import('./shipping-section').then((module) => module.ShippingSection),
 )
@@ -95,9 +98,10 @@ export const ReviewSection = stepBody(() =>
   import('./review-section').then((module) => module.ReviewSection),
 )
 
-/** The steps' bodies, in the steps' order. */
-const BODIES: Record<CheckoutStep, (signedIn: boolean) => Promise<unknown>> = {
-  receiver: (signedIn) => (signedIn ? AddressPicker : GuestReceiverForm).load(),
+/** The steps' bodies, in the steps' order (`guests`: the shop takes guest orders). */
+const BODIES: Record<CheckoutStep, (signedIn: boolean, guests: boolean) => Promise<unknown>> = {
+  receiver: (signedIn, guests) =>
+    (signedIn ? AddressPicker : guests ? GuestReceiverForm : LoginPrompt).load(),
   shipping: ShippingSection.load,
   payment: PaymentSection.load,
   review: ReviewSection.load,
@@ -105,13 +109,16 @@ const BODIES: Record<CheckoutStep, (signedIn: boolean) => Promise<unknown>> = {
 const ORDER = Object.keys(BODIES) as CheckoutStep[]
 
 /** Loads the body of `step` (the page arrives once its open step's is in). Never rejects. */
-export const loadBody = (step: CheckoutStep, signedIn: boolean): Promise<unknown> =>
-  BODIES[step](signedIn).catch(() => undefined)
+export const loadBody = (
+  step: CheckoutStep,
+  signedIn: boolean,
+  guests: boolean,
+): Promise<unknown> => BODIES[step](signedIn, guests).catch(() => undefined)
 
 /**
  * Fetches the bodies of the steps after `step` (the shopper at work in the page: a pointer over
  * it, a focus in it), never on arrival alone. Never rejects.
  */
-export function preloadAhead(step: CheckoutStep, signedIn: boolean): void {
-  for (const next of ORDER.slice(ORDER.indexOf(step) + 1)) void loadBody(next, signedIn)
+export function preloadAhead(step: CheckoutStep, signedIn: boolean, guests: boolean): void {
+  for (const next of ORDER.slice(ORDER.indexOf(step) + 1)) void loadBody(next, signedIn, guests)
 }

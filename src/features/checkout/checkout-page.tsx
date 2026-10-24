@@ -9,6 +9,7 @@ import { CartNotices } from '@/features/cart/components/cart-notices'
 import type { PaymentCatalog } from '@/features/payment/catalog'
 import { usePaymentCatalog } from '@/features/payment/use-payment-catalog'
 import { useRouteChoice } from '@/features/payment/use-route-choice'
+import { useFeature } from '@/features/settings/feature-context'
 import { useSession } from '@/lib/session/session-context'
 import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { isSessionExpiredError } from '@/lib/session/viewer-queries'
@@ -70,6 +71,8 @@ export function CheckoutPage({
   const catalog = usePaymentCatalog(initial)
   const { data: current } = useCart()
   const { hasSession } = useSession()
+  // The receiver's body for a guest: the form, or the way to log in (no guest orders).
+  const guests = useFeature('guest_checkout').enabled
   // The routes for the cart's amounts, once shipping prices them (A is final then).
   const payment = useRouteChoice({
     catalog,
@@ -93,14 +96,24 @@ export function CheckoutPage({
   // (use-auto-choices; shown in their steps, each opened and closed a step in turn, moving the
   // steps below it), then the open step's body (arriving over its step's skeleton, it pushed the
   // later steps down). A choice made again later, or a step opened later, shows in its step.
-  const choosing = checkout.autoDestination.working || checkout.autoShipping.working
+  // Never for an empty cart, which has no step to show; a body asked for before a choice started
+  // lets nothing arrive.
+  const ready =
+    cart?.is_empty === false && !checkout.autoDestination.working && !checkout.autoShipping.working
   const [arrived, setArrived] = useState(false)
-  // After every render until then (cheap); never for an empty cart, which has no step to show.
   useEffect(() => {
-    if (!arrived && cart && !cart.is_empty && !choosing) {
-      void loadBody(step, signedIn).then(() => setArrived(true))
-    }
-  })
+    let live = ready && !arrived
+    if (live) void loadBody(step, signedIn, guests).then(() => live && setArrived(true))
+    return () => void (live = false)
+  }, [ready, arrived, step, signedIn, guests])
+  // A choice that hangs (its read or write unanswered) holds the skeleton no longer: named after
+  // 3 s, the steps after 8 s (before a write's own 10 s), each step's own skeleton, or the
+  // shopper's choice (the picker), taking over.
+  const [waited, setWaited] = useState(0)
+  useEffect(() => {
+    const timers = [3e3, 8e3].map((ms, at) => setTimeout(() => setWaited(at + 1), ms))
+    return () => timers.forEach(clearTimeout)
+  }, [])
 
   const { error } = cartQuery
   useEffect(() => {
@@ -123,7 +136,7 @@ export function CheckoutPage({
   // Empty after an order placed in this tab (a reload, Back from the bank): that order, first.
   if (cart?.is_empty) return <EmptyCheckout placed={readLastPlaced()} />
   // The cart on its way, or the page not arrived yet (above).
-  if (!cart || !arrived) return <CheckoutSkeleton />
+  if (!cart || !(arrived || waited > 1)) return <CheckoutSkeleton slow={waited > 0} />
 
   const blocked = checkoutBlock(cart, false) === CHECKOUT_ISSUES
   // A refusal whose fix is in an earlier step is said at the top, until the review again.
@@ -135,7 +148,7 @@ export function CheckoutPage({
   const edit = (of: CheckoutStep) => (blocked ? undefined : () => checkout.edit(of))
   // The shopper at work in the page: the bodies of the steps ahead are fetched meanwhile (each
   // loads by itself when its step opens).
-  const ahead = () => preloadAhead(step, signedIn)
+  const ahead = () => preloadAhead(step, signedIn, guests)
   return (
     <div
       ref={page}

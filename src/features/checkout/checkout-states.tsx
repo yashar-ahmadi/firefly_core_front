@@ -14,7 +14,8 @@ import { thanksPath } from './thanks-path'
 // The checkout's states other than the steps: loading, an empty cart, a cart that cannot be
 // ordered as it is, and a signed-in checkout whose session ended.
 
-export function CheckoutSkeleton() {
+/** `slow`: the wait is named (a choice made for the shopper is taking long), over the blocks. */
+export function CheckoutSkeleton({ slow = false }: { slow?: boolean }) {
   return (
     <div
       role="status"
@@ -23,13 +24,18 @@ export function CheckoutSkeleton() {
       // this, however tall, move nothing in view.
       className="grid min-h-dvh content-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-6"
     >
-      <div className="flex flex-col gap-4">
+      <div className="relative flex flex-col gap-4">
         {[0, 1, 2].map((index) => (
           <div key={index} className="flex flex-col gap-3 rounded-card bg-white p-5 shadow-card">
             <Skeleton className="h-7 w-1/3" />
             {index === 0 && <Skeleton className="h-24 w-full" />}
           </div>
         ))}
+        {slow && (
+          <p className="absolute inset-x-5 top-15 grid h-24 place-items-center text-base text-ink-700">
+            {'در حال آماده\u{200C}سازی سفارش…'}
+          </p>
+        )}
       </div>
       <div className="hidden flex-col gap-3 rounded-card bg-white p-5 shadow-card lg:flex">
         <Skeleton className="h-6 w-1/2" />

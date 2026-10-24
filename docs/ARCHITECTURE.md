@@ -892,13 +892,15 @@ off, so no worker sits between the other specs and their routes and mocks.
   page is the steps' frame: each step's numbered heading, a done step's summary in a line, a
   locked step's heading alone. The body of the open step is its own lazy chunk: the guest's
   receiver form or the signed-in address picker, the shipping options, the payment routes, the
-  review. While it comes, its section keeps its heading (the focus goes there at once) over a
+  review; in a shop that takes no guest orders, the guest's login prompt instead of the form.
+  While it comes, its section keeps its heading (the focus goes there at once) over a
   skeleton; a chunk that cannot load says so in its section with a reload. The shopper at work in
   the page (a pointer over it, a focus in it) fetches the bodies of the steps ahead meanwhile,
   never on arrival alone. The choices made for the shopper run in the page's own code, not in
   the bodies (`use-auto-choices.ts`, from `useCheckout`): the book's default address posted for a
-  signed-in cart, the operator's default shipping option. A step being completed so shows its
-  heading over a named skeleton, and its body loads only if the shopper is asked after all (an
+  signed-in cart, the operator's default shipping option. They run behind the page's skeleton on
+  arrival (bounded: see Layout stability); a step being completed so later shows its heading over
+  a named skeleton, and its body loads only if the shopper is asked after all (an
   empty book, no default, a refusal). A signed-in shopper's first visit therefore goes from the
   cart to the review loading the review's body alone. The guard measures every state a visitor
   lands in, against 246 KB for the checkout (`CHECKOUT_BUDGET_KB`, below the route budget:
@@ -1213,26 +1215,40 @@ off, so no worker sits between the other specs and their routes and mocks.
   condition iOS needs, but no device test was possible here.
 - **Layout stability.** Vazirmatn loads with `display: swap` behind Persian-tuned fallback faces
   (`styles/font-fallbacks.css`, listed in `lib/fonts.ts`), so text keeps its width and line breaks
-  when the font arrives. Images have fixed frames, and countdowns and badges keep one width
-  through hydration. The checkout arrives in one piece behind its skeleton, which is a screen
-  tall (so is the page of steps after it: the footer stays below the fold): first the choices
-  made for the shopper (`use-auto-choices.ts`: the book's default address, the operator's
-  default shipping), then the open step's body (`loadBody`, lazy-steps.tsx). Shown as they
-  happened, each choice opened and closed its step and the next body arrived over its step's
-  skeleton, moving the steps below: a guest's receiver form, 1,020–1,288 px over a 150 px
-  skeleton, was a CLS of 0.46 (Lighthouse), a signed-in first visit 0.148 on a phone and 0.115 at
-  1440×900, and the shipping options asked for after a refused default 0.24 and 0.09. All 0 now
-  (`checkout-stability.spec.ts`, `checkout-signed-in-stability.spec.ts`, k.yazdi's real first
-  visit). The step bodies are `stepBody` components, not `next/dynamic`: `next/dynamic` showed
-  its loading skeleton on a body's first mount even with the code in, and React held that
-  fallback 300 ms more (its Suspense throttle); a `stepBody` renders its body at once when its
-  code is in. After arrival a step opened by the shopper, or a choice made again (another address
-  resets the shipping), shows in its step as before; the receiver's own skeleton for the book's
-  default went (that choice is made on arrival). An empty cart waits for no body. The arrival,
-  the bodies and the screen-tall page cost every `/checkout/` state 25 B of JavaScript (a guest
-  218,808 → 218,833 B; within each state's rounding: 213.7, 212.5 at the review, 216.9 signed
-  in), with the guest form's fixed room (Task 8's `guest-form-room`, two heights measured on
-  that day's fields) removed: no step needs one on arrival any more.
+  when the font arrives. Images have fixed frames, and countdowns and badges keep one width through
+  hydration. The checkout arrives in one piece behind its skeleton, which is a screen tall (so is
+  the page of steps after it: the footer stays below the fold): first the choices made for the
+  shopper (`use-auto-choices.ts`: the book's default address, the operator's default shipping), then
+  the open step's body (`loadBody`, lazy-steps.tsx). Shown as they happened, each choice opened and
+  closed its step and the next body arrived over its step's skeleton, moving the steps below: a
+  guest's receiver form, 1,020–1,288 px over a 150 px skeleton, was a CLS of 0.46 (Lighthouse), a
+  signed-in first visit 0.148 on a phone and 0.115 at 1440×900, and the shipping options asked for
+  after a refused default 0.24 and 0.09. All 0 now (`checkout-stability.spec.ts`,
+  `checkout-signed-in-stability.spec.ts`, k.yazdi's real first visit). The step bodies are
+  `stepBody` components, not `next/dynamic`: `next/dynamic` showed its loading skeleton on a body's
+  first mount even with the code in, and React held that fallback 300 ms more (its Suspense
+  throttle); a `stepBody` renders its body at once when its code is in. After arrival a step opened
+  by the shopper, or a choice made again (another address resets the shipping), shows in its step as
+  before; the receiver's own skeleton for the book's default went (that choice is made on arrival).
+  An empty cart waits for no body, and a body asked for before a choice started lets nothing arrive
+  when it comes (the arrival's effect has its dependencies). The arrival, the bodies and the
+  screen-tall page cost every `/checkout/` state 25 B of JavaScript (a guest 218,808 → 218,833 B;
+  within each state's rounding: 213.7, 212.5 at the review, 216.9 signed in), with the guest form's
+  fixed room (Task 8's `guest-form-room`, two heights measured on that day's fields) removed: no
+  step needs one on arrival any more. **The wait is bounded** (Plan 5 Task 9): a choice that hangs,
+  its read or its write unanswered, held the skeleton until the server's timeouts (10 s a try; a
+  lost read was tried three times: about 33 s). After 3 s the skeleton names the wait («در حال
+  آماده‌سازی سفارش…», inside its own polite `status`, laid over its blocks: nothing moves); after 8
+  s, before a write's own 10 s, the steps show anyway, each with its own skeleton (the shipping
+  step's «در حال انتخاب روش ارسال پیش‌فرض») or the shopper's way out (the address picker: the newest
+  write wins, `useLatestWrite`). The reads the choices wait for (the address book, the shipping
+  options) are tried twice at most (`retryOnce`, use-shipping-options.ts: the same errors as
+  `shouldRetryQuery`, kept apart from it because importing the shared query module regrouped the
+  checkout's chunks, +161 B). A shop that takes no guest orders gets its login prompt as the
+  receiver's lazy body, like the form and the picker: it was the page's own code on every checkout,
+  and the guest form's chunk was fetched on arrival for a page that never showed it. With that,
+  every `/checkout/` state is 174 B lighter than before the bound (a guest 218,833 → 218,659 B,
+  213.5 KB; 212.4 at the review; 216.8 signed in).
 - **The font is a subset** (`lib/fonts.ts` holds the command): 85 KB instead of the full variable
   font's 111 KB, preloaded (an HTTP `Link`) on every first visit; Latin Extended and IPA letters
   fall back to the system face.

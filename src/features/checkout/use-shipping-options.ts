@@ -19,6 +19,18 @@ import { checkoutApi } from './checkout-api'
 
 export const SHIPPING_OPTIONS_KEY = [...CART_KEY, 'shipping-options'] as const
 
+/**
+ * Tried once more at most (twice by default, `shouldRetryQuery`; the same errors are tried): the
+ * checkout's own choices wait for this read and the address book's (use-auto-choices.ts), and a
+ * read lost upstream takes 10 s a try.
+ */
+export const retryOnce = (count: number, error: Error) =>
+  !count &&
+  !(
+    error instanceof ApiError &&
+    (error.isFeatureDisabled() || Math.floor(error.status / 100) === 4)
+  )
+
 /** What the options depend on: the destination, the lines, the coupon, the money and weight. */
 export function optionsSignature(cart: Cart): string {
   const { destination } = cart
@@ -70,6 +82,7 @@ export function useShippingOptions(
     enabled: enabled && cart !== undefined,
     // Prices are live: read again whenever the shipping step shows.
     staleTime: 0,
+    retry: retryOnce,
   })
   // A cart write stores its cart after cancelling the cart's reads in flight, this one's too
   // (`storeCart`): a read cancelled before it ever had data is started again.

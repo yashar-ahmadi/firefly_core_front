@@ -12,7 +12,7 @@ import { useSessionExpired } from '@/lib/session/use-session-expired'
 import { withSessionExpiry } from '@/lib/session/with-session-expiry'
 import { defaultOption } from './shipping-labels'
 import { isOptionGone, isThrottled, type WriteOutcome } from './use-checkout-writes'
-import { optionsSignature, useShippingOptions } from './use-shipping-options'
+import { optionsSignature, retryOnce, useShippingOptions } from './use-shipping-options'
 
 // The choices the checkout makes for the shopper (cart digest §6.6–6.8): a signed-in cart
 // without a saved address as its destination gets the book's default (its first), and a cart
@@ -79,6 +79,7 @@ export function useAutoDestination(input: DestinationInput): AutoChoice {
     queryKey: ADDRESSES_KEY,
     queryFn: ({ signal }) => read(signal),
     enabled: signedIn && cart !== undefined && cartAddress === null,
+    retry: retryOnce,
   })
   const addresses = book.data?.results
   const [tried, setTried] = useState<number[]>([])
