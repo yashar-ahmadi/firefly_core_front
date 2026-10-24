@@ -1748,4 +1748,5 @@ screenshots in `docs/images/presets/`, its row in the contrast table). The theme
 every preset produces AA-readable foregrounds, and `tests/unit/theme/preset-contrast.test.ts` that
 each of its brand and accent pairs as the shop paints them (`tests/unit/theme/preset-pairs.ts`:
 buttons, links, badges, chips, tabs, the announcement, focus rings) reaches 4.5:1 for text and
-3:1 for a control's boundary or a marker.
+3:1 for a control's boundary or a marker, and the brand itself 4.5:1 on white (the rule
+CUSTOMIZATION gives operators for a primary colour).

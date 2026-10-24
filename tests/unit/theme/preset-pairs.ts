@@ -8,7 +8,8 @@ import { buildThemeCss } from '@/lib/theme/css'
 // contrast pass): each text or control colour on its background, as the shop ships it (the
 // variables `buildThemeCss` writes for the preset), with WCAG 2.x AA's floor for it: 4.5:1 for
 // text (the store name, links, buttons, badges, chips, tabs, the announcement), 3:1 for a
-// control's boundary, a state marker or an icon that carries meaning. Used by
+// control's boundary, a state marker or an icon that carries meaning; the brand itself on white
+// 4.5:1, the rule docs/CUSTOMIZATION.md gives operators for a primary colour. Used by
 // preset-contrast.test.ts (the guard) and to print the table in docs/CUSTOMIZATION.md.
 
 const css = readFileSync(resolve(process.cwd(), 'src/styles/globals.css'), 'utf8')
@@ -66,7 +67,10 @@ export function presetPairs(preset: Preset): ContrastPair[] {
     pair('announcement bar', 'brand-900', 'brand-50', 4.5),
     pair('solid accent badge', 'accent-fg', 'accent', 4.5),
     pair('soft accent badge, dashboard tone', 'accent-900', 'accent-50', 4.5),
-    pair('chosen chip border, brand icons, checkbox', 'brand', WHITE, 3),
+    // A boundary and an icon need 3:1, but the brand on white is held to CUSTOMIZATION's rule
+    // for a primary colour (4.5:1, its section on choosing and customising a preset): the
+    // presets keep the rule they tell operators.
+    pair('chosen chip border, brand icons, checkbox; the primary itself', 'brand', WHITE, 4.5),
     pair('active tab marker on the rail', 'brand', ink(100), 3),
     pair('focus ring on the page', 'focus', ink(50), 3),
   ]
