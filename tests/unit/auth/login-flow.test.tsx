@@ -61,7 +61,7 @@ const REGISTRATION_OFF = {
 } as const
 
 async function toPasswordStep(user: ReturnType<typeof userEvent.setup>, identifier = EMAIL) {
-  await user.type(screen.getByLabelText('ایمیل یا شماره موبایل'), identifier)
+  await user.type(screen.getByLabelText('ایمیل یا شمارهٔ موبایل'), identifier)
   await user.click(screen.getByRole('button', { name: 'ادامه' }))
   return screen.findByLabelText('رمز عبور')
 }
@@ -146,7 +146,7 @@ describe('LoginFlow', () => {
       }),
     )
     await user.click(screen.getByRole('button', { name: 'ورود' }))
-    const field = await screen.findByLabelText('ایمیل یا شماره موبایل')
+    const field = await screen.findByLabelText('ایمیل یا شمارهٔ موبایل')
     await waitFor(() => expect(field).toHaveAccessibleDescription(expect.stringContaining(detail)))
     expect(field).toHaveValue('sara@example.c')
   })
@@ -155,7 +155,7 @@ describe('LoginFlow', () => {
     const user = renderFlow()
     await user.type(await toPasswordStep(user), 'Firefly@1234')
     await user.click(screen.getByRole('button', { name: /تغییر/ }))
-    const field = await screen.findByLabelText('ایمیل یا شماره موبایل')
+    const field = await screen.findByLabelText('ایمیل یا شمارهٔ موبایل')
     expect(field).toHaveValue(EMAIL)
     await waitFor(() => expect(field).toHaveFocus())
     await user.click(screen.getByRole('button', { name: 'ادامه' }))
@@ -168,9 +168,9 @@ describe('LoginFlow', () => {
   it('checks the identifier before any request, and accepts a mobile in Persian digits', async () => {
     const user = renderFlow()
     await user.click(screen.getByRole('button', { name: 'ادامه' }))
-    const field = screen.getByLabelText('ایمیل یا شماره موبایل')
+    const field = screen.getByLabelText('ایمیل یا شمارهٔ موبایل')
     expect(field).toHaveAccessibleDescription(
-      expect.stringContaining('ایمیل یا شماره موبایل را وارد کنید.'),
+      expect.stringContaining('ایمیل یا شمارهٔ موبایل را وارد کنید.'),
     )
     await user.type(field, 'sara')
     await user.click(screen.getByRole('button', { name: 'ادامه' }))

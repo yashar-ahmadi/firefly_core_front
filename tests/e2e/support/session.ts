@@ -93,7 +93,7 @@ export async function logInWithForm(page: Page, password: string = SARA.password
   // forms' submit button is disabled until the page has hydrated.
   const next = page.getByRole('button', { name: 'ادامه' })
   await expect(next).toBeEnabled()
-  await page.getByLabel('ایمیل یا شماره موبایل').fill(SARA.email)
+  await page.getByLabel('ایمیل یا شمارهٔ موبایل').fill(SARA.email)
   await next.click()
   await page.getByLabel('رمز عبور', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'ورود', exact: true }).click()

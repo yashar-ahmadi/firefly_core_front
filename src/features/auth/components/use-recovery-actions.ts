@@ -35,8 +35,8 @@ const NO_CHANNELS: CodeChannels = { otpChannels: [], defaultOtpChannel: null }
 
 /** No channel for this kind of identifier (a mobile number while SMS and Telegram are off). */
 const NO_CHANNEL: Record<ContactType, string> = {
-  email: 'بازیابی رمز عبور با ایمیل در این فروشگاه ممکن نیست؛ شماره موبایل حساب را وارد کنید.',
-  phone: 'بازیابی رمز عبور با شماره موبایل در این فروشگاه ممکن نیست؛ ایمیل حساب را وارد کنید.',
+  email: 'بازیابی رمز عبور با ایمیل در این فروشگاه ممکن نیست؛ شمارهٔ موبایل حساب را وارد کنید.',
+  phone: 'بازیابی رمز عبور با شمارهٔ موبایل در این فروشگاه ممکن نیست؛ ایمیل حساب را وارد کنید.',
 }
 
 export interface RecoveryContext {

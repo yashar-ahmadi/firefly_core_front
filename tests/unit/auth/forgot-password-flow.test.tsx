@@ -79,7 +79,7 @@ async function toPasswordStep(user: User) {
 describe('ForgotPasswordFlow', () => {
   it('identifier → code → new password, then «دوباره وارد شوید» on /login/, prefilled', async () => {
     const user = renderFlow({ identifier: EMAIL, next: '/cart/' })
-    const field = screen.getByRole('textbox', { name: 'ایمیل یا شماره موبایل' })
+    const field = screen.getByRole('textbox', { name: 'ایمیل یا شمارهٔ موبایل' })
     expect(field).toHaveValue(EMAIL)
     expect(field).toHaveAttribute('autocomplete', 'username')
     // One channel for an email address: no choice to make, the code goes at once.
@@ -129,7 +129,7 @@ describe('ForgotPasswordFlow', () => {
 
   it('offers the channel when the number can take more than one, and verifies by it', async () => {
     const user = renderFlow({ auth: everyMethodAuth() })
-    const field = screen.getByRole('textbox', { name: 'ایمیل یا شماره موبایل' })
+    const field = screen.getByRole('textbox', { name: 'ایمیل یا شمارهٔ موبایل' })
     await user.type(field, 'sara@example.com')
     expect(screen.queryByRole('radiogroup')).toBeNull()
     await user.clear(field)
@@ -185,7 +185,7 @@ describe('ForgotPasswordFlow', () => {
     )
     await user.click(screen.getByRole('button', { name: 'تغییر رمز عبور' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(detail)
-    const field = screen.getByRole('textbox', { name: 'ایمیل یا شماره موبایل' })
+    const field = screen.getByRole('textbox', { name: 'ایمیل یا شمارهٔ موبایل' })
     await waitFor(() => expect(field).toHaveFocus())
     expect(field).toHaveValue(EMAIL)
     // A new code is asked for (the old one was used up).
@@ -215,15 +215,15 @@ describe('ForgotPasswordFlow', () => {
   it('checks the identifier before any request', async () => {
     const user = renderFlow()
     await user.click(screen.getByRole('button', { name: 'ارسال کد بازیابی' }))
-    const field = screen.getByRole('textbox', { name: 'ایمیل یا شماره موبایل' })
+    const field = screen.getByRole('textbox', { name: 'ایمیل یا شمارهٔ موبایل' })
     await waitFor(() => expect(field).toHaveFocus())
     expect(field).toHaveAccessibleDescription(
-      expect.stringContaining('ایمیل یا شماره موبایل را وارد کنید.'),
+      expect.stringContaining('ایمیل یا شمارهٔ موبایل را وارد کنید.'),
     )
     // A mobile number on the dev settings: no SMS and no Telegram to send a code by.
     await user.type(field, '09121234501')
     await user.click(screen.getByRole('button', { name: 'ارسال کد بازیابی' }))
-    expect(field).toHaveAccessibleDescription(expect.stringContaining('با شماره موبایل'))
+    expect(field).toHaveAccessibleDescription(expect.stringContaining('با شمارهٔ موبایل'))
     expect(mocks.passwordResetRequest).not.toHaveBeenCalled()
   })
 })

@@ -92,7 +92,7 @@ describe('Google sign-in', () => {
 
   it('a 429 with the focus elsewhere leaves it there', async () => {
     const user = renderLogin()
-    const field = screen.getByLabelText('ایمیل یا شماره موبایل')
+    const field = screen.getByLabelText('ایمیل یا شمارهٔ موبایل')
     await user.click(field)
     await googleAnswers(
       new ApiError({ status: 429, code: 'throttled', detail: 'محدود شد.', retryAfter: 30 }),
@@ -104,7 +104,7 @@ describe('Google sign-in', () => {
   it('an account the shop does not have: a plain «ثبت‌نام» link while registration is open', async () => {
     const user = renderLogin()
     // Typed before choosing Google: not the address Google signed in with.
-    await user.type(screen.getByLabelText('ایمیل یا شماره موبایل'), 'other@example.com')
+    await user.type(screen.getByLabelText('ایمیل یا شمارهٔ موبایل'), 'other@example.com')
     await googleAnswers(
       new ApiError({ status: 404, code: 'auth_user_not_found', detail: 'کاربری یافت نشد.' }),
     )

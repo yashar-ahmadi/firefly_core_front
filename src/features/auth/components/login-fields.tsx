@@ -34,7 +34,7 @@ function shownIdentifier(identifier: string, type: ContactType | null): string {
 }
 
 /**
- * «ایمیل یا شماره موبایل»: one field for either (login, recovery); its type is found from what
+ * «ایمیل یا شمارهٔ موبایل»: one field for either (login, recovery); its type is found from what
  * is typed (`identifierType`). The step's first field.
  */
 export function IdentifierField({
@@ -49,7 +49,11 @@ export function IdentifierField({
   onChange: (value: string) => void
 }) {
   return (
-    <Field label="ایمیل یا شماره موبایل" hint="مثلاً name@example.com یا ۰۹۱۲۳۴۵۶۷۸۹" error={error}>
+    <Field
+      label="ایمیل یا شمارهٔ موبایل"
+      hint="مثلاً name@example.com یا ۰۹۱۲۳۴۵۶۷۸۹"
+      error={error}
+    >
       <Input
         data-autofocus=""
         dir="ltr"
@@ -69,12 +73,12 @@ export function IdentifierField({
 
 /**
  * «sara@example.com — تغییر»: the identifier of the next steps, and the way back to it.
- * `changeLabel` ends the button's name for a screen reader («تغییر ایمیل یا شماره موبایل»).
+ * `changeLabel` ends the button's name for a screen reader («تغییر ایمیل یا شمارهٔ موبایل»).
  */
 export function IdentifierSummary({
   identifier,
   type,
-  changeLabel = 'ایمیل یا شماره موبایل',
+  changeLabel = 'ایمیل یا شمارهٔ موبایل',
   onChange,
 }: {
   identifier: string

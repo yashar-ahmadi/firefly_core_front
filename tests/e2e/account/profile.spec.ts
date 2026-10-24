@@ -12,7 +12,7 @@ import { watchErrors } from '../support/watch-errors'
 const SECTIONS = [
   'نام و نام خانوادگی',
   'تصویر پروفایل',
-  'ایمیل و شماره موبایل',
+  'ایمیل و شمارهٔ موبایل',
   'رمز عبور',
   'ورود دومرحله‌ای',
   'نشست‌ها',
@@ -57,12 +57,12 @@ signedInTest('shows sara’s profile: every section, the names filled in', async
   await expect(email).toContainText(SARA.email)
   await expect(email).toContainText('تأیید شده')
   await expect(email.getByRole('button', { name: 'تغییر ایمیل' })).toBeVisible()
-  const phone = page.getByRole('group', { name: 'شماره موبایل', exact: true })
+  const phone = page.getByRole('group', { name: 'شمارهٔ موبایل', exact: true })
   await expect(phone).toContainText('۰۹۱۲ ۱۲۳ ۴۵۰۱')
   await expect(phone).toContainText('تأیید شده')
   // A change is offered only when a code can reach a phone (SMS or Telegram on; off in dev).
   const phoneChangeable = codeChannels(await authSettings(page), 'phone').otpChannels.length > 0
-  await expect(phone.getByRole('button', { name: 'تغییر شماره موبایل' })).toHaveCount(
+  await expect(phone.getByRole('button', { name: 'تغییر شمارهٔ موبایل' })).toHaveCount(
     phoneChangeable ? 1 : 0,
   )
   if (!phoneChangeable) await expect(phone).toContainText('در این فروشگاه ممکن نیست.')

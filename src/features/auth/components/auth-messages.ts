@@ -2,10 +2,10 @@
 
 export const CODE_INCOMPLETE = 'کد ۶ رقمی را کامل وارد کنید.'
 
-export const IDENTIFIER_REQUIRED = 'ایمیل یا شماره موبایل را وارد کنید.'
+export const IDENTIFIER_REQUIRED = 'ایمیل یا شمارهٔ موبایل را وارد کنید.'
 
 export const IDENTIFIER_INVALID =
-  'ایمیل یا شماره موبایل را درست وارد کنید؛ مثلاً name@example.com یا ۰۹۱۲۳۴۵۶۷۸۹.'
+  'ایمیل یا شمارهٔ موبایل را درست وارد کنید؛ مثلاً name@example.com یا ۰۹۱۲۳۴۵۶۷۸۹.'
 
 export const PASSWORD_REQUIRED = 'رمز عبور را وارد کنید.'
 

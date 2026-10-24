@@ -20,7 +20,7 @@ const TAKEN = new Set(['auth_email_already_exists', 'auth_phone_already_exists']
 
 const VERIFIED: Record<ContactType, string> = {
   email: 'ایمیل شما تأیید شد؛ برای حساب خود رمز عبور بگذارید.',
-  phone: 'شماره موبایل شما تأیید شد؛ برای حساب خود رمز عبور بگذارید.',
+  phone: 'شمارهٔ موبایل شما تأیید شد؛ برای حساب خود رمز عبور بگذارید.',
 }
 
 /** The first step: a prefilled identifier picks its method when the shop registers it. */
@@ -106,7 +106,7 @@ export function RegisterFlow({
         <OtpStep
           {...shared}
           copy={{
-            title: entry.method === 'email' ? 'تأیید ایمیل' : 'تأیید شماره موبایل',
+            title: entry.method === 'email' ? 'تأیید ایمیل' : 'تأیید شمارهٔ موبایل',
             codeName: 'کد تأیید',
             submit: 'تأیید',
           }}

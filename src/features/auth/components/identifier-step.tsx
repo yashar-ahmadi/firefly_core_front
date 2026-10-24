@@ -37,7 +37,7 @@ export function IdentifierStep({
   return (
     <AuthCard
       title="ورود به حساب کاربری"
-      description="با ایمیل یا شماره موبایل خود وارد شوید."
+      description="با ایمیل یا شمارهٔ موبایل خود وارد شوید."
       titleRef={titleRef}
     >
       {notice}

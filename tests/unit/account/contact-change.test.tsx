@@ -194,11 +194,11 @@ describe('adding a phone', () => {
   it('normalises Persian digits; the channel is the settings’ default; shown back formatted', async () => {
     mocks.contactRequest.mockResolvedValue({ ...SENT, otp_method: 'telegram' })
     const { user } = renderSection(noPhone, everyMethodAuth())
-    await user.click(screen.getByRole('button', { name: 'افزودن شماره موبایل' }))
-    await screen.findByRole('textbox', { name: 'شماره موبایل' })
+    await user.click(screen.getByRole('button', { name: 'افزودن شمارهٔ موبایل' }))
+    await screen.findByRole('textbox', { name: 'شمارهٔ موبایل' })
     // Adding needs no proof: nothing verified is replaced.
     expect(screen.queryByLabelText('رمز فعلی')).toBeNull()
-    await user.type(screen.getByRole('textbox', { name: 'شماره موبایل' }), '۰۹۱۲ ۳۴۵ ۶۷۸۹')
+    await user.type(screen.getByRole('textbox', { name: 'شمارهٔ موبایل' }), '۰۹۱۲ ۳۴۵ ۶۷۸۹')
     expect(screen.getByRole('radio', { name: 'تلگرام' })).toBeChecked()
     await user.click(screen.getByRole('button', { name: 'ارسال کد تأیید' }))
     await screen.findByRole('group', { name: 'کد تأیید' })
@@ -212,13 +212,13 @@ describe('adding a phone', () => {
 
   it('refuses a landline or a malformed number before sending', async () => {
     const { user } = renderSection(noPhone, everyMethodAuth())
-    await user.click(screen.getByRole('button', { name: 'افزودن شماره موبایل' }))
-    await screen.findByRole('textbox', { name: 'شماره موبایل' })
-    const input = screen.getByRole('textbox', { name: 'شماره موبایل' })
+    await user.click(screen.getByRole('button', { name: 'افزودن شمارهٔ موبایل' }))
+    await screen.findByRole('textbox', { name: 'شمارهٔ موبایل' })
+    const input = screen.getByRole('textbox', { name: 'شمارهٔ موبایل' })
     await user.type(input, '۰۲۱۸۸۷۷۶۶۵۵')
     await user.click(screen.getByRole('button', { name: 'ارسال کد تأیید' }))
     expect(input).toHaveAccessibleDescription(
-      expect.stringContaining('شماره موبایل را درست وارد کنید'),
+      expect.stringContaining('شمارهٔ موبایل را درست وارد کنید'),
     )
     expect(input).toHaveFocus()
     expect(mocks.contactRequest).not.toHaveBeenCalled()

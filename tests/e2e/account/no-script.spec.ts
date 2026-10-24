@@ -9,11 +9,11 @@ test.use({ javaScriptEnabled: false })
 const NO_SCRIPT = 'برای ورود و ثبت‌نام، جاوااسکریپت مرورگر را فعال کنید.'
 
 const PAGES = [
-  { path: '/login/', field: 'ایمیل یا شماره موبایل', submit: 'ادامه', value: 'e2e@example.com' },
+  { path: '/login/', field: 'ایمیل یا شمارهٔ موبایل', submit: 'ادامه', value: 'e2e@example.com' },
   { path: '/register/', field: 'نام', submit: 'دریافت کد تأیید', value: 'آزمون' },
   {
     path: '/forgot-password/',
-    field: 'ایمیل یا شماره موبایل',
+    field: 'ایمیل یا شمارهٔ موبایل',
     submit: 'ارسال کد بازیابی',
     value: 'e2e@example.com',
   },

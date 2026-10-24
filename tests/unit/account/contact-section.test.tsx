@@ -38,7 +38,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-const row = (name: 'ایمیل' | 'شماره موبایل') => within(screen.getByRole('group', { name }))
+const row = (name: 'ایمیل' | 'شمارهٔ موبایل') => within(screen.getByRole('group', { name }))
 
 function renderSection(me?: UserProfile, auth = everyMethodAuth()) {
   return renderWithMe((profile) => <ContactSection me={profile} />, { me, auth })
@@ -47,24 +47,24 @@ function renderSection(me?: UserProfile, auth = everyMethodAuth()) {
 describe('ContactSection', () => {
   it('shows «افزودن ایمیل» when there is no email, and «تغییر» with the verified badge otherwise', () => {
     renderSection(saraWith({ email: null, is_email_verified: false }))
-    expect(screen.getByRole('heading', { level: 2, name: 'ایمیل و شماره موبایل' })).toBeVisible()
+    expect(screen.getByRole('heading', { level: 2, name: 'ایمیل و شمارهٔ موبایل' })).toBeVisible()
     expect(row('ایمیل').getByText('ثبت نشده')).toBeInTheDocument()
     expect(row('ایمیل').getByRole('button', { name: 'افزودن ایمیل' })).toBeInTheDocument()
     expect(row('ایمیل').queryByText('تأیید شده')).toBeNull()
     // The phone, there and verified: shown in Persian digits.
-    expect(row('شماره موبایل').getByText('۰۹۱۲ ۱۲۳ ۴۵۰۱')).toBeInTheDocument()
-    expect(row('شماره موبایل').getByText('تأیید شده')).toBeInTheDocument()
+    expect(row('شمارهٔ موبایل').getByText('۰۹۱۲ ۱۲۳ ۴۵۰۱')).toBeInTheDocument()
+    expect(row('شمارهٔ موبایل').getByText('تأیید شده')).toBeInTheDocument()
     expect(
-      row('شماره موبایل').getByRole('button', { name: 'تغییر شماره موبایل' }),
+      row('شمارهٔ موبایل').getByRole('button', { name: 'تغییر شمارهٔ موبایل' }),
     ).toHaveTextContent(/^تغییر/)
   })
 
-  it('«تغییر» and the badge for sara’s verified email; «افزودن شماره موبایل» without a phone', () => {
+  it('«تغییر» and the badge for sara’s verified email; «افزودن شمارهٔ موبایل» without a phone', () => {
     renderSection(saraWith({ phone_number: null, is_phone_verified: false }))
     expect(row('ایمیل').getByText('sara.ahmadi@example.com')).toBeInTheDocument()
     expect(row('ایمیل').getByText('تأیید شده')).toBeInTheDocument()
     expect(row('ایمیل').getByRole('button', { name: 'تغییر ایمیل' })).toBeInTheDocument()
-    expect(row('شماره موبایل').getByRole('button', { name: 'افزودن شماره موبایل' })).toBeVisible()
+    expect(row('شمارهٔ موبایل').getByRole('button', { name: 'افزودن شمارهٔ موبایل' })).toBeVisible()
   })
 
   it('marks an identifier there but not verified', () => {
@@ -75,8 +75,8 @@ describe('ContactSection', () => {
 
   it('an unverified phone starts filled in as it is typed (09…, not E.164)', async () => {
     const { user } = renderSection(saraWith({ is_phone_verified: false }))
-    await user.click(row('شماره موبایل').getByRole('button', { name: 'تغییر شماره موبایل' }))
-    expect(await screen.findByRole('textbox', { name: 'شماره موبایل تازه' })).toHaveValue(
+    await user.click(row('شمارهٔ موبایل').getByRole('button', { name: 'تغییر شمارهٔ موبایل' }))
+    expect(await screen.findByRole('textbox', { name: 'شمارهٔ موبایل تازه' })).toHaveValue(
       '09121234501',
     )
   })
@@ -87,9 +87,9 @@ describe('ContactSection', () => {
       sms_otp_enabled: false,
       telegram_otp_enabled: false,
     })
-    expect(row('شماره موبایل').queryByRole('button')).toBeNull()
+    expect(row('شمارهٔ موبایل').queryByRole('button')).toBeNull()
     expect(
-      row('شماره موبایل').getByText('تغییر شماره موبایل در این فروشگاه ممکن نیست.'),
+      row('شمارهٔ موبایل').getByText('تغییر شمارهٔ موبایل در این فروشگاه ممکن نیست.'),
     ).toBeInTheDocument()
     expect(row('ایمیل').getByRole('button', { name: 'تغییر ایمیل' })).toBeInTheDocument()
   })

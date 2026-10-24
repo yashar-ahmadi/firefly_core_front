@@ -229,7 +229,7 @@ test.describe('product page status and stock', () => {
     await page.goto(CHIPS)
     const form = page.getByRole('form', { name: NOTIFY })
     await expect(form).toBeVisible()
-    await expect(form.getByRole('textbox', { name: /شماره موبایل/ })).toBeVisible()
+    await expect(form.getByRole('textbox', { name: /شمارهٔ موبایل/ })).toBeVisible()
     await expect(buyBox(page).getByRole('button', { name: 'ناموجود' })).toBeDisabled()
     if (isPhone(page)) {
       await buyBar(page).getByRole('link', { name: NOTIFY }).click()

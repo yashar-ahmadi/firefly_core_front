@@ -35,7 +35,7 @@ const TYPES: readonly ContactType[] = ['email', 'phone']
 
 const VERIFIED: Record<ContactType, string> = {
   email: 'ایمیل تازه ثبت و تأیید شد.',
-  phone: 'شماره موبایل تازه ثبت و تأیید شد.',
+  phone: 'شمارهٔ موبایل تازه ثبت و تأیید شد.',
 }
 
 interface ContactRowProps {
@@ -190,7 +190,7 @@ function ContactRows({ me }: { me: UserProfile }) {
 export function ContactSection({ me }: { me: UserProfile | undefined }) {
   return (
     <ProfileSection
-      title="ایمیل و شماره موبایل"
+      title="ایمیل و شمارهٔ موبایل"
       description="برای ورود و بازیابی رمز عبور به کار می‌روند. هر نشانی تازه با کدی که به خودش فرستاده می‌شود تأیید می‌شود."
       loading={!me}
       skeleton={

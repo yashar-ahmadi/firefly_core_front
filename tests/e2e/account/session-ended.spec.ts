@@ -33,7 +33,7 @@ signedInTest(
     await expect(page).toHaveURL(
       (url) => url.pathname === '/login/' && url.searchParams.get('next') === '/account/profile/',
     )
-    await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
+    await expect(page.getByLabel('ایمیل یا شمارهٔ موبایل')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'شما وارد شده‌اید' })).toHaveCount(0)
     // In the page: no document was loaded on the way.
     expect(documents).toEqual([])
@@ -61,7 +61,7 @@ signedInTest(
     await expect(page).toHaveURL(
       (url) => url.pathname === '/login/' && url.searchParams.get('next') === '/account/profile/',
     )
-    await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
+    await expect(page.getByLabel('ایمیل یا شمارهٔ موبایل')).toBeVisible()
     await expect(page.getByText(SARA.email)).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'شما وارد شده‌اید' })).toHaveCount(0)
     expect(errors).toEqual([])

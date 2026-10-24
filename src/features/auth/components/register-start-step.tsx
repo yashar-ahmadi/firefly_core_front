@@ -17,7 +17,7 @@ import { HandoffLink } from './handoff-link'
 import { TEXT_LINK } from './login-fields'
 import type { RegisterEntry } from './use-register-actions'
 
-const METHOD_NAME: Record<ContactType, string> = { email: 'ایمیل', phone: 'شماره موبایل' }
+const METHOD_NAME: Record<ContactType, string> = { email: 'ایمیل', phone: 'شمارهٔ موبایل' }
 
 export interface RegisterStartStepProps {
   /** `registration_methods`: a tab each when there are two. */

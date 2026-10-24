@@ -102,7 +102,7 @@ describe('LoginScreen', () => {
       '/account/',
     )
     expect(screen.getByRole('button', { name: 'خروج' })).toBeVisible()
-    expect(screen.queryByLabelText('ایمیل یا شماره موبایل')).toBeNull()
+    expect(screen.queryByLabelText('ایمیل یا شمارهٔ موبایل')).toBeNull()
     expect(mocks.replace).not.toHaveBeenCalled()
     expect(mocks.router.push).not.toHaveBeenCalled()
   })
@@ -116,7 +116,7 @@ describe('LoginScreen', () => {
   it('shows the form when the session turns out to be gone, without navigating', async () => {
     mocks.fetchProfile.mockRejectedValue(new ApiError({ status: 401, code: 'not_authenticated' }))
     renderScreen({ hasSession: true })
-    expect(await screen.findByLabelText('ایمیل یا شماره موبایل')).toBeVisible()
+    expect(await screen.findByLabelText('ایمیل یا شمارهٔ موبایل')).toBeVisible()
     expect(mocks.replace).not.toHaveBeenCalled()
   })
 
@@ -131,7 +131,7 @@ describe('LoginScreen', () => {
     expect(logout).toHaveAttribute('aria-busy', 'true')
     await user.click(logout)
     answer()
-    expect(await screen.findByLabelText('ایمیل یا شماره موبایل')).toBeVisible()
+    expect(await screen.findByLabelText('ایمیل یا شمارهٔ موبایل')).toBeVisible()
     expect(mocks.logout).toHaveBeenCalledTimes(1)
     expect(client.getQueryData(ME_KEY)).toBeUndefined()
     expect(mocks.replace).toHaveBeenCalledExactlyOnceWith('/')
@@ -141,7 +141,7 @@ describe('LoginScreen', () => {
   it('says sign-in is unavailable without settings, and offers no form', () => {
     renderScreen({ auth: disabledAuth() })
     expect(screen.getByText(/ورود به حساب در حال حاضر ممکن نیست/)).toBeVisible()
-    expect(screen.queryByLabelText('ایمیل یا شماره موبایل')).toBeNull()
+    expect(screen.queryByLabelText('ایمیل یا شمارهٔ موبایل')).toBeNull()
     expect(mocks.scripts).toEqual([])
   })
 
@@ -153,7 +153,7 @@ describe('LoginScreen', () => {
       expect.objectContaining({ client_id: 'client-id.apps.googleusercontent.com' }),
     )
     expect(screen.getByText('یا')).toBeVisible()
-    expect(screen.getByLabelText('ایمیل یا شماره موبایل')).toBeVisible()
+    expect(screen.getByLabelText('ایمیل یا شمارهٔ موبایل')).toBeVisible()
 
     mocks.google.mockResolvedValue({ user: SARA, requires_totp: false, remember_me: false })
     await act(async () => credential?.({ credential: 'gis-id-token' }))
@@ -167,7 +167,7 @@ describe('LoginScreen', () => {
     await waitFor(() => expect(mocks.scripts).toHaveLength(1))
     await waitFor(() => expect(screen.queryByText('یا')).toBeNull())
     expect(gis.renderButton).not.toHaveBeenCalled()
-    expect(screen.getByLabelText('ایمیل یا شماره موبایل')).toBeVisible()
+    expect(screen.getByLabelText('ایمیل یا شمارهٔ موبایل')).toBeVisible()
   })
 
   it('treats a script without the Google API as failed too', async () => {
@@ -186,7 +186,7 @@ describe('LoginScreen', () => {
   it('initialises Google once; a button drawn again after a step change still signs in', async () => {
     const { user } = renderScreen({ auth: everyMethodAuth() })
     await waitFor(() => expect(gis.renderButton).toHaveBeenCalledTimes(1))
-    await user.type(screen.getByLabelText('ایمیل یا شماره موبایل'), 'sara.ahmadi@example.com')
+    await user.type(screen.getByLabelText('ایمیل یا شمارهٔ موبایل'), 'sara.ahmadi@example.com')
     await user.click(screen.getByRole('button', { name: 'ادامه' }))
     await user.click(await screen.findByRole('button', { name: /تغییر/ }))
     await waitFor(() => expect(gis.renderButton).toHaveBeenCalledTimes(2))

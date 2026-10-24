@@ -106,11 +106,11 @@ describe('registration answers and checks', () => {
   it('auth_phone_already_exists on complete: back to the start, «ورود» with that number', async () => {
     const user = renderScreen({ auth: everyMethodAuth(), identifier: '09121234501' })
     // The mobile number handed over by login picks the phone tab.
-    expect(screen.getByRole('tab', { name: 'شماره موبایل' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'شمارهٔ موبایل' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    expect(screen.getByRole('textbox', { name: 'شماره موبایل' })).toHaveValue('09121234501')
+    expect(screen.getByRole('textbox', { name: 'شمارهٔ موبایل' })).toHaveValue('09121234501')
     await user.type(screen.getByRole('textbox', { name: 'نام' }), 'سارا')
     await user.type(screen.getByRole('textbox', { name: 'نام خانوادگی' }), 'احمدی')
     mocks.registerStart.mockResolvedValueOnce({
@@ -132,7 +132,7 @@ describe('registration answers and checks', () => {
       new ApiError({ status: 400, code: 'auth_phone_already_exists', detail }),
     )
     await user.click(screen.getByRole('button', { name: 'ایجاد حساب کاربری' }))
-    const phone = await screen.findByRole('textbox', { name: 'شماره موبایل' })
+    const phone = await screen.findByRole('textbox', { name: 'شمارهٔ موبایل' })
     await waitFor(() => expect(phone).toHaveFocus())
     expect(phone).toHaveAccessibleDescription(expect.stringContaining(detail))
     const login = screen.getByRole('link', { name: 'ورود با همین شماره' })

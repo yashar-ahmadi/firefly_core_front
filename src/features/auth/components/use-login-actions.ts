@@ -83,7 +83,7 @@ export function useLoginActions(context: LoginContext): LoginActions {
       if (methods.otpChannels.length > 0) return dispatch({ type: 'go', step: 'otp' })
       invalid(
         'identifier',
-        `ورود با ${type === 'phone' ? 'شماره موبایل' : 'ایمیل'} در این فروشگاه ممکن نیست.`,
+        `ورود با ${type === 'phone' ? 'شمارهٔ موبایل' : 'ایمیل'} در این فروشگاه ممکن نیست.`,
       )
     },
     submitPassword() {

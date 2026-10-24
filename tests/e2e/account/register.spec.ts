@@ -6,7 +6,7 @@ import { watchErrors } from '../support/watch-errors'
 // is 10/min per IP, with daily caps per address): every send is a page.route mock.
 
 const API_URL = process.env.FIREFLY_API_URL ?? 'http://localhost:8000'
-const METHOD_NAME = { email: 'ایمیل', phone: 'شماره موبایل' } as const
+const METHOD_NAME = { email: 'ایمیل', phone: 'شمارهٔ موبایل' } as const
 
 type Method = keyof typeof METHOD_NAME
 
@@ -48,7 +48,7 @@ function authRequests(page: Page): string[] {
 async function toRecovery(page: Page, identifier: string) {
   await page.goto('/login/')
   await expect(page.getByRole('button', { name: 'ادامه' })).toBeEnabled()
-  await page.getByLabel('ایمیل یا شماره موبایل').fill(identifier)
+  await page.getByLabel('ایمیل یا شمارهٔ موبایل').fill(identifier)
   await page.getByRole('button', { name: 'ادامه' }).click()
   await page.getByRole('link', { name: 'فراموشی رمز عبور' }).click()
   await expect(page).toHaveURL((url) => url.pathname === '/forgot-password/' && url.search === '')
@@ -132,7 +132,7 @@ test.describe('password recovery', () => {
     expect(response?.status()).toBe(200)
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
     await toRecovery(page, ' Sara@Example.com ')
-    const field = page.getByRole('textbox', { name: 'ایمیل یا شماره موبایل' })
+    const field = page.getByRole('textbox', { name: 'ایمیل یا شمارهٔ موبایل' })
     await expect(field).toHaveValue('Sara@Example.com')
     await formHydrated(page)
     await field.fill('sara@')
@@ -169,7 +169,7 @@ test.describe('password recovery', () => {
     await expect(
       page.locator('[data-sonner-toast]', { hasText: 'رمز عبور تغییر کرد؛ دوباره وارد شوید' }),
     ).toBeVisible()
-    await expect(page.getByRole('textbox', { name: 'ایمیل یا شماره موبایل' })).toHaveValue(
+    await expect(page.getByRole('textbox', { name: 'ایمیل یا شمارهٔ موبایل' })).toHaveValue(
       'e2e-noreply@example.com',
     )
     expect(errors).toEqual([])

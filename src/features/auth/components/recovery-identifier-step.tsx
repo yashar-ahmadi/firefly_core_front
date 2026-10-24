@@ -39,7 +39,7 @@ export function RecoveryIdentifierStep(props: RecoveryIdentifierStepProps) {
   return (
     <AuthCard
       title="بازیابی رمز عبور"
-      description="ایمیل یا شماره موبایل حساب خود را وارد کنید تا کد بازیابی برایتان فرستاده شود."
+      description="ایمیل یا شمارهٔ موبایل حساب خود را وارد کنید تا کد بازیابی برایتان فرستاده شود."
       titleRef={props.titleRef}
     >
       {props.notice}

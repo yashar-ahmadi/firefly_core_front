@@ -23,7 +23,7 @@ vi.mock('@/features/settings/api', () => ({ getSiteSettings: async () => null })
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }))
 
 const EMAIL = 'sara.ahmadi@example.com'
-const field = (name = 'ایمیل یا شماره موبایل') => screen.getByRole('textbox', { name })
+const field = (name = 'ایمیل یا شمارهٔ موبایل') => screen.getByRole('textbox', { name })
 
 beforeEach(() => {
   stubBrowserApis()
@@ -62,11 +62,11 @@ describe('prefilled from the handoff', () => {
     render(<RegisterScreen next="" termsHtml={null} />, {
       wrapper: authProviders({ auth: everyMethodAuth() }).wrapper,
     })
-    expect(screen.getByRole('tab', { name: 'شماره موبایل' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'شمارهٔ موبایل' })).toHaveAttribute(
       'aria-selected',
       'true',
     )
-    expect(field('شماره موبایل')).toHaveValue('09121234501')
+    expect(field('شمارهٔ موبایل')).toHaveValue('09121234501')
   })
 
   it('a handoff to another page is not taken here', () => {
@@ -86,7 +86,7 @@ describe('prefilled from the handoff', () => {
     const error = vi.spyOn(console, 'error')
     try {
       render(page, { container, hydrate: true, wrapper: Providers })
-      const input = () => within(container).getByRole('textbox', { name: 'ایمیل یا شماره موبایل' })
+      const input = () => within(container).getByRole('textbox', { name: 'ایمیل یا شمارهٔ موبایل' })
       await waitFor(() => expect(input()).toHaveValue(EMAIL))
       expect(error).not.toHaveBeenCalled()
     } finally {

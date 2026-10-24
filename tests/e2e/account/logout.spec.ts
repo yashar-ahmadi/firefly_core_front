@@ -78,7 +78,7 @@ test('logs out: the guest header is back, the session cookies are gone', async (
   if (phone) await accountTab(page).click()
   else await banner.getByRole('link', { name: GUEST_LOGIN }).click()
   await expect(page).toHaveURL(new RegExp(`^${origin}/login/`))
-  await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
+  await expect(page.getByLabel('ایمیل یا شمارهٔ موبایل')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'شما وارد شده‌اید' })).toHaveCount(0)
   expect(await page.evaluate(() => document.body.style.pointerEvents)).toBe('')
 
@@ -95,7 +95,7 @@ test('logs out: the guest header is back, the session cookies are gone', async (
     await expect(page).toHaveURL(`${origin}/login/?next=/account/`)
     // From Next's cache: the server was not asked for the account page on the way.
     expect(asked).toEqual([])
-    await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
+    await expect(page.getByLabel('ایمیل یا شمارهٔ موبایل')).toBeVisible()
     await expect(page.getByText(SARA.fullName)).toHaveCount(0)
   }
 
@@ -109,6 +109,6 @@ test('logs out: the guest header is back, the session cookies are gone', async (
   // And the account is closed to it: login, with the account as `next` (kept readable).
   await page.goto('/account/')
   await expect(page).toHaveURL(`${origin}/login/?next=/account/`)
-  await expect(page.getByLabel('ایمیل یا شماره موبایل')).toBeVisible()
+  await expect(page.getByLabel('ایمیل یا شمارهٔ موبایل')).toBeVisible()
   expect(errors).toEqual([])
 })

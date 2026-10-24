@@ -69,7 +69,7 @@ describe('NotifyMe for a guest', () => {
     renderWithProduct(<NotifyMe />, { product: chipsProduct() })
     await user.type(screen.getByRole('textbox', { name: FIRST_NAME }), 'سارا')
     await user.type(screen.getByRole('textbox', { name: /نام خانوادگی/ }), 'احمدی')
-    await user.type(screen.getByRole('textbox', { name: /شماره موبایل/ }), mobile)
+    await user.type(screen.getByRole('textbox', { name: /شمارهٔ موبایل/ }), mobile)
     await user.click(screen.getByRole('button', { name: SUBMIT }))
   }
 
@@ -86,16 +86,16 @@ describe('NotifyMe for a guest', () => {
 
   it('refuses a number that is not an Iranian mobile before asking the API', async () => {
     await fill('0912')
-    const mobile = screen.getByRole('textbox', { name: /شماره موبایل/ })
+    const mobile = screen.getByRole('textbox', { name: /شمارهٔ موبایل/ })
     expect(mobile).toHaveAttribute('aria-invalid', 'true')
-    expect(mobile).toHaveAccessibleDescription('شماره موبایل معتبر نیست.')
+    expect(mobile).toHaveAccessibleDescription('شمارهٔ موبایل معتبر نیست.')
     expect(mocks.bffFetch).not.toHaveBeenCalled()
   })
 
   it('asks for the names before sending', async () => {
     const user = userEvent.setup()
     renderWithProduct(<NotifyMe />, { product: chipsProduct() })
-    await user.type(screen.getByRole('textbox', { name: /شماره موبایل/ }), '09121234567')
+    await user.type(screen.getByRole('textbox', { name: /شمارهٔ موبایل/ }), '09121234567')
     await user.click(screen.getByRole('button', { name: SUBMIT }))
     expect(screen.getByRole('textbox', { name: FIRST_NAME })).toHaveAccessibleDescription(
       'نام را وارد کنید.',
@@ -108,7 +108,7 @@ describe('NotifyMe for a guest', () => {
       refused('invalid', 'mobile_number', 'یک شماره تماس معتبر وارد نمایید.'),
     )
     await fill('09121234567')
-    const mobile = screen.getByRole('textbox', { name: /شماره موبایل/ })
+    const mobile = screen.getByRole('textbox', { name: /شمارهٔ موبایل/ })
     await waitFor(() =>
       expect(mobile).toHaveAccessibleDescription('یک شماره تماس معتبر وارد نمایید.'),
     )
@@ -150,12 +150,12 @@ describe('NotifyMe for a signed-in shopper', () => {
   it('asks for the mobile when the account has none (an e-mail account)', async () => {
     const user = userEvent.setup()
     mocks.bffFetch.mockRejectedValueOnce(
-      refused('invalid', 'mobile_number', 'شماره موبایل ضروری است.'),
+      refused('invalid', 'mobile_number', 'شمارهٔ موبایل ضروری است.'),
     )
     renderWithProduct(<NotifyMe />, { product: chipsProduct(), hasSession: true })
     await user.click(screen.getByRole('button', { name: SUBMIT }))
-    const mobile = await screen.findByRole('textbox', { name: /شماره موبایل/ })
-    expect(mobile).toHaveAccessibleDescription('شماره موبایل ضروری است.')
+    const mobile = await screen.findByRole('textbox', { name: /شمارهٔ موبایل/ })
+    expect(mobile).toHaveAccessibleDescription('شمارهٔ موبایل ضروری است.')
     expect(screen.queryByRole('textbox', { name: FIRST_NAME })).toBeNull()
 
     mocks.bffFetch.mockResolvedValueOnce({ data: {}, msg: OK, status: 201 })
@@ -184,7 +184,7 @@ describe('NotifyMe for a signed-in shopper', () => {
     await user.click(screen.getByRole('button', { name: SUBMIT }))
     const first = await screen.findByRole('textbox', { name: FIRST_NAME })
     expect(first).toHaveAccessibleDescription('نام ضروری است.')
-    expect(screen.queryByRole('textbox', { name: /شماره موبایل/ })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: /شمارهٔ موبایل/ })).toBeNull()
 
     mocks.bffFetch.mockResolvedValueOnce({ data: {}, msg: OK, status: 201 })
     await user.type(first, 'سارا')

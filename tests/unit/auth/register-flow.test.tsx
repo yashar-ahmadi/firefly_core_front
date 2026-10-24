@@ -80,8 +80,8 @@ describe('RegisterFlow', () => {
   it('offers only the methods of registration_methods: no phone tab for email only', () => {
     renderFlow()
     expect(screen.queryByRole('tablist')).toBeNull()
-    expect(screen.queryByRole('tab', { name: 'شماره موبایل' })).toBeNull()
-    expect(screen.queryByRole('textbox', { name: 'شماره موبایل' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'شمارهٔ موبایل' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'شمارهٔ موبایل' })).toBeNull()
     expect(screen.getByRole('textbox', { name: 'نام' })).toHaveAttribute(
       'autocomplete',
       'given-name',
@@ -102,12 +102,12 @@ describe('RegisterFlow', () => {
       within(tabs)
         .getAllByRole('tab')
         .map((tab) => tab.textContent),
-    ).toEqual(['ایمیل', 'شماره موبایل'])
+    ).toEqual(['ایمیل', 'شمارهٔ موبایل'])
     expect(screen.getByRole('tab', { name: 'ایمیل' })).toHaveAttribute('aria-selected', 'true')
     await user.type(screen.getByRole('textbox', { name: 'ایمیل' }), 'new@example.com')
 
-    await user.click(screen.getByRole('tab', { name: 'شماره موبایل' }))
-    expect(screen.getByRole('textbox', { name: 'شماره موبایل' })).toHaveAttribute(
+    await user.click(screen.getByRole('tab', { name: 'شمارهٔ موبایل' }))
+    expect(screen.getByRole('textbox', { name: 'شمارهٔ موبایل' })).toHaveAttribute(
       'autocomplete',
       'tel',
     )
@@ -204,9 +204,9 @@ describe('RegisterFlow', () => {
 
   it('resends a phone code by another channel the number can take', async () => {
     const user = renderFlow({ auth: everyMethodAuth() })
-    await user.click(screen.getByRole('tab', { name: 'شماره موبایل' }))
+    await user.click(screen.getByRole('tab', { name: 'شمارهٔ موبایل' }))
     await fillNames(user)
-    await user.type(screen.getByRole('textbox', { name: 'شماره موبایل' }), '۰۹۱۲ ۱۲۳ ۴۵۹۹')
+    await user.type(screen.getByRole('textbox', { name: 'شمارهٔ موبایل' }), '۰۹۱۲ ۱۲۳ ۴۵۹۹')
     mocks.registerStart.mockResolvedValueOnce({
       ...STARTED,
       otp_method: 'telegram',
@@ -220,7 +220,7 @@ describe('RegisterFlow', () => {
       phone_number: '09121234599',
       otp_method: 'telegram',
     })
-    await screen.findByRole('heading', { name: 'تأیید شماره موبایل' })
+    await screen.findByRole('heading', { name: 'تأیید شمارهٔ موبایل' })
     expect(screen.getByText('کد ۶ رقمی در تلگرامِ این شماره فرستاده شد.')).toBeVisible()
 
     await seconds(120)

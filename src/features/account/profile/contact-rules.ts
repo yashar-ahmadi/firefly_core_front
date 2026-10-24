@@ -23,7 +23,7 @@ export interface ContactEntry {
 
 export const CONTACT_LABEL: Record<ContactType, string> = {
   email: 'ایمیل',
-  phone: 'شماره موبایل',
+  phone: 'شمارهٔ موبایل',
 }
 
 /** The identifier of that type, and whether it is verified. */
@@ -71,8 +71,8 @@ const VALUE_MESSAGES: Record<ContactType, { required: string; invalid: string }>
     invalid: 'ایمیل را درست وارد کنید؛ مثلاً name@example.com.',
   },
   phone: {
-    required: 'شماره موبایل را وارد کنید.',
-    invalid: 'شماره موبایل را درست وارد کنید؛ مثلاً ۰۹۱۲۳۴۵۶۷۸۹.',
+    required: 'شمارهٔ موبایل را وارد کنید.',
+    invalid: 'شمارهٔ موبایل را درست وارد کنید؛ مثلاً ۰۹۱۲۳۴۵۶۷۸۹.',
   },
 }
 

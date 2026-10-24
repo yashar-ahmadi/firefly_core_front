@@ -60,7 +60,7 @@ describe('focus after a failure', () => {
   it('a check before any request: the identifier field', async () => {
     const user = renderFlow('')
     await user.click(screen.getByRole('button', { name: 'ادامه' }))
-    await waitFor(() => expect(screen.getByLabelText('ایمیل یا شماره موبایل')).toHaveFocus())
+    await waitFor(() => expect(screen.getByLabelText('ایمیل یا شمارهٔ موبایل')).toHaveFocus())
   })
 
   it('a wrong password: the password field', async () => {
@@ -76,7 +76,7 @@ describe('focus after a failure', () => {
     await passwordStep(user)
     mocks.login.mockRejectedValueOnce(fail(400, 'auth_identifier_invalid'))
     await user.click(screen.getByRole('button', { name: 'ورود' }))
-    await waitFor(() => expect(screen.getByLabelText('ایمیل یا شماره موبایل')).toHaveFocus())
+    await waitFor(() => expect(screen.getByLabelText('ایمیل یا شمارهٔ موبایل')).toHaveFocus())
   })
 
   it('a notice for the step (a disabled account): the pressed button keeps it', async () => {

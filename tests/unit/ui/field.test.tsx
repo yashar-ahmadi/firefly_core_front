@@ -32,12 +32,12 @@ describe('Field', () => {
 
   it('marks required fields with a hidden «(الزامی)» and aria-required', () => {
     render(
-      <Field label="شماره موبایل" required>
+      <Field label="شمارهٔ موبایل" required>
         <Input dir="ltr" inputMode="tel" />
       </Field>,
     )
-    const input = screen.getByRole('textbox', { name: /شماره موبایل/ })
-    expect(input).toHaveAccessibleName('شماره موبایل (الزامی)')
+    const input = screen.getByRole('textbox', { name: /شمارهٔ موبایل/ })
+    expect(input).toHaveAccessibleName('شمارهٔ موبایل (الزامی)')
     expect(input).toHaveAttribute('aria-required', 'true')
   })
 

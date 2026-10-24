@@ -91,7 +91,7 @@ function Inputs() {
         <Field label="نام و نام خانوادگی" required>
           <Input placeholder="مثلاً سارا احمدی" autoComplete="name" />
         </Field>
-        <Field label="شماره موبایل" required hint="کد تأیید به این شماره پیامک می‌شود.">
+        <Field label="شمارهٔ موبایل" required hint="کد تأیید به این شماره پیامک می‌شود.">
           <Input
             dir="ltr"
             type="tel"

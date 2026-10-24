@@ -29,7 +29,7 @@ type Errors = Partial<Record<FieldName | 'form', string>>
 const LABELS: Record<FieldName, string> = {
   first_name: 'نام',
   last_name: 'نام خانوادگی',
-  mobile_number: 'شماره موبایل',
+  mobile_number: 'شمارهٔ موبایل',
 }
 
 /** What is missing before asking the API: the names when asked for, a valid Iranian mobile. */
@@ -37,9 +37,9 @@ function localErrors(values: Record<FieldName, string>, names: boolean, mobile: 
   const errors: Errors = {}
   if (names && !values.first_name.trim()) errors.first_name = 'نام را وارد کنید.'
   if (names && !values.last_name.trim()) errors.last_name = 'نام خانوادگی را وارد کنید.'
-  if (mobile && !values.mobile_number.trim()) errors.mobile_number = 'شماره موبایل را وارد کنید.'
+  if (mobile && !values.mobile_number.trim()) errors.mobile_number = 'شمارهٔ موبایل را وارد کنید.'
   else if (mobile && normalizeIranMobile(values.mobile_number) === null) {
-    errors.mobile_number = 'شماره موبایل معتبر نیست.'
+    errors.mobile_number = 'شمارهٔ موبایل معتبر نیست.'
   }
   return errors
 }
