@@ -792,6 +792,14 @@ Turbopack loads it as an async module, and one async module anywhere in the app 
 async-module runtime to the browser runtime every page loads (+0.45 KB gzip on every route,
 measured). It is required through `createRequire` instead: a CommonJS external.
 
+**The monogram needs no font.** Without a favicon or logo the icon is the shop's first letter
+(`features/pwa/monogram.ts`), drawn as an SVG path from Vazirmatn's outline, never laid out as
+text: the Docker image (Alpine) has no fontconfig, and sharp's text layout there drew nothing. The
+outlines (the Persian alphabet, its Arabic spellings, A to Z and the digits; anything else gets the
+shopping bag) are a committed table, `features/pwa/monogram-glyphs.ts`, made from the bundled font
+by `node scripts/monogram-glyphs.mjs` (fontkit, a dev dependency); a unit test holds the table to
+the script's output.
+
 **Testing offline in Playwright.** `context.setOffline(true)` cuts the pages' requests but not the
 service worker's own fetches (Chromium, seen on this build): `tests/e2e/support/pwa.ts` also
 aborts every request through `context.route`, which reaches the worker's (the browser's navigation
