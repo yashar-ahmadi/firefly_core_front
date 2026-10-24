@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test'
+import { WORKER_SUBSET_PROJECT, workerInControl } from './support/pwa'
 
 // The operator's code snippets (`global/extra-snippets/`) run in the page. The sample data has a
 // Google Analytics placeholder in <head> (`window.dataLayer = window.dataLayer || []`) and a trust
@@ -21,7 +22,12 @@ async function snippets(request: APIRequestContext): Promise<SnippetRow[]> {
 test.describe('operator snippets', () => {
   // Same page and data on every viewport: run once.
   test.beforeAll(({}, workerInfo) => {
-    test.skip(workerInfo.project.name !== 'desktop', 'snippet checks run once (desktop project)')
+    // And the `@worker` one again on the PWA server (the `pwa-journeys` project).
+    const { name } = workerInfo.project
+    test.skip(
+      name !== 'desktop' && name !== WORKER_SUBSET_PROJECT,
+      'snippet checks run once (desktop project)',
+    )
   })
 
   test('the <head> snippet ran: window.dataLayer exists on the home page', async ({
@@ -55,17 +61,20 @@ test.describe('operator snippets', () => {
     expect(logs.filter((text) => text === SEAL_LOG)).toHaveLength(1)
   })
 
-  test('a payment page runs no snippet and sends no referrer (its URL holds a credential)', async ({
-    page,
-  }) => {
-    const logs: string[] = []
-    page.on('console', (message) => logs.push(message.text()))
-    // Not a token's shape: the page answers 404 without asking the API (the rule is the path's).
-    const response = await page.goto('/order/pay/e2e-not-a-token/')
-    await page.waitForLoadState('load')
-    expect(response?.headers()['referrer-policy']).toBe('no-referrer')
-    expect(await page.evaluate(() => 'dataLayer' in window)).toBe(false)
-    expect(logs).not.toContain(SEAL_LOG)
-    expect(await page.locator('[data-snippet-zone]').count()).toBe(0)
-  })
+  test(
+    'a payment page runs no snippet and sends no referrer (its URL holds a credential)',
+    { tag: '@worker' },
+    async ({ page }, testInfo) => {
+      await workerInControl(page, testInfo)
+      const logs: string[] = []
+      page.on('console', (message) => logs.push(message.text()))
+      // Not a token's shape: the page answers 404 without asking the API (the rule is the path's).
+      const response = await page.goto('/order/pay/e2e-not-a-token/')
+      await page.waitForLoadState('load')
+      expect(response?.headers()['referrer-policy']).toBe('no-referrer')
+      expect(await page.evaluate(() => 'dataLayer' in window)).toBe(false)
+      expect(logs).not.toContain(SEAL_LOG)
+      expect(await page.locator('[data-snippet-zone]').count()).toBe(0)
+    },
+  )
 })

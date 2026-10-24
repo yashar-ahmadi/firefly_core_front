@@ -24,6 +24,9 @@ const JOURNEYS =
 const BUDGET = /\/catalog\/budget(?:-signed-in)?\.spec\.ts$/
 /** The PWA's specs (`pwa.spec.ts`, `pwa-<topic>.spec.ts`): the `pwa` project only, FEATURE_PWA on. */
 const PWA = /\/pwa(?:-[a-z]+)?\.spec\.ts$/
+/** The other specs whose `@worker` tests run again with the worker in control (`pwa-journeys`). */
+const WORKER_SUBSET =
+  /\/(?:checkout\/(?:checkout-shipping|payment-result)|account\/dashboard|snippets)\.spec\.ts$/
 
 /** What both servers run with (the dev backend's key gate is off, so any key works). */
 function serverEnv(url: string, { pwa }: { pwa: boolean }): Record<string, string> {
@@ -79,6 +82,18 @@ export default defineConfig({
       // session (no login of its own).
       name: 'pwa',
       testMatch: PWA,
+      use: { ...DESKTOP, baseURL: pushBaseURL },
+      metadata: { session: 'desktop' },
+    },
+    {
+      // A few journeys of other specs again under the PWA's worker (the main server runs with
+      // FEATURE_PWA off, so they otherwise never meet it): a guest's checkout up to the review,
+      // sara's dashboard (read only, the desktop project's session), a payment link's page and the
+      // bank's return page; their tests tagged `@worker` (support/pwa.ts `workerInControl` puts the
+      // worker in control first). Read only but for the guest's own cart, cleared after.
+      name: 'pwa-journeys',
+      testMatch: WORKER_SUBSET,
+      grep: /@worker/,
       use: { ...DESKTOP, baseURL: pushBaseURL },
       metadata: { session: 'desktop' },
     },

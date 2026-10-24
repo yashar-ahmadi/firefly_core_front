@@ -9,6 +9,7 @@ import {
   measuresBudget,
   type BudgetRoute,
 } from '../support/js-budget'
+import { workerInControl } from '../support/pwa'
 import { watchErrors } from '../support/watch-errors'
 
 // The bank's return page `/payment/callback/` (Plan 4 Task 5; order digest §4.2, §5.10–5.12), as
@@ -49,26 +50,30 @@ const toman = (amount: number) => `${new Intl.NumberFormat('fa-IR').format(amoun
 const heading = (page: Page) => page.getByRole('heading', { level: 1 })
 
 test.describe('the payment result page', () => {
-  test('settled: success; the uuid out of the address bar; no referrer, no operator code', async ({
-    page,
-  }) => {
-    const errors = watchErrors(page)
-    await mockStatus(page, [info({ status: 'settled' })])
-    const response = await page.goto(back(`?result=success&payment=${UUID}`))
-    expect(response?.headers()['referrer-policy']).toBe('no-referrer')
-    await expect(page).toHaveTitle(/نتیجهٔ پرداخت/)
-    await expect(heading(page)).toHaveText('پرداخت موفق')
-    await expect(
-      page.getByText(COPY.settled.replace('{order_code}', '۱۴۱۱۶۳۵۳۴۰'), { exact: true }),
-    ).toBeVisible()
-    await expect(heading(page)).toBeFocused()
-    expect(new URL(page.url()).search).toBe('?result=success')
-    expect(await page.evaluate(() => 'dataLayer' in window), 'no <head> snippet').toBe(false)
-    // A reload of what is left: the same payment, from this tab's copy.
-    await page.reload()
-    await expect(heading(page)).toHaveText('پرداخت موفق')
-    expect(errors).toEqual([])
-  })
+  // `@worker`: also run on the PWA server with the worker in control (the `pwa-journeys` project).
+  test(
+    'settled: success; the uuid out of the address bar; no referrer, no operator code',
+    { tag: '@worker' },
+    async ({ page }, testInfo) => {
+      await workerInControl(page, testInfo)
+      const errors = watchErrors(page)
+      await mockStatus(page, [info({ status: 'settled' })])
+      const response = await page.goto(back(`?result=success&payment=${UUID}`))
+      expect(response?.headers()['referrer-policy']).toBe('no-referrer')
+      await expect(page).toHaveTitle(/نتیجهٔ پرداخت/)
+      await expect(heading(page)).toHaveText('پرداخت موفق')
+      await expect(
+        page.getByText(COPY.settled.replace('{order_code}', '۱۴۱۱۶۳۵۳۴۰'), { exact: true }),
+      ).toBeVisible()
+      await expect(heading(page)).toBeFocused()
+      expect(new URL(page.url()).search).toBe('?result=success')
+      expect(await page.evaluate(() => 'dataLayer' in window), 'no <head> snippet').toBe(false)
+      // A reload of what is left: the same payment, from this tab's copy.
+      await page.reload()
+      await expect(heading(page)).toHaveText('پرداخت موفق')
+      expect(errors).toEqual([])
+    },
+  )
 
   test('pending, then settled after two more reads (a fast clock): never success early', async ({
     page,
@@ -165,16 +170,21 @@ test.describe('the payment result page', () => {
     })
   }
 
-  test('a return without a payment: invalid, with tracking; no status read', async ({ page }) => {
-    const reads = await mockStatus(page, [info()])
-    await page.goto(back('?result=failed&code=gateway_callback_invalid'))
-    await expect(heading(page)).toHaveText(COPY.invalid)
-    await expect(page.getByRole('link', { name: 'پیگیری سفارش' })).toHaveAttribute(
-      'href',
-      '/order/track/',
-    )
-    expect(reads.count).toBe(0)
-  })
+  test(
+    'a return without a payment: invalid, with tracking; no status read',
+    { tag: '@worker' },
+    async ({ page }, testInfo) => {
+      await workerInControl(page, testInfo)
+      const reads = await mockStatus(page, [info()])
+      await page.goto(back('?result=failed&code=gateway_callback_invalid'))
+      await expect(heading(page)).toHaveText(COPY.invalid)
+      await expect(page.getByRole('link', { name: 'پیگیری سفارش' })).toHaveAttribute(
+        'href',
+        '/order/track/',
+      )
+      expect(reads.count).toBe(0)
+    },
+  )
 
   test('after 15 minutes: stopped, and «بررسی دوباره» reads once', async ({ page }) => {
     test.slow()

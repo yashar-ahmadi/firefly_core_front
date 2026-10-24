@@ -1,4 +1,4 @@
-import { expect, type BrowserContext, type Page } from '@playwright/test'
+import { expect, type BrowserContext, type Page, type TestInfo } from '@playwright/test'
 
 // The PWA specs' tools (tests/e2e/pwa*.spec.ts, the `pwa` project, FEATURE_PWA on).
 
@@ -13,6 +13,20 @@ export async function controlled(page: Page): Promise<void> {
   await page.waitForFunction(() => navigator.serviceWorker?.controller != null, null, {
     timeout: 20_000,
   })
+}
+
+/** The project that runs other specs' `@worker` tests on the PWA server (playwright.config.ts). */
+export const WORKER_SUBSET_PROJECT = 'pwa-journeys'
+
+/**
+ * In the `pwa-journeys` project, the worker in control before a test's own first page (a fresh
+ * context has none: it registers after the first page's load): every navigation of the test then
+ * goes through it. Elsewhere, nothing.
+ */
+export async function workerInControl(page: Page, testInfo: TestInfo): Promise<void> {
+  if (testInfo.project.name !== WORKER_SUBSET_PROJECT) return
+  await page.goto('/')
+  await controlled(page)
 }
 
 /** What the worker keeps, by cache: the paths stored in each. */

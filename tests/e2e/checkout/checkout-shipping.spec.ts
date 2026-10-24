@@ -7,6 +7,7 @@ import { cartWrite } from '../support/cart-write'
 import { confirmGuestReceiver, seedGuestDestination } from '../support/checkout-states'
 import { shellHydrated } from '../support/hydrated'
 import { fulfilUnlessDropped, liveJson } from '../support/live-route'
+import { workerInControl } from '../support/pwa'
 import { chooseShipping } from '../support/shipping-choice'
 import { watchErrors } from '../support/watch-errors'
 
@@ -57,87 +58,91 @@ function shippingRow(cart: Cart): string {
   return cart.shipping_cost === 0 ? 'رایگان' : toman(cart.shipping_cost)
 }
 
-test('a guest checks out up to shipping: receiver, Tehran, the default option chosen', async ({
-  page,
-}) => {
-  const errors = watchErrors(page)
-  await page.goto(`/product/${PRODUCT.slug}/`)
-  await shellHydrated(page)
-  const buy = page.getByRole('region', {
-    name: isPhone(page) ? 'نوار خرید' : 'خرید',
-    exact: true,
-  })
-  await cartWrite(page, { method: 'POST', path: 'cart/item/add/', label: 'add' }, () =>
-    buy.getByRole('button', { name: 'افزودن به سبد خرید' }).click(),
-  )
+// `@worker`: also run on the PWA server with the worker in control (the `pwa-journeys` project).
+test(
+  'a guest checks out up to shipping: receiver, Tehran, the default option chosen',
+  { tag: '@worker' },
+  async ({ page }, testInfo) => {
+    await workerInControl(page, testInfo)
+    const errors = watchErrors(page)
+    await page.goto(`/product/${PRODUCT.slug}/`)
+    await shellHydrated(page)
+    const buy = page.getByRole('region', {
+      name: isPhone(page) ? 'نوار خرید' : 'خرید',
+      exact: true,
+    })
+    await cartWrite(page, { method: 'POST', path: 'cart/item/add/', label: 'add' }, () =>
+      buy.getByRole('button', { name: 'افزودن به سبد خرید' }).click(),
+    )
 
-  await page.goto('/checkout/')
-  await expect(page).toHaveTitle(/^تکمیل خرید \|/)
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
-  const receiver = page.getByRole('region', { name: /گیرنده و آدرس/ })
-  await expect(receiver).toHaveAttribute('data-state', 'active')
-  await expect(page.getByRole('region', { name: /روش ارسال/ })).toHaveAttribute(
-    'data-state',
-    'locked',
-  )
-  // The form's submit button is enabled once the page has hydrated.
-  await expect(receiver.getByRole('button', { name: 'ادامه' })).toBeEnabled()
-  await receiver.getByLabel(/^نام گیرنده/).fill('آزمون')
-  await receiver.getByLabel(/نام خانوادگی گیرنده/).fill('خودکار')
-  await receiver.getByLabel(/شمارهٔ موبایل گیرنده/).fill('۰۹۱۲۱۲۳۴۵۶۷')
+    await page.goto('/checkout/')
+    await expect(page).toHaveTitle(/^تکمیل خرید \|/)
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/)
+    const receiver = page.getByRole('region', { name: /گیرنده و آدرس/ })
+    await expect(receiver).toHaveAttribute('data-state', 'active')
+    await expect(page.getByRole('region', { name: /روش ارسال/ })).toHaveAttribute(
+      'data-state',
+      'locked',
+    )
+    // The form's submit button is enabled once the page has hydrated.
+    await expect(receiver.getByRole('button', { name: 'ادامه' })).toBeEnabled()
+    await receiver.getByLabel(/^نام گیرنده/).fill('آزمون')
+    await receiver.getByLabel(/نام خانوادگی گیرنده/).fill('خودکار')
+    await receiver.getByLabel(/شمارهٔ موبایل گیرنده/).fill('۰۹۱۲۱۲۳۴۵۶۷')
 
-  // Tehran by its name, then a city of it from the live list (its own name, Tehran).
-  const tehran = (await geo<Province>(page, 'province/list/?limit=1500')).find(
-    (province) => province.name === 'تهران',
-  )
-  expect(tehran, 'the live province list has تهران').toBeDefined()
-  const cities = await geo<City>(page, `city/list/?province=${tehran!.id}&limit=1500`)
-  const city = cities.find((item) => item.name === 'تهران') ?? cities[0]!
-  await receiver.getByLabel('استان').selectOption({ label: tehran!.name })
-  const citySelect = receiver.getByLabel(/^شهر/)
-  await expect(citySelect.getByRole('option', { name: city.name, exact: true })).toBeAttached()
-  const destination = await cartWrite(
-    page,
-    { method: 'POST', path: 'cart/destination/', label: 'destination' },
-    () => citySelect.selectOption({ label: city.name }),
-  )
-  expect((await cartOf(destination)).destination?.city_id).toBe(city.id)
+    // Tehran by its name, then a city of it from the live list (its own name, Tehran).
+    const tehran = (await geo<Province>(page, 'province/list/?limit=1500')).find(
+      (province) => province.name === 'تهران',
+    )
+    expect(tehran, 'the live province list has تهران').toBeDefined()
+    const cities = await geo<City>(page, `city/list/?province=${tehran!.id}&limit=1500`)
+    const city = cities.find((item) => item.name === 'تهران') ?? cities[0]!
+    await receiver.getByLabel('استان').selectOption({ label: tehran!.name })
+    const citySelect = receiver.getByLabel(/^شهر/)
+    await expect(citySelect.getByRole('option', { name: city.name, exact: true })).toBeAttached()
+    const destination = await cartWrite(
+      page,
+      { method: 'POST', path: 'cart/destination/', label: 'destination' },
+      () => citySelect.selectOption({ label: city.name }),
+    )
+    expect((await cartOf(destination)).destination?.city_id).toBe(city.id)
 
-  await receiver.getByLabel(/آدرس کامل/).fill('خیابان آزمون، کوچهٔ یک')
-  await receiver.getByLabel(/کد پستی/).fill('۱۲۳۴۵۶۷۸۹۰')
-  // «ادامه»: the shipping step opens, and the operator's default is chosen (none: the test
-  // chooses once the section asks).
-  const shipping = page.getByRole('region', { name: /روش ارسال/ })
-  const { response: selected } = await chooseShipping(page, shipping, {
-    lead: () => receiver.getByRole('button', { name: 'ادامه' }).click(),
-    before: await cartOf(destination),
-    retry: () => page.reload(),
-  })
-  const cart = await cartOf(selected)
-  expect(cart.shipping.is_selected && cart.shipping.is_available).toBe(true)
+    await receiver.getByLabel(/آدرس کامل/).fill('خیابان آزمون، کوچهٔ یک')
+    await receiver.getByLabel(/کد پستی/).fill('۱۲۳۴۵۶۷۸۹۰')
+    // «ادامه»: the shipping step opens, and the operator's default is chosen (none: the test
+    // chooses once the section asks).
+    const shipping = page.getByRole('region', { name: /روش ارسال/ })
+    const { response: selected } = await chooseShipping(page, shipping, {
+      lead: () => receiver.getByRole('button', { name: 'ادامه' }).click(),
+      before: await cartOf(destination),
+      retry: () => page.reload(),
+    })
+    const cart = await cartOf(selected)
+    expect(cart.shipping.is_selected && cart.shipping.is_available).toBe(true)
 
-  await expect(receiver).toHaveAttribute('data-state', 'done')
-  await expect(receiver).toContainText('آزمون خودکار')
-  await expect(shipping).toContainText(cart.shipping.title!)
+    await expect(receiver).toHaveAttribute('data-state', 'done')
+    await expect(receiver).toContainText('آزمون خودکار')
+    await expect(shipping).toContainText(cart.shipping.title!)
 
-  // The summary: the API's own shipping row and total.
-  if (!isWide(page)) {
-    const folded = page.locator('details[data-summary="phone"]')
-    await expect(folded.locator('summary')).toContainText(`جمع کل: ${toman(cart.total)}`)
-    await folded.locator('summary').click()
-  }
-  // The page's own summary (the aside, or the folded one on phones): the review step, open by
-  // now, shows the same summary in its body as well.
-  const summary = (
-    isWide(page) ? page.getByRole('complementary') : page.locator('details[data-summary="phone"]')
-  ).getByRole('region', { name: 'خلاصه\u{0654} سفارش' })
-  const row = summary
-    .locator('div')
-    .filter({ has: page.getByRole('term').filter({ hasText: 'هزینه\u{0654} ارسال' }) })
-  await expect(row).toContainText(shippingRow(cart))
-  await expect(summary).toContainText(toman(cart.total))
-  expect(errors).toEqual([])
-})
+    // The summary: the API's own shipping row and total.
+    if (!isWide(page)) {
+      const folded = page.locator('details[data-summary="phone"]')
+      await expect(folded.locator('summary')).toContainText(`جمع کل: ${toman(cart.total)}`)
+      await folded.locator('summary').click()
+    }
+    // The page's own summary (the aside, or the folded one on phones): the review step, open by
+    // now, shows the same summary in its body as well.
+    const summary = (
+      isWide(page) ? page.getByRole('complementary') : page.locator('details[data-summary="phone"]')
+    ).getByRole('region', { name: 'خلاصه\u{0654} سفارش' })
+    const row = summary
+      .locator('div')
+      .filter({ has: page.getByRole('term').filter({ hasText: 'هزینه\u{0654} ارسال' }) })
+    await expect(row).toContainText(shippingRow(cart))
+    await expect(summary).toContainText(toman(cart.total))
+    expect(errors).toEqual([])
+  },
+)
 
 test('no default option for the destination: the section asks, the shopper chooses', async ({
   page,
