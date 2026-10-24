@@ -81,7 +81,6 @@ export function facetGroups(
   }
 }
 
-/** The switches of the filter panel, in display order. */
 /**
  * More brands than this get a search box (FacetList), and the sidebar's outline its box
  * (FilterPanelSkeleton): one figure, so the outline keeps the panel's height. Here, in a pure
@@ -89,6 +88,7 @@ export function facetGroups(
  */
 export const SEARCHABLE_OVER = 8
 
+/** The switches of the filter panel, in display order. */
 export const FLAG_FILTERS = ['in_stock', 'has_discount', 'is_special'] as const
 export type FlagFilter = (typeof FLAG_FILTERS)[number]
 
