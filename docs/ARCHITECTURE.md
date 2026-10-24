@@ -1274,7 +1274,9 @@ off, so no worker sits between the other specs and their routes and mocks.
   shopper's way out (the address picker: the newest write wins, `useLatestWrite`). The reads the
   choices wait for (the address book, the shipping options) are tried twice at most (`retryOnce`,
   use-shipping-options.ts: the same errors as `shouldRetryQuery`, kept apart from it because
-  importing the shared query module regrouped the checkout's chunks, +161 B). A shop that takes no
+  importing the shared query module regrouped the checkout's chunks, +161 B). The options' query
+  is one for every reader of the list (the automatic choice, the shipping section, the review), so
+  the rule is the list's wherever it is read, not the arrival's alone. A shop that takes no
   guest orders gets its login prompt as the receiver's lazy body, like the form and the picker: it
   was the page's own code on every checkout, and the guest form's chunk was fetched on arrival for a
   page that never showed it. With that, every `/checkout/` state is 174 B lighter than before the

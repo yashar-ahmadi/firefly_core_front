@@ -22,7 +22,9 @@ export const SHIPPING_OPTIONS_KEY = [...CART_KEY, 'shipping-options'] as const
 /**
  * Tried once more at most (twice by default, `shouldRetryQuery`; the same errors are tried): the
  * checkout's own choices wait for this read and the address book's (use-auto-choices.ts), and a
- * read lost upstream takes 10 s a try.
+ * read lost upstream takes 10 s a try. On the options it applies wherever the list is read (the
+ * one query serves the automatic choice, the shipping section and the review): one rule for the
+ * list, whoever asks.
  */
 export const retryOnce = (count: number, error: Error) =>
   !count &&
@@ -82,6 +84,7 @@ export function useShippingOptions(
     enabled: enabled && cart !== undefined,
     // Prices are live: read again whenever the shipping step shows.
     staleTime: 0,
+    // For every reader of the list, not the automatic choice alone (`retryOnce`).
     retry: retryOnce,
   })
   // A cart write stores its cart after cancelling the cart's reads in flight, this one's too
