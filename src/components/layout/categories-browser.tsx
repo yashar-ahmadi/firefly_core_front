@@ -150,7 +150,7 @@ export function CategoriesBrowser({
             hidden={!shown}
             className="min-w-0 flex-1 p-4 focus-visible:-outline-offset-2 md:p-6"
           >
-            <CategoryPanel key={String(shown)} root={root} />
+            <CategoryPanel key={+shown} root={root} />
           </Tabs.Content>
         )
       })}
