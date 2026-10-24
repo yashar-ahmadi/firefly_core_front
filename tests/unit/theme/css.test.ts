@@ -96,16 +96,21 @@ describe('buildThemeCss', () => {
   })
 
   it.each([
-    ['sm', '.375rem', '.5rem'],
-    ['md', '.5rem', '.75rem'],
-    ['lg', '.75rem', '1rem'],
-    ['xl', '1rem', '1.5rem'],
-  ] as const)('maps radius %s to control %s and card %s', (radius, control, card) => {
-    const out = buildThemeCss({ ...theme, radius })
-    expect(declaration(out, '--radius-control')).toBe(control)
-    expect(declaration(out, '--radius-card')).toBe(card)
-    expect(declaration(out, '--radius-pill')).toBe('9999px')
-  })
+    ['sm', '.375rem', '.5rem', '.25rem'],
+    ['md', '.5rem', '.75rem', '.3125rem'],
+    ['lg', '.75rem', '1rem', '.4rem'],
+    ['xl', '1rem', '1.5rem', '.5rem'],
+  ] as const)(
+    'maps radius %s to control %s, card %s and check %s',
+    (radius, control, card, check) => {
+      const out = buildThemeCss({ ...theme, radius })
+      expect(declaration(out, '--radius-control')).toBe(control)
+      expect(declaration(out, '--radius-card')).toBe(card)
+      expect(declaration(out, '--radius-pill')).toBe('9999px')
+      // A 24px checkbox's corners: the control's would round it into a radio on lg and xl.
+      expect(declaration(out, '--radius-check')).toBe(check)
+    },
+  )
 
   it('emits --radius-card: 1.5rem for the xl scale', () => {
     expect(buildThemeCss({ ...theme, radius: 'xl' })).toContain('--radius-card: 1.5rem')

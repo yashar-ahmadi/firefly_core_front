@@ -17,11 +17,15 @@ export const PAGE_BACKGROUND = '#f8fafc'
 const FOCUS_MIN_CONTRAST = 3
 const FOCUS_SHADES = [500, 600, 700, 800, 900, 950] as const
 
-const RADII: Record<RadiusScale, { control: string; card: string }> = {
-  sm: { control: '.375rem', card: '.5rem' },
-  md: { control: '.5rem', card: '.75rem' },
-  lg: { control: '.75rem', card: '1rem' },
-  xl: { control: '1rem', card: '1.5rem' },
+/**
+ * Corner radii per scale. `check` is the 24px checkbox's: the control's own would round it into
+ * a radio from lg up.
+ */
+const RADII: Record<RadiusScale, { control: string; card: string; check: string }> = {
+  sm: { control: '.375rem', card: '.5rem', check: '.25rem' },
+  md: { control: '.5rem', card: '.75rem', check: '.3125rem' },
+  lg: { control: '.75rem', card: '1rem', check: '.4rem' },
+  xl: { control: '1rem', card: '1.5rem', check: '.5rem' },
 }
 
 const SHADOWS: Record<ShadowStyle, { card: string; raised: string }> = {
@@ -73,6 +77,7 @@ export function buildThemeCss(theme: ThemeConfig): string {
     `--radius-control: ${radius.control}`,
     `--radius-card: ${radius.card}`,
     `--radius-pill: ${PILL}`,
+    `--radius-check: ${radius.check}`,
     `--shadow-card: ${shadow.card}`,
     `--shadow-raised: ${shadow.raised}`,
   ]

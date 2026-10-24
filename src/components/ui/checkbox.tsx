@@ -25,7 +25,7 @@ export function Checkbox({ label, description, className, id, ...props }: Checkb
       id={boxId}
       aria-describedby={descriptionId}
       className={cn(
-        'group relative grid size-6 shrink-0 cursor-pointer place-items-center rounded-[0.4rem] border-2 border-ink-500 bg-white text-brand-fg',
+        'group relative grid size-6 shrink-0 cursor-pointer place-items-center rounded-check border-2 border-ink-500 bg-white text-brand-fg',
         'transition-colors duration-150 hover:border-brand-600 disabled:cursor-not-allowed disabled:opacity-50',
         'data-[state=checked]:border-brand data-[state=checked]:bg-brand',
         'data-[state=indeterminate]:border-brand data-[state=indeterminate]:bg-brand',

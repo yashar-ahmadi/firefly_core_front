@@ -44,6 +44,7 @@
   --radius-control: var(--radius-control);
   --radius-card: var(--radius-card);
   --radius-pill: var(--radius-pill);
+  --radius-check: var(--radius-check);
 
   --shadow-card: var(--shadow-card);
   --shadow-raised: var(--shadow-raised);
