@@ -2,8 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Providers } from '@/app/providers'
-import { CategoriesDrawer } from '@/components/layout/categories-drawer'
-import { MegaMenu } from '@/components/layout/mega-menu'
+import { CategoriesMenu } from '@/components/layout/categories-menu'
 import { categoriesToMenu } from '@/components/layout/menu-tree'
 import { SiteHeader } from '@/components/layout/site-header'
 import { parseServerEnv } from '@/config/env-schema'
@@ -158,7 +157,8 @@ describe('SiteHeader', () => {
       'href',
       '/product/list/?has_discount=true',
     )
-    expect(within(nav).getAllByRole('button', { name: 'دسته‌بندی‌ها' })).toHaveLength(2)
+    // One button, the mega-menu's or the drawer's by viewport (categories-menu.test.tsx).
+    expect(within(nav).getAllByRole('button', { name: 'دسته‌بندی‌ها' })).toHaveLength(1)
   })
 
   it('falls back to the preset label and a wordmark without settings', async () => {
@@ -207,13 +207,13 @@ describe('SiteHeader', () => {
     }
     const navProps = async () =>
       walk(await SiteHeader())
-        .filter((element) => element.type === MegaMenu || element.type === CategoriesDrawer)
+        .filter((element) => element.type === CategoriesMenu)
         .map((element) => element.props)
 
     const main = [menuNode({ id: 1, title: 'سامسونگ', url: '/brand/samsung/' })]
     mocks.menus = { ...mocks.menus, main }
     const withMenu = await navProps()
-    expect(withMenu).toHaveLength(2)
+    expect(withMenu).toHaveLength(1)
     for (const props of withMenu) {
       expect(props.items).toEqual(main)
       expect(props).not.toHaveProperty('categories')

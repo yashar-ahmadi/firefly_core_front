@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutGrid } from 'lucide-react'
+import { ChevronDown, LayoutGrid } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -68,6 +68,9 @@ export function CategoriesDrawer({ items, className }: { items: MenuNode[]; clas
       >
         <LayoutGrid aria-hidden className="size-5 text-brand-600" />
         {t('categories')}
+        {/* The server renders this button at every width (categories-menu.tsx): from lg it
+            stands for the mega-menu's, chevron included, until the viewport is known. */}
+        <ChevronDown aria-hidden className="hidden size-4 lg:block" />
       </button>
       {requested && <CategoriesDrawerPanel items={items} open={open} onOpenChange={setOpen} />}
     </div>

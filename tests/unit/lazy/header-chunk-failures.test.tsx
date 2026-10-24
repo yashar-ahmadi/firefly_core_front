@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CategoriesDrawer } from '@/components/layout/categories-drawer'
+import { CategoriesMenu } from '@/components/layout/categories-menu'
 import { HeaderActions } from '@/components/layout/header-actions'
 import { HeaderLinks } from '@/components/layout/header-links'
 import { navItems } from '@/components/layout/menu-tree'
@@ -32,6 +33,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/features/cart/components/mini-cart', () => mocks.broken('MiniCart'))
 vi.mock('@/components/layout/categories-drawer-panel', () => mocks.broken('CategoriesDrawerPanel'))
+vi.mock('@/components/layout/mega-menu', () => mocks.broken('MegaMenu'))
 vi.mock('@/components/layout/account-menu', () => mocks.broken('AccountMenu'))
 vi.mock('@/components/layout/header-dropdown', () => mocks.broken('HeaderDropdown'))
 vi.mock('@/features/catalog/components/reading-dialog', () => mocks.broken('ReadingDialog'))
@@ -87,6 +89,20 @@ describe('header widgets whose code cannot load', () => {
     fireEvent.click(screen.getByRole('button', { name: 'دسته‌بندی‌ها' }))
     await waitFor(() => expect(mocks.loadPage).toHaveBeenCalledWith('/categories/'))
     expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText('the page')).toBeInTheDocument()
+  })
+
+  it('the mega-menu: a press opens the categories page; a hover leaves the button be', async () => {
+    media.set(minWidth(64))
+    withProviders(<CategoriesMenu items={navItems([], sampleTree())} />)
+    const button = screen.getByRole('button', { name: 'دسته‌بندی‌ها' })
+    fireEvent.pointerEnter(button, { pointerType: 'mouse' })
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(mocks.loadPage).not.toHaveBeenCalled()
+    fireEvent.click(button)
+    await waitFor(() => expect(mocks.loadPage).toHaveBeenCalledWith('/categories/'))
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+    expect(button).not.toHaveAttribute('aria-busy')
     expect(screen.getByText('the page')).toBeInTheDocument()
   })
 

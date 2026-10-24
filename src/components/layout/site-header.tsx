@@ -5,12 +5,11 @@ import { getCategoryTree, getMenu, getSiteSettings, getTranslations } from '@/fe
 import { htmlToText } from '@/lib/html/to-text'
 import { createTranslator } from '@/lib/i18n/translator'
 import { AnnouncementBar } from './announcement-bar'
-import { CategoriesDrawer } from './categories-drawer'
+import { CategoriesMenu } from './categories-menu'
 import { CONTAINER } from './container'
 import { HeaderActions } from './header-actions'
 import { HeaderLinks } from './header-links'
 import { HeaderSearchForm } from './header-search-form'
-import { MegaMenu } from './mega-menu'
 import { navItems } from './menu-tree'
 import { StoreLogo } from './store-logo'
 import { SupportPhone } from './support-phone'
@@ -90,8 +89,7 @@ export async function SiteHeader() {
             aria-label={t('main_navigation')}
             className={cn(CONTAINER, 'flex h-12 items-center gap-2')}
           >
-            <MegaMenu items={items} className="hidden lg:flex" />
-            <CategoriesDrawer items={items} className="lg:hidden" />
+            <CategoriesMenu items={items} />
             {headerMenu.length > 0 && <span aria-hidden className="h-5 w-px shrink-0 bg-ink-200" />}
             <HeaderLinks items={headerMenu} className="flex-1" />
             {phone && <SupportPhone phone={phone} {...phoneLabels} className="ms-auto" />}

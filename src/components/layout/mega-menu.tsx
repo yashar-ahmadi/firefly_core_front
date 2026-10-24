@@ -10,10 +10,10 @@ import type { MenuNode } from '@/lib/api/types/settings'
 import { useT } from '@/lib/i18n/i18n-context'
 import { isListing } from './mega-menu-content'
 import { firstLink, MegaMenuPanel, nextContentFocus, type StartItemProps } from './mega-menu-panel'
-import { CATEGORIES_TRIGGER } from './nav-styles'
+import { CATEGORIES_TRIGGER, MENU_HOVER_DELAY } from './nav-styles'
 
 /** Hover intent: the pointer must rest this long before the menu opens or switches item. */
-const HOVER_DELAY = 120
+const HOVER_DELAY = MENU_HOVER_DELAY
 /** Grace period for a pointer that briefly leaves the menu. */
 const CLOSE_DELAY = 200
 /** Scrolling the page further than this closes the menu (the header compacts too). */
@@ -21,9 +21,20 @@ const SCROLL_CLOSE = 8
 
 type TimerName = 'open' | 'close' | 'item'
 
+/**
+ * How the visitor asked for the menu before its code was in (its stand-in, categories-menu.tsx):
+ * it mounts open, with the focus on its button (a press), on the first or the last item (Down,
+ * Up), or left where it is (a hover).
+ */
+export interface MegaMenuOpening {
+  focus: 'trigger' | 'first' | 'last' | null
+}
+
 export interface MegaMenuProps {
   /** The start column: `menu/main`, or the category tree while it is empty (`navItems`). */
   items: MenuNode[]
+  /** Mounts open (see `MegaMenuOpening`); closed without it. */
+  opening?: MegaMenuOpening
   className?: string
 }
 
@@ -32,13 +43,17 @@ export interface MegaMenuProps {
  * keyboard, and closes on Escape, an outside click, the pointer or focus leaving it, scrolling
  * and a route change. Arrow Up/Down move through the start column, the forward arrow (Left in
  * RTL) moves into the columns and between them, Enter follows a link and Tab moves naturally.
- * Rendered from lg up; it must sit in a `relative` full-width bar (the panel spans it).
+ * Rendered from lg up; it must sit in a `relative` full-width bar (the panel spans it). Its code
+ * is not part of the page: its stand-in (`CategoriesMenu`) loads it when the visitor reaches for
+ * the button, and mounts it open (`opening`).
  */
-export function MegaMenu({ items, className }: MegaMenuProps) {
+export function MegaMenu({ items, opening, className }: MegaMenuProps) {
   const t = useT()
   const forward = Direction.useDirection() === 'rtl' ? 'ArrowLeft' : 'ArrowRight'
-  const [open, setOpen] = useState(false)
-  const [active, setActive] = useState(0)
+  const [open, setOpen] = useState(opening !== undefined)
+  const [active, setActive] = useState(opening?.focus === 'last' ? items.length - 1 : 0)
+  // Read once, on mount: where the stand-in's opening puts the focus.
+  const initialFocus = useRef(opening?.focus ?? null)
   const rootRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   // The last press: its pointer type and the item that was active then. A tap focuses the link
@@ -58,6 +73,14 @@ export function MegaMenu({ items, className }: MegaMenuProps) {
   useEffect(() => {
     const pending = timers.current
     return () => Object.values(pending).forEach((id) => window.clearTimeout(id))
+  }, [])
+
+  useEffect(() => {
+    const focus = initialFocus.current
+    if (focus === 'trigger') triggerRef.current?.focus()
+    if (focus === 'first' || focus === 'last') {
+      rootRef.current?.querySelector<HTMLElement>('[data-mega-item][tabindex="0"]')?.focus()
+    }
   }, [])
 
   useEffect(() => {

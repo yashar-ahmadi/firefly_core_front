@@ -1126,6 +1126,20 @@ off, so no worker sits between the other specs and their routes and mocks.
   the `Accordion` where either matters or the state is driven from code (the listing filters).
   Server Components must not import a heavy client primitive just to wrap a trigger (a `Dialog`
   imported by a Server Component ships with every page that renders it).
+- **The categories menus, per viewport (Plan 5 Task 8).** «دسته‌بندی‌ها» in the header's second
+  row is one client component, `CategoriesMenu` (`components/layout/categories-menu.tsx`): from lg
+  the mega-menu, below lg the drawer's button, chosen by `useMediaQuery` after hydration (the
+  server and hydration render the drawer's button, which looks the same from lg, chevron
+  included). The mega-menu's code (its panel, which renders the whole main menu) is not part of
+  any page: its stand-in fetches it when pointed at or focused and mounts it open on a resting
+  pointer (the menu's own 120 ms), a press (focus on its button) or Down/Up (focus on the first or
+  last item), through `MegaMenu`'s `opening`; a failed download sends a press to `/categories/`.
+  The drawer's panel loads on its first opening, as before. Phones hide the row, so neither
+  menu's code loads there. Every page in the shop layout −1.8 to −1.9 KB, desktop and phone alike
+  (the guards: category 238.1, product 235.8, home 218.4; signed in with push on, category
+  242.2); pages outside it byte for byte. The mega-menu's links are no longer in the server's
+  HTML: crawlers reach the categories through `/categories/` (the bottom navigation), the
+  footer's menu and the sitemap.
 - **Signed-in code.** What only a signed-in visitor sees loads with the session, never with a
   guest's page (the budget is measured as a guest): the header's account button (the profile
   read, the avatar) is a `next/dynamic` import rendered only while `hasSession` (server-rendered,

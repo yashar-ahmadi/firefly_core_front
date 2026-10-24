@@ -2,6 +2,13 @@ import { cn } from '@/components/ui/cn'
 
 // Class recipes shared by the header's second row (mega-menu and drawer triggers, header links).
 
+/**
+ * Hover intent: the pointer must rest this long on the mega-menu's button before it opens, or on
+ * an item before it switches. Shared with the menu's stand-in (categories-menu.tsx), which waits
+ * the same before mounting the menu open.
+ */
+export const MENU_HOVER_DELAY = 120
+
 /** The «دسته‌بندی‌ها» trigger: bold, with a brand underline while its menu is open. */
 export const CATEGORIES_TRIGGER = cn(
   'relative flex h-12 shrink-0 cursor-pointer items-center gap-2 px-3 text-base font-bold text-ink-800',
