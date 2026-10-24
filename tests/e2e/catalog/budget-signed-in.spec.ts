@@ -12,7 +12,8 @@ import {
   pushShop,
   type BudgetRoute,
 } from '../support/js-budget'
-import { signedInTest } from '../support/session'
+import { settleRoutes } from '../support/live-route'
+import { signedInTest as sessionTest } from '../support/session'
 import { seedThanks, THANKS_PATH, thanksShown } from '../support/thanks-states'
 
 // The JavaScript budget signed in (ruling P2-R4; the measure: support/js-budget.ts): the catalog
@@ -22,6 +23,11 @@ import { seedThanks, THANKS_PATH, thanksShown } from '../support/thanks-states'
 // 375 px with the same session). Runs in the desktop project only, which measures both, and
 // again in `budget-push` (a shop with web push; the same session), with push on in the browser:
 // the re-register effect's chunk loads there, the costliest case.
+
+/** Sara's session; the routes' live handlers finish before a test ends (`settleRoutes`). */
+const signedInTest = sessionTest.extend<{ routesSettle: void }>({
+  routesSettle: [settleRoutes, { auto: true }],
+})
 
 const BFF = { 'X-Requested-With': 'ff' }
 

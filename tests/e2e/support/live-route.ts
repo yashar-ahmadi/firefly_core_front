@@ -1,4 +1,4 @@
-import type { APIResponse, Route } from '@playwright/test'
+import type { APIResponse, Page, Route } from '@playwright/test'
 
 /**
  * What Playwright says of a request the page dropped while a route handler was still answering
@@ -37,4 +37,17 @@ export async function fulfilUnlessDropped(
   } catch (error) {
     if (!(error instanceof Error && DROPPED.test(error.message))) throw error
   }
+}
+
+/**
+ * An auto fixture for a spec whose route handlers fetch live (`liveJson`, `route.fetch()`): after
+ * the test, however it ended, the page's handlers still answering finish against a live page
+ * before it closes. One still fetching when the test ends would otherwise fail «Test ended»,
+ * an error outside any test that fails the run (Task 9's final regression). Use as
+ * `test.extend<{ routesSettle: void }>({ routesSettle: [settleRoutes, { auto: true }] })`.
+ */
+export async function settleRoutes({ page }: { page: Page }, provide: () => Promise<void>) {
+  // (The fixture's `use` callback, named apart from React's `use`: the hooks lint rule.)
+  await provide()
+  await page.unrouteAll({ behavior: 'wait' })
 }

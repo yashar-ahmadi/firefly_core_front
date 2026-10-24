@@ -1,13 +1,19 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { ProductCard, WishlistProductCard } from '@/lib/api/types/catalog'
 import type { Paginated } from '@/lib/api/types/common'
-import { signedInTest } from '../support/session'
+import { settleRoutes } from '../support/live-route'
+import { signedInTest as sessionTest } from '../support/session'
 import { watchErrors } from '../support/watch-errors'
 
 // The wishlist page against the dev backend (Plan 3 Task 8), with the project's shared session
 // (`signedInTest`). Sara's own wishlist is only read (it is empty in the dev data). The grid, the
 // filters and the heart's writes run on a wishlist served here (three live catalog cards marked
 // saved), so nothing is ever written: every heart's request is answered here.
+
+/** Sara's session; the routes' live handlers finish before a test ends (`settleRoutes`). */
+const signedInTest = sessionTest.extend<{ routesSettle: void }>({
+  routesSettle: [settleRoutes, { auto: true }],
+})
 
 const LIST = /\/api\/bff\/product\/wishlist\/list\//
 const TOGGLE = /\/api\/bff\/product\/detail\/([^/]+)\/wishlist\//
@@ -49,7 +55,7 @@ async function savedCards(page: Page): Promise<WishlistProductCard[]> {
  * writes (recorded in `writes`) and makes the summary count it. A request held by `hold` waits.
  */
 async function serveWishlist(page: Page, saved: WishlistProductCard[]) {
-  // (Each test drops these routes at its end: a summary read still on its way is not an error.)
+  // (A summary read still on its way when a test ends is answered first: `settleRoutes`.)
   const state = { saved: [...saved], writes: [] as string[], hold: null as Promise<void> | null }
   await page.route(LIST, async (route) => {
     const url = new URL(route.request().url())
@@ -165,7 +171,6 @@ signedInTest(
     )
     expect(state.writes).toEqual([])
     expect(errors).toEqual([])
-    await page.unrouteAll({ behavior: 'ignoreErrors' })
   },
 )
 
@@ -189,7 +194,6 @@ signedInTest(
     await expect(grid(page).getByRole('article').first()).toContainText(cards[0]!.name)
     expect(state.writes).toEqual([`DELETE ${cards[0]!.slug}`, `POST ${cards[0]!.slug}`])
     expect(errors).toEqual([])
-    await page.unrouteAll({ behavior: 'ignoreErrors' })
   },
 )
 
@@ -215,6 +219,5 @@ signedInTest(
     await expect(page.getByRole('switch')).toHaveCount(0)
     expect(state.writes).toEqual([])
     expect(errors).toEqual([])
-    await page.unrouteAll({ behavior: 'ignoreErrors' })
   },
 )

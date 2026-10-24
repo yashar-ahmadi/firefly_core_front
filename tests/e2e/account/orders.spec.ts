@@ -3,8 +3,8 @@ import type { Paginated } from '@/lib/api/types/common'
 import type { DashboardSummary } from '@/lib/api/types/dashboard'
 import type { OrderListItem } from '@/lib/api/types/order-detail'
 import type { AwaitingReviewOrder } from '@/lib/api/types/order-review'
-import { fulfilUnlessDropped, liveJson } from '../support/live-route'
-import { signedInTest } from '../support/session'
+import { fulfilUnlessDropped, liveJson, settleRoutes } from '../support/live-route'
+import { signedInTest as sessionTest } from '../support/session'
 import { forgiveFailure, watchErrors } from '../support/watch-errors'
 
 // «سفارش‌های من», an order's page and «در انتظار دیدگاه» against the dev backend (Plan 4 Task 8),
@@ -12,6 +12,11 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // payment, cancellation, cart or review is ever written as sara): every write the pages could make
 // is refused here, but the review's submission, which is answered here (a review cannot be taken
 // back), and no figure that grows across runs is asserted.
+
+/** Sara's session; the routes' live handlers finish before a test ends (`settleRoutes`). */
+const signedInTest = sessionTest.extend<{ routesSettle: void }>({
+  routesSettle: [settleRoutes, { auto: true }],
+})
 
 const BFF = { 'X-Requested-With': 'ff' }
 /** Writes these pages could send: an intent, a cancel, a reorder, a review (answered here). */

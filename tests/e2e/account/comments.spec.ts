@@ -1,12 +1,18 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { Paginated } from '@/lib/api/types/common'
 import type { MyComment } from '@/lib/api/types/dashboard'
-import { signedInTest } from '../support/session'
+import { settleRoutes } from '../support/live-route'
+import { signedInTest as sessionTest } from '../support/session'
 import { watchErrors } from '../support/watch-errors'
 
 // «دیدگاه‌های من» against the dev backend (Plan 3 Task 8), with the project's shared session
 // (`signedInTest`). Read-only: a withdrawn comment cannot come back, so no delete ever reaches the
 // API (every one is refused here, or answered here in the delete test, whose list is served here).
+
+/** Sara's session; the routes' live handlers finish before a test ends (`settleRoutes`). */
+const signedInTest = sessionTest.extend<{ routesSettle: void }>({
+  routesSettle: [settleRoutes, { auto: true }],
+})
 
 const DELETE = /\/api\/bff\/dashboard\/comment\/(?:product|post|page)\/\d+\/delete\//
 const LIST = /\/api\/bff\/dashboard\/comment\/list\//
@@ -194,6 +200,5 @@ signedInTest(
     ])
     expect(errors).toEqual([])
     // A summary read still on its way is dropped with the routes, not reported.
-    await page.unrouteAll({ behavior: 'ignoreErrors' })
   },
 )
