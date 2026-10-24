@@ -13,7 +13,7 @@
     "start": "next start",
     "start:standalone": "node scripts/start-standalone.mjs",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && node scripts/check-build-context.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

@@ -14,8 +14,12 @@ next-env.d.ts
 !.env.example
 *.pem
 
-# Tests, reports and tooling the image does not need
+# Tests, reports and tooling the image does not need (the build type-checks the app alone:
+# tsconfig.build.json; `pnpm typecheck` checks it on this context, scripts/check-build-context.mjs)
 tests
+vitest.config.ts
+vitest.setup.ts
+playwright.config.ts
 coverage
 playwright-report
 test-results

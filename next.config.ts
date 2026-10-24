@@ -20,6 +20,11 @@ const nextConfig: NextConfig = {
   // compressing proxy in front, Next's gzip still applies.
   compress: true,
   reactStrictMode: true,
+  // `next build` type-checks the app alone (src/, this file, the types Next generates): never the
+  // test files or test runners' config, which the Docker image's context leaves out
+  // (.dockerignore). `pnpm typecheck` checks this project on that context
+  // (scripts/check-build-context.mjs) and everything, tests included, with tsconfig.json.
+  typescript: { tsconfigPath: 'tsconfig.build.json' },
   // X-Frame-Options, CSP frame-ancestors, nosniff and Referrer-Policy on every response
   // (no-referrer on the pages whose URL holds a payment credential).
   headers: async () => securityHeaderRules(),
