@@ -164,7 +164,8 @@ describe('the blog category’s head', () => {
       title: 'گوشی و موبایل | وبلاگ فایرفلای',
       url: '/blog/category/tech-news/mobile-blog/',
       siteName: 'فایرفلای',
-      images: ['http://localhost:8000/media/CACHE/images/categories/blog-mobile.jpg'],
+      // On the shop's origin, as the structured data has it (it serves /media/ there too).
+      images: ['https://shop.ir/media/CACHE/images/categories/blog-mobile.jpg'],
     })
     expect(meta.robots).toBeUndefined()
   })

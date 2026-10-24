@@ -190,7 +190,8 @@ describe('the post’s head', () => {
     expect(meta.alternates).toEqual({ canonical: '/blog/best-phones-under-30m/' })
     expect(meta.openGraph).toMatchObject({
       type: 'article',
-      images: [postDetailFixture().image],
+      // On the shop's origin, as the structured data has it (it serves /media/ there too).
+      images: ['https://shop.ir/media/CACHE/images/posts/best-phones.jpg'],
       publishedTime: '2026-09-01T15:00:00+03:30',
       authors: ['مدیر فروشگاه'],
     })

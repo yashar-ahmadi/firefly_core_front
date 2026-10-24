@@ -55,7 +55,7 @@ export async function generateMetadata({
   ])
   if (loaded.off) return blogUnavailableMetadata(shop)
   if (loaded.data === null || loaded.data.posts === null) return notFoundMetadata()
-  return blogCategoryMetadata(loaded.data.category, sp, shop)
+  return blogCategoryMetadata(loaded.data.category, sp, shop, getStoreConfig().siteUrl)
 }
 
 /** The visible trail: «وبلاگ», then each category of the chain at its path (slugs joined). */

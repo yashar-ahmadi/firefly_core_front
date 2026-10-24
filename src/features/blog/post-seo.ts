@@ -3,6 +3,7 @@ import { isPlaceholderImage } from '@/components/layout/menu-tree'
 import { blogBreadcrumb, blogStructuredData } from '@/features/blog/blog-structured-data'
 import { canonicalFor } from '@/features/seo/canonical'
 import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
+import { mediaOnSite } from '@/features/seo/site-media'
 import type { BlogPostingJsonLd, PostDetail } from '@/lib/api/types/blog-post'
 import { htmlToText } from '@/lib/html/to-text'
 import { blogPostPath } from '@/lib/links/post-link'
@@ -21,7 +22,8 @@ export function postCanonical(post: Pick<PostDetail, 'slug' | 'canonical_link'>,
  * A post's head: `page_title` as an absolute title (it often names the shop already), the
  * description (`page_description`, "" meaning unset: else the short description or the text),
  * keywords, the canonical (`postCanonical`), Open Graph `article` with the post's picture (not
- * the API's placeholder: no picture to share), its dates, author and first category. A staff
+ * the API's placeholder: no picture to share; on the shop's origin, as in the structured data:
+ * `mediaOnSite`), its dates, author and first category. A staff
  * preview of an unpublished post is never indexed.
  */
 export function postMetadata(post: PostDetail, shop: string, siteUrl: string): Metadata {
@@ -32,7 +34,7 @@ export function postMetadata(post: PostDetail, shop: string, siteUrl: string): M
     keywords: post.page_keywords,
     canonical: postCanonical(post, siteUrl),
     path: blogPostPath(post.slug),
-    image: isPlaceholderImage(post.image) ? null : post.image,
+    image: isPlaceholderImage(post.image) ? null : mediaOnSite(post.image, siteUrl),
     siteName: shop,
   })
   const section = post.categories[0]?.name

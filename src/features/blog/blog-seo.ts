@@ -5,6 +5,7 @@ import { listingIndexing } from '@/features/catalog/listing-routes'
 import { blogBreadcrumb, blogStructuredData } from '@/features/blog/blog-structured-data'
 import { trailBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
+import { mediaOnSite } from '@/features/seo/site-media'
 import type { BlogCategoryDetail } from '@/lib/api/types/blog'
 import { toPersianDigits } from '@/lib/format'
 import { BLOG_NAME, BLOG_UNAVAILABLE_TITLE } from '@/features/blog/blog-copy'
@@ -44,12 +45,14 @@ export function blogHomeMetadata(sp: RawParams, query: BlogQuery, shop: string):
  * A category page's head from its SEO fields: `page_title` as an absolute title (it often names
  * the shop already: Plan 2's rule) with «- صفحهٔ N» on a later page, the description (else the
  * short description, description or content), keywords, the canonical (`canonical_link`, else
- * the path; a later page its own), the picture unless it is the API's placeholder.
+ * the path; a later page its own), the picture unless it is the API's placeholder, on the
+ * shop's origin as in its structured data (`mediaOnSite`).
  */
 export function blogCategoryMetadata(
   category: BlogCategoryDetail,
   sp: RawParams,
   shop: string,
+  siteUrl: string,
 ): Metadata {
   const path = blogCategoryPath(category.path)
   return seoMetadata({
@@ -61,7 +64,7 @@ export function blogCategoryMetadata(
       category.content,
     ),
     keywords: category.page_keywords,
-    image: isPlaceholderImage(category.image) ? null : category.image,
+    image: isPlaceholderImage(category.image) ? null : mediaOnSite(category.image, siteUrl),
     path,
     siteName: shop,
     ...listingIndexing(sp, { path, canonicalLink: category.canonical_link }),
