@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext } from '@playwright/test'
 import { existsSync } from 'node:fs'
+import { backendLogMode } from './support/backend-log'
 import { BACKEND_LOG, fileLog } from './support/cart-write'
 import { canonicalsIn, POST_PATH, robotsMetas, saysNoindex } from './support/seo-head'
 import { SITEMAP_KINDS, unroutedSitemapPaths } from './support/sitemap-kinds'
@@ -11,13 +12,27 @@ import { SITEMAP_KINDS, unroutedSitemapPaths } from './support/sitemap-kinds'
 // exactly once (React `cache()` shares it between the metadata and the page); robots.txt and the
 // sitemap come through the shop with the shop's own URLs, each of a kind the shop routes
 // (support/sitemap-kinds.ts: an unknown kind fails). The backend's calls are read from its log
-// (FIREFLY_BACKEND_LOG). Read only, desktop only.
+// (FIREFLY_BACKEND_LOG, by default /tmp/backend.log): without it those three proofs skip, unless
+// `CI` or `E2E_REQUIRE_BACKEND_LOG=1` is set, where they fail (support/backend-log.ts). Read only,
+// desktop only.
 
 const CATEGORY = '/product-category/digital/mobile-phone/'
 const TRACKING =
   'utm_source=newsletter&utm_medium=email&utm_campaign=fall&gclid=e2e&fbclid=e2e&msclkid=e2e&yclid=e2e&_ga=1.2.3'
 
 const log = fileLog()
+
+/** A proof read from the backend's log: skipped without it, failed when a run requires it. */
+function needBackendLog() {
+  const mode = backendLogMode({ exists: existsSync(BACKEND_LOG), env: process.env })
+  if (mode === 'fail') {
+    throw new Error(
+      `The backend's log ${BACKEND_LOG} is missing, and CI or E2E_REQUIRE_BACKEND_LOG requires it: ` +
+        'start the backend with its output there, or set FIREFLY_BACKEND_LOG.',
+    )
+  }
+  test.skip(mode === 'skip', 'needs the dev backend’s log (FIREFLY_BACKEND_LOG)')
+}
 
 /** The backend's request lines written since `offset` that match `pattern`. */
 async function backendCalls(offset: number, pattern: RegExp): Promise<string[]> {
@@ -73,7 +88,7 @@ test.describe('SEO: URLs', () => {
   })
 
   test('tracking parameters never reach the API query (one cache key)', async ({ request }) => {
-    test.skip(!existsSync(BACKEND_LOG), 'needs the dev backend’s log')
+    needBackendLog()
     const offset = await log.size()
     // A price bound no other test asks for: a cache miss, so the API is called and logged.
     const bound = 1_000_000 + Math.floor(Math.random() * 1_000_000)
@@ -89,7 +104,7 @@ test.describe('SEO: URLs', () => {
   test('a listing page past its last: a 404, its API answer remembered a minute', async ({
     request,
   }) => {
-    test.skip(!existsSync(BACKEND_LOG), 'needs the dev backend’s log')
+    needBackendLog()
     const offset = await log.size()
     const page = 900 + Math.floor(Math.random() * 99)
     for (const path of [`${CATEGORY}?page=${page}`, `${CATEGORY}?page=${page}&utm_source=x`]) {
@@ -107,7 +122,7 @@ test.describe('SEO: URLs', () => {
   })
 
   test('a search results page calls the API’s search/ once', async ({ page }) => {
-    test.skip(!existsSync(BACKEND_LOG), 'needs the dev backend’s log')
+    needBackendLog()
     const term = 'شیائومی'
     const offset = await log.size()
     const response = await page.goto(`/search/?q=${encodeURIComponent(term)}`)

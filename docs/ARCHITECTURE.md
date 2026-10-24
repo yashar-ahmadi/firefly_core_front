@@ -1534,7 +1534,11 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   that left the cart unchanged (read again through the BFF), is logged as a warning and the
   visitor's action is repeated once; any other failure fails the test. A cart write a test makes
   itself (the checkout budget's seed line) goes through `requestCartWrite`, the same guard. No
-  retry in app code.
+  retry in app code. The same log proves three counts in `tests/e2e/seo-urls.spec.ts` (the
+  tracking parameters' one cache key, the past-the-end page's negative cache, one `search/` per
+  results page). Without the file those three skip on a developer's machine, but fail with a
+  message where the run must prove them: with `CI` set or `E2E_REQUIRE_BACKEND_LOG=1`
+  (`tests/e2e/support/backend-log.ts`).
 - **Signed-in specs** (Plan 3). Every login, and every logout, is one `auth_attempt` at the
   backend, 20 a minute per address for the whole run (the BFF forwards the visitor's address), so
   specs never log in per test or in a loop (`tests/e2e/support/session.ts`, which counts a full
