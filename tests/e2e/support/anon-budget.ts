@@ -2,8 +2,12 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 // The backend's anonymous budget across full runs (Plan 4 Task 10 fix round). THROTTLE_ANON is
-// 2000 requests an hour per address on the sample backend and a full run makes about 700 of
-// them (Task 10's measure), so a third full run within an hour meets 429 midway. The API says
+// 2000 requests an hour per address on the sample backend. A full run made about 700 of them in
+// Plan 4 (a third run within an hour met 429 midway); Plan 5's specs (the blog, content pages,
+// contact, the audits, the PWA: mostly a guest's pages) took it to about 1,400 (Plan 5 Task 9: a
+// second run started 16 minutes after the first met 429 seven minutes in, the bucket full with
+// about 3,800 requests of both in it, so about 53% of a run's 2,700 are anonymous). One full run
+// an hour, then: the next waits until the last one is an hour old. The API says
 // nothing of what is left before it refuses (no rate-limit headers; its counters live in the
 // server's memory), so the global setup keeps the start of every full run in a ledger on disk and
 // stops a full run at once when the full runs of the past hour leave too little for it ("wait N
@@ -11,7 +15,7 @@ import path from 'node:path'
 // exhausted budget still. `E2E_SKIP_ANON_LEDGER=1` skips it (a budget known to be free).
 
 export const ANON_BUDGET = 2000
-export const FULL_RUN_ANON = 700
+export const FULL_RUN_ANON = 1400
 export const WINDOW_MS = 3_600_000
 
 /** Options that filter the suite (a project, a grep, a shard, the last failures). */
@@ -66,7 +70,7 @@ export function ledgerVerdict(starts: readonly number[], now: number): string | 
   if (wait === null) return null
   const recent = starts.filter((start) => now - start < WINDOW_MS)
   return [
-    `${recent.length} full runs started in the past hour on this machine; with about`,
+    `${recent.length} full run${recent.length === 1 ? '' : 's'} started in the past hour on this machine; with about`,
     `${FULL_RUN_ANON} anonymous API calls each, one more would use up the backend's`,
     `${ANON_BUDGET} an hour per address (THROTTLE_ANON) midway. Wait ${wait} s, or set`,
     'E2E_SKIP_ANON_LEDGER=1 when the budget is known to be free. See docs/ARCHITECTURE.md',
