@@ -69,6 +69,28 @@ describe('the catalog', () => {
     act(() => result.current.withdrawGateway('ZIBAL'))
     expect(result.current.gateways.map(({ code }) => code)).toEqual(['ZARINPAL'])
   })
+
+  it('one refusal per gateway and amount, however often it is said', () => {
+    const served = catalog()
+    const { result } = renderHook(() => usePaymentCatalog(served))
+    act(() => result.current.withdrawGateway('ZIBAL', ONLINE))
+    act(() => result.current.withdrawGateway('ZIBAL', ONLINE))
+    act(() => result.current.withdrawGateway('ZIBAL', 2_000_000))
+    act(() => result.current.withdrawGateway('ZARINPAL'))
+    act(() => result.current.withdrawGateway('ZARINPAL'))
+    expect(result.current.refused).toEqual([
+      { code: 'ZIBAL', amount: ONLINE },
+      { code: 'ZIBAL', amount: 2_000_000 },
+      { code: 'ZARINPAL', amount: undefined },
+    ])
+  })
+
+  it('a refusal at 0 is at that amount, not page-wide', () => {
+    const served = catalog()
+    const { result } = renderHook(() => usePaymentCatalog(served))
+    act(() => result.current.withdrawGateway('ZIBAL', 0))
+    expect(result.current.gateways.map(({ code }) => code)).toEqual(['ZARINPAL', 'ZIBAL'])
+  })
 })
 
 describe('a refused intent', () => {

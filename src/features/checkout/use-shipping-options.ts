@@ -28,10 +28,7 @@ export const SHIPPING_OPTIONS_KEY = [...CART_KEY, 'shipping-options'] as const
  */
 export const retryOnce = (count: number, error: Error) =>
   !count &&
-  !(
-    error instanceof ApiError &&
-    (error.isFeatureDisabled() || Math.floor(error.status / 100) === 4)
-  )
+  !(error instanceof ApiError && (error.isFeatureDisabled() || ((error.status / 100) | 0) === 4))
 
 /** What the options depend on: the destination, the lines, the coupon, the money and weight. */
 export function optionsSignature(cart: Cart): string {

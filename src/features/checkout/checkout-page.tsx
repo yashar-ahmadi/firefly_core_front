@@ -104,7 +104,9 @@ export function CheckoutPage({
   useEffect(() => {
     let live = ready && !arrived
     if (live) void loadBody(step, signedIn, guests).then(() => live && setArrived(true))
-    return () => void (live = false)
+    return () => {
+      live = false
+    }
   }, [ready, arrived, step, signedIn, guests])
   // A choice that hangs (its read or write unanswered) holds the skeleton no longer: named after
   // 3 s, the steps after 8 s (before a write's own 10 s), each step's own skeleton, or the

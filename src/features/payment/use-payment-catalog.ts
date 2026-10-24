@@ -57,6 +57,10 @@ function merge(
   })
 }
 
+/** The refusal of `code` at `amount` (none: for any amount). */
+const refusal = (code: string, amount?: number) => (r: GatewayRefusal) =>
+  r.code === code && r.amount === amount
+
 export function usePaymentCatalog(initial: PaymentCatalog): PaymentCatalogState {
   const [methods, setMethods] = useState(initial.methods)
   const [gateways, setGateways] = useState<GatewayOption[]>(initial.gateways ?? [])
@@ -96,11 +100,14 @@ export function usePaymentCatalog(initial: PaymentCatalog): PaymentCatalogState 
     )
   return {
     methods,
-    gateways: gateways.filter((g) => !refused.some((r) => r.code === g.code && !r.amount)),
+    gateways: gateways.filter((g) => !refused.some(refusal(g.code))),
     refused,
     withdrawn,
     withdraw: (routes) => setWithdrawn((current) => [...new Set([...current, ...routes])]),
-    withdrawGateway: (code, amount) => setRefused((current) => [...current, { code, amount }]),
+    withdrawGateway: (code, amount) =>
+      setRefused((current) =>
+        current.some(refusal(code, amount)) ? current : [...current, { code, amount }],
+      ),
     refreshMethods,
     refreshGateways,
     gatewaysFailed,
