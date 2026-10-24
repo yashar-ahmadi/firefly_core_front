@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { CategoriesBrowser } from '@/components/layout/categories-browser'
 import { categoryNode, sampleTree } from './support'
 
+const MORE = 'زیردسته\u{200C}های گوشی موبایل'
+
 /** The sample tree with a third level under «گوشی موبایل». */
 function deepTree() {
   const tree = sampleTree()
@@ -51,17 +53,36 @@ describe('CategoriesBrowser', () => {
     )
   })
 
+  it('a child with children of its own is a link to its category, with a control for them', () => {
+    // It was a button only: neither it nor its children were links (Plan 5 Task 9, carried).
+    render(<CategoriesBrowser categories={deepTree()} />)
+    const panel = screen.getByRole('tabpanel')
+    expect(within(panel).getByRole('link', { name: 'گوشی موبایل' })).toHaveAttribute(
+      'href',
+      '/product-category/digital/mobile-phone/',
+    )
+    expect(within(panel).getByRole('button', { name: MORE })).toHaveTextContent('زیردسته\u{200C}ها')
+    // Its children are there, hidden until it is opened.
+    expect(
+      within(panel).getByRole('link', { name: 'گوشی سامسونگ', hidden: true }),
+    ).not.toBeVisible()
+    // A child without children has no control.
+    expect(within(panel).queryByRole('button', { name: /لپ تاپ/ })).toBeNull()
+  })
+
   it('opens deeper levels inside the page and goes back', async () => {
     const user = userEvent.setup()
     render(<CategoriesBrowser categories={deepTree()} />)
     const panel = screen.getByRole('tabpanel')
 
-    await user.click(within(panel).getByRole('button', { name: 'گوشی موبایل' }))
+    await user.click(within(panel).getByRole('button', { name: MORE }))
     expect(within(panel).getByRole('heading', { name: 'گوشی موبایل' })).toBeInTheDocument()
     expect(within(panel).getByRole('link', { name: 'گوشی سامسونگ' })).toHaveAttribute(
       'href',
       '/product-category/digital/mobile-phone/samsung/',
     )
+    expect(within(panel).getByRole('link', { name: 'گوشی سامسونگ' })).toBeVisible()
+    expect(within(panel).queryByRole('link', { name: 'گوشی موبایل' })).toBeNull()
     expect(within(panel).getByRole('link', { name: /مشاهده/ })).toHaveAttribute(
       'href',
       '/product-category/digital/mobile-phone/',
@@ -69,6 +90,29 @@ describe('CategoriesBrowser', () => {
 
     await user.click(within(panel).getByRole('button', { name: 'بازگشت' }))
     expect(within(panel).getByRole('heading', { name: 'کالای دیجیتال' })).toBeInTheDocument()
+    expect(within(panel).getByRole('link', { name: 'گوشی موبایل' })).toBeVisible()
+    expect(
+      within(panel).getByRole('link', { name: 'گوشی سامسونگ', hidden: true }),
+    ).not.toBeVisible()
+  })
+
+  it('the server’s HTML links every category at every depth, the deeper levels hidden', () => {
+    const html = new DOMParser().parseFromString(
+      renderToString(<CategoriesBrowser categories={deepTree()} />),
+      'text/html',
+    )
+    const hrefs = [...html.querySelectorAll('a[href]')].map((link) => link.getAttribute('href'))
+    expect(hrefs).toEqual([
+      '/product-category/digital/',
+      '/product-category/digital/mobile-phone/',
+      '/product-category/digital/laptop/',
+      '/product-category/digital/mobile-phone/samsung/',
+      '/product-category/home-appliance/',
+    ])
+    // The level below «گوشی موبایل» hidden, the root's own shown (another document's elements).
+    const list = (href: string) => html.querySelector(`a[href$="${href}"]`)!.closest('ul')!
+    expect(list('/samsung/').hasAttribute('hidden')).toBe(true)
+    expect(list('/mobile-phone/').hasAttribute('hidden')).toBe(false)
   })
 
   it('the server’s HTML links every root’s children, the inactive panels hidden', () => {
@@ -93,7 +137,7 @@ describe('CategoriesBrowser', () => {
   it('shows one panel at a time; a root chosen again starts at its own level', async () => {
     const user = userEvent.setup()
     render(<CategoriesBrowser categories={deepTree()} />)
-    await user.click(screen.getByRole('button', { name: 'گوشی موبایل' }))
+    await user.click(screen.getByRole('button', { name: MORE }))
     expect(screen.getByRole('tabpanel')).toHaveAccessibleName('کالای دیجیتال')
     await user.click(screen.getByRole('tab', { name: 'لوازم خانگی' }))
     expect(screen.getAllByRole('tabpanel')).toHaveLength(1)
@@ -101,6 +145,6 @@ describe('CategoriesBrowser', () => {
     expect(screen.queryByRole('heading', { name: 'گوشی موبایل' })).toBeNull()
     await user.click(screen.getByRole('tab', { name: 'کالای دیجیتال' }))
     expect(screen.getByRole('heading', { name: 'کالای دیجیتال' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'گوشی موبایل' })).toBeVisible()
+    expect(screen.getByRole('button', { name: MORE })).toBeVisible()
   })
 })

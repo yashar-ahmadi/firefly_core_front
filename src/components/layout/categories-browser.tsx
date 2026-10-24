@@ -17,12 +17,22 @@ const TILE = cn(
   'transition-colors hover:text-brand-700 [&_img]:transition-transform motion-safe:hover:[&_img]:scale-105',
 )
 
-/** The children of one root; a child with children of its own opens inside the page. */
+/** `node` and every category below it with children of its own: the levels a panel can show. */
+const levelsOf = (node: CategoryLinkNode): CategoryLinkNode[] =>
+  node.children.length > 0 ? [node, ...node.children.flatMap(levelsOf)] : []
+
+/**
+ * The children of one root. Every category is a link to its own page; one with children of its
+ * own also has a control that opens them inside the page. Every level is in the server's HTML
+ * (spec §8.13: crawlers and visitors without JavaScript get every link), the ones not open
+ * `hidden`, as the roots' panels are.
+ */
 function CategoryPanel({ root }: { root: CategoryLinkNode }) {
   const t = useT()
   const [trail, setTrail] = useState<CategoryLinkNode[]>([])
   const headingRef = useRef<HTMLHeadingElement>(null)
   const current = trail.at(-1) ?? root
+  const levels = levelsOf(root)
 
   // Move focus to the new heading, so keyboard and screen-reader users follow the change.
   const go = (next: CategoryLinkNode[]) => {
@@ -57,35 +67,36 @@ function CategoryPanel({ root }: { root: CategoryLinkNode }) {
           <ChevronLeft aria-hidden className="size-4 ltr:rotate-180" />
         </Link>
       </div>
-      {current.children.length > 0 ? (
-        <ul className="grid grid-cols-3 gap-x-2 gap-y-5 sm:grid-cols-4 lg:grid-cols-5">
-          {current.children.map((child) => {
-            const content = (
-              <>
+      {levels.length === 0 && <p className="text-base text-ink-600">{t('subcategories_empty')}</p>}
+      {levels.map((level) => (
+        <ul
+          key={level.id}
+          hidden={level !== current}
+          className="grid grid-cols-3 gap-x-2 gap-y-5 sm:grid-cols-4 lg:grid-cols-5"
+        >
+          {level.children.map((child) => (
+            <li key={child.id} className="flex flex-col items-center">
+              <Link href={categoryPath(child.path)} className={TILE}>
                 <CategoryThumb category={child} className="size-16 text-xl sm:size-20" />
                 <span className="line-clamp-2 text-sm leading-6 font-medium text-ink-800">
                   {child.name}
                 </span>
-              </>
-            )
-            return (
-              <li key={child.id}>
-                {child.children.length > 0 ? (
-                  <button type="button" className={TILE} onClick={() => go([...trail, child])}>
-                    {content}
-                  </button>
-                ) : (
-                  <Link href={categoryPath(child.path)} className={TILE}>
-                    {content}
-                  </Link>
-                )}
-              </li>
-            )
-          })}
+              </Link>
+              {child.children.length > 0 && (
+                <button
+                  type="button"
+                  aria-label={`زیردسته\u{200C}های ${child.name}`}
+                  onClick={() => go([...trail, child])}
+                  className="inline-flex min-h-11 cursor-pointer items-center gap-0.5 rounded-control px-2 text-sm font-medium text-brand-700 hover:text-brand-800"
+                >
+                  {'زیردسته\u{200C}ها'}
+                  <ChevronLeft aria-hidden className="size-4 ltr:rotate-180" />
+                </button>
+              )}
+            </li>
+          ))}
         </ul>
-      ) : (
-        <p className="text-base text-ink-600">{t('subcategories_empty')}</p>
-      )}
+      ))}
     </>
   )
 }
