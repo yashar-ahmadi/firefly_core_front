@@ -21,15 +21,15 @@ import { watchErrors } from './support/watch-errors'
 // counts a view).
 
 /**
- * One page of each indexable route type, and the JSON-LD types it must carry (none required of
- * the categories tab, which shows no trail; any block there must still parse).
+ * One page of each indexable route type, and the JSON-LD types it must carry (every block must
+ * parse).
  */
 const INDEXABLE: [name: string, path: string, types: string[]][] = [
   ['home', '/', ['Organization', 'WebSite']],
   ['category', '/product-category/digital/mobile-phone/', ['BreadcrumbList']],
   ['brand', '/brand/samsung/', ['BreadcrumbList']],
   ['brands index', '/brand/', ['BreadcrumbList']],
-  ['categories tab', '/categories/', []],
+  ['categories tab', '/categories/', ['BreadcrumbList']],
   ['list page', '/product/list/flagship-phones/', ['BreadcrumbList']],
   ['product', '/product/samsung-galaxy-s25-ultra/', ['Product', 'BreadcrumbList']],
   ['blog home', '/blog/', ['Blog', 'BreadcrumbList']],

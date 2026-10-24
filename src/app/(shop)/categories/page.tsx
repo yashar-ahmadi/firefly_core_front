@@ -6,6 +6,9 @@ import { MenuLink } from '@/components/layout/menu-link'
 import { slimCategories } from '@/components/layout/menu-tree'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { EmptyState } from '@/components/ui/empty-state'
+import { getStoreConfig } from '@/config/store-config'
+import { trailBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
+import { JsonLd } from '@/features/seo/json-ld'
 import { seoMetadata } from '@/features/seo/metadata'
 import { shopName } from '@/features/seo/shop-name'
 import { getCategoryTree, getMenu, getTranslations } from '@/features/settings/api'
@@ -23,7 +26,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * `/categories/`: the phone's "categories" tab, a two-pane browser of the category tree. On
  * wider screens it is a centred card. The header's short links are repeated above it on phones,
- * where the header has no row for them.
+ * where the header has no row for them. Indexable: its place in the shop (home ›
+ * «دسته‌بندی‌ها») is its BreadcrumbList JSON-LD, though it shows no trail.
  */
 export default async function CategoriesPage() {
   const [tree, headerMenu, translations] = await Promise.all([
@@ -36,6 +40,13 @@ export default async function CategoriesPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl md:px-6 md:py-8">
+      <JsonLd
+        data={trailBreadcrumb(
+          [{ name: t('categories'), path: PATH }],
+          getStoreConfig().siteUrl,
+          t('home'),
+        )}
+      />
       <h1 className="sr-only text-2xl leading-10 font-bold text-ink-900 md:not-sr-only md:mb-5">
         {t('categories')}
       </h1>

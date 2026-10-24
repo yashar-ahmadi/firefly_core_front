@@ -809,7 +809,8 @@ off, so no worker sits between the other specs and their routes and mocks.
   onto the shop's origin, else the shop's own: Organization and WebSite with a SearchAction on
   `/search/?q=` on the home page (`features/seo/organization-jsonld.tsx`, from the settings and
   socials; the backend's homepage has no structured data, so nothing is merged), FAQPage,
-  a BreadcrumbList from the visible trail (brand, brands index, blog home, pages), a ProfilePage of
+  a BreadcrumbList from the visible trail (brand, brands index, blog home, pages; the
+  categories tab, home › «دسته‌بندی‌ها», though it shows no trail), a ProfilePage of
   the shop on `/links/` (`linkerJsonLd`). All written by `JsonLd` (`<` escaped). The product's
   JSON-LD keeps the API's Rial prices labelled `IRR` (for search engines only, never shown);
   nothing the storefront builds carries a price. noindex: the cart, the checkout and its thanks
