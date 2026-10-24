@@ -1,9 +1,8 @@
 import 'server-only'
-import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import path from 'node:path'
 import type SharpModule from 'sharp'
 import { fallbackIcon } from '@/features/pwa/fallback-icons'
+import { monogramSvg } from '@/features/pwa/monogram'
 import { apiFileUrl, readApiImage } from '@/features/settings/api-image'
 
 // The installed app's icons (`/icons/<size>/`, src/app/icons/[size]/route.ts; the manifest names
@@ -11,11 +10,11 @@ import { apiFileUrl, readApiImage } from '@/features/settings/api-image'
 // logo, each read from the API host alone (api-image.ts: /media/ or /static/, no redirect, 3 s,
 // 2 MB, a raster image), contained in the central 56 % on white, which a maskable icon's safe
 // circle (80 %) holds whole. Without either, a monogram: the shop's first letter, white on the
-// brand colour, drawn with the bundled Vazirmatn (no system font is needed: the Docker image has
-// none), or a shopping bag when the font cannot draw it. When sharp cannot load or fails, the
-// bundled brand-neutral PNGs (fallback-icons.ts): the icons never fail. Each result is kept in
-// memory a day per source (five minutes when a source configured could not be read, or for the
-// bundled icon).
+// brand colour, an outline of the bundled Vazirmatn drawn as a path (monogram.ts: no font is
+// needed, and the Docker image has none), or a shopping bag for a letter it lacks. When sharp
+// cannot load or fails, the bundled brand-neutral PNGs (fallback-icons.ts): the icons never fail.
+// Each result is kept in memory a day per source (five minutes when a source configured could not
+// be read, or for the bundled icon).
 
 export type IconSize = 192 | 512
 
@@ -48,8 +47,6 @@ const MIN_FAVICON_PX = 128
 const ART = 0.56
 /** No decoding of a picture larger than this (a decompression bomb). */
 const MAX_PIXELS = 25_000_000
-/** Traced into the standalone output for this route (next.config.ts). */
-const FONT_FILE = path.join(process.cwd(), 'src/assets/fonts/vazirmatn/Vazirmatn-wght.woff2')
 const HEX = /^#[0-9a-f]{6}$/i
 const FALLBACK_COLOR = '#4F46E5'
 
@@ -97,58 +94,10 @@ async function onWhite(source: Source, size: IconSize): Promise<Buffer> {
     .toBuffer()
 }
 
-const escapeMarkup = (text: string) =>
-  text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-/** The shop's first letter, white, about half the icon's side; null when it cannot be drawn. */
-async function letter(name: string, size: IconSize): Promise<Buffer | null> {
-  const sharp = await loadSharp()
-  const first = Array.from(name.trim())[0]
-  if (!first || !existsSync(FONT_FILE)) return null
-  try {
-    const glyph = await sharp({
-      text: {
-        text: `<span foreground="#ffffff">${escapeMarkup(first.toLocaleUpperCase('en'))}</span>`,
-        font: 'Vazirmatn',
-        fontfile: FONT_FILE,
-        width: Math.round(size * 0.5),
-        height: Math.round(size * 0.5),
-        rgba: true,
-      },
-    })
-      .png()
-      .toBuffer()
-    // A font that drew nothing (no glyph for it): no letter.
-    const { channels } = await sharp(glyph).stats()
-    if ((channels[3]?.max ?? 0) === 0) return null
-    // To the glyph's own ink, so the centring is the letter's, not its line box's.
-    return await sharp(glyph).trim().png().toBuffer()
-  } catch {
-    return null
-  }
-}
-
-/** Lucide's shopping bag (ISC), white on the brand colour: needs no font. */
-function bag(color: string, size: IconSize): Buffer {
-  return Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">` +
-      `<rect width="24" height="24" fill="${color}"/>` +
-      '<g transform="translate(6.6 6.6) scale(0.45)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-      '<path d="M16 10a4 4 0 0 1-8 0"/><path d="M3.103 6.034h17.794"/>' +
-      '<path d="M3.4 5.467a2 2 0 0 0-.4 1.2V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6.667a2 2 0 0 0-.4-1.2l-2-2.667A2 2 0 0 0 17 2H7a2 2 0 0 0-1.6.8z"/>' +
-      '</g></svg>',
-  )
-}
-
 async function monogram(input: AppIconInput): Promise<Buffer> {
   const sharp = await loadSharp()
   const color = HEX.test(input.primary) ? input.primary : FALLBACK_COLOR
-  const glyph = await letter(input.name, input.size)
-  if (!glyph) return sharp(bag(color, input.size)).png().toBuffer()
-  return sharp({
-    create: { width: input.size, height: input.size, channels: 4, background: color },
-  })
-    .composite([{ input: glyph, gravity: 'center' }])
+  return sharp(Buffer.from(monogramSvg(input.name, color, input.size)))
     .png()
     .toBuffer()
 }

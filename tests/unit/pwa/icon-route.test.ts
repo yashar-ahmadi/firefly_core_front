@@ -161,6 +161,34 @@ describe('/icons/<size>/', () => {
   })
 })
 
+// The Docker image (Alpine) has no fontconfig: there sharp's text layout drew nothing and the
+// monogram was the brand colour alone. The letter is a path (src/features/pwa/monogram.ts).
+describe('the monogram needs no font', () => {
+  afterEach(() => {
+    vi.doUnmock('node:module')
+  })
+
+  it('sharp is never asked to lay out text', async () => {
+    const inputs: unknown[] = []
+    vi.doMock('node:module', async (importOriginal) => {
+      const actual = await importOriginal<typeof import('node:module')>()
+      const createRequire = (url: string | URL) => (id: string) => {
+        const real = actual.createRequire(url)(id)
+        if (id !== 'sharp') return real
+        return (input?: unknown, options?: unknown) => (inputs.push(input), real(input, options))
+      }
+      return { ...actual, createRequire }
+    })
+    mocks.settings = { name: 'فایرفلای', favicon: null, logo: null }
+    const res = await get('192')
+    expect(await pixel(await res.arrayBuffer(), 1, 1)).toBe('#0e7490')
+    expect(inputs.length).toBeGreaterThan(0)
+    expect(inputs.filter((input) => typeof input === 'object' && input && 'text' in input)).toEqual(
+      [],
+    )
+  })
+})
+
 describe('the source is read from the API host alone (SSRF)', () => {
   it('a settings URL on another host is read on the API host, its path and query only', async () => {
     mocks.settings = { name: 'x', favicon: 'https://evil.test/media/f.png?v=2', logo: null }
