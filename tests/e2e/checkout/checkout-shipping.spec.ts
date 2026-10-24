@@ -2,8 +2,11 @@ import { test as base, expect, type Page, type Response } from '@playwright/test
 import type { Cart } from '@/lib/api/types/cart'
 import type { Paginated } from '@/lib/api/types/common'
 import type { City, Province } from '@/lib/api/types/geo'
+import type { ShippingOptionList } from '@/lib/api/types/shipping'
 import { cartWrite } from '../support/cart-write'
+import { confirmGuestReceiver, seedGuestDestination } from '../support/checkout-states'
 import { shellHydrated } from '../support/hydrated'
+import { fulfilUnlessDropped, liveJson } from '../support/live-route'
 import { chooseShipping } from '../support/shipping-choice'
 import { watchErrors } from '../support/watch-errors'
 
@@ -129,5 +132,34 @@ test('a guest checks out up to shipping: receiver, Tehran, the default option ch
     .filter({ has: page.getByRole('term').filter({ hasText: 'هزینه\u{0654} ارسال' }) })
   await expect(row).toContainText(shippingRow(cart))
   await expect(summary).toContainText(toman(cart.total))
+  expect(errors).toEqual([])
+})
+
+test('no default option for the destination: the section asks, the shopper chooses', async ({
+  page,
+}) => {
+  const errors = watchErrors(page)
+  // The live options, each one's fare collected at the door: the operator has no default
+  // (`defaultOption` takes only a sender-paid one), so nothing is chosen for the shopper.
+  await page.route(/\/api\/bff\/cart\/shipping\/option\/list\/$/, async (route) => {
+    const live = await liveJson<{ data: ShippingOptionList }>(route)
+    if (live === null) return route.abort().catch(() => {})
+    const { data } = live.body
+    data.options = data.options.map((option) => ({ ...option, freight_payer: 'recipient' }))
+    await fulfilUnlessDropped(route, { response: live.response, json: live.body })
+  })
+  await confirmGuestReceiver(page, await seedGuestDestination(page))
+  const before = await page.request.get('/api/bff/cart/', { headers: BFF })
+  await page.goto('/checkout/')
+  const shipping = page.getByRole('region', { name: /روش ارسال/ })
+  await expect(shipping).toHaveAttribute('data-state', 'active')
+  const { response, auto } = await chooseShipping(page, shipping, {
+    before: ((await before.json()) as { data: Cart }).data,
+  })
+  expect(auto, 'the shopper chose: no default to choose').toBe(false)
+  const cart = await cartOf(response)
+  expect(cart.shipping.is_selected && cart.shipping.is_available).toBe(true)
+  await expect(shipping).toHaveAttribute('data-state', 'done')
+  await expect(shipping).toContainText(cart.shipping.title!)
   expect(errors).toEqual([])
 })

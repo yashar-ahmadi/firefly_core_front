@@ -68,11 +68,12 @@ async function geo<T>(page: Page, path: string): Promise<T[]> {
 }
 
 /**
- * This context's guest cart ready to place: a product, Tehran as its destination and the
- * operator's default shipping option chosen (else the first available, as a shopper would),
- * each through the cart-write guard. Also the payment link's journey's start (guest-order.ts).
+ * This context's guest cart with a product and Tehran as its destination (one of its cities),
+ * nothing chosen yet; each write through the cart-write guard.
  */
-export async function seedGuestCart(page: Page): Promise<{ province: number; city: number }> {
+export async function seedGuestDestination(
+  page: Page,
+): Promise<{ province: number; city: number }> {
   await seedCart(page)
   const tehran = (await geo<Province>(page, 'province/list/?limit=1500')).find(
     (province) => province.name === 'تهران',
@@ -86,7 +87,7 @@ export async function seedGuestCart(page: Page): Promise<{ province: number; cit
     {
       method: 'POST',
       path: 'cart/destination/',
-      label: "cart/destination/ for the review's measure",
+      label: "cart/destination/ for a guest's seeded cart",
     },
     () =>
       page.request.post('/api/bff/cart/destination/', {
@@ -94,6 +95,17 @@ export async function seedGuestCart(page: Page): Promise<{ province: number; cit
         data: { province: tehran!.id, city: city!.id },
       }),
   )
+  return { province: tehran!.id, city: city!.id }
+}
+
+/**
+ * This context's guest cart ready to place: a product, Tehran as its destination
+ * (`seedGuestDestination`) and the operator's default shipping option chosen (else the first
+ * available, as a shopper would), each through the cart-write guard. Also the payment link's
+ * journey's start (guest-order.ts).
+ */
+export async function seedGuestCart(page: Page): Promise<{ province: number; city: number }> {
+  const destination = await seedGuestDestination(page)
   const list = await page.request.get('/api/bff/cart/shipping/option/list/', { headers: BFF })
   expect(list.ok(), 'cart/shipping/option/list/').toBe(true)
   const { options } = ((await list.json()) as { data: ShippingOptionList }).data
@@ -104,7 +116,7 @@ export async function seedGuestCart(page: Page): Promise<{ province: number; cit
     {
       method: 'POST',
       path: 'cart/shipping/select/',
-      label: "cart/shipping/select/ for the review's measure",
+      label: "cart/shipping/select/ for a guest's seeded cart",
     },
     () =>
       page.request.post('/api/bff/cart/shipping/select/', {
@@ -112,16 +124,17 @@ export async function seedGuestCart(page: Page): Promise<{ province: number; cit
         data: { code: option!.code, cash_on_delivery: false },
       }),
   )
-  return { province: tehran!.id, city: city!.id }
+  return destination
 }
 
 /**
- * A guest back at the checkout (`guest-review`): the cart ready to place (`seedGuestCart`) and,
- * in this tab's sessionStorage before any page script runs, the receiver the guest confirmed
- * with «ادامه».
+ * The receiver a guest confirmed with «ادامه» (in `province` and `city`), in this tab's
+ * sessionStorage before any page script runs: the receiver step done.
  */
-async function seedGuestReview(page: Page): Promise<void> {
-  const { province, city } = await seedGuestCart(page)
+export async function confirmGuestReceiver(
+  page: Page,
+  { province, city }: { province: number; city: number },
+): Promise<void> {
   const draft = JSON.stringify({
     values: {
       province,
@@ -147,6 +160,14 @@ async function seedGuestReview(page: Page): Promise<void> {
     },
     [RECEIVER_DRAFT_KEY, draft],
   )
+}
+
+/**
+ * A guest back at the checkout (`guest-review`): the cart ready to place (`seedGuestCart`) and
+ * the receiver the guest confirmed (`confirmGuestReceiver`).
+ */
+async function seedGuestReview(page: Page): Promise<void> {
+  await confirmGuestReceiver(page, await seedGuestCart(page))
 }
 
 /** This context set up for `state` before its page loads (a guest's cart, refused writes). */
