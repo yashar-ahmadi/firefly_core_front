@@ -40,11 +40,12 @@ const FORM_TITLE_ID = 'contact-form-title'
  * is the error page), the content page never fails it (`getContactPage`).
  */
 export default async function ContactRoute() {
-  const [page, subjects, settings, translations] = await Promise.all([
+  const [page, subjects, settings, translations, shop] = await Promise.all([
     getContactPage(),
     getContactSubjects(),
     getSiteSettings(),
     getTranslations(),
+    shopName(),
   ])
   const title = contactHeading(page)
   const html = page?.content ? richContentHtml(page.content) : null
@@ -54,7 +55,7 @@ export default async function ContactRoute() {
       {propertyMetaTags(page?.meta_tags ?? []).map((tag, index) => (
         <meta key={`${tag.field}-${index}`} property={tag.field.trim()} content={tag.value} />
       ))}
-      <JsonLd data={contactJsonLd(page, getStoreConfig().siteUrl)} />
+      <JsonLd data={contactJsonLd(page, getStoreConfig().siteUrl, shop)} />
       {page?.is_unpublished && (
         <PreviewBar className="max-w-3xl">{'پیش\u{200C}نویس — منتشر نشده'}</PreviewBar>
       )}

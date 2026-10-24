@@ -3,6 +3,7 @@ import { contentPagePath } from '@/features/content/pages/page-routes'
 import { trailBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { canonicalFor } from '@/features/seo/canonical'
 import { pageMetadata } from '@/features/seo/page-metadata'
+import { webPageJsonLd } from '@/features/seo/web-page-json-ld'
 import type { BreadcrumbListJsonLd } from '@/lib/api/types/catalog'
 import type { PageDetail } from '@/lib/api/types/page'
 
@@ -44,11 +45,28 @@ export function contentPageMetadata(page: PageDetail, shop: string, siteUrl: str
   })
 }
 
+/** The operator's «about us» page's slug: an AboutPage. */
+const ABOUT_SLUG = 'about-us'
+
 /**
  * The page's JSON-LD (seo digest §7.1: the API gives pages neither `structured_data` nor a
- * breadcrumb, so no WebPage of its own): the visible trail, «خانه» then the page, on the
+ * breadcrumb): the page's own node, a WebPage (an AboutPage for `about-us`) with its title, URL,
+ * description (as the head's) and language, then the visible trail, «خانه» then the page, on the
  * storefront's origin. Written escaped by `JsonLd`.
  */
-export function contentPageJsonLd(page: PageDetail, siteUrl: string): BreadcrumbListJsonLd {
-  return trailBreadcrumb([{ name: page.title, path: contentPagePath(page.slug) }], siteUrl, 'خانه')
+export function contentPageJsonLd(
+  page: PageDetail,
+  siteUrl: string,
+): [object, BreadcrumbListJsonLd] {
+  const path = contentPagePath(page.slug)
+  return [
+    webPageJsonLd({
+      type: page.slug === ABOUT_SLUG ? 'AboutPage' : 'WebPage',
+      name: page.title,
+      path,
+      description: page.page_description || page.description,
+      siteUrl,
+    }),
+    trailBreadcrumb([{ name: page.title, path }], siteUrl, 'خانه'),
+  ]
 }

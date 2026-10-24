@@ -36,9 +36,12 @@ const INDEXABLE: [name: string, path: string, types: string[]][] = [
   ['blog home', '/blog/', ['Blog', 'BreadcrumbList']],
   ['post', POST_PATH, ['BlogPosting', 'BreadcrumbList']],
   ['blog category', '/blog/category/buying-guide/', ['CollectionPage', 'BreadcrumbList']],
-  ['page', '/page/about-us/', ['BreadcrumbList']],
+  // A content page names itself (the API gives it no structured data): an AboutPage for
+  // `about-us`, a WebPage otherwise, a ContactPage at /contact-us/.
+  ['page', '/page/about-us/', ['AboutPage', 'BreadcrumbList']],
+  ['page (any other)', '/page/terms/', ['WebPage', 'BreadcrumbList']],
   ['FAQ', '/faq/', ['FAQPage']],
-  ['contact', '/contact-us/', ['BreadcrumbList']],
+  ['contact', '/contact-us/', ['ContactPage', 'BreadcrumbList']],
   ['linker', '/links/', ['ProfilePage']],
 ]
 

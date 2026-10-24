@@ -3,6 +3,7 @@ import { CONTACT_US_PATH } from '@/features/content/pages/page-routes'
 import { contentPageTitle } from '@/features/content/pages/page-seo'
 import { trailBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { pageMetadata } from '@/features/seo/page-metadata'
+import { webPageJsonLd } from '@/features/seo/web-page-json-ld'
 import type { BreadcrumbListJsonLd } from '@/lib/api/types/catalog'
 import type { PageDetail } from '@/lib/api/types/page'
 
@@ -15,6 +16,12 @@ export function contactHeading(page: PageDetail | null): string {
   return page?.title.trim() || CONTACT_TITLE
 }
 
+/** The page's description: the operator's page's, else a sentence of our own naming the shop. */
+function contactDescription(page: PageDetail | null, shop: string): string {
+  const fallback = `راه\u{200C}های تماس با ${shop}: تلفن، ایمیل، آدرس و فرم ارسال پیام.`
+  return page?.page_description || page?.description || fallback
+}
+
 /**
  * The contact page's head (`pageMetadata`: keys without a value left out): with the operator's
  * `contact-us` page, its title (`contentPageTitle`), description, keywords and `name=` meta rows
@@ -24,10 +31,9 @@ export function contactHeading(page: PageDetail | null): string {
  * staff preview of a draft is `noindex, nofollow`.
  */
 export function contactMetadata(page: PageDetail | null, shop: string): Metadata {
-  const fallback = `راه\u{200C}های تماس با ${shop}: تلفن، ایمیل، آدرس و فرم ارسال پیام.`
   return pageMetadata({
     title: page ? contentPageTitle(page, shop) : `${CONTACT_TITLE} | ${shop}`,
-    description: page?.page_description || page?.description || fallback,
+    description: contactDescription(page, shop),
     keywords: page?.page_keywords,
     canonical: CONTACT_US_PATH,
     siteName: shop,
@@ -38,7 +44,24 @@ export function contactMetadata(page: PageDetail | null, shop: string): Metadata
   })
 }
 
-/** The visible trail as JSON-LD: «خانه», then the contact page, on the storefront's origin. */
-export function contactJsonLd(page: PageDetail | null, siteUrl: string): BreadcrumbListJsonLd {
-  return trailBreadcrumb([{ name: contactHeading(page), path: CONTACT_US_PATH }], siteUrl, 'خانه')
+/**
+ * The contact page's JSON-LD: its ContactPage (its heading, URL, the head's description,
+ * language), then the visible trail, «خانه» then the contact page, on the storefront's origin.
+ */
+export function contactJsonLd(
+  page: PageDetail | null,
+  siteUrl: string,
+  shop: string,
+): [object, BreadcrumbListJsonLd] {
+  const name = contactHeading(page)
+  return [
+    webPageJsonLd({
+      type: 'ContactPage',
+      name,
+      path: CONTACT_US_PATH,
+      description: contactDescription(page, shop),
+      siteUrl,
+    }),
+    trailBreadcrumb([{ name, path: CONTACT_US_PATH }], siteUrl, 'خانه'),
+  ]
 }

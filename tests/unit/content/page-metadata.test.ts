@@ -116,7 +116,7 @@ describe('contentPageMetadata', () => {
 
 describe('contentPageJsonLd', () => {
   it('the trail on the shop’s origin, «خانه» then the page; escaped when written', () => {
-    const data = contentPageJsonLd(pageFixture({ title: 'درباره </script> ما' }), SITE)
+    const [, data] = contentPageJsonLd(pageFixture({ title: 'درباره </script> ما' }), SITE)
     expect(data).toMatchObject({
       '@type': 'BreadcrumbList',
       itemListElement: [
@@ -124,6 +124,6 @@ describe('contentPageJsonLd', () => {
         { position: 2, name: 'درباره </script> ما', item: 'https://shop.ir/page/about-us/' },
       ],
     })
-    expect(jsonLdString(data)).not.toContain('</script>')
+    expect(jsonLdString(data!)).not.toContain('</script>')
   })
 })
