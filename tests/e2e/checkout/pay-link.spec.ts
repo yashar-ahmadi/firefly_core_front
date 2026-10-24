@@ -1,5 +1,6 @@
 import { expect, type Page, type Response } from '@playwright/test'
 import { toPersianDigits } from '@/lib/format/digits'
+import { pressUntilBankCloses } from '../support/bank-refusals'
 import { waitForCredentialPath } from '../support/credential-url'
 import { placeGuestOrder } from '../support/guest-order'
 import {
@@ -16,8 +17,9 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // guest, one at a time): a guest order left awaiting payment (placed through the BFF, no intent),
 // opened as the SMS spells it, WITHOUT the trailing slash (308 to the page, the token kept, no
 // referrer, no operator snippet). The page shows the order and its routes. The dev backend cannot
-// run a bank (digest §11 #3): a named gateway answers 400 `gateway_unknown` (withdrawn, the other
-// one tried with a press), an unnamed one 503 `gateway_not_configured`; either way the page says
+// run a bank (digest §11 #3): a named gateway answers 400 `gateway_unknown` (withdrawn, the next
+// one tried with a press until none is left: support/bank-refusals.ts), an unnamed one 503
+// `gateway_not_configured`; either way the page says
 // the bank cannot be used here, with support, and never navigates. Card to card opens an attempt
 // (a full load to its page, card-transfer.spec.ts's subject); back on the link the attempt's resume UI shows
 // instead of the routes, and its «انصراف» cancels it; the bank's return page then reads that
@@ -93,15 +95,10 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
   const first = page.waitForResponse(isIntent)
   await press()
   const bank = await first
-  forgiveFailure(page, bank.url(), bank.status())
   if (bank.status() === 400) {
-    await expect(payAlert(page)).toContainText('این درگاه در حال حاضر در دسترس نیست')
-    const second = page.waitForResponse(isIntent)
-    await press()
-    const again = await second
-    forgiveFailure(page, again.url(), again.status())
-    expect(again.status()).toBe(400)
+    await pressUntilBankCloses(page, { first: bank, alert: payAlert(page), press, isIntent })
   } else {
+    forgiveFailure(page, bank.url(), bank.status())
     expect(bank.status()).toBe(503)
   }
   const alert = payAlert(page)

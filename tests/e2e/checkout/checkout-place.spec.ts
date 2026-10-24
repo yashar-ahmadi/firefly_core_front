@@ -3,6 +3,7 @@ import type { Cart } from '@/lib/api/types/cart'
 import type { Paginated } from '@/lib/api/types/common'
 import type { City, Province } from '@/lib/api/types/geo'
 import type { OrderPlacementResult } from '@/lib/api/types/order'
+import { namedGateway, pressUntilBankCloses } from '../support/bank-refusals'
 import { cartWrite } from '../support/cart-write'
 import { shellHydrated } from '../support/hydrated'
 import { orderGuardTest as test } from '../support/order-guard'
@@ -16,8 +17,9 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // intent goes through the guest's link door. The dev backend cannot run a gateway (digest §11
 // #3): a named gateway (the chooser shows, so its gateway is sent) answers `400 gateway_unknown`,
 // an unnamed one `503 gateway_not_configured`. Either way the page must not navigate, must say
-// so and keep the order with its routes. Named: that gateway is withdrawn, the other one is tried
-// with a press and refused too, and the bank routes close (two intents). Whatever happens, the
+// so and keep the order with its routes. Named: that gateway is withdrawn, the next one is tried
+// with a press and refused too, and so on until the bank routes close (one intent per gateway the
+// page offers, two with today's dev data: support/bank-refusals.ts). Whatever happens, the
 // order is cancelled through its link (`POST order/pay/<token>/cancel/`, allowed while it awaits
 // payment) by the `orders` guard (support/order-guard.ts, a fixture: also after a timeout): the
 // token is taken from any 2xx placement the page receives, before anything is asserted. Per run: 1 placement, 2 payment intents (1 when the dev bank
@@ -129,13 +131,7 @@ test('a guest places an order; the dev bank is not configured: no navigation, th
   expect(placement.request().headers()['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/)
 
   const bank = await intent
-  const named = 'gateway_code' in (bank.request().postDataJSON() as object)
-  const code = ((await bank.json()) as { data: { errors: { code: string }[] } }).data.errors[0]!
-    .code
-  expect([bank.status(), code]).toEqual(
-    named ? [400, 'gateway_unknown'] : [503, 'gateway_not_configured'],
-  )
-  forgiveFailure(page, bank.url(), bank.status())
+  const named = namedGateway(bank) !== undefined
 
   // No navigation: the order stays here with what happened and its routes.
   const placedOrder = page.getByRole('region', { name: 'سفارش شما ثبت شد' })
@@ -144,24 +140,25 @@ test('a guest places an order; the dev bank is not configured: no navigation, th
   const routes = page.getByRole('radiogroup', { name: 'روش\u{200C}های پرداخت' })
   await expect(routes.getByRole('radio', { name: /کارت به کارت/ })).toBeVisible()
   if (named) {
-    // The gateway tried is withdrawn for the page (the list read again); the bank stays
-    // offered with the other one, which a press tries. Refused too, none is left: the bank
-    // routes close with their reason, and the support line.
-    await expect(alert).toContainText('این درگاه در حال حاضر در دسترس نیست')
+    // Each gateway tried is withdrawn for the page (the list read again); the bank stays
+    // offered with the next one, which a press tries, until none is left: the bank routes close
+    // with their reason, and the support line.
     const bankRoute = routes.getByRole('radio', { name: /درگاه بانکی/ })
-    await expect(bankRoute).toBeEnabled()
-    const again = page.waitForResponse(isIntent)
-    await placedOrder.getByRole('button', { name: 'پرداخت سفارش' }).click()
-    const second = await again
-    const tried = (response: Response) =>
-      (response.request().postDataJSON() as { gateway_code?: string }).gateway_code
-    expect(tried(second), 'never the withdrawn gateway again').not.toBe(tried(bank))
-    expect(second.status()).toBe(400)
-    forgiveFailure(page, second.url(), 400)
-    await expect(alert).toContainText('پرداخت با درگاه بانکی در این فروشگاه اکنون ممکن نیست')
+    const tried = await pressUntilBankCloses(page, {
+      first: bank,
+      alert,
+      press: () => placedOrder.getByRole('button', { name: 'پرداخت سفارش' }).click(),
+      isIntent,
+      bankRoute,
+    })
+    expect(tried.length, 'the gateways the chooser offered, each once').toBeGreaterThan(1)
     await expect(alert.getByRole('link', { name: /پشتیبانی/ })).toBeVisible()
     await expect(bankRoute).toBeDisabled()
   } else {
+    const code = ((await bank.json()) as { data: { errors: { code: string }[] } }).data.errors[0]!
+      .code
+    expect([bank.status(), code]).toEqual([503, 'gateway_not_configured'])
+    forgiveFailure(page, bank.url(), bank.status())
     // The bank routes gone, the support line.
     await expect(alert).toContainText('پرداخت با درگاه بانکی در این فروشگاه اکنون ممکن نیست')
     await expect(alert.getByRole('link', { name: /پشتیبانی/ })).toBeVisible()

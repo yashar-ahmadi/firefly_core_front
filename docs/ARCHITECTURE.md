@@ -1550,8 +1550,10 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   comment for real instead (desktop only, once: it stays pending for the operator to reject). A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
   mobile each run, for the guest's unpaid-orders ceiling; the dev backend answers a bank intent
   `400 gateway_unknown` when a gateway is named (the chooser shows), and the page withdraws that
-  gateway for itself and tries the other with a press, refused too, until the bank routes close;
-  `503 gateway_not_configured` when none is named; two of the 30 an hour of `payment_attempt`)
+  gateway for itself and tries the next with a press, refused too, until the bank routes close
+  (`support/bank-refusals.ts`: one press per gateway the page offers, never one tried before,
+  however many the dev data lists); `503 gateway_not_configured` when none is named; two of the 30
+  an hour of `payment_attempt` with today's two gateways)
   and hands it to the `orders` guard (`tests/e2e/support/order-guard.ts`), so the dev database
   keeps no open unpaid order: a fixture whose teardown runs however the test ends (a timeout
   included), with request contexts of its own, cancels every payment attempt the test opened and
