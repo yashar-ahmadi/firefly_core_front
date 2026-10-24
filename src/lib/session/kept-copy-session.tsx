@@ -14,7 +14,8 @@ import { useSession } from './session-context'
  * page's own reads went out with the visitor's cookies, so nothing else differs, and nothing is
  * asked of a network that may be gone (a router refresh that fails offline turns into a full load
  * of the same copy): no reload, no loop. A session without the cookie is left to the session's
- * end, as on any page. The shop layout mounts it with the PWA on; it renders nothing.
+ * end, as on any page. Mounted by each kept shop page, the home page alone (with the PWA on);
+ * renders nothing.
  */
 export function KeptCopySession(): null {
   const { hasSession, setHasSession } = useSession()

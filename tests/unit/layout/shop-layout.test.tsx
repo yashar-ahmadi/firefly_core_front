@@ -26,9 +26,6 @@ vi.mock('@/features/quick-view/quick-view-host', () => ({
 vi.mock('@/features/pwa/install-prompt-slot', () => ({
   InstallPromptSlot: () => <div>install-prompt</div>,
 }))
-vi.mock('@/lib/session/kept-copy-session', () => ({
-  KeptCopySession: () => <div>kept-copy-session</div>,
-}))
 vi.mock('@/config/store-config', () => ({
   getStoreConfig: () => ({
     features: { compare: mocks.compare, quickView: mocks.quickView, pwa: mocks.pwa },
@@ -48,8 +45,6 @@ describe('the shop layout', () => {
     expect(screen.getByText('compare-bar')).toBeInTheDocument()
     expect(screen.getByText('quick-view-host')).toBeInTheDocument()
     expect(screen.getByText('install-prompt')).toBeInTheDocument()
-    // With the PWA on, a page may be the worker's kept copy: its session state is set right.
-    expect(screen.getByText('kept-copy-session')).toBeInTheDocument()
   })
 
   it('keeps the page and the other widgets when one widget fails to render', () => {
@@ -78,6 +73,5 @@ describe('the shop layout', () => {
     expect(screen.queryByText('compare-bar')).toBeNull()
     expect(screen.queryByText('quick-view-host')).toBeNull()
     expect(screen.queryByText('install-prompt')).toBeNull()
-    expect(screen.queryByText('kept-copy-session')).toBeNull()
   })
 })

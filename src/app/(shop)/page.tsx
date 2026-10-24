@@ -12,6 +12,7 @@ import { RecentlyViewedStrip } from '@/features/recently-viewed/strip'
 import { OrganizationJsonLd } from '@/features/seo/organization-jsonld'
 import { propertyMetaTags } from '@/features/seo/page-metadata'
 import { getSiteSettings } from '@/features/settings/api'
+import { KeptCopySession } from '@/lib/session/kept-copy-session'
 
 /** The homepage SEO fields over the shop's name and slogan (content.md §6.9). */
 export async function generateMetadata(): Promise<Metadata> {
@@ -27,7 +28,10 @@ export async function generateMetadata(): Promise<Metadata> {
  * visitor's recently viewed products. No loading.tsx and no Suspense before the homepage: when
  * it cannot be loaded `getHomePage()` throws before anything streams, so the error page answers
  * with a real error status. The recently viewed strip is read on the device after hydration.
- * The shop's Organization and WebSite JSON-LD (server-rendered: no client JavaScript).
+ * The shop's Organization and WebSite JSON-LD (server-rendered: no client JavaScript). With the
+ * PWA on, the service worker keeps this page's anonymous copy (`OFFLINE_PAGES`): `KeptCopySession`
+ * sets a signed-in visitor's session right when that copy is shown (here alone: no other shop page
+ * is ever kept, and its code would cost every one of them).
  */
 export default async function ShopHomePage() {
   const config = getStoreConfig()
@@ -39,6 +43,7 @@ export default async function ShopHomePage() {
         <meta key={`${tag.field}-${index}`} property={tag.field.trim()} content={tag.value} />
       ))}
       <OrganizationJsonLd />
+      {config.features.pwa && <KeptCopySession />}
       <h1 className="sr-only">{storeName(config, settings)}</h1>
       <div className={cn(CONTAINER, 'flex flex-col gap-8 pt-4 pb-10 md:gap-12 md:pt-6 md:pb-14')}>
         {/* The operator's `home` message slot, under the first section (the hero, usually):
