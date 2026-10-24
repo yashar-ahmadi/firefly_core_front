@@ -150,6 +150,15 @@ describe('SiteHeader', () => {
     expect(links[1].querySelector('[dir="ltr"]')).toHaveTextContent('۰۲۱ ۹۱۰۰ ۰۰۰۰')
   })
 
+  it('paints the phone header white behind its two rows (no seam at a fractional pixel ratio)', async () => {
+    // At 2.625 (a Pixel 7) the rows meet at 317.625 device px: each row's edge is antialiased
+    // and the page showed through as a grey line. The header moves as one below md (compact), so
+    // its own white is safe there; from md the second row tucks behind the first, so not there.
+    await renderHeader()
+    expect(screen.getByRole('banner')).toHaveClass('max-md:bg-white')
+    expect(screen.getByRole('banner')).not.toHaveClass('bg-white')
+  })
+
   it('names the main navigation and lists the header links', async () => {
     await renderHeader()
     const nav = screen.getByRole('navigation', { name: 'منوی اصلی' })

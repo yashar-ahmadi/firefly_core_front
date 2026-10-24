@@ -50,6 +50,10 @@ export async function SiteHeader() {
         className={cn(
           'pointer-events-none sticky top-0 z-40 transition-transform duration-200 ease-out',
           'max-md:has-[[data-topbar]_:focus-visible]:translate-y-0 max-md:compact:-translate-y-14',
+          // White behind the phone's two rows: where they meet at a fractional device pixel
+          // (2.625 on a Pixel 7) the page showed through as a grey line. Not from md, where the
+          // second row tucks behind the first and the header's own white would stay behind.
+          'max-md:bg-white',
         )}
       >
         <div data-topbar="" className="pointer-events-auto relative z-10 bg-white">
