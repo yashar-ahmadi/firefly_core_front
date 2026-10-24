@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { checkoutReached, leaveCheckout, prepareCheckout } from '../support/checkout-states'
+import { shiftTotal, watchShifts } from '../support/layout-shifts'
 
 // The checkout's layout stays put while its open step's body arrives (Plan 5 Task 8: Lighthouse
 // measured a CLS of 0.46 on a guest's /checkout/). Each step's body is its own chunk
@@ -7,27 +8,6 @@ import { checkoutReached, leaveCheckout, prepareCheckout } from '../support/chec
 // the steps below it down by a page when the body came. Measured as the browser does
 // (`layout-shift` entries without recent input), the guest's receiver step and the review, on a
 // phone and a desktop. Writes: this context's own guest cart, cleared after.
-
-/** Layout shifts the page made by itself, summed from navigation on (the CLS before input). */
-async function watchShifts(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const shifts: number[] = []
-    Object.assign(window, { __shifts: shifts })
-    new PerformanceObserver((list) => {
-      for (const entry of list.getEntries() as (PerformanceEntry & {
-        value: number
-        hadRecentInput: boolean
-      })[]) {
-        if (!entry.hadRecentInput) shifts.push(entry.value)
-      }
-    }).observe({ type: 'layout-shift', buffered: true })
-  })
-}
-
-const shiftTotal = (page: Page) =>
-  page.evaluate(() =>
-    ((window as unknown as { __shifts: number[] }).__shifts ?? []).reduce((a, b) => a + b, 0),
-  )
 
 test.describe('the checkout keeps still while a step’s body arrives', () => {
   test.beforeEach(({}, testInfo) => {
@@ -47,11 +27,6 @@ test.describe('the checkout keeps still while a step’s body arrives', () => {
           `section[data-step="${state === 'guest' ? 'receiver' : 'review'}"]`,
         )
         await expect(body.locator('form, button[type="submit"]').first()).toBeVisible()
-        // Two frames for the shift of the body's own arrival to be reported.
-        await page.evaluate(
-          () =>
-            new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-        )
         const cls = await shiftTotal(page)
         console.log(`[cls] checkout ${state} ${testInfo.project.name}: ${cls.toFixed(3)}`)
         expect(cls).toBeLessThan(0.1)

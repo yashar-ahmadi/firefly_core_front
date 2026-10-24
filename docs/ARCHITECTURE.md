@@ -1184,7 +1184,14 @@ off, so no worker sits between the other specs and their routes and mocks.
   filters (379 elements on `/product/list/`, hidden below lg) were server-rendered and hydrated
   on phones too; they now render from lg only (`SidebarFilters`): alternating A/B against
   4519cb4, 7 runs each, the listing's median 624 → 462 ms and the phones category 601 → 408 ms
-  (the lazy mega-menu alone did not move the listing: 632 vs 690, noise). Tried and dropped: a
+  (the lazy mega-menu alone did not move the listing: 632 vs 690, noise). Until the viewport is
+  known, and below lg, the panel's static outline stands in (`FilterPanelSkeleton`, a Server
+  Component passed as `fallback`: its switches, each group's title and a 44 px row per option,
+  the brand search box, the price block and the swatch pills, about 85 plain elements on a phone),
+  as tall as the panel to the pixel (`catalog/sidebar-stability.spec.ts` compares the two with
+  and without JavaScript), so a desktop's panel moves nothing: an empty filtered listing's footer
+  shifted (CLS 0.0101 at 1440×900, now 0). It costs the listings 4 B of JavaScript and no phone
+  blocking time (A/B against Task 8, 7 runs: within noise). Tried and dropped: a
   Suspense boundary per card (36 separate commits, but in one 1 s task), a plain `<a>` instead
   of `next/link` (no change), no web font (worse). Not done: the card's RSC rows (about 4 KB each,
   mostly Tailwind class strings; the compare item repeats the card's name and image) are small
