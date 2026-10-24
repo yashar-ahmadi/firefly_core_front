@@ -39,7 +39,7 @@ import { NO_WAIT, restartWait, type Wait } from '@/lib/forms/waits'
 import { useSession } from '@/lib/session/session-context'
 import { MY_COMMENTS_KEY, SUMMARY_KEY } from '@/lib/session/viewer-queries'
 
-const DONE = 'نظر شما ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
+const DONE = 'دیدگاه شما ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
 
 export interface SubjectCommentFormProps extends ComposerFormProps {
   subject: CommentSubject

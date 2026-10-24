@@ -85,6 +85,18 @@ describe('SubjectCommentComposer: a post’s form', () => {
     expect(await textBox()).toHaveValue('')
   })
 
+  // The API's 201 always has its `msg` today; without one the form says it, in the UI's word.
+  it('without the API’s msg: the form’s own notice, «دیدگاه» as the buttons say', async () => {
+    mocks.bffFetch.mockResolvedValue({ data: {}, msg: '', status: 201 })
+    const { user } = renderComposer({ hasSession: true })
+    await user.click(screen.getByRole('button', { name: 'ثبت دیدگاه' }))
+    await user.type(await textBox(), 'ممنون')
+    await user.click(screen.getByRole('button', { name: 'ارسال دیدگاه' }))
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'دیدگاه شما ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.',
+    )
+  })
+
   it('a question says so; a reply names its parent (the type is the parent’s)', async () => {
     mocks.bffFetch.mockResolvedValue({ data: {}, msg: OK, status: 201 })
     const question = renderComposer({ type: 'question', hasSession: true })
