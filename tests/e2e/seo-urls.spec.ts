@@ -2,14 +2,16 @@ import { expect, test, type APIRequestContext } from '@playwright/test'
 import { existsSync } from 'node:fs'
 import { BACKEND_LOG, fileLog } from './support/cart-write'
 import { canonicalsIn, POST_PATH, robotsMetas, saysNoindex } from './support/seo-head'
+import { SITEMAP_KINDS, unroutedSitemapPaths } from './support/sitemap-kinds'
 
 // URLs and the SEO edge (Plan 5 Task 7; seo digest §6, §3, §10, §13) on the production build:
 // tracking parameters are never filters (no noindex, the canonical leaves them out, the API query
 // never carries them); a listing page past its last is a 404 whose API answer is remembered (the
 // negative cache: asked again, no API call); a search results page calls the API's `search/`
 // exactly once (React `cache()` shares it between the metadata and the page); robots.txt and the
-// sitemap come through the shop with the shop's own URLs, each kind of which is routed. The
-// backend's calls are read from its log (FIREFLY_BACKEND_LOG). Read only, desktop only.
+// sitemap come through the shop with the shop's own URLs, each of a kind the shop routes
+// (support/sitemap-kinds.ts: an unknown kind fails). The backend's calls are read from its log
+// (FIREFLY_BACKEND_LOG). Read only, desktop only.
 
 const CATEGORY = '/product-category/digital/mobile-phone/'
 const TRACKING =
@@ -135,18 +137,12 @@ test.describe('SEO: URLs', () => {
     expect(locs.length).toBeGreaterThan(0)
     for (const loc of locs) expect(new URL(loc).origin, loc).toBe(origin)
     const paths = locs.map((loc) => new URL(loc).pathname)
-    const kinds: [RegExp, number][] = [
-      [/^\/product\/(?!list\/)[^/]+\/$/, 200],
-      [/^\/product-category\/.+\/$/, 200],
-      [/^\/brand\/[^/]+\/$/, 200],
-      [/^\/product\/list\/[^/]+\/$/, 200],
-      [/^\/blog\/category\/.+\/$/, 200],
-      [/^\/page\/(?!contact-us\/)[^/]+\/$/, 200],
-    ]
-    for (const [pattern, status] of kinds) {
+    // Every <loc> is of a kind the shop routes: a new kind the backend lists fails here.
+    expect(unroutedSitemapPaths(paths), 'sitemap paths of no routed kind').toEqual([])
+    for (const { name, pattern } of SITEMAP_KINDS.filter((kind) => kind.sample)) {
       const sample = paths.find((path) => pattern.test(path))
-      expect(sample, `a sitemap URL like ${pattern}`).toBeDefined()
-      expect((await request.get(sample!, { maxRedirects: 0 })).status(), sample).toBe(status)
+      expect(sample, `a sitemap URL of kind ${name}`).toBeDefined()
+      expect((await request.get(sample!, { maxRedirects: 0 })).status(), sample).toBe(200)
     }
     // Posts: the one post the SEO spec opens is listed (opening another would count a view).
     expect(paths).toContain(POST_PATH)
