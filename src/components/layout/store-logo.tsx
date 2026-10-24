@@ -32,7 +32,7 @@ export function StoreLogo({
     <Link
       href="/"
       className={cn(
-        'flex h-10 w-32 shrink-0 items-center rounded-control focus-visible:outline-offset-4 md:w-40',
+        'flex h-11 w-32 shrink-0 items-center rounded-control py-0.5 focus-visible:outline-offset-4 md:w-40',
         className,
       )}
     >

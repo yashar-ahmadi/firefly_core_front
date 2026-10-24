@@ -101,6 +101,8 @@ describe('Carousel controls', () => {
       'اسلاید ۳',
     ])
     expect(dots[0]).toHaveAttribute('aria-current', 'true')
+    // 44 by 44 px touch targets (the spec's floor), the small visible dot inside.
+    for (const dot of dots) expect(dot).toHaveClass('h-11', 'w-11')
 
     fireEvent.click(dots[2])
     expect(embla.api.scrollTo).toHaveBeenCalledWith(2, false)

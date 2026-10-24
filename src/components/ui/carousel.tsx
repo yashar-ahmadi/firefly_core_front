@@ -235,7 +235,7 @@ export function Carousel({
                   aria-label={`اسلاید ${toPersianDigits(index + 1)}`}
                   aria-current={index === selected ? 'true' : undefined}
                   onClick={() => api?.scrollTo(index, reducedMotion)}
-                  className="group grid h-11 w-8 cursor-pointer place-items-center rounded-full"
+                  className="group grid h-11 w-11 cursor-pointer place-items-center rounded-full"
                 >
                   <span className="h-2.5 w-2.5 rounded-full bg-ink-300 transition-[width,background-color] duration-200 group-hover:bg-ink-400 group-aria-[current=true]:w-7 group-aria-[current=true]:bg-brand" />
                 </button>
