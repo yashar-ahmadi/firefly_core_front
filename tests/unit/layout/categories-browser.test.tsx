@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { CategoriesBrowser } from '@/components/layout/categories-browser'
 import { categoryNode, sampleTree } from './support'
@@ -68,5 +69,38 @@ describe('CategoriesBrowser', () => {
 
     await user.click(within(panel).getByRole('button', { name: 'بازگشت' }))
     expect(within(panel).getByRole('heading', { name: 'کالای دیجیتال' })).toBeInTheDocument()
+  })
+
+  it('the server’s HTML links every root’s children, the inactive panels hidden', () => {
+    // Radix mounts only the active panel: the other roots' links were missing from the page's
+    // HTML (spec §8.13). Every panel is in it; the inactive ones are `hidden`.
+    const html = new DOMParser().parseFromString(
+      renderToString(<CategoriesBrowser categories={sampleTree()} />),
+      'text/html',
+    )
+    const panels = [...html.querySelectorAll('[role="tabpanel"]')]
+    expect(panels).toHaveLength(2)
+    expect(panels.map((panel) => panel.hasAttribute('hidden'))).toEqual([false, true])
+    const hrefs = [...html.querySelectorAll('a[href]')].map((link) => link.getAttribute('href'))
+    expect(hrefs).toEqual([
+      '/product-category/digital/',
+      '/product-category/digital/mobile-phone/',
+      '/product-category/digital/laptop/',
+      '/product-category/home-appliance/',
+    ])
+  })
+
+  it('shows one panel at a time; a root chosen again starts at its own level', async () => {
+    const user = userEvent.setup()
+    render(<CategoriesBrowser categories={deepTree()} />)
+    await user.click(screen.getByRole('button', { name: 'گوشی موبایل' }))
+    expect(screen.getByRole('tabpanel')).toHaveAccessibleName('کالای دیجیتال')
+    await user.click(screen.getByRole('tab', { name: 'لوازم خانگی' }))
+    expect(screen.getAllByRole('tabpanel')).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'لوازم خانگی' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'گوشی موبایل' })).toBeNull()
+    await user.click(screen.getByRole('tab', { name: 'کالای دیجیتال' }))
+    expect(screen.getByRole('heading', { name: 'کالای دیجیتال' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'گوشی موبایل' })).toBeVisible()
   })
 })

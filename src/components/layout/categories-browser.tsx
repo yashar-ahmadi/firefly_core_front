@@ -137,15 +137,23 @@ export function CategoriesBrowser({
           ))}
         </Tabs.List>
       </div>
-      {categories.map((root) => (
-        <Tabs.Content
-          key={root.id}
-          value={String(root.id)}
-          className="min-w-0 flex-1 p-4 focus-visible:-outline-offset-2 md:p-6"
-        >
-          <CategoryPanel root={root} />
-        </Tabs.Content>
-      ))}
+      {/* Every root's panel is mounted, so all their links are in the server's HTML (spec
+          §8.13); `hidden` (over Radix's own, false when forced) shows the chosen one only, and
+          the key remounts a panel when it hides: a root chosen again starts at its own level. */}
+      {categories.map((root) => {
+        const shown = selected === String(root.id)
+        return (
+          <Tabs.Content
+            key={root.id}
+            value={String(root.id)}
+            forceMount
+            hidden={!shown}
+            className="min-w-0 flex-1 p-4 focus-visible:-outline-offset-2 md:p-6"
+          >
+            <CategoryPanel key={String(shown)} root={root} />
+          </Tabs.Content>
+        )
+      })}
     </Tabs.Root>
   )
 }
