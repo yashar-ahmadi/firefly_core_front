@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { loadBody } from '@/features/checkout/lazy-steps'
 import { ApiError } from '@/lib/api/errors'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { catalog, gateways, methods } from '../payment/fixtures'
@@ -65,6 +66,11 @@ describe('the payment lists the server could not read', () => {
     })
     const step = await screen.findByRole('region', { name: /۳.*پرداخت/ })
     expect(await within(step).findByText('روش\u{200C}های پرداخت بارگذاری نشد.')).toBeVisible()
+    // The review's body is in before the press (as the shopper's pointer in the page fetches it:
+    // `preloadAhead`), so the wait below is for the routes and the choice, not for a cold chunk
+    // import, which took 150-560 ms here by the machine's load and past the wait's 1 s in two
+    // loaded runs.
+    await loadBody('review', false, true)
     await user.click(within(step).getByRole('button', { name: 'تلاش دوباره' }))
     await waitFor(() => expect(calls(mocks.bffFetch, 'payment/method/list/')).toHaveLength(1))
     expect(calls(mocks.bffFetch, 'payment/gateway/list/')).toHaveLength(1)

@@ -81,7 +81,11 @@ describe('ReviewSection', () => {
     )
     renderCheckout({ cart: onlineCart() })
     expect(await screen.findByText('در حال به\u{200C}روزرسانی سبد خرید…')).toBeInTheDocument()
-    expect(sessionStorage.getItem(PLACEMENT_KEY_STORAGE)).toMatch(/^[0-9a-f-]{36}$/)
+    // Made in the review's effect, which follows the commit that shows the text: the wait for the
+    // text can end before React runs it (about 1 in 40 runs on its own, more under load).
+    await waitFor(() =>
+      expect(sessionStorage.getItem(PLACEMENT_KEY_STORAGE)).toMatch(/^[0-9a-f-]{36}$/),
+    )
     expect(await placeButton()).toHaveAttribute('aria-disabled', 'true')
     expect(calls(mocks.bffFetch, 'cart/').length).toBeGreaterThan(0)
     await act(async () => release())
