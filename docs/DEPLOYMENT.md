@@ -519,6 +519,8 @@ server {
     # TLS، فشرده‌سازی، هدرهای پروکسی و /_next/static/ مثل deploy/nginx.conf.example
     # و لاگ پوشانده: map‌ها و log_format firefly_masked همان فایل، در سطح http
     access_log /var/log/nginx/shop.access.log firefly_masked;
+    # هر location که add_header خودش را دارد این را به ارث نمی‌برد: همان‌جا تکرارش کنید.
+    add_header Strict-Transport-Security "max-age=31536000" always;
 
     # درخواست‌های SSR خود فروشگاه X-Forwarded-For بازدیدکننده را دارند: فقط از آدرس فروشگاه بپذیر.
     set_real_ip_from <آدرسی که درخواست‌های کانتینر فروشگاه از آن می‌رسند>;
@@ -557,6 +559,7 @@ server {
         alias /srv/firefly/media/;
         add_header X-Content-Type-Options nosniff;
         add_header Content-Security-Policy "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox";
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
 
     location / {
@@ -567,6 +570,7 @@ server {
         proxy_set_header Accept-Encoding "";   # nginx فشرده می‌کند
         proxy_buffering off;
         add_header Vary $ff_offline_vary;      # map آن در deploy/nginx.conf.example
+        add_header Strict-Transport-Security "max-age=31536000" always;
     }
 }
 ```
