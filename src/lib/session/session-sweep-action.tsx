@@ -10,7 +10,6 @@ import { loginHref } from '@/lib/links/login'
 import { reloadPage } from '@/lib/navigation/hard-navigation'
 import { flagCookieValue } from './flag-cookie'
 import { useSession } from './session-context'
-import { mayHeal } from './session-heal'
 import { useSessionExpired } from './use-session-expired'
 import { clearViewerQueries, resetViewerQueries } from './viewer-queries'
 
@@ -33,19 +32,11 @@ const reloadsOnSwitch = (pathname: string) =>
  *   page and door); any other page reads the visitor's data again in place
  *   (`resetViewerQueries`: the header's name, hearts, the cart, the «شما» marks);
  * - no session here, but the cookie (a login elsewhere): the tab takes it (the guest's reads
- *   reset, the guest's checkout receiver forgotten) and asks the server once; with `heal` (the
- *   sweep found it on mount: a page the service worker kept), once per login a minute
- *   (session-heal.ts: offline, the server's render cannot come and the page loads again);
+ *   reset, the guest's checkout receiver forgotten) and asks the server once;
  * - with `accountPage`, the account area's own case: no session and no cookie (a logout or a
  *   session end here, then Back), login replaces the page, with it as `next`.
  */
-export function SessionSweepAction({
-  accountPage = false,
-  heal = false,
-}: {
-  accountPage?: boolean
-  heal?: boolean
-}): null {
+export function SessionSweepAction({ accountPage = false }: { accountPage?: boolean }): null {
   const { hasSession, setHasSession, sessionReplaced } = useSession()
   const expire = useSessionExpired()
   const client = useQueryClient()
@@ -65,7 +56,6 @@ export function SessionSweepAction({
       return setHasSession(true)
     }
     if (cookie !== null) {
-      if (heal && !mayHeal(cookie)) return
       void clearViewerQueries(client)
       clearReceiverDraft()
       setHasSession(true)

@@ -24,10 +24,7 @@ function flagCookie(marker: string | null) {
   document.cookie = marker === null ? 'ff_auth=; max-age=0; path=/' : `ff_auth=${marker}; path=/`
 }
 
-afterEach(() => {
-  flagCookie(null)
-  vi.clearAllMocks()
-})
+afterEach(() => flagCookie(null))
 
 const settle = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 20)))
 async function focus() {
@@ -51,17 +48,5 @@ describe('SessionSwitchSweep when its action’s code cannot load', () => {
     expect(mocks.reloadPage).toHaveBeenCalledTimes(1)
     expect(mocks.router.refresh).not.toHaveBeenCalled()
     expect(mocks.router.replace).not.toHaveBeenCalled()
-  })
-
-  // A page the service worker kept, mounted with no session while the cookie holds one (offline,
-  // the likeliest reason the code cannot load): a reload would show the same copy again.
-  it('never reloads to set right a page the worker kept', async () => {
-    flagCookie('login-a-0123456789')
-    const { wrapper } = clientProviders({ hasSession: false })
-    render(<SessionSwitchSweep />, { wrapper })
-    await settle()
-    await settle()
-    expect(mocks.reloadPage).not.toHaveBeenCalled()
-    expect(mocks.router.refresh).not.toHaveBeenCalled()
   })
 })

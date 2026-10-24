@@ -6,12 +6,14 @@ import { CompareBar } from '@/features/compare/compare-bar'
 import { InstallPromptSlot } from '@/features/pwa/install-prompt-slot'
 import { LazyPushReregister } from '@/features/push/lazy-push-reregister'
 import { QuickViewHost } from '@/features/quick-view/quick-view-host'
+import { KeptCopySession } from '@/lib/session/kept-copy-session'
 
 /**
  * The shop pages: header, footer and bottom navigation around every page (see ShopShell), plus
  * the shop-wide extras the store has switched on: the floating compare bar, the one quick view
- * host every card, rail and table opens, web push's re-register effect (renders nothing) and the
- * PWA's install prompt (its gate: the prompt's code loads only where it may show). Each sits in
+ * host every card, rail and table opens, web push's re-register effect (renders nothing), the
+ * PWA's install prompt (its gate: the prompt's code loads only where it may show) and the session
+ * state of a page the PWA's worker kept (renders nothing; only shop pages are kept). Each sits in
  * its own WidgetBoundary: a render bug in one takes only that widget off the page, never the
  * page with it.
  */
@@ -39,6 +41,11 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
           {features.pwa && (
             <WidgetBoundary name="install-prompt">
               <InstallPromptSlot />
+            </WidgetBoundary>
+          )}
+          {features.pwa && (
+            <WidgetBoundary name="kept-copy-session">
+              <KeptCopySession />
             </WidgetBoundary>
           )}
         </>
