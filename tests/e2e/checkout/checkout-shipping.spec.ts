@@ -40,6 +40,10 @@ const test = base.extend<{ guestCart: void }>({
   guestCart: [
     async ({ page }, use) => {
       await use()
+      // A route's handler still answering a read when the test ends (the page reads the options
+      // again after a choice) finishes first: its live fetch would otherwise fail with «Test
+      // ended», an error outside any test that fails the run.
+      await page.unrouteAll({ behavior: 'wait' })
       // Its lines hold no stock, but the dev backend is shared.
       await page.request.delete('/api/bff/cart/clear/', { headers: BFF }).catch(() => undefined)
     },
