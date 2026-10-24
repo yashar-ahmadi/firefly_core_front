@@ -175,10 +175,11 @@ describe('SessionSwitchSweep on a catalog page', () => {
     expect(mocks.reloadPage).not.toHaveBeenCalled()
   })
 
+  // A page rendered for the cookie it was sent has nothing to set right on mount (a page that says
+  // no session with the cookie set, the worker's kept copy, does: session-heal.test.tsx).
   it('checks nothing on mount, nor while the tab is hidden; a page from the browser’s cache does', async () => {
-    flagCookie('login-a-0123456789')
     renderSweep(false)
-    // Rendered for what the cookie held then: nothing to set right.
+    await settle()
     expect(output('session')).toHaveTextContent('false')
     flagCookie('login-b-0123456789')
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
