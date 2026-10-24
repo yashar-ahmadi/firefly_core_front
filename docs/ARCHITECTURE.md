@@ -1177,6 +1177,20 @@ off, so no worker sits between the other specs and their routes and mocks.
   for «شمارهٔ موبایل», 8 B for the logo link's 44 px, less 4 B for the checkbox's
   `rounded-check`) and `/login/` 208.3 → 208.4 KB (about 8 B: the wording 7, the logo 7, the
   checkbox −6).
+- **Plan 5 Task 9's figures, the final ones** (the full run's guards, 220 rows, against Task 8's).
+  Every page of the shop layout is as in Task 8 but the wallet: home 218.5 KB, a category, a list
+  and a brand 238.3, the product 235.9, `/brand/` 200.4, `/cart/` 226.9, the blog 203.6, a post
+  219.7, the account pages 216.9-235.9 (the wallet's rows below); the costliest is still a signed-in category with push on, 242.3 KB of
+  250. Unchanged as well: `/links/` 169.2 (of 200), `/login/` 208.4, `/register/` 209.3,
+  `/forgot-password/` 205.4, order tracking 212.4, the payment result 192.7-193.5 and the card
+  transfer 213.8. Moved by this task's fixes, each measured in the served chunks: every
+  `/checkout/` state 0.1 KB less (the bounded arrival +216 B, the guest's login prompt as a lazy
+  body like the form and the picker -390 B, the per-amount gateway refusal +66 B: a guest 213.6 KB,
+  the review 212.4, a signed-in first visit 212.4, sara 216.8); `/account/wallet/` 233.1 -> 233.3 KB
+  (its per-amount refusal, `usableAt`; 235.9 with push on, the account pages' highest); the payment
+  link 211.9 -> 212.1 KB and its open attempt 201.2 -> 201.4, the thanks page 188.2 -> 188.3 (the
+  route's bank amount passed to `useLinkPayment` and `usePayOrder`); the listings +10 B (the shared
+  `SEARCHABLE_OVER`, within their row). Every row is under its budget.
 - **Signed-in code.** What only a signed-in visitor sees loads with the session, never with a
   guest's page (the budget is measured as a guest): the header's account button (the profile
   read, the avatar) is a `next/dynamic` import rendered only while `hasSession` (server-rendered,
@@ -1616,24 +1630,26 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   8 a run for the guests' address, 2 for k.yazdi); 1 coupon applied (and 3 codes refused by the
   cart spec); 7 tracking lookups (6 by the tracking spec, 1 by guest-cod); 2 reorders (k.yazdi,
   shirin); 1 wallet top-up the dev bank refuses and 1 withdrawal filed and cancelled (shirin); no
-  receipt upload, no wallet spend; 29 auth attempts; carts and address books restored. Each opt-in run adds one order it cannot
+  receipt upload, no wallet spend; 31 auth attempts; carts and address books restored (the same in
+  Plan 5 Task 9's runs). Each opt-in run adds one order it cannot
   take back: a receipt under review, or a wallet-paid order. A failure the
   dev backend gives by design is forgiven by its status (`forgiveFailure(page, url, status)` in
   `watch-errors.ts`). Playwright skips it when a project before it failed, and a filter on the command line
   does not drop its dependencies (one journey file still runs the three device suites first):
   `pnpm test:e2e:journeys` (`--project=journeys --no-deps`) runs the journeys alone. An already running server on the base URL is reused;
-  `E2E_BASE_URL` points elsewhere. One full run makes about 1,900 API requests (Plan 4 Task 10),
-  about 700 of them anonymous (estimated from the throttle's own window when it ran out), all from
-  one address, and the sample backend allows 2000 an hour per address (`THROTTLE_ANON`, a sliding
-  hour): two full runs an hour at most (about 1,400 of the 2,000), fewer with local browsing
-  (Task 10's third run within an hour met the 429 midway). Past that the backend answers 429
+  `E2E_BASE_URL` points elsewhere. One full run makes about 2,700 API requests (Plan 5 Task 9;
+  1,900 in Plan 4 Task 10), about 1,400 of them anonymous (700 in Plan 4; estimated from the
+  throttle's own window when it ran out: in Task 9 a second run started 16 minutes after the
+  first met 429 seven minutes in, with about 3,800 requests of the two in the hour), all from one
+  address, and the sample backend allows 2000 an hour per address (`THROTTLE_ANON`, a sliding
+  hour): one full run an hour, its successor an hour after its start. Past that the backend answers 429
   `throttled` (`retryAfter` in the server log) and many specs fail at once. For back-to-back runs,
   start the backend with a larger budget, e.g. `THROTTLE_ANON=20000/hour`. A global setup
   (`tests/e2e/global-setup.ts`) probes the backend once before the run (one anonymous read) and
   stops it with that advice and the wait (`Retry-After`, or the body's `retry_after`) when the
   answer is already 429. The API tells nothing of the budget left before it refuses, so the setup
   also keeps the start of every full run (no file, project or grep filter) in a ledger,
-  `tests/e2e/.state/full-runs.json` (`tests/e2e/support/anon-budget.ts`), and stops a third full
+  `tests/e2e/.state/full-runs.json` (`tests/e2e/support/anon-budget.ts`), and stops a second full
   run within the hour at once with «Wait N s»; `E2E_SKIP_ANON_LEDGER=1` skips the ledger (a larger
   budget). Focused runs and browsing are not in it: the probe still catches a budget they used
   up. The dev backend runs on SQLite: two projects writing
@@ -1651,10 +1667,10 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
 - **Signed-in specs** (Plan 3). Every login, and every logout, is one `auth_attempt` at the
   backend, 20 a minute per address for the whole run (the BFF forwards the visitor's address), so
   specs never log in per test or in a loop (`tests/e2e/support/session.ts`, which counts a full
-  run's attempts: 29). Measured from the backend's log, Playwright's project-by-project order kept
+  run's attempts: 31). Measured from the backend's log, Playwright's project-by-project order kept
   them to at most 8 in any minute of a run (Plan 4 Task 2; 5 before the journeys project gained
   the signed-in checkout; 10 in Plan 4 Task 10, all in the minute the journeys' 11 log in and
-  out) and 9 across two runs back to back (Plan 3); that is the
+  out; 10-11 in Plan 5 Task 9's runs, the same minute) and 9 across two runs back to back (Plan 3); that is the
   scheduler's behaviour as configured, not a guarantee, so keep the total low. A spec that only reads with a session uses
   `signedInTest` from there: its `page` shares one login per project per run (a storage-state file
   in the output folder, written by the first worker that asks for it while the others wait; if
@@ -1685,6 +1701,16 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   linker's video players) are excluded element by element. `checkout/checkout-stability.spec.ts`
   sums a guest checkout's own layout shifts (under 0.1), and `cart/badge-bump.spec.ts` reads the
   cart badge's animation after an add under both motion settings.
+- **The suite at the end of Plan 5** (Task 9). Unit and component: 575 files, 5,212 tests (about
+  6.5 minutes on four cores; the checkout's and payment's are the most timing-sensitive, so a
+  wait in them covers only what it asserts: a lazy step body the test does not test is loaded
+  before, an effect's result is waited for). End to end: 1,029 tests in 62 files, mobile 318,
+  tablet 318, desktop 318, pwa 12, budget-push 47 and journeys 16; a routine run passes 721 and
+  skips 308 (tests scoped to another project, and the opt-in wallet journey), in about 14 minutes
+  with two workers. Per run, from the backend's log: about 2,700 API requests, none answered 429;
+  31 auth attempts (20 logins, 11 logouts; at most 11 in a minute); 47 axe audits, none with a
+  finding; the writes listed above. The last two full runs, an hour apart as the budget allows,
+  were both green, every one of their 220 budget rows the same.
 - **Lighthouse** is not part of `pnpm test:e2e`: `node scripts/lighthouse.mjs` (Lighthouse's CLI
   through npx, its version pinned in the script; the browser from `CHROME_PATH`, by default the
   preinstalled Chromium) runs home, a category, a product, the one post and a guest's `/checkout/`
@@ -1715,5 +1741,9 @@ docs.
 
 **A preset.** Add `src/config/presets/<name>.ts` exporting a `Preset` (label, primary, accent,
 radius, shadow, motion, card style), register it in `PRESETS` and `PRESET_NAMES`
-(`src/config/presets/index.ts`), and document it in `.env.example` and CUSTOMIZATION.md. The theme
-tests check that every preset produces AA-readable foregrounds.
+(`src/config/presets/index.ts`), and document it in `.env.example` and CUSTOMIZATION.md (its
+screenshots in `docs/images/presets/`, its row in the contrast table). The theme tests check that
+every preset produces AA-readable foregrounds, and `tests/unit/theme/preset-contrast.test.ts` that
+each of its brand and accent pairs as the shop paints them (`tests/unit/theme/preset-pairs.ts`:
+buttons, links, badges, chips, tabs, the announcement, focus rings) reaches 4.5:1 for text and
+3:1 for a control's boundary or a marker.
