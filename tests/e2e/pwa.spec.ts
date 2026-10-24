@@ -178,8 +178,10 @@ test.describe('the bank’s return leg, with the worker in control', () => {
   test('an unknown token: the API’s redirect to the result page, which sends no referrer', async ({
     page,
     context,
+    baseURL,
   }) => {
     const errors = watchErrors(page)
+    const shop = new URL(baseURL!).origin
     await page.goto('/')
     await controlled(page)
     // The dev data's result URL is on the production domain (GatewaySetting.result_url,
@@ -192,6 +194,8 @@ test.describe('the bank’s return leg, with the worker in control', () => {
       return route.fulfill({ status: 302, headers: { location: `${origin}${pathname}${search}` } })
     })
     const response = await page.goto('/api/v1/payment/gateway/callback/zarinpal/e2e-no-such-token/')
+    // Back on this shop (never the dev data's production domain), on its result page.
+    expect(new URL(page.url()).origin).toBe(shop)
     expect(new URL(page.url()).pathname).toBe('/payment/callback/')
     expect(new URL(page.url()).searchParams.get('code')).toBe('gateway_callback_invalid')
     // The worker answered the navigations (the callback's redirect passed on as it came, the
