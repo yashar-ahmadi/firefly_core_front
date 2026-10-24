@@ -10,6 +10,7 @@ import { CONTAINER } from './container'
 import { HeaderActions } from './header-actions'
 import { HeaderLinks } from './header-links'
 import { HeaderSearchForm } from './header-search-form'
+import { MenuLinkTree } from './menu-link-tree'
 import { navItems } from './menu-tree'
 import { StoreLogo } from './store-logo'
 import { SupportPhone } from './support-phone'
@@ -35,7 +36,8 @@ export async function SiteHeader() {
     getTranslations(),
   ])
   const t = createTranslator(translations)
-  const name = storeName(getStoreConfig(), settings)
+  const config = getStoreConfig()
+  const name = storeName(config, settings)
   // Resolved here, so the client menus receive only what they show: the `main` menu, or the
   // category tree as menu items while that menu is empty (never both, never full category cards).
   const items = navItems(main, tree)
@@ -94,6 +96,8 @@ export async function SiteHeader() {
             className={cn(CONTAINER, 'flex h-12 items-center gap-2')}
           >
             <CategoriesMenu items={items} />
+            {/* The menu's links for crawlers: the menus' panels are not in the server's HTML. */}
+            <MenuLinkTree items={items} siteUrl={config.siteUrl} />
             {headerMenu.length > 0 && <span aria-hidden className="h-5 w-px shrink-0 bg-ink-200" />}
             <HeaderLinks items={headerMenu} className="flex-1" />
             {phone && <SupportPhone phone={phone} {...phoneLabels} className="ms-auto" />}

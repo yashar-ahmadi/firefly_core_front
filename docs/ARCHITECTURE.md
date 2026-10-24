@@ -1137,9 +1137,16 @@ off, so no worker sits between the other specs and their routes and mocks.
   The drawer's panel loads on its first opening, as before. Phones hide the row, so neither
   menu's code loads there. Every page in the shop layout −1.8 to −1.9 KB, desktop and phone alike
   (the guards: category 238.1, product 235.8, home 218.4; signed in with push on, category
-  242.2); pages outside it byte for byte. The mega-menu's links are no longer in the server's
-  HTML: crawlers reach the categories through `/categories/` (the bottom navigation), the
-  footer's menu and the sitemap.
+  242.2); pages outside it byte for byte. The menus' panels are therefore not in the server's
+  HTML, so the header carries their links for crawlers (spec §8.13): `MenuLinkTree`
+  (`components/layout/menu-link-tree.tsx`), a Server Component beside `CategoriesMenu` that
+  renders the same items (`menu/main`, or the category tree while it is empty) as a `<ul hidden>`
+  of plain `<a href>`, at every depth, on every page of the shop layout and at every width.
+  `hidden` keeps it out of the layout, the accessibility tree and the tab order, and a plain
+  anchor is never prefetched (P5-R1). It costs no JavaScript (the guards' chunks byte for byte)
+  and about 1.1 KB of HTML (0.2 KB gzip) with the dev menu's 4 links, half of it the RSC
+  payload's copy; rendered from inside `CategoriesMenu` instead (no RSC copy), it cost every
+  shop page 85 B of JavaScript (measured, dropped).
 - **Plan 5 Task 8's figures** (the full run's guards, 220 rows, against Task 7's). Every page in
   the shop layout 1.7–1.8 KB less, desktop and phone alike (the lazy mega-menu, less the cart
   badge's bump and the audit's fixes, about 0.1 KB): home 218.5 KB, a category, a list and a

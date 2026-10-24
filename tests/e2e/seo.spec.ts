@@ -10,6 +10,7 @@ import {
   saysNoindex,
   typesIn,
 } from './support/seo-head'
+import { hrefsIn, menuLinkUrls } from './support/menu-links'
 import { watchErrors } from './support/watch-errors'
 
 // The SEO audit (Plan 5 Task 7; spec §8.13, seo digest §7 and §13) on the production build: every
@@ -114,6 +115,20 @@ test.describe('SEO', () => {
       expect(errors).toEqual([])
     })
   }
+
+  test('every link of the header’s menu is an <a href> in a shop page’s HTML as served', async ({
+    request,
+    baseURL,
+  }) => {
+    // The mega-menu's and the drawer's panels load on demand: the header carries the menu as a
+    // hidden list of plain links (MenuLinkTree), so crawlers reach every category (spec §8.13).
+    const urls = await menuLinkUrls(request, new URL(baseURL!).origin)
+    expect(urls.length).toBeGreaterThan(0)
+    for (const path of ['/', '/faq/']) {
+      const found = hrefsIn((await served(request, path)).html)
+      for (const url of urls) expect(found.has(url), `${path}: <a href="${url}">`).toBe(true)
+    }
+  })
 
   test('the product’s JSON-LD keeps the API’s Rial prices labelled as Rial (never shown)', async ({
     request,

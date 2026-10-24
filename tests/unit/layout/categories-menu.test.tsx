@@ -45,11 +45,11 @@ beforeEach(() => {
 })
 
 describe('CategoriesMenu', () => {
-  it('the server’s HTML: one button, no menu links (the same at every width)', () => {
+  // The menu's links in the server's HTML are the header's hidden list (menu-link-tree.test.tsx).
+  it('the server’s HTML: one button, the same at every width', () => {
     const html = renderToString(rtl(<CategoriesMenu items={items()} />))
     expect(html.match(/<button/g)).toHaveLength(1)
     expect(html).toContain(TRIGGER)
-    expect(html).not.toContain('<a ')
     // The mega-menu's chevron, shown from lg only: the button keeps its width when it takes over.
     expect(html).toMatch(/lucide-chevron-down[^"]*"/)
   })
