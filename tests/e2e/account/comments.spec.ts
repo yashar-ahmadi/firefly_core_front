@@ -199,6 +199,6 @@ signedInTest(
       `/api/bff/dashboard/comment/${target!.subject_type}/${target!.id}/delete/`,
     ])
     expect(errors).toEqual([])
-    // A summary read still on its way is dropped with the routes, not reported.
+    // A summary read still on its way is answered before the test ends (`settleRoutes`).
   },
 )
