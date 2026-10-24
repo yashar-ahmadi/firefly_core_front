@@ -99,6 +99,15 @@ describe('MenuLink', () => {
     expect(link).not.toHaveAttribute('target')
   })
 
+  // The browser drops a tab or a line break anywhere in a URL (src/lib/links/as-parsed.ts).
+  it.each(['/\t/evil.example/', '/\n\\evil.example/', '\u{1}//evil.example/'])(
+    'never routes %j on the client: another host as the browser reads it',
+    (url) => {
+      render(<MenuLink node={menuNode({ id: 4, title: 'وبلاگ', url })} />)
+      expect(screen.getByRole('link', { name: 'وبلاگ' })).not.toHaveAttribute('data-next-link')
+    },
+  )
+
   it('routes an absolute URL of the shop itself on the client', () => {
     render(
       withConfig(

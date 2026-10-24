@@ -109,6 +109,24 @@ describe('StoreLink', () => {
     expect(screen.getByRole('link', { name: 'ب' })).not.toHaveAttribute('data-next-link')
   })
 
+  // The browser drops a tab or a line break anywhere in a URL: `/<tab>/host` is `//host`.
+  it.each(['/\t/evil.example/x', '/\n\\evil.example/x', '\u{1}//evil.example/x'])(
+    '%j, another host as the browser reads it: a plain <a rel="noopener">',
+    (href) => {
+      renderLink({ href, children: 'پ' })
+      const link = screen.getByRole('link', { name: 'پ' })
+      expect(link).not.toHaveAttribute('data-next-link')
+      expect(link).toHaveAttribute('rel', 'noopener')
+    },
+  )
+
+  it('a short link typed with a space or a line break: still a plain <a>, never prefetched', () => {
+    renderLink({ href: ' /s/phone-fest/\n', children: 'جشنواره' })
+    const link = screen.getByRole('link', { name: 'جشنواره' })
+    expect(link).toHaveAttribute('href', '/s/phone-fest/')
+    expect(link).not.toHaveAttribute('data-next-link')
+  })
+
   it('works without the store configuration (own-origin URLs stay absolute)', () => {
     renderLink({ href: 'https://shop.ir/x/', children: 'الف' }, false)
     expect(screen.getByRole('link', { name: 'الف' })).toHaveAttribute('href', 'https://shop.ir/x/')
