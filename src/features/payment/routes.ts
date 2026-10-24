@@ -3,14 +3,12 @@ import type { GatewayOption, PaymentMethodOption, PaymentRoute } from '@/lib/api
 import { formatToman } from '@/lib/format'
 
 // Which payment routes to offer (order digest §5.3), from the operator's method list, the
-// gateways, the shopper's wallet and the amounts: the cart's before placement (A, its
-// `amount_charged_online`, and D), the order's after it (O, what is still owed online). Every
-// route the operator lists comes back enabled, or disabled with a Persian reason under it;
-// hidden are only pay-on-delivery while anything is owed online, the wallet routes for a guest
-// (who is offered a login instead) and the routes the shop proved it cannot run now (`withdrawn`:
-// the bank routes after `gateway_not_configured`). The server stays the judge: an intent can still be refused.
-// The one sum here is the digest's own wallet split (§5.6: the wallet's part, the bank's rest).
-// Pure: safe in any bundle.
+// gateways, the wallet and the amounts: the cart's before placement (A, its
+// `amount_charged_online`, and D), the order's after it (O, still owed online). Every route the
+// operator lists comes back enabled, or disabled with a Persian reason; hidden are only COD while
+// anything is owed online, a guest's wallet routes (a login offered) and the routes the shop proved
+// it cannot run now (`withdrawn`). A gateway refused at an amount is not offered at it
+// (`refused`). The server stays the judge. The one sum is the digest's wallet split (§5.6). Pure.
 
 export interface FeatureFlag {
   enabled: boolean
@@ -29,6 +27,9 @@ export type RouteMethod = Pick<
   | 'is_available'
   | 'reason'
 >
+
+/** A gateway the shop refused: at one amount (`gateway_amount_not_supported`), or at any. */
+export type GatewayRefusal = { code: string; amount?: number }
 
 export interface RouteInput<M extends RouteMethod = PaymentMethodOption> {
   methods: M[]
@@ -51,6 +52,8 @@ export interface RouteInput<M extends RouteMethod = PaymentMethodOption> {
   withdrawn?: readonly PaymentRoute[]
   /** The wallet's balance is being read: its routes wait (not a refusal). */
   walletPending?: boolean
+  /** Gateways refused: at the amount the bank was asked for, or at any. */
+  refused?: readonly GatewayRefusal[]
 }
 
 export interface RouteChoice<M extends RouteMethod = PaymentMethodOption> {
@@ -127,7 +130,11 @@ function walletReason(input: RouteInput<RouteMethod>): string | null {
 }
 
 function choose<M extends RouteMethod>(method: M, input: RouteInput<M>): RouteChoice<M> {
-  const { online, gateways } = input
+  const { online, gateways, refused = [] } = input
+  // The gateways not refused at `amount` (a refusal without one: at any).
+  const refusedAt = (code: string, amount: number) =>
+    refused.some((r) => r.code === code && (r.amount ?? amount) === amount)
+  const usable = (amount: number) => gateways.filter((g) => !refusedAt(g.code, amount))
   const choice = (reason: string | null, extra: Partial<RouteChoice<M>> = {}): RouteChoice<M> => ({
     route: method.route,
     enabled: reason === null,
@@ -140,8 +147,9 @@ function choose<M extends RouteMethod>(method: M, input: RouteInput<M>): RouteCh
   if (common) return choice(common)
   switch (method.route) {
     case 'bank_gateway': {
-      const offered = gateways.filter((gateway) => takes(gateway, online))
-      return choice(offered.length ? null : noGatewayReason(gateways, online, false), {
+      const left = usable(online)
+      const offered = left.filter((gateway) => takes(gateway, online))
+      return choice(offered.length ? null : noGatewayReason(left, online, false), {
         gateways: offered,
       })
     }
@@ -159,8 +167,9 @@ function choose<M extends RouteMethod>(method: M, input: RouteInput<M>): RouteCh
         return choice('موجودی کیف پول برای کل مبلغ کافی است؛ «کیف پول» را انتخاب کنید.')
       }
       const split = { wallet: balance, gateway: online - balance }
-      const offered = gateways.filter((gateway) => takes(gateway, split.gateway))
-      return choice(offered.length ? null : noGatewayReason(gateways, split.gateway, true), {
+      const left = usable(split.gateway)
+      const offered = left.filter((gateway) => takes(gateway, split.gateway))
+      return choice(offered.length ? null : noGatewayReason(left, split.gateway, true), {
         gateways: offered,
         split,
       })

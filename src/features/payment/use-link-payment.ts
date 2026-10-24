@@ -47,6 +47,8 @@ export interface LinkPaymentOptions {
   orderCode: string
   catalog: PaymentCatalogState
   suggest: (route: PaymentRoute) => void
+  /** What a route asks of the bank (`bankAmount`), for a gateway refused at it. */
+  amountOf?: (route: PaymentRoute) => number
   onPaid: (paid: LinkPaid) => void
   onAttemptOpen: (attempt: OpenAttempt) => void
   /** The order changed under the page (paid, expired, not payable): read it again. */
@@ -54,7 +56,7 @@ export interface LinkPaymentOptions {
 }
 
 export function useLinkPayment(options: LinkPaymentOptions) {
-  const { door, orderCode, catalog, suggest, onPaid, onAttemptOpen, onStale } = options
+  const { door, orderCode, catalog, suggest, amountOf, onPaid, onAttemptOpen, onStale } = options
   const client = useQueryClient()
   const expire = useSessionExpired()
   const markFeatureDisabled = useMarkFeatureDisabled()
@@ -124,9 +126,10 @@ export function useLinkPayment(options: LinkPaymentOptions) {
     return false
   }
 
-  function failed(error: IntentError, gatewayCode: string | undefined) {
+  function failed(error: IntentError, route: PaymentRoute, gatewayCode: string | undefined) {
     if (error.problem === 'session') return expire()
-    applyIntentRefusal(error, gatewayCode, { catalog, markFeatureDisabled, walletMoved, suggest })
+    const deps = { catalog, markFeatureDisabled, walletMoved, suggest }
+    applyIntentRefusal(error, gatewayCode, deps, amountOf?.(route))
     if (error.problem === 'attempt_open' && error.openAttempt) {
       setState(IDLE)
       // Not an error: its resume UI takes the routes' place, said once.
@@ -160,7 +163,8 @@ export function useLinkPayment(options: LinkPaymentOptions) {
       }
       leaving = succeeded(intent, route)
     } catch (error) {
-      failed(error instanceof IntentError ? error : new IntentError('other', error), gatewayCode)
+      const refusal = error instanceof IntentError ? error : new IntentError('other', error)
+      failed(refusal, route, gatewayCode)
     } finally {
       // While the browser loads the next page, a press would only meet the attempt just opened.
       if (!leaving) inFlight.current = false

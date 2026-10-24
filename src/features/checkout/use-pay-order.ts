@@ -53,7 +53,14 @@ const loadGoToBank = () => import('@/features/payment/go-to-bank').then((module)
 export function usePayOrder(
   ctx: PlacedContext,
   catalog: PaymentCatalogState,
-  { suggest }: { suggest: (route: PaymentRoute) => void },
+  {
+    suggest,
+    amountOf,
+  }: {
+    suggest: (route: PaymentRoute) => void
+    /** What a route asks of the bank (`bankAmount`), for a gateway refused at it. */
+    amountOf?: (route: PaymentRoute) => number
+  },
 ) {
   const router = useRouter()
   const client = useQueryClient()
@@ -125,7 +132,8 @@ export function usePayOrder(
 
   function failed(error: IntentError, route: PaymentRoute, gatewayCode: string | undefined) {
     if (error.problem === 'session') return expire()
-    applyIntentRefusal(error, gatewayCode, { catalog, markFeatureDisabled, walletMoved, suggest })
+    const deps = { catalog, markFeatureDisabled, walletMoved, suggest }
+    applyIntentRefusal(error, gatewayCode, deps, amountOf?.(route))
     // Not an error: the attempt's resume UI shows (placed-order-panel.tsx), said once.
     if (error.problem === 'attempt_open') announce(intentMessage(error))
     if (error.problem === 'settled') {

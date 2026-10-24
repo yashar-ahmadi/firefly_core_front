@@ -84,6 +84,7 @@ export function useRouteChoice({
     gateways: catalog.gateways,
     features,
     withdrawn: catalog.withdrawn,
+    refused: catalog.refused,
     ...amounts,
   }
   const routes = input ? availableRoutes(input) : []

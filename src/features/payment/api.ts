@@ -52,8 +52,10 @@ export type IntentProblem =
   | 'wallet_login'
   | 'forbidden'
   | 'wallet_frozen'
-  /** `gateway_unknown`, `gateway_amount_not_supported`: read the gateways again. */
+  /** `gateway_unknown`: that gateway left out for the page, the gateways read again. */
   | 'gateway_refresh'
+  /** `gateway_amount_not_supported`: that gateway left out at that amount, the gateways read again. */
+  | 'gateway_amount'
   /** 502: the bank said no; another gateway or route, no automatic retry. */
   | 'gateway_rejected'
   /** 503: the bank did not answer; later, with a new key. */
@@ -90,7 +92,7 @@ const PROBLEMS: Record<string, IntentProblem> = {
   payment_forbidden: 'forbidden',
   wallet_frozen: 'wallet_frozen',
   gateway_unknown: 'gateway_refresh',
-  gateway_amount_not_supported: 'gateway_refresh',
+  gateway_amount_not_supported: 'gateway_amount',
   gateway_rejected: 'gateway_rejected',
   gateway_unavailable: 'gateway_unavailable',
   gateway_not_configured: 'gateway_broken',

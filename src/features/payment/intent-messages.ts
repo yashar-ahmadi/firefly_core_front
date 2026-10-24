@@ -26,5 +26,9 @@ export function intentMessage(error: IntentError): string {
   const fixed = FIXED[error.problem]
   if (fixed) return fixed
   if (error.problem === 'use_wallet') return `${error.detail} «کیف پول» انتخاب شد.`
+  // The gateway's own bound, said by the API (in Persian digits).
+  if (error.problem === 'gateway_amount') {
+    return `${error.detail} درگاه یا روش دیگری را انتخاب کنید.`
+  }
   return error.detail
 }

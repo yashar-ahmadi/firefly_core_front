@@ -147,7 +147,7 @@ describe('startPayment', () => {
     ['payment_wallet_required_authentication', 403, 'wallet_login'],
     ['payment_forbidden', 403, 'forbidden'],
     ['wallet_frozen', 403, 'wallet_frozen'],
-    ['gateway_amount_not_supported', 400, 'gateway_refresh'],
+    ['gateway_amount_not_supported', 400, 'gateway_amount'],
     ['gateway_rejected', 502, 'gateway_rejected'],
     ['gateway_unavailable', 503, 'gateway_unavailable'],
     ['gateway_result_url_invalid', 503, 'gateway_broken'],

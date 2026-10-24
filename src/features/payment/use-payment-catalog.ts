@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { GatewayOption, PaymentMethodOption, PaymentRoute } from '@/lib/api/types/payment'
 import { paymentApi } from './reads'
 import type { PaymentCatalog, PaymentMethodView } from './catalog'
+import type { GatewayRefusal } from './routes'
 
 // The payment catalog in the browser: the server's cached copy (props, the route texts already
 // sanitised there), read again through the BFF only after a refusal says it is out of date
@@ -18,15 +19,18 @@ import type { PaymentCatalog, PaymentMethodView } from './catalog'
 export interface PaymentCatalogState {
   /** null: the server could not read them (the step offers to read them again). */
   methods: PaymentMethodView[] | null
-  /** The gateways this page may still use (those it withdrew left out). */
+  /** The gateways this page may still use (those it withdrew for any amount left out). */
   gateways: GatewayOption[]
+  /** The gateways withdrawn, each at the amount it refused (for any without one). */
+  refused: readonly GatewayRefusal[]
   withdrawn: readonly PaymentRoute[]
   withdraw: (routes: readonly PaymentRoute[]) => void
   /**
-   * A gateway the shop lists but could not use (`gateway_unknown`; `gateway_amount_not_supported`
-   * for the order's amount): left out for this page, never tried again.
+   * A gateway the shop lists but could not use: left out for this page (`gateway_unknown`), or
+   * only at `amount`, the one it refused (`gateway_amount_not_supported`: another amount offers
+   * it again).
    */
-  withdrawGateway: (code: string) => void
+  withdrawGateway: (code: string, amount?: number) => void
   /** Resolves true once read (false: the read failed; the page keeps what it had). */
   refreshMethods: () => Promise<boolean>
   refreshGateways: () => Promise<boolean>
@@ -57,7 +61,7 @@ export function usePaymentCatalog(initial: PaymentCatalog): PaymentCatalogState 
   const [methods, setMethods] = useState(initial.methods)
   const [gateways, setGateways] = useState<GatewayOption[]>(initial.gateways ?? [])
   const [withdrawn, setWithdrawn] = useState<readonly PaymentRoute[]>([])
-  const [unusable, setUnusable] = useState<readonly string[]>([])
+  const [refused, setRefused] = useState<readonly GatewayRefusal[]>([])
   const [gatewaysFailed, setGatewaysFailed] = useState(initial.gateways === null)
   const [retrying, setRetrying] = useState(false)
   const [retryFailed, setRetryFailed] = useState(false)
@@ -92,11 +96,11 @@ export function usePaymentCatalog(initial: PaymentCatalog): PaymentCatalogState 
     )
   return {
     methods,
-    gateways: gateways.filter((gateway) => !unusable.includes(gateway.code)),
+    gateways: gateways.filter((g) => !refused.some((r) => r.code === g.code && !r.amount)),
+    refused,
     withdrawn,
     withdraw: (routes) => setWithdrawn((current) => [...new Set([...current, ...routes])]),
-    withdrawGateway: (code) =>
-      setUnusable((current) => (current.includes(code) ? current : [...current, code])),
+    withdrawGateway: (code, amount) => setRefused((current) => [...current, { code, amount }]),
     refreshMethods,
     refreshGateways,
     gatewaysFailed,

@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { tell } from '@/components/ui/tell'
 import type { PaymentCatalog } from '@/features/payment/catalog'
 import type { AttemptResolution } from '@/features/payment/open-attempt'
+import { bankAmount } from '@/features/payment/intent-refusal'
 import { OpenAttemptLoader } from '@/features/payment/open-attempt-loader'
 import { PayLinkPay } from '@/features/payment/pay-link-pay'
 import { gatewayCodeFor } from '@/features/payment/routes'
@@ -74,6 +75,7 @@ export function PayBody({ order, catalog: served, supportPhone, onDone, onStale 
     orderCode: code,
     catalog,
     suggest: choice.choose,
+    amountOf: (route) => bankAmount(choice.routes, route, online),
     onPaid: (paid: LinkPaid) =>
       paid.kind === 'confirmed' ? finish(confirmedText(paid.free, onDelivery)) : finish(PAID, true),
     onAttemptOpen: setAttempt,

@@ -9,6 +9,7 @@ import type { OpenAttempt, PaymentRoute } from '@/lib/api/types/payment'
 import { useSession } from '@/lib/session/session-context'
 import { CancelOrder } from './cancel-order'
 import type { PaymentCatalog } from './catalog'
+import { bankAmount } from './intent-refusal'
 import { readLink } from './link-api'
 import type { LinkRefusal } from './link-refusal'
 import type { AttemptResolution } from './open-attempt'
@@ -86,6 +87,7 @@ export function PayLinkPage({
     orderCode: link.order_code,
     catalog,
     suggest: choice.choose,
+    amountOf: (route) => bankAmount(choice.routes, route, link.amount_outstanding_online),
     onPaid: (outcome) => setView({ kind: 'done', outcome }),
     onAttemptOpen: setAttempt,
     onStale: () => void reread(),

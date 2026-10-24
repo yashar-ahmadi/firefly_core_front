@@ -10,6 +10,7 @@ import { focusWasIn } from '@/components/ui/focus-guard'
 import { Spinner } from '@/components/ui/spinner'
 import { payLinkPath } from '@/features/orders/pay-link'
 import type { AttemptResolution } from '@/features/payment/open-attempt'
+import { bankAmount } from '@/features/payment/intent-refusal'
 import { OpenAttemptLoader } from '@/features/payment/open-attempt-loader'
 import type { PaymentCatalogState } from '@/features/payment/use-payment-catalog'
 import { useRouteChoice, type RouteChoiceState } from '@/features/payment/use-route-choice'
@@ -60,7 +61,10 @@ export function PlacedOrderPanel({
     isGuest: ctx.guest,
     initial: { route: ctx.route, gateway: ctx.gatewayCode },
   })
-  const payment = usePayOrder(ctx, catalog, { suggest: choice.choose })
+  const payment = usePayOrder(ctx, catalog, {
+    suggest: choice.choose,
+    amountOf: (route) => bankAmount(choice.routes, route, ctx.A),
+  })
   const [expired, setExpired] = useState(false)
   // The shop's sentence after an abandoned attempt whose money the bank had taken (parked).
   const [attemptNotice, setAttemptNotice] = useState<string | null>(null)

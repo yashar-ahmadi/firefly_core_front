@@ -13,8 +13,10 @@ export type TopUpRefusal =
   | { kind: 'amount'; message: string }
   /** 403 `wallet_frozen`: its detail is the freeze message. */
   | { kind: 'frozen'; message: string }
-  /** `gateway_unknown` / `gateway_amount_not_supported`: that gateway is left out for the page. */
+  /** `gateway_unknown`: that gateway is left out for the page. */
   | { kind: 'gateway_unknown'; message: string }
+  /** `gateway_amount_not_supported`: that gateway is left out at that amount (its bound said). */
+  | { kind: 'gateway_amount'; message: string }
   /** `gateway_not_configured` / `gateway_result_url_invalid`: no bank here; support. */
   | { kind: 'gateway_broken'; message: string }
   /**
@@ -46,7 +48,7 @@ const KINDS: Record<string, Said> = {
   min_value: 'amount',
   wallet_frozen: 'frozen',
   gateway_unknown: 'gateway_unknown',
-  gateway_amount_not_supported: 'gateway_unknown',
+  gateway_amount_not_supported: 'gateway_amount',
   gateway_not_configured: 'gateway_broken',
   gateway_result_url_invalid: 'gateway_broken',
   gateway_unavailable: 'gateway_unavailable',

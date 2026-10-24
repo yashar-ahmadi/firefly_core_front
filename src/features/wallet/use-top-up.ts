@@ -58,6 +58,8 @@ const WORDS = {
   gateway: 'این درگاه در حال حاضر در دسترس نیست؛ درگاه دیگری را انتخاب کنید.',
   gatewayNext: (title: string) =>
     `این درگاه در حال حاضر در دسترس نیست؛ برای پرداخت با ${title} دوباره «افزایش موجودی» را بزنید.`,
+  next: (title: string) => `برای پرداخت با ${title} دوباره «افزایش موجودی» را بزنید.`,
+  other: 'درگاه دیگری را انتخاب کنید یا مبلغ دیگری وارد کنید.',
   broken:
     'شارژ کیف پول با درگاه بانکی در این فروشگاه اکنون ممکن نیست. کمی بعد دوباره سر بزنید یا با پشتیبانی تماس بگیرید.',
   unavailable: 'درگاه بانک پاسخ نداد؛ کمی بعد دوباره تلاش کنید.',
@@ -68,6 +70,15 @@ const WORDS = {
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+/**
+ * The gateways a top-up of `amount` may use: those not withdrawn for the page, nor refused at
+ * that amount (`gateway_amount_not_supported`). No amount yet: every one not withdrawn.
+ */
+export const usableAt = (catalog: PaymentCatalogState, amount: number | null): GatewayOption[] =>
+  catalog.gateways.filter(
+    ({ code }) => !catalog.refused.some((r) => r.code === code && r.amount === amount),
+  )
 const codeOf = (error: unknown) => (error instanceof ApiError ? error.code : null)
 const loadGoToBank = () => import('@/features/payment/go-to-bank').then((module) => module.goToBank)
 
@@ -152,6 +163,18 @@ export function useTopUp({
         // One left: the next press goes through it (nothing to choose); none: the box closes.
         return setIssue({
           alert: left.length === 1 ? WORDS.gatewayNext(left[0]!.title) : WORDS.gateway,
+        })
+      }
+      case 'gateway_amount': {
+        // Left out at this amount only (another amount offers it again): another gateway takes
+        // the next press; none, the bound is the amount's own issue (the box sends nothing).
+        const tried = request.gateway?.code ?? request.gatewayCode
+        if (tried) catalog.withdrawGateway(tried, request.amount)
+        const left = usableAt(catalog, request.amount).filter(({ code }) => code !== tried)
+        const said = toPersianDigits(refusal.message)
+        if (left.length === 0) return setIssue({ field: said })
+        return setIssue({
+          alert: `${said} ${left.length === 1 ? WORDS.next(left[0]!.title) : WORDS.other}`,
         })
       }
       case 'gateway_broken':

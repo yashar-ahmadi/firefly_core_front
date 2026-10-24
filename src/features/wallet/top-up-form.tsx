@@ -27,7 +27,7 @@ import {
 } from './top-up-bounds'
 import { TopUpGateway } from './top-up-gateway'
 import { LazyBankHandoff, TopUpClosed, TopUpSection } from './top-up-parts'
-import { useTopUp } from './use-top-up'
+import { usableAt, useTopUp } from './use-top-up'
 import { walletAccess } from './wallet-access'
 
 // «افزایش موجودی» (order digest §3.3.1, §3.3.3, §5.12): only while the wallet takes top-ups
@@ -70,9 +70,11 @@ function TopUpBox({
   const presetsId = useId()
 
   const { gateways } = catalog
-  const chosen = gateways.find((gateway) => gateway.code === chosenCode) ?? defaultGateway(gateways)
-  const bounds = topUpBounds(wallet, chosen)
   const amount = parseAmount(text)
+  // A gateway that refused this very amount is not offered for it (another amount: again).
+  const usable = usableAt(catalog, amount)
+  const chosen = usable.find((gateway) => gateway.code === chosenCode) ?? defaultGateway(usable)
+  const bounds = topUpBounds(wallet, chosen)
   const [checked, setChecked] = useState<string | null>(null)
   const fieldError = checked ?? top.issue?.field ?? null
   // The API refused the amount: its bound is said under the field, which takes the focus.
@@ -125,6 +127,8 @@ function TopUpBox({
   const send = () => {
     // A 429's wait still runs: the button says so, nothing is sent.
     if (lock.locked) return
+    // Every gateway refused this amount (its bound is said under it): another amount first.
+    if (!chosen) return field.current?.focus()
     const problem = topUpProblem(amount, bounds)
     setChecked(problem)
     if (problem) {
@@ -133,7 +137,7 @@ function TopUpBox({
     }
     top.submit({
       amount: amount!,
-      gatewayCode: topUpGatewayCode(gateways, chosen),
+      gatewayCode: topUpGatewayCode(usable, chosen),
       gateway: chosen,
     })
   }
@@ -141,7 +145,7 @@ function TopUpBox({
   const busy = top.phase.kind === 'sending'
   const gateway = (
     <TopUpGateway
-      gateways={gateways}
+      gateways={usable}
       chosen={chosen}
       onChoose={(code) => {
         setChosenCode(code)

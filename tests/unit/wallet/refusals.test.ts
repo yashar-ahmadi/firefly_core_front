@@ -31,7 +31,7 @@ describe('topUpRefusal', () => {
     [400, 'wallet_top_up_disabled', 'disabled'],
     [400, 'wallet_top_up_daily_limit_exceeded', 'amount'],
     [403, 'wallet_frozen', 'frozen'],
-    [400, 'gateway_amount_not_supported', 'gateway_unknown'],
+    [400, 'gateway_amount_not_supported', 'gateway_amount'],
     [503, 'gateway_result_url_invalid', 'gateway_broken'],
     [503, 'gateway_unavailable', 'gateway_unavailable'],
     [502, 'gateway_rejected', 'gateway_rejected'],
