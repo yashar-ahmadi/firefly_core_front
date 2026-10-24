@@ -7,6 +7,7 @@ import { cn } from '@/components/ui/cn'
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { VisuallyHidden } from '@/components/ui/visually-hidden'
+import { SEARCHABLE_OVER } from '@/features/catalog/listing-filters'
 import type {
   FilterAttribute,
   FilterBrandOption,
@@ -31,8 +32,6 @@ export interface FacetListProps {
   onChange: (next: string[]) => void
 }
 
-/** More brands than this get a search box. */
-const SEARCHABLE_OVER = 8
 /** The value of «all categories»; a slug is never empty. */
 const ALL = ''
 

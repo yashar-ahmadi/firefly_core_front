@@ -1,5 +1,10 @@
 import type { ReactNode } from 'react'
-import { FLAG_FILTERS, FLAG_LABELS, type FacetGroups } from '@/features/catalog/listing-filters'
+import {
+  FLAG_FILTERS,
+  FLAG_LABELS,
+  SEARCHABLE_OVER,
+  type FacetGroups,
+} from '@/features/catalog/listing-filters'
 
 // The desktop sidebar's outline of the filter panel (FilterPanel), shown until the viewport is
 // known (the server, hydration) and below lg, where the aside is hidden anyway. Static HTML from
@@ -10,8 +15,6 @@ import { FLAG_FILTERS, FLAG_LABELS, type FacetGroups } from '@/features/catalog/
 // control's height and this outline with it: `tests/e2e/catalog/sidebar-stability.spec.ts`
 // compares the two in a browser.
 
-/** FacetList's brand search shows above this many brands. */
-const BRAND_SEARCH_OVER = 8
 /** Rows enough to fill the brand list's scroll box (max-h-72: 288 px, 44 px a row). */
 const BRAND_BOX_ROWS = 7
 
@@ -25,7 +28,7 @@ function Rows({ count }: { count: number }) {
 }
 
 function BrandBody({ count }: { count: number }) {
-  if (count <= BRAND_SEARCH_OVER) return <Rows count={count} />
+  if (count <= SEARCHABLE_OVER) return <Rows count={count} />
   return (
     <>
       <div data-search="" className="mb-1 h-12 rounded-control border border-ink-200" />

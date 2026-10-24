@@ -1,11 +1,12 @@
-import { render, within } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
+import { FacetList } from '@/features/catalog/components/listing/facet-list'
 import { FilterPanel } from '@/features/catalog/components/listing/filter-panel'
 import { FilterPanelSkeleton } from '@/features/catalog/components/listing/filter-panel-skeleton'
 import { ListingUrlProvider } from '@/features/catalog/components/listing/use-listing-url'
-import { facetGroups, type FacetGroups } from '@/features/catalog/listing-filters'
+import { facetGroups, SEARCHABLE_OVER, type FacetGroups } from '@/features/catalog/listing-filters'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { LIST_CATEGORIES, MOBILE_FILTERS, STORE_BRANDS } from './filter-fixtures'
 
@@ -91,5 +92,39 @@ describe('FilterPanelSkeleton', () => {
     )
     expect(source).not.toMatch(/^['"]use client['"]/m)
     expect(source).not.toMatch(/from 'radix-ui'|@\/components\/ui\/|use(State|Effect|Ref)\b/)
+  })
+
+  it('outlines the brand search from the count the panel offers it at: one shared threshold', () => {
+    // The two kept their own copies of «over eight» (Plan 5 Task 9, carried from Task 8's
+    // re-review): one changed alone, the outline would no longer match the panel's height.
+    for (const count of [SEARCHABLE_OVER, SEARCHABLE_OVER + 1]) {
+      const options = STORE_BRANDS.slice(0, count)
+      expect(options).toHaveLength(count)
+      const panel = render(
+        <FacetList
+          facet={{ kind: 'brand', options }}
+          legend="برند"
+          selected={[]}
+          onChange={() => {}}
+        />,
+      )
+      const searched = screen.queryByRole('searchbox') !== null
+      panel.unmount()
+      const { container } = skeleton({ ...STORE, brands: options })
+      expect(container.querySelector('[data-skeleton-body="brand"] [data-search]') !== null).toBe(
+        searched,
+      )
+      expect(searched, `${count} brands`).toBe(count > SEARCHABLE_OVER)
+      container.remove()
+    }
+    // Shared from the pure module both import (not from facet-list.tsx: a Server Component gets a
+    // client module's exports as client references, never the value).
+    for (const file of ['filter-panel-skeleton.tsx', 'facet-list.tsx']) {
+      const source = readFileSync(`src/features/catalog/components/listing/${file}`, 'utf8')
+      expect(source, file).toMatch(
+        /SEARCHABLE_OVER[\s\S]*from '@\/features\/catalog\/listing-filters'/,
+      )
+      expect(source, file).not.toMatch(/(?:SEARCH\w*_OVER) = \d/)
+    }
   })
 })
