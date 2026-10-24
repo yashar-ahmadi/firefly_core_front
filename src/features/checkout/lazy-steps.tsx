@@ -1,6 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { cn } from '@/components/ui/cn'
 import { Skeleton } from '@/components/ui/skeleton'
 import { reloadPage } from '@/lib/navigation/hard-navigation'
 import type { CheckoutStep } from './checkout-steps'
@@ -32,10 +33,24 @@ const shipping = once(() => import('./shipping-section'))
 const payment = once(() => import('./payment-section'))
 const review = once(() => import('./review-section'))
 
+/**
+ * The room the guest's receiver form takes, kept by its skeleton so the steps below it stay put
+ * when the form comes (Plan 5 Task 8: the swap was a CLS of 0.45 on a phone). Measured on the
+ * form: 1216–1288 px below sm (its hints wrap differently from 320 to 639 px), 1020 px from sm.
+ */
+export const GUEST_FORM_ROOM = 'min-h-[77.5rem] sm:min-h-[63.75rem]'
+
 /** A step's body on its way, or a choice being made for the shopper: a skeleton, named. */
-export function StepLoading({ label = 'در حال بارگذاری' }: { label?: string }) {
+export function StepLoading({
+  label = 'در حال بارگذاری',
+  className,
+}: {
+  label?: string
+  /** The room the body will take (`GUEST_FORM_ROOM`), so nothing below it moves. */
+  className?: string
+}) {
   return (
-    <div role="status" aria-label={label} className="flex flex-col gap-3">
+    <div role="status" aria-label={label} className={cn('flex flex-col gap-3', className)}>
       {/* Read out by the live region (its name alone is not announced). */}
       <span className="sr-only">{`${label}…`}</span>
       <Skeleton className="h-16 rounded-card" />
@@ -67,7 +82,7 @@ export const GuestReceiverForm = dynamic(
     guestForm()
       .then((module) => module.GuestReceiverForm)
       .catch(() => StepUnavailable),
-  { loading: () => <StepLoading /> },
+  { loading: () => <StepLoading className={GUEST_FORM_ROOM} /> },
 )
 
 export const AddressPicker = dynamic(

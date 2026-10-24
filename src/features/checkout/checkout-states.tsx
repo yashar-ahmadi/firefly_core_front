@@ -19,7 +19,9 @@ export function CheckoutSkeleton() {
     <div
       role="status"
       aria-label="در حال بارگذاری"
-      className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-6"
+      // A screen tall at least: the footer starts below the fold, so the steps that replace
+      // this, however tall, move nothing in view.
+      className="grid min-h-dvh content-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-6"
     >
       <div className="flex flex-col gap-4">
         {[0, 1, 2].map((index) => (
