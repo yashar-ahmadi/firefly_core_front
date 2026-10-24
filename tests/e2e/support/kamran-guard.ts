@@ -8,8 +8,8 @@ import {
 import type { AccountData } from './account-data'
 import { withAccountData } from './account-guard'
 import { awaitingKamranOrders, cancelKamranOrder } from './kamran-order'
+import { sweepOrders } from './kamran-sweep'
 import { KAMRAN, logIn } from './session'
-import { readForSweep } from './sweep-read'
 
 // The signed-in checkout and orders journeys' safety net (Plan 4 Tasks 2 and 8, ruling P4-R4:
 // k.yazdi, never sara): a test fixture that signs the test's browser context in as kamran (one
@@ -52,7 +52,7 @@ async function guardKamran(
   const { request } = context
   const placed: string[] = []
   const track = (code: string) => void placed.push(code)
-  const left: string[] = []
+  let left: string[] = []
   /** His orders awaiting payment before the test (null: never read, then only `track`'s). */
   let awaiting: Set<string> | null = null
   try {
@@ -61,11 +61,13 @@ async function guardKamran(
       provide({ request, before, track }),
     )
   } finally {
-    const known = awaiting
-    // A failed read skips the sweep, said (support/sweep-read.ts); the tracked ones go anyway.
-    const now = known ? await readForSweep(() => awaitingKamranOrders(request), 'k.yazdi') : []
-    const his = new Set([...placed, ...now.filter((code) => !known?.has(code))])
-    for (const code of his) if (!(await cancelKamranOrder(request, code))) left.push(code)
+    // The sweep (support/kamran-sweep.ts): the tracked ones, and any new one awaiting payment.
+    left = await sweepOrders({
+      placed,
+      before: awaiting,
+      readNow: () => awaitingKamranOrders(request),
+      cancel: (code) => cancelKamranOrder(request, code),
+    })
     await logOut(request, origin)
   }
   expect(left, 'every order of his the test placed is cancelled').toEqual([])
