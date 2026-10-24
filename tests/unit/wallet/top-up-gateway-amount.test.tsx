@@ -86,4 +86,23 @@ describe('a top-up a gateway refuses for its amount', () => {
     await user.click(submit())
     expect(topUpSent(mocks.bffFetch).at(-1)).toEqual({ amount: 300_000, gateway_code: 'ZARINPAL' })
   })
+
+  it('back to the amount every gateway refused: a press says so under it, and sends nothing', async () => {
+    const user = await open([tooLow, tooLow])
+    await screen.findByRole('alert')
+    await user.click(submit())
+    await waitFor(() => expect(topUpSent(mocks.bffFetch)).toHaveLength(2))
+    // Another amount, then the refused one again (its bound was cleared with the first change).
+    await user.clear(amount())
+    await user.type(amount(), '300000')
+    await user.clear(amount())
+    await user.type(amount(), '100000')
+    expect(amount()).not.toHaveAccessibleDescription(new RegExp(FLOOR.slice(0, 20)))
+    await user.click(submit())
+    expect(amount()).toHaveAccessibleDescription(
+      /هیچ درگاهی این مبلغ را نمی\u{200C}پذیرد؛ مبلغ دیگری وارد کنید\./u,
+    )
+    expect(amount()).toHaveFocus()
+    expect(topUpSent(mocks.bffFetch)).toHaveLength(2)
+  })
 })

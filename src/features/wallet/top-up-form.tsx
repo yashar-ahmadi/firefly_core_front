@@ -37,6 +37,9 @@ import { walletAccess } from './wallet-access'
 // is listed (Task 3's, its default chosen). The press goes to the bank (`useTopUp`); the screen
 // on the way (Task 3's «در حال انتقال به …») loads then.
 
+/** A press on an amount every gateway refused (`gateway_amount_not_supported`, `usableAt`). */
+const NO_GATEWAY_AT_AMOUNT = 'هیچ درگاهی این مبلغ را نمی\u{200C}پذیرد؛ مبلغ دیگری وارد کنید.'
+
 export interface TopUpFormProps {
   wallet: WalletBalance
   catalog: PaymentCatalog
@@ -127,8 +130,12 @@ function TopUpBox({
   const send = () => {
     // A 429's wait still runs: the button says so, nothing is sent.
     if (lock.locked) return
-    // Every gateway refused this amount (its bound is said under it): another amount first.
-    if (!chosen) return field.current?.focus()
+    // Every gateway refused this amount: said under it (its bound was, until the amount changed),
+    // and another amount first.
+    if (!chosen) {
+      setChecked(NO_GATEWAY_AT_AMOUNT)
+      return field.current?.focus()
+    }
     const problem = topUpProblem(amount, bounds)
     setChecked(problem)
     if (problem) {
