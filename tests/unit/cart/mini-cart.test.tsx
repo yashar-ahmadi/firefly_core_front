@@ -1,20 +1,15 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ReactNode } from 'react'
-import { hydrateRoot } from 'react-dom/client'
-import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { HeaderActions } from '@/components/layout/header-actions'
-import { NavigationProgress } from '@/components/layout/navigation-progress'
-import { CartBadge } from '@/features/cart/components/cart-badge'
 import { MiniCart } from '@/features/cart/components/mini-cart'
-import { CART_KEY } from '@/features/cart/hooks'
-import { FeatureProvider } from '@/features/settings/feature-context'
 import { formatToman } from '@/lib/format'
 import type { Cart } from '@/lib/api/types/cart'
-import { minWidth, stubBrowserApis } from '../support/dom-stubs'
-import { clientProviders } from '../support/providers'
+import { stubBrowserApis } from '../support/dom-stubs'
+import { renderWith, serveCart, SUMMARY_NOTE, TWO_LINES, VIEW_CART } from './mini-cart-support'
 import { cart, cartLine, deferred, MSG_REMOVED, result } from './support'
+
+// The mini-cart sheet (the header's cart from md: header-cart.test.tsx): its lines, the API's
+// totals, removal, the focus after a removal and the empty cart.
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), error: vi.fn(), success: vi.fn() }))
 
@@ -29,127 +24,13 @@ vi.mock('@/components/ui/toaster', () => ({
 }))
 
 const media = stubBrowserApis()
-const VIEW_CART = 'مشاهده\u{0654} سبد خرید'
-const SUMMARY_NOTE = 'هزینه\u{0654} ارسال و مالیات در مرحله\u{0654} بعد محاسبه می\u{200C}شود.'
-
-/** Answers every cart read with `data`. */
-function serve(data: Cart) {
-  mocks.bffFetch.mockImplementation(() => Promise.resolve(result(data)))
-}
-
-function renderWith(ui: ReactNode, cached?: Cart) {
-  const { client, wrapper: Wrapper } = clientProviders()
-  if (cached) client.setQueryData(CART_KEY, cached)
-  const utils = render(
-    <FeatureProvider initial={{}}>
-      <Wrapper>{ui}</Wrapper>
-    </FeatureProvider>,
-  )
-  return { ...utils, client }
-}
-
-const TWO_LINES = cart(
-  [
-    cartLine({ quantity: 2 }),
-    cartLine({
-      variant_id: 10062,
-      product_id: 10062,
-      product_name: 'تلویزیون هایسنس ۵۵ اینچ U7',
-      product_slug: 'hisense-tv-55-u7',
-      variant_name: null,
-      unit_final_price: 71_500_000,
-    }),
-  ],
-  // Not the sum of the lines: the mini-cart shows the API's figure as it is. `total` (with tax)
-  // is not shown before checkout.
-  { goods_payable: 123_456_789, total: 987_654_321 },
-)
+const serve = (data: Cart) => serveCart(mocks.bffFetch, data)
 
 beforeEach(() => {
   media.set(() => false)
   mocks.bffFetch.mockReset()
   mocks.error.mockReset()
   mocks.success.mockReset()
-})
-
-describe('CartBadge', () => {
-  it('server-renders no count, hydrates cleanly and then shows the count', async () => {
-    serve(cart([cartLine()]))
-    const { client, wrapper: Wrapper } = clientProviders()
-    client.setQueryData(CART_KEY, cart([cartLine()]))
-    const ui = (
-      <Wrapper>
-        <span className="relative">
-          <CartBadge />
-        </span>
-      </Wrapper>
-    )
-    const html = renderToString(ui)
-    expect(html).toBe('<span class="relative"></span>')
-
-    const container = document.createElement('div')
-    container.innerHTML = html
-    document.body.append(container)
-    const consoleError = vi.spyOn(console, 'error')
-    let root: ReturnType<typeof hydrateRoot> | undefined
-    await act(async () => {
-      root = hydrateRoot(container, ui)
-    })
-    expect(consoleError).not.toHaveBeenCalled()
-    expect(container).toHaveTextContent('۱')
-    consoleError.mockRestore()
-    act(() => root?.unmount())
-    container.remove()
-  })
-
-  it('caps the count at «۹۹+»', async () => {
-    serve(cart([cartLine({ quantity: 150, available_quantity: 200 })]))
-    renderWith(<CartBadge />)
-    expect(await screen.findByText('۹۹+')).toBeInTheDocument()
-  })
-})
-
-describe('HeaderActions cart', () => {
-  it('names the count, and below md links to the cart page', async () => {
-    serve(cart([cartLine({ quantity: 3 })]))
-    renderWith(<HeaderActions />)
-    const link = await screen.findByRole('link', { name: 'سبد خرید، ۳ کالا' })
-    expect(link).toHaveAttribute('href', '/cart/')
-    expect(link).not.toHaveAttribute('aria-haspopup')
-  })
-
-  it('from md opens the mini-cart, which reads the cart again', async () => {
-    media.set(minWidth(48))
-    serve(TWO_LINES)
-    renderWith(<HeaderActions />)
-    const link = await screen.findByRole('link', { name: 'سبد خرید، ۳ کالا' })
-    await waitFor(() => expect(link).toHaveAttribute('aria-haspopup', 'dialog'))
-    mocks.bffFetch.mockClear()
-
-    await userEvent.click(link)
-    const sheet = await screen.findByRole('dialog', { name: 'سبد خرید' })
-    expect(link).toHaveAttribute('aria-expanded', 'true')
-    await waitFor(() => expect(mocks.bffFetch).toHaveBeenCalledWith('cart/', expect.anything()))
-    expect(within(sheet).getAllByRole('listitem')).toHaveLength(2)
-  })
-
-  it('from md opening the mini-cart is no navigation: the progress bar stays idle', async () => {
-    media.set(minWidth(48))
-    serve(TWO_LINES)
-    const { container } = renderWith(
-      <>
-        <NavigationProgress />
-        <HeaderActions />
-      </>,
-    )
-    const link = await screen.findByRole('link', { name: 'سبد خرید، ۳ کالا' })
-    await waitFor(() => expect(link).toHaveAttribute('aria-haspopup', 'dialog'))
-    expect(link).toHaveAttribute('data-opens-dialog')
-
-    await userEvent.click(link)
-    await screen.findByRole('dialog', { name: 'سبد خرید' })
-    expect(container.querySelector('[data-navigation-progress] [data-phase]')).toBeNull()
-  })
 })
 
 describe('MiniCart', () => {
