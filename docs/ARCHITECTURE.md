@@ -795,6 +795,16 @@ off, so no worker sits between the other specs and their routes and mocks.
   handlers; links whose click always opens a dialog instead also carry `data-opens-dialog`),
   completes when the path or query on screen changes, gives up after 10 s, sets `aria-busy` on
   `<main>` meanwhile, and is a static bar under reduced motion.
+  **A 404 shows nothing without JavaScript** (framework behaviour, before Plan 5 too). A
+  `notFound()` thrown outside any `<Suspense>` (R9's own rule, for the real status) reaches
+  React's server renderer, which has no error boundaries, so Next 16.4.1 answers with its error
+  shell, `<html id="__next_error__">` with an empty `<body>` and no `lang`/`dir`
+  (`getErrorRSCPayload` in `next/dist/server/app-render/app-render.js`), and the browser renders
+  the not-found page (both shells, P5-R2) from the RSC payload. What a crawler needs is still in
+  the HTML: status 404, the head's `<title>` («صفحه پیدا نشد | <shop>») and Next's
+  `noindex`. No safe cheap fix: Next writes that shell's `<html>` itself, nothing of the page's
+  markup reaches it, and setting `lang`/`dir` from a script needs the JavaScript a no-JS visitor
+  lacks.
 - **Metadata.** The root `title.template` is `'%s | <store>'`; it applies to child segments only, so
   the home page and pages with a backend `page_title` use `title.absolute`. Open Graph and Twitter
   titles are set explicitly. `metadataBase` is `SITE_URL`, set once in the root layout
