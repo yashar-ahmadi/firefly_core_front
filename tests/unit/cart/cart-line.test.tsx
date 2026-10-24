@@ -87,8 +87,14 @@ describe('CartLineItem', () => {
       order_limit_max: 0,
       available_quantity: 3,
     })
-    expect(screen.getByRole('button', { name: 'افزایش تعداد' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'کاهش تعداد' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'افزایش تعداد' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'کاهش تعداد' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
   })
 
   it('sends only the final quantity once the taps stop, absolute, and reports it pending', async () => {

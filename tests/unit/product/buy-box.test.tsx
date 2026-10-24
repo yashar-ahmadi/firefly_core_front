@@ -144,10 +144,16 @@ describe('BuyBox: quantity', () => {
     const user = userEvent.setup()
     renderBox({ product: withVariants(() => ({ order_limit_min: 2, order_limit_max: 3 })) })
     expect(stepper()).toHaveTextContent('۲')
-    expect(within(stepper()).getByRole('button', { name: 'کاهش تعداد' })).toBeDisabled()
+    expect(within(stepper()).getByRole('button', { name: 'کاهش تعداد' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
     await user.click(within(stepper()).getByRole('button', { name: 'افزایش تعداد' }))
     expect(stepper()).toHaveTextContent('۳')
-    expect(within(stepper()).getByRole('button', { name: 'افزایش تعداد' })).toBeDisabled()
+    expect(within(stepper()).getByRole('button', { name: 'افزایش تعداد' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
   })
 
   it('has no maximum when the limit is 0 and starts at 1 without a minimum', async () => {
@@ -158,7 +164,9 @@ describe('BuyBox: quantity', () => {
       await user.click(within(stepper()).getByRole('button', { name: 'افزایش تعداد' }))
     }
     expect(stepper()).toHaveTextContent('۶')
-    expect(within(stepper()).getByRole('button', { name: 'افزایش تعداد' })).toBeEnabled()
+    expect(within(stepper()).getByRole('button', { name: 'افزایش تعداد' })).not.toHaveAttribute(
+      'aria-disabled',
+    )
   })
 
   it('adds the selected variant id with the quantity', async () => {

@@ -217,7 +217,10 @@ describe('MiniCart', () => {
     const [first] = within(sheet).getAllByRole('listitem')
     await userEvent.click(within(first!).getByRole('button', { name: 'حذف از سبد خرید' }))
     await waitFor(() =>
-      expect(within(first!).getByRole('button', { name: 'افزایش تعداد' })).toBeDisabled(),
+      expect(within(first!).getByRole('button', { name: 'افزایش تعداد' })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      ),
     )
     await act(async () => removing.resolve(result(cart([TWO_LINES.lines[1]!]), MSG_REMOVED)))
   })

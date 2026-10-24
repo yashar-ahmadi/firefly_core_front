@@ -16,7 +16,11 @@ export interface QuantityStepperProps {
   onChange: (value: number) => void
   /** When given, the minus button turns into «حذف» (a bin) at `min`. */
   onRemove?: () => void
-  /** Disables both buttons and shows a spinner over the number (e.g. while the cart saves). */
+  /**
+   * Both buttons wait and a spinner shows over the number (e.g. while the cart saves). A button
+   * that cannot be used now is `aria-disabled` and ignores presses, never `disabled`: a disabled
+   * button that held the focus would drop it to the page.
+   */
   loading?: boolean
   /** `md` buttons are 44px; `sm` buttons are drawn at 40px with a 44px hit area. */
   size?: QuantityStepperSize
@@ -26,7 +30,7 @@ export interface QuantityStepperProps {
 const BUTTON = cn(
   'relative grid shrink-0 place-items-center rounded-[calc(var(--radius-control)-1px)] text-brand-700',
   'transition-[background-color,color,transform] duration-150 hover:bg-brand-50 active:bg-brand-100',
-  'motion-safe:active:scale-95 disabled:cursor-not-allowed disabled:text-ink-300 disabled:hover:bg-transparent',
+  'motion-safe:active:scale-95 aria-disabled:cursor-not-allowed aria-disabled:text-ink-300 aria-disabled:hover:bg-transparent',
   '[&_svg]:size-5',
 )
 
@@ -63,8 +67,8 @@ export function QuantityStepper({
       <button
         type="button"
         aria-label="افزایش تعداد"
-        disabled={!canIncrease}
-        onClick={() => onChange(value + 1)}
+        aria-disabled={!canIncrease || undefined}
+        onClick={() => canIncrease && onChange(value + 1)}
         className={cn(BUTTON, s.button)}
       >
         <Plus aria-hidden strokeWidth={2.5} />
@@ -87,8 +91,8 @@ export function QuantityStepper({
         <button
           type="button"
           aria-label="حذف"
-          disabled={loading}
-          onClick={onRemove}
+          aria-disabled={loading || undefined}
+          onClick={() => !loading && onRemove()}
           className={cn(BUTTON, s.button, 'text-danger hover:bg-danger/10 active:bg-danger/15')}
         >
           <Trash2 aria-hidden />
@@ -97,8 +101,8 @@ export function QuantityStepper({
         <button
           type="button"
           aria-label="کاهش تعداد"
-          disabled={loading || atMin}
-          onClick={() => onChange(value - 1)}
+          aria-disabled={loading || atMin || undefined}
+          onClick={() => !loading && !atMin && onChange(value - 1)}
           className={cn(BUTTON, s.button)}
         >
           <Minus aria-hidden strokeWidth={2.5} />

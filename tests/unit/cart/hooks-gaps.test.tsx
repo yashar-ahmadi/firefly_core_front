@@ -98,14 +98,22 @@ describe('MiniCartLine: the cases its tests left out', () => {
     renderLine(
       cartLine({ quantity: 2, order_limit_min: 2, order_limit_max: 2, available_quantity: 13 }),
     )
-    expect(screen.getByRole('button', { name: 'افزایش تعداد' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'کاهش تعداد' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'افزایش تعداد' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'کاهش تعداد' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
   })
 
   it('an unlimited line (order_limit_max 0) stops at what it can hold now', () => {
     renderLine(cartLine({ quantity: 12, order_limit_max: 0, available_quantity: 13 }))
-    expect(screen.getByRole('button', { name: 'افزایش تعداد' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'کاهش تعداد' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'افزایش تعداد' })).not.toHaveAttribute(
+      'aria-disabled',
+    )
+    expect(screen.getByRole('button', { name: 'کاهش تعداد' })).not.toHaveAttribute('aria-disabled')
   })
 
   it('locks the bin while the line’s PUT is on its way', async () => {
