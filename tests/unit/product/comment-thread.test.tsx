@@ -36,7 +36,10 @@ describe('CommentThread', () => {
     const date = within(root).getByText('۲۸ خرداد ۱۴۰۵')
     expect(date.tagName).toBe('TIME')
     expect(date).toHaveAttribute('dateTime', '2026-06-18T15:00:00+03:30')
-    expect(within(root).getByRole('img', { name: 'امتیاز ۴ از ۵' })).toBeInTheDocument()
+    // The score in figures beside the stars: their accent fill is under 3:1 on white in every
+    // preset (docs/CUSTOMIZATION.md, the contrast table), so the stars never carry it alone.
+    const stars = within(root).getByRole('img', { name: 'امتیاز ۴ از ۵' })
+    expect(stars.parentElement).toHaveTextContent(/^۴$/)
     expect(within(root).getByRole('heading', { name: 'عالی ولی گران' })).toBeInTheDocument()
     expect(within(root).getByText(/کیفیت ساخت بی نظیره/)).toBeInTheDocument()
     // Pros and cons differ by icon and by a spoken label, not by colour alone.

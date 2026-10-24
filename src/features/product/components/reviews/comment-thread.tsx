@@ -69,7 +69,7 @@ export function CommentThread({ comment, slug, canReply, depth = 0 }: CommentThr
         <CommentThread comment={reply} slug={slug} canReply={false} depth={next} />
       )}
     >
-      {comment.rating !== null && <Rating value={comment.rating} size="sm" showValue={false} />}
+      {comment.rating !== null && <Rating value={comment.rating} size="sm" />}
       {comment.title && (
         <h3 dir="auto" className="text-base font-bold text-ink-900">
           {comment.title}

@@ -153,7 +153,7 @@ export function CommentRow({ comment, pending, onDelete, onPreloadDelete }: Comm
 
       {(comment.rating !== null || comment.title) && (
         <div className="flex flex-col gap-1">
-          {comment.rating !== null && <Rating value={comment.rating} size="sm" showValue={false} />}
+          {comment.rating !== null && <Rating value={comment.rating} size="sm" />}
           {comment.title && (
             <h3 dir="auto" className="text-base leading-7 font-bold text-ink-900">
               {comment.title}

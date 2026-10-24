@@ -82,7 +82,9 @@ describe('CommentRow', () => {
     renderComments()
     const review = await rowOf(PRODUCT_10014.subject.name)
     expect(within(review).getByRole('heading', { level: 3, name: 'خرید خوبی بود' })).toBeVisible()
-    expect(within(review).getByRole('img', { name: 'امتیاز ۵ از ۵' })).toBeInTheDocument()
+    // The score in figures beside the stars (their accent fill is under 3:1 on white).
+    const stars = within(review).getByRole('img', { name: 'امتیاز ۵ از ۵' })
+    expect(stars.parentElement).toHaveTextContent(/^۵$/)
     expect(within(review).getByText('خریدار')).toBeVisible()
     expect(within(review).getByText('تأیید شده')).toBeVisible()
     expect(within(review).getByText('۲ مرداد ۱۴۰۵')).toBeVisible()
