@@ -1509,6 +1509,11 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   refresh, forwards, matcher), settings loaders and their fallbacks, snippet parsing, the sanitiser,
   every UI primitive and layout piece. Components that need the shell context render inside
   `Providers`; overlays and carousels call `stubBrowserApis()` (`tests/unit/support/dom-stubs.ts`).
+  No unit test reaches a server: `vitest.setup.ts` puts a network guard in place of `fetch`
+  (`tests/unit/support/network-guard.ts`) that refuses an absolute http(s) URL and fails the test
+  that asked, even when the code under test swallowed the refusal; a test that stubs `fetch`
+  itself replaces it. A loader that would reach the API is mocked (as the route tests mock
+  `getPaymentCatalog`), never let through.
 - **End-to-end** (`pnpm test:e2e`, Playwright): runs the **production artifact** — `pnpm build` then
   `pnpm start:standalone`, i.e. `.next/standalone/server.js` with `.next/static` and `public` copied
   next to it, exactly like the Docker image (each server from its own copy of the build, one folder
@@ -1708,13 +1713,15 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   linker's video players) are excluded element by element. `checkout/checkout-stability.spec.ts`
   sums a guest checkout's own layout shifts (under 0.1), and `cart/badge-bump.spec.ts` reads the
   cart badge's animation after an add under both motion settings.
-- **The suite at the end of Plan 5** (Task 9). Unit and component: 575 files, 5,212 tests (about
+- **The suite at the end of Plan 5** (Task 9). Unit and component: 576 files, 5,218 tests (about
   6.5 minutes on four cores; the checkout's and payment's are the most timing-sensitive, so a
   wait in them covers only what it asserts: a lazy step body the test does not test is loaded
   before, an effect's result is waited for). End to end: 1,029 tests in 62 files, mobile 318,
   tablet 318, desktop 318, pwa 12, budget-push 47 and journeys 16; a routine run passes 721 and
   skips 308 (tests scoped to another project, and the opt-in wallet journey), in about 14 minutes
-  with two workers. Per run, from the backend's log: about 2,700 API requests, none answered 429;
+  with two workers; a route handler that fetches live (`liveJson`, `route.fetch()`) finishes
+  before its test ends (`settleRoutes`, `tests/e2e/support/live-route.ts`, or the spec's own
+  teardown). Per run, from the backend's log: about 2,700 API requests, none answered 429;
   31 auth attempts (20 logins, 11 logouts; at most 11 in a minute); 47 axe audits, none with a
   finding; the writes listed above. The last two full runs, an hour apart as the budget allows,
   were both green, every one of their 220 budget rows the same.
