@@ -27,6 +27,18 @@ describe('httpUrl / linkUrl', () => {
     expect(linkUrl('/\\evil.example/')).toBeNull()
     expect(linkUrl('javascript:alert(1)')).toBeNull()
   })
+
+  // The URL parser drops tabs and line breaks and ignores leading C0 controls: each of these is
+  // `//evil.example/`, another host (src/lib/links/as-parsed.ts).
+  it.each(['/\t/evil.example/', '/\n/evil.example/', '/\t\\evil.example/', '\u{1}//evil.example/'])(
+    'never takes %j for a storefront path',
+    (value) => expect(linkUrl(value)).toBeNull(),
+  )
+
+  it('gives a storefront path as the parser reads it', () => {
+    expect(linkUrl('\u{1}/contact-us/')).toBe('/contact-us/')
+    expect(linkUrl('/con\ttact-us/')).toBe('/contact-us/')
+  })
 })
 
 describe('mapLink', () => {

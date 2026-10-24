@@ -5,6 +5,7 @@ import { SmartImage } from '@/components/ui/smart-image'
 import type { LinkerLink } from '@/lib/api/types/linker'
 import { formatIranMobile } from '@/lib/format/phone'
 import { httpUrl } from '@/lib/html/safe-url'
+import { asParsed, isRootPath } from '@/lib/links/as-parsed'
 import { isBlogPostPath } from '@/lib/links/post-link'
 import { isShortLinkPath } from '@/lib/links/short-link'
 import { videoEmbedUrl } from './video-embed'
@@ -21,9 +22,6 @@ const BUTTON = cn(
 
 /** The thumbnail's physical side: `left` reverses the row (RTL). */
 const buttonClass = (side: ThumbnailSide) => cn(BUTTON, side === 'left' && 'flex-row-reverse')
-
-/** A store path (`/product/list/x/`), never `//host` or `/\host`. */
-const isStorePath = (value: string) => /^\/(?![/\\])/.test(value)
 
 /**
  * A button's face: its title centred, its thumbnail on the PHYSICAL side the operator chose
@@ -60,20 +58,19 @@ function Face({ link, extra }: { link: LinkerLink; extra?: ReactNode }) {
 function buttonLink(link: LinkerLink, side: ThumbnailSide): ReactNode {
   const className = buttonClass(side)
   const face = <Face link={link} />
-  if (isStorePath(link.value)) {
-    if (isShortLinkPath(link.value)) {
+  // A store path (`/product/list/x/`) as the URL parser reads it: never `//host` or `/\host`, a
+  // tab or a line break taken out (src/lib/links/as-parsed.ts).
+  const path = asParsed(link.value)
+  if (isRootPath(path)) {
+    if (isShortLinkPath(path)) {
       return (
-        <a href={link.value} className={className}>
+        <a href={path} className={className}>
           {face}
         </a>
       )
     }
     return (
-      <Link
-        href={link.value}
-        prefetch={isBlogPostPath(link.value) ? false : undefined}
-        className={className}
-      >
+      <Link href={path} prefetch={isBlogPostPath(path) ? false : undefined} className={className}>
         {face}
       </Link>
     )

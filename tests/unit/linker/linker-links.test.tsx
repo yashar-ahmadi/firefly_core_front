@@ -81,6 +81,36 @@ describe('the links, by type', () => {
     expect(item('اینستاگرام ما')).not.toHaveAttribute('data-next-link')
   })
 
+  // The URL parser drops tabs and line breaks and reads `\` as `/`: these values lead to another
+  // host, so none is routed in the shop; each is the API's absolute link (src/lib/links/as-parsed.ts).
+  it('a value that only looks like a store path is never routed in the shop', async () => {
+    const values = ['/\t/evil.example/', '/\n/evil.example/', '/\\evil.example/']
+    await show(
+      linkerFixture({
+        links: values.map((value, index) => linkTo(index + 1, 'button', `پیوند ${index}`, value)),
+      }),
+    )
+    values.forEach((value, index) => {
+      expect(item(`پیوند ${index}`)).not.toHaveAttribute('data-next-link')
+      expect(item(`پیوند ${index}`).getAttribute('href')).toMatch(/^http:\/\/localhost:3000\//)
+    })
+  })
+
+  it('a store path is read as the parser reads it: routed, a post never prefetched', async () => {
+    await show(
+      linkerFixture({
+        links: [
+          linkTo(1, 'button', 'پرچمدارها', '/product/list/flag\tship-phones/'),
+          linkTo(2, 'button', 'راهنمای خرید', '/bl\nog/best-phones-under-30m/'),
+        ],
+      }),
+    )
+    expect(item('پرچمدارها')).toHaveAttribute('href', '/product/list/flagship-phones/')
+    expect(item('پرچمدارها')).toHaveAttribute('data-next-link')
+    expect(item('راهنمای خرید')).toHaveAttribute('href', '/blog/best-phones-under-30m/')
+    expect(item('راهنمای خرید')).toHaveAttribute('data-prefetch', 'false')
+  })
+
   it('email and phone: the API’s mailto: and tel:; text: a heading and its lines, never HTML', async () => {
     await show(
       linkerFixture({

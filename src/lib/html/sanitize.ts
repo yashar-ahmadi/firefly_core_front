@@ -2,6 +2,7 @@ import 'server-only'
 import sanitizeHtml from 'sanitize-html'
 import { headingIdFilter, withHeadingIds } from '@/lib/html/heading-ids'
 import { wrapImages } from '@/lib/html/image-regions'
+import { asParsed } from '@/lib/links/as-parsed'
 
 /**
  * Operator HTML (the footer text, FAQ answers, dynamic content) made safe to render with
@@ -87,10 +88,6 @@ const REL_TOKENS = new Set(['nofollow', 'sponsored', 'ugc'])
 const MEDIA_PATH = /^\/(?:media|static)\//
 const MAIL_OR_PHONE = /^(?:mailto|tel):/i
 const ABSOLUTE = /^(?:[a-z][a-z\d+.-]*:)?\/\//i
-/** Leading and trailing C0 controls and spaces: the URL parser ignores them. */
-const URL_EDGE_JUNK = /^[\u{0}- ]+|[\u{0}- ]+$/gu
-/** Tabs and line breaks: the URL parser drops them anywhere in a URL. */
-const URL_TAB_OR_NEWLINE = /[\t\n\r]/g
 const TABLE_OPEN = /<table(?=[\s>])/g
 const TABLE_CLOSE = /<\/table>/g
 const TABLE_WRAP = '<div class="table-wrap" role="region" tabindex="0" aria-label="جدول">'
@@ -102,11 +99,6 @@ function originOf(url: string | undefined): string | null {
   } catch {
     return null
   }
-}
-
-/** `value` as the URL parser reads it (so `\u{1}//host` is `//host`), before any check on it. */
-function asParsed(value: string): string {
-  return value.replace(URL_EDGE_JUNK, '').replace(URL_TAB_OR_NEWLINE, '')
 }
 
 /** `/media/x.png` on the API origin; anything else as written. */
