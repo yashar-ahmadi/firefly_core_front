@@ -5,6 +5,7 @@ import CheckoutRoute from '@/app/(checkout)/checkout/page'
 import { CheckoutPage } from '@/features/checkout/checkout-page'
 import { DynamicSlot } from '@/features/content/dynamic/dynamic-slot'
 import { FeatureProvider } from '@/features/settings/feature-context'
+import { catalog } from '../payment/fixtures'
 import { clientProviders } from '../support/providers'
 import { resolveServerTree } from '../support/server-tree'
 
@@ -17,6 +18,8 @@ import { resolveServerTree } from '../support/server-tree'
 const mocks = vi.hoisted(() => ({ slots: {} as Record<string, unknown> }))
 
 vi.mock('server-only', () => ({}))
+// The route reads the payment lists on the server: answered here, never by the dev backend.
+vi.mock('@/features/payment/catalog', () => ({ getPaymentCatalog: async () => catalog() }))
 vi.mock('@/features/content/dynamic/api', () => ({
   getDynamicContent: async (key: string) => mocks.slots[key] ?? null,
 }))

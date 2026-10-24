@@ -11,6 +11,7 @@ import CheckoutRoute, { dynamic, generateMetadata } from '@/app/(checkout)/check
 import CheckoutError from '@/app/(checkout)/error'
 import { FeatureProvider } from '@/features/settings/feature-context'
 import { menuNode } from '../layout/support'
+import { catalog } from '../payment/fixtures'
 import { clientProviders } from '../support/providers'
 import { resolveServerTree } from '../support/server-tree'
 
@@ -29,6 +30,8 @@ const SEAL =
 const mocks = vi.hoisted(() => ({ menu: [] as unknown[], snippets: [] as unknown[] }))
 
 vi.mock('server-only', () => ({}))
+// The route reads the payment lists on the server: answered here, never by the dev backend.
+vi.mock('@/features/payment/catalog', () => ({ getPaymentCatalog: async () => catalog() }))
 // The message slots are checkout-slots.test.tsx's: none here.
 vi.mock('@/features/content/dynamic/api', () => ({ getDynamicContent: async () => null }))
 vi.mock('next/headers', () => ({
