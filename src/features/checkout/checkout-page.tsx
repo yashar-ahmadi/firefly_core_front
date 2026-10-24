@@ -108,12 +108,13 @@ export function CheckoutPage({
   }, [ready, arrived, step, signedIn, guests])
   // A choice that hangs (its read or write unanswered) holds the skeleton no longer: named after
   // 3 s, the steps after 8 s (before a write's own 10 s), each step's own skeleton, or the
-  // shopper's choice (the picker), taking over.
+  // shopper's choice (the picker), taking over. The clock stops once the page has arrived.
   const [waited, setWaited] = useState(0)
   useEffect(() => {
+    if (arrived) return
     const timers = [3e3, 8e3].map((ms, at) => setTimeout(() => setWaited(at + 1), ms))
     return () => timers.forEach(clearTimeout)
-  }, [])
+  }, [arrived])
 
   const { error } = cartQuery
   useEffect(() => {

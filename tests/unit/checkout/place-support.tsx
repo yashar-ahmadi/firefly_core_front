@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { Profiler, type ProfilerOnRenderCallback, type ReactNode } from 'react'
 import type { Mock } from 'vitest'
 import { CART_KEY } from '@/features/cart/cart-cache'
 import { CheckoutPage, type CheckoutPageProps } from '@/features/checkout/checkout-page'
@@ -72,6 +72,7 @@ export function renderCheckout({
   props = {},
   features = {},
   draft = true,
+  onRender = () => {},
 }: {
   cart: Cart
   hasSession?: boolean
@@ -79,6 +80,8 @@ export function renderCheckout({
   features?: Partial<FeatureMap>
   /** A guest's receiver, confirmed (the receiver step done). */
   draft?: boolean
+  /** Told of every commit of the page (React's Profiler). */
+  onRender?: ProfilerOnRenderCallback
 }) {
   if (draft && !hasSession) saveReceiverDraft({ values: VALID_RECEIVER, confirmed: true })
   const { client, wrapper: Wrapper } = clientProviders({ hasSession })
@@ -93,7 +96,9 @@ export function renderCheckout({
       <h1 id="checkout-heading" tabIndex={-1}>
         تکمیل خرید
       </h1>
-      <CheckoutPage {...checkoutProps()} {...props} />
+      <Profiler id="checkout" onRender={onRender}>
+        <CheckoutPage {...checkoutProps()} {...props} />
+      </Profiler>
     </>,
     { wrapper },
   )

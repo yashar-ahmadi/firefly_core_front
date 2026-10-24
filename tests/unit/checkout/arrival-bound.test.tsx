@@ -89,19 +89,24 @@ describe('the checkout’s arrival, a choice that hangs', () => {
   })
 
   it('arrived in time: no named wait, nothing more after 8 s', async () => {
+    let cart = noDestinationCart()
     mocks.bffFetch.mockImplementation((path: string) => {
-      if (path === 'cart/') return Promise.resolve(ok(noDestinationCart()))
+      if (path === 'cart/') return Promise.resolve(ok(cart))
       if (path === 'account/address/list/') return Promise.resolve(ok(book()))
-      // Its address and the shipping chosen with it: the review is the step.
-      if (path === 'cart/destination/') return Promise.resolve(ok(signedInCart()))
+      // Its address and the shipping chosen with it: the review is the step (and stays it).
+      if (path === 'cart/destination/') return Promise.resolve(ok((cart = signedInCart())))
       return never()
     })
-    renderCheckout({ cart: noDestinationCart(), hasSession: true })
+    let commits = 0
+    renderCheckout({ cart: noDestinationCart(), hasSession: true, onRender: () => void commits++ })
     await after(1_000)
     expect(skeleton()).toBeNull()
     expect(screen.queryByText(PREPARING)).toBeNull()
+    // The bound's clock stops at the arrival: no render at 3 s or at 8 s.
+    const arrived = commits
     await after(10_000)
     expect(screen.queryByText(PREPARING)).toBeNull()
+    expect(commits).toBe(arrived)
   })
 })
 
