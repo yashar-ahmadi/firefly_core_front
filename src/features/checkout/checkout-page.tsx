@@ -95,9 +95,12 @@ export function CheckoutPage({
   // later steps down). A choice made again later, or a step opened later, shows in its step.
   const choosing = checkout.autoDestination.working || checkout.autoShipping.working
   const [arrived, setArrived] = useState(false)
+  // After every render until then (cheap); never for an empty cart, which has no step to show.
   useEffect(() => {
-    if (!arrived && cart && !choosing) void loadBody(step, signedIn).then(() => setArrived(true))
-  }, [arrived, cart, choosing, step, signedIn])
+    if (!arrived && cart && !cart.is_empty && !choosing) {
+      void loadBody(step, signedIn).then(() => setArrived(true))
+    }
+  })
 
   const { error } = cartQuery
   useEffect(() => {
@@ -106,8 +109,7 @@ export function CheckoutPage({
 
   if (placed) return <PlacedOrderPanel ctx={placed} catalog={catalog} supportPhone={supportPhone} />
   if (checkout.sessionEnded) return <SessionEnded />
-  if (!cart) {
-    if (!cartQuery.isError) return <CheckoutSkeleton />
+  if (!cart && cartQuery.isError) {
     return (
       <ListError
         message="سبد خرید بارگذاری نشد."
@@ -119,8 +121,9 @@ export function CheckoutPage({
     )
   }
   // Empty after an order placed in this tab (a reload, Back from the bank): that order, first.
-  if (cart.is_empty) return <EmptyCheckout placed={readLastPlaced()} />
-  if (!arrived) return <CheckoutSkeleton />
+  if (cart?.is_empty) return <EmptyCheckout placed={readLastPlaced()} />
+  // The cart on its way, or the page not arrived yet (above).
+  if (!cart || !arrived) return <CheckoutSkeleton />
 
   const blocked = checkoutBlock(cart, false) === CHECKOUT_ISSUES
   // A refusal whose fix is in an earlier step is said at the top, until the review again.

@@ -1,7 +1,7 @@
 'use client'
 
 import { useFeature } from '@/features/settings/feature-context'
-import { AddressPicker, GuestReceiverForm, StepLoading } from './lazy-steps'
+import { AddressPicker, GuestReceiverForm } from './lazy-steps'
 import { LoginPrompt } from './login-prompt'
 import type { Checkout } from './use-checkout'
 
@@ -12,14 +12,9 @@ import type { Checkout } from './use-checkout'
 
 export function ReceiverSection({ checkout }: { checkout: Checkout }) {
   const guestCheckout = useFeature('guest_checkout')
-  if (checkout.signedIn) {
-    // The book's default being posted for the shopper (use-auto-choices): the picker's code
-    // loads only if they are asked after all.
-    if (checkout.autoDestination.working) {
-      return <StepLoading label={'در حال انتخاب آدرس پیش\u{200C}فرض'} />
-    }
-    return <AddressPicker checkout={checkout} />
-  }
+  // The book's default posted for the shopper on arrival (use-auto-choices) is behind the page's
+  // skeleton (checkout-page.tsx): the picker's code loads only if they are asked after all.
+  if (checkout.signedIn) return <AddressPicker checkout={checkout} />
   if (!guestCheckout.enabled) return <LoginPrompt />
   return <GuestReceiverForm checkout={checkout} />
 }

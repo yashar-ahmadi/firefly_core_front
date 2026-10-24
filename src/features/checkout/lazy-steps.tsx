@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useReducer, type ComponentType } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { reloadPage } from '@/lib/navigation/hard-navigation'
 import type { CheckoutStep } from './checkout-steps'
@@ -66,17 +66,17 @@ function stepBody<P extends object>(importer: () => Promise<ComponentType<P>>) {
       },
     ))
   function LazyBody(props: P) {
-    const [, loaded] = useReducer(() => true, false)
+    const [, setLoaded] = useState(false)
     useEffect(() => {
-      if (Body) return
-      load().then(loaded, () => {
-        Body = StepUnavailable as ComponentType<P>
-        loaded()
-      })
+      if (!Body)
+        void load()
+          .catch(() => (Body = StepUnavailable as ComponentType<P>))
+          .then(() => setLoaded(true))
     }, [])
     return Body ? <Body {...props} /> : <StepLoading />
   }
-  return Object.assign(LazyBody, { load })
+  LazyBody.load = load
+  return LazyBody
 }
 
 export const GuestReceiverForm = stepBody(() =>
@@ -95,13 +95,14 @@ export const ReviewSection = stepBody(() =>
   import('./review-section').then((module) => module.ReviewSection),
 )
 
+/** The steps' bodies, in the steps' order. */
 const BODIES: Record<CheckoutStep, (signedIn: boolean) => Promise<unknown>> = {
   receiver: (signedIn) => (signedIn ? AddressPicker : GuestReceiverForm).load(),
-  shipping: () => ShippingSection.load(),
-  payment: () => PaymentSection.load(),
-  review: () => ReviewSection.load(),
+  shipping: ShippingSection.load,
+  payment: PaymentSection.load,
+  review: ReviewSection.load,
 }
-const ORDER: CheckoutStep[] = ['receiver', 'shipping', 'payment', 'review']
+const ORDER = Object.keys(BODIES) as CheckoutStep[]
 
 /** Loads the body of `step` (the page arrives once its open step's is in). Never rejects. */
 export const loadBody = (step: CheckoutStep, signedIn: boolean): Promise<unknown> =>

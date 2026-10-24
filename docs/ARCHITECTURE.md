@@ -1227,10 +1227,12 @@ off, so no worker sits between the other specs and their routes and mocks.
   its loading skeleton on a body's first mount even with the code in, and React held that
   fallback 300 ms more (its Suspense throttle); a `stepBody` renders its body at once when its
   code is in. After arrival a step opened by the shopper, or a choice made again (another address
-  resets the shipping), shows in its step as before. The arrival latch, the bodies and the
-  screen-tall page cost a guest's `/checkout/` 71 B of JavaScript (218,808 → 218,879 B, still
-  213.7 KB), with the guest form's fixed room (Task 8's `guest-form-room`, two heights measured
-  on that day's fields) removed: no step needs one on arrival any more.
+  resets the shipping), shows in its step as before; the receiver's own skeleton for the book's
+  default went (that choice is made on arrival). An empty cart waits for no body. The arrival,
+  the bodies and the screen-tall page cost every `/checkout/` state 25 B of JavaScript (a guest
+  218,808 → 218,833 B; within each state's rounding: 213.7, 212.5 at the review, 216.9 signed
+  in), with the guest form's fixed room (Task 8's `guest-form-room`, two heights measured on
+  that day's fields) removed: no step needs one on arrival any more.
 - **The font is a subset** (`lib/fonts.ts` holds the command): 85 KB instead of the full variable
   font's 111 KB, preloaded (an HTTP `Link`) on every first visit; Latin Extended and IPA letters
   fall back to the system face.
