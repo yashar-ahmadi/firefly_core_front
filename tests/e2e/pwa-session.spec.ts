@@ -4,10 +4,10 @@ import { SARA, signedInTest as test } from './support/session'
 
 // A signed-in visitor shown the home page's anonymous copy while online (Plan 5 final fix wave):
 // the worker serves the copy it kept to a navigation of `/` the network has not answered in 4 s
-// (the installed app's start page on a slow network), with the guest's header. The shop-wide
-// session sweep sets it right on mount (src/lib/session/session-heal.ts): the header ends up the
-// visitor's, without a reload. Read only: sara's shared session (no login of its own); the home
-// page's own navigation is held 6 s on its way, nothing else is.
+// (the installed app's start page on a slow network), with the guest's header. The home page sets
+// it right on mount (src/lib/session/kept-copy-session.tsx): the header ends up the visitor's,
+// without a reload. Read only: sara's shared session (no login of its own); the home page's own
+// navigation is held 6 s on its way, nothing else is.
 
 const HELD_MS = 6_000
 
