@@ -56,6 +56,10 @@ describe('the search', () => {
   it('filters the questions, Persian-aware, and says the count politely', async () => {
     render(<FaqBrowser sections={SECTIONS} />)
     expect(status()).toHaveTextContent('')
+    // A search landmark named apart from the header's (two on the page).
+    expect(screen.getByRole('search', { name: 'جستجو در پرسش\u{200C}ها' })).toContainElement(
+      search(),
+    )
     await userEvent.type(search(), 'هز\u{064A}نه')
     expect(listed(10005)).toBe(true)
     expect(listed(10001)).toBe(false)

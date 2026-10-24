@@ -43,6 +43,7 @@ export function OrdersToolbar({ path, params, count, onSort, onSearch }: OrdersT
     <div className="mb-4 flex flex-col gap-3 rounded-card bg-white p-4 shadow-card md:mb-5">
       <form
         role="search"
+        aria-label="جستجو در سفارش‌ها"
         method="get"
         action={path}
         className="flex gap-2"

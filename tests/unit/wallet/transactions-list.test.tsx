@@ -117,6 +117,10 @@ describe('the filters and the ordering', () => {
   it('the URL’s, read in the API’s names; unknown ones never sent', async () => {
     mocks.search = 'direction=debit&cause=order_payment&ordering=-amount&page=2&search=۰۴'
     renderList()
+    // The search form, a search landmark named apart from the header's.
+    expect(
+      await screen.findByRole('search', { name: 'جستجو در تراکنش\u{200C}ها' }),
+    ).toBeInTheDocument()
     await waitFor(() =>
       expect(reads()).toEqual([
         { direction: 'debit', cause: 'order_payment', ordering: '-amount', search: '04', page: 2 },

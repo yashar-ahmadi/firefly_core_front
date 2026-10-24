@@ -122,7 +122,8 @@ describe('the sort and the pages', () => {
   it('without script the search is a GET of this page that keeps the tab and the sort', async () => {
     mocks.search = 'group=delivered&sort=total-asc&page=3'
     renderOrders()
-    const form = screen.getByRole('search')
+    // Named apart from the header's search (two search landmarks on the page).
+    const form = screen.getByRole('search', { name: 'جستجو در سفارش\u{200C}ها' })
     expect(form).toHaveAttribute('action', '/account/orders/')
     const kept = [...form.querySelectorAll<HTMLInputElement>('input[type="hidden"]')]
     expect(kept.map((input) => [input.name, input.value])).toEqual([

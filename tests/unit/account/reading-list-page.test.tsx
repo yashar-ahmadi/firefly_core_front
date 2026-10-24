@@ -87,6 +87,8 @@ describe('ReadingListPage', () => {
     ])
     expect(category()).toHaveValue('mobile-blog')
     expect(screen.getByRole('searchbox', { name: 'جستجو در لیست مطالعه' })).toHaveValue('گوشی')
+    // Its form, a search landmark named apart from the header's.
+    expect(screen.getByRole('search', { name: 'جستجو در لیست مطالعه' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'صفحه قبلی' })).toHaveAttribute(
       'href',
       `/account/reading-list/?search=${encodeURIComponent('گوشی')}&category=mobile-blog&sort=added-asc`,

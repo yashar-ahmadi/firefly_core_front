@@ -59,6 +59,7 @@ export function TransactionsList({
     <div className="flex flex-col gap-4">
       <form
         role="search"
+        aria-label="جستجو در تراکنش‌ها"
         method="get"
         action={WALLET_PATH}
         className="flex gap-2"

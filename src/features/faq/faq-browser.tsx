@@ -52,7 +52,7 @@ export function FaqBrowser({ sections }: { sections: readonly FaqSection[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="search" className="flex flex-col gap-1.5">
+      <div role="search" aria-label={'جستجو در پرسش\u{200C}ها'} className="flex flex-col gap-1.5">
         <label htmlFor={searchId} className="sr-only">
           {'جستجو در پرسش\u{200C}ها'}
         </label>

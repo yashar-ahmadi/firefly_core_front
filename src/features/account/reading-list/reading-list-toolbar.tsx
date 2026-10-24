@@ -54,6 +54,7 @@ export function ReadingListToolbar({
     <div className="mb-4 flex flex-col gap-3 rounded-card bg-white p-4 shadow-card md:mb-5">
       <form
         role="search"
+        aria-label="جستجو در لیست مطالعه"
         method="get"
         action={path}
         className="flex gap-2"
