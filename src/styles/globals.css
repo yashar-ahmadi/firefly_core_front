@@ -332,6 +332,19 @@ body[data-cart-bar-shown] [data-bottom-nav] {
   bottom: calc(var(--bottom-bar-room) + 4.75rem);
 }
 
+/*
+ * The guest's receiver form's room while its code loads (the checkout's StepLoading, `room`):
+ * the steps below it stay put when the form comes. Measured on the form: 1216-1288 px below sm
+ * (its hints wrap differently from 320 to 639 px), 1020 px from sm.
+ */
+@utility guest-form-room {
+  min-height: 77.5rem;
+
+  @media (width >= 40rem) {
+    min-height: 63.75rem;
+  }
+}
+
 @layer base {
   html {
     font-size: 16px;
