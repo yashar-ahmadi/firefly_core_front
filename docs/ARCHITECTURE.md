@@ -1186,8 +1186,11 @@ off, so no worker sits between the other specs and their routes and mocks.
   transfer 213.8. Moved by this task's fixes, each measured in the served chunks: every
   `/checkout/` state 0.1 KB less (the bounded arrival +216 B, the guest's login prompt as a lazy
   body like the form and the picker -390 B, the per-amount gateway refusal +66 B: a guest 213.6 KB,
-  the review 212.4, a signed-in first visit 212.4, sara 216.8); `/account/wallet/` 233.1 -> 233.3 KB
-  (its per-amount refusal, `usableAt`; 235.9 with push on, the account pages' highest); the payment
+  the review 212.4, a signed-in first visit 212.4, sara 216.8; after the review's fixes +13 B,
+  every row the same: guest 218,738 B, review 217,531, sara 222,054); `/account/wallet/` 233.1 ->
+  233.3 KB (its per-amount refusal, `usableAt`; 235.9 with push on, the account pages' highest),
+  then 233.4 (238,985 B on a desktop) with the review's fixes (one refusal per gateway and amount,
+  the top-up's «هیچ درگاهی این مبلغ را نمی‌پذیرد»); the payment
   link 211.9 -> 212.1 KB and its open attempt 201.2 -> 201.4, the thanks page 188.2 -> 188.3 (the
   route's bank amount passed to `useLinkPayment` and `usePayOrder`); the listings +10 B (the shared
   `SEARCHABLE_OVER`, within their row). Every row is under its budget.
@@ -1280,7 +1283,9 @@ off, so no worker sits between the other specs and their routes and mocks.
   guest orders gets its login prompt as the receiver's lazy body, like the form and the picker: it
   was the page's own code on every checkout, and the guest form's chunk was fetched on arrival for a
   page that never showed it. With that, every `/checkout/` state is 174 B lighter than before the
-  bound (a guest 218,833 → 218,659 B, 213.5 KB; 212.4 at the review; 216.8 signed in).
+  bound (a guest 218,833 → 218,659 B, 213.5 KB; 212.4 at the review; 216.8 signed in), measured
+  before the per-amount gateway refusal (+66 B) and the review's fixes (+13 B): finally a guest
+  218,738 B (213.6 KB), the review 217,531 (212.4), sara 222,054 (216.8).
 - **The font is a subset** (`lib/fonts.ts` holds the command): 85 KB instead of the full variable
   font's 111 KB, preloaded (an HTTP `Link`) on every first visit; Latin Extended and IPA letters
   fall back to the system face.
