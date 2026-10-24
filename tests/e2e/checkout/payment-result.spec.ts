@@ -46,6 +46,13 @@ async function mockStatus(page: Page, answers: PaymentStatusInfo[]) {
 }
 
 const back = (query: string) => `/payment/callback/${query}`
+
+/** The page's clock 5 s on at a time (a read is due 15 s after the last answer) until `done`. */
+async function stepClock(page: Page, done: () => Promise<boolean>) {
+  await expect
+    .poll(async () => (await done()) || page.clock.fastForward(5_000).then(done))
+    .toBe(true)
+}
 const toman = (amount: number) => `${new Intl.NumberFormat('fa-IR').format(amount)} تومان`
 const heading = (page: Page) => page.getByRole('heading', { level: 1 })
 
@@ -83,11 +90,13 @@ test.describe('the payment result page', () => {
     await page.goto(back(`?result=success&payment=${UUID}`))
     await expect(heading(page)).toHaveText('در حال بررسی پرداخت')
     await expect(page.getByText(COPY.verifying, { exact: true })).toBeVisible()
-    await page.clock.fastForward(15_000)
-    await expect.poll(() => reads.count).toBe(2)
+    // Shown before the first read is answered: the clock moves once that answer is (its order
+    // code), then in steps (a 15 s jump made before an answer was handled missed the next read).
+    await expect(page.getByText('۱۴۱۱۶۳۵۳۴۰', { exact: true })).toBeVisible()
+    expect(reads.count).toBe(1)
+    await stepClock(page, async () => reads.count === 2)
     await expect(heading(page)).toHaveText('در حال بررسی پرداخت')
-    await page.clock.fastForward(15_000)
-    await expect(heading(page)).toHaveText('پرداخت موفق')
+    await stepClock(page, async () => (await heading(page).textContent()) === 'پرداخت موفق')
     expect(reads.count).toBe(3)
   })
 
