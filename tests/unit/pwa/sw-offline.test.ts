@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CACHES, HOME_COPY, OFFLINE_COPY, shop, SOURCE, visitorPage } from './sw-offline-support'
-import { navigation, ORIGIN, served, subresource, worker } from './sw-scope'
+import { navigation, served, subresource, worker } from './sw-scope'
 
 // The offline caching section of `/sw.js` (Plan 5 Task 6), run in the stand-in worker scope:
 // which requests it answers and how (cache first, stale while revalidate, network first), and
@@ -46,40 +46,7 @@ describe('what the worker leaves alone', () => {
   })
 })
 
-describe('a navigation to a page never cached', () => {
-  it.each([
-    '/cart/',
-    '/account/orders/',
-    '/checkout/',
-    '/checkout/thanks/5550001234/',
-    '/payment/callback/?payment=00000000-0000-4000-8000-000000000000',
-    '/order/pay/token-1/',
-    '/order/track/',
-    '/login/?next=/account/',
-    '/s/abc/',
-    '/api/v1/payment/gateway/callback/zarinpal/t/',
-    // Other spellings: not on the list, but no page outside the kept ones is ever served from a
-    // cache (the kept pages are an allow-list).
-    '/Cart/',
-    '/%61ccount/',
-  ])(
-    '%s: the network’s page, kept nowhere; offline the offline page, never a copy',
-    async (path) => {
-      const state = { online: true }
-      const sw = await installed(state)
-      expect(await text(await sw.request(navigation(path)))).toBe(
-        visitorPage(new URL(path, ORIGIN).pathname),
-      )
-      for (const name of [CACHES.pages, CACHES.images]) {
-        expect((await sw.caches.open(name)).paths()).not.toContain(new URL(path, ORIGIN).pathname)
-      }
-      // Even a copy someone left there is never served.
-      await (await sw.caches.open(CACHES.pages)).put(path, served('stale copy'))
-      state.online = false
-      expect(await text(await sw.request(navigation(path)))).toBe(OFFLINE_COPY)
-    },
-  )
-})
+// A page never cached, or whose address holds a credential: sw-offline-sealed.test.ts.
 
 describe('a navigation to any other page', () => {
   it('the network’s page, never kept; offline the offline page', async () => {

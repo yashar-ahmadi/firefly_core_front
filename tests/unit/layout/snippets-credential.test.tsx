@@ -55,6 +55,9 @@ describe('operator code and the route kind', () => {
 
   it.each([
     ['a payment page', 'credential'],
+    // The service worker shows the offline page's kept copy at the address that failed, a
+    // payment link's included (Plan 5 final fix wave).
+    ['the offline page', 'offline'],
     ['an unmarked request', null],
     ['an unknown marker', 'CREDENTIAL'],
   ])('renders nothing at all on %s', async (_, kind) => {

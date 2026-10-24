@@ -34,6 +34,9 @@ describe('security headers', () => {
     expect(securityHeaderRules().slice(1)).toEqual([
       { source: '/order/pay/:path*', headers: noReferrer },
       { source: '/payment/:path*', headers: noReferrer },
+      // The offline page: the service worker shows it at the address that failed, which may hold
+      // a credential.
+      { source: '/offline/:path*', headers: noReferrer },
       {
         source: '/:path*',
         has: [{ type: 'query', key: 'next', value: '(?:/order/pay/|/payment/).*' }],

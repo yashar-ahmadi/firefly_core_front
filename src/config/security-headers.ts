@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { OFFLINE_PATH } from '../features/pwa/offline-rules'
 import { CREDENTIAL_PREFIXES, credentialQueryValue } from './credential-routes'
 
 /**
@@ -12,7 +13,8 @@ import { CREDENTIAL_PREFIXES, credentialQueryValue } from './credential-routes'
  * - `Referrer-Policy: strict-origin-when-cross-origin`: other sites see the origin, not the path.
  *   The pages whose URL holds a payment credential (credential-routes.ts: `/order/pay/…`,
  *   `/payment/…`, and a page whose `next` leads back to one) send `no-referrer` instead: a later
- *   rule for the same header wins in Next.
+ *   rule for the same header wins in Next. So does the offline page (`/offline/`): the service
+ *   worker keeps it and shows it at the address that failed, which may hold a credential.
  *
  * To let another domain frame the shop, an operator must change both framing headers here.
  */
@@ -29,12 +31,14 @@ const noReferrer = () => [{ key: 'Referrer-Policy', value: 'no-referrer' }]
 
 /**
  * The `headers()` rules (fresh objects on each call): the baseline headers on every path, then
- * `no-referrer` on the credential pages (by path, and by a `next` that leads back to one).
+ * `no-referrer` on the credential pages (by path, and by a `next` that leads back to one) and on
+ * the offline page. Relative imports only: next.config.ts loads this before the `@/` alias exists.
  */
 export function securityHeaderRules(): HeaderRule[] {
   return [
     { source: '/:path*', headers: SECURITY_HEADERS.map(({ key, value }) => ({ key, value })) },
     ...CREDENTIAL_PREFIXES.map((prefix) => ({ source: `${prefix}:path*`, headers: noReferrer() })),
+    { source: `${OFFLINE_PATH}:path*`, headers: noReferrer() },
     {
       source: '/:path*',
       has: [{ type: 'query' as const, key: 'next', value: credentialQueryValue() }],

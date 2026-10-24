@@ -17,7 +17,9 @@ import { fetchSection } from './sw-offline-fetch'
 // - `/_next/static/*` cache first (immutable); the shop's images stale while revalidate, at most
 //   200; a navigation network first: the visitor's own page is shown and never kept. Only the
 //   pages in OFFLINE_PAGES have a copy, served after 4 s or when the network fails; any other
-//   navigation that fails gets the offline page;
+//   navigation that fails gets the offline page, but one to a page never cached or whose address
+//   holds a credential (or leads back to one) gets the page built into the worker, never a kept
+//   one (a kept page runs the shop's scripts at that address);
 // - SW_NEVER_CACHED, a non-GET, `Authorization`, another origin, a response that is not a plain
 //   200 of type basic/cors, or one with `no-store`/`private`: never kept, never served from a
 //   cache;
@@ -156,15 +158,15 @@ function refreshPage(path) {
 
 const OFFLINE_FALLBACK = ${js(OFFLINE_FALLBACK_HTML)}
 
+// The page built into the worker: no script, nothing loaded, no referrer.
+const fallbackPage = () =>
+  new Response(OFFLINE_FALLBACK, {
+    status: 503,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Referrer-Policy': 'no-referrer' },
+  })
+
 async function offlinePage() {
-  const kept = await quietly(keptPage(OFFLINE_PATH))
-  return (
-    kept ||
-    new Response(OFFLINE_FALLBACK, {
-      status: 503,
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    })
-  )
+  return (await quietly(keptPage(OFFLINE_PATH))) || fallbackPage()
 }`
 }
 

@@ -24,8 +24,13 @@ export const CREDENTIAL_PREFIXES = ['/order/pay/', '/payment/'] as const
 /** The request header the proxy sets on every page it serves (never the visitor's own). */
 export const ROUTE_KIND_HEADER = 'x-ff-route-kind'
 
-/** `page`: an ordinary page; `credential`: a page whose URL holds a credential. */
-export type RouteKind = 'page' | 'credential'
+/**
+ * `page`: an ordinary page; `credential`: a page whose URL holds a credential; `offline`: the
+ * offline page (`/offline/`), which the service worker keeps and shows in place of a page whose
+ * navigation failed, at that page's URL, a credential page's included (src/lib/edge/route-kind.ts).
+ * Only `page` carries the operator's code.
+ */
+export type RouteKind = 'page' | 'credential' | 'offline'
 
 /** Whether `pathname` is one of the credential pages (any letter case: a 404 there counts). */
 export function isCredentialPath(pathname: string): boolean {

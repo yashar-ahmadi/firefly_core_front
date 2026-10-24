@@ -41,6 +41,9 @@ describe('Referrer-Policy', () => {
     '/payment/callback/?result=success',
     '/payment/card-transfer/3f1c7a52-9a0e-4c4b-b5e0-0d2f3b1c9a77/',
     `/login/?next=/order/pay/${TOKEN}/`,
+    // The offline page: the service worker keeps it and shows it in place of a page that failed,
+    // at that page's address (a payment link's too).
+    '/offline/',
   ])('is no-referrer on %s', async (path) => {
     expect((await answer(path)).headers.get('referrer-policy')).toBe('no-referrer')
   })

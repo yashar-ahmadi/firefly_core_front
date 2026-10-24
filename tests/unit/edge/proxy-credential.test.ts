@@ -82,6 +82,21 @@ describe('the route kind', () => {
     expect(kindOf(await proxy(request(path)))).toBe('page')
   })
 
+  // The service worker shows the offline page's kept copy at the address whose navigation failed,
+  // a payment link's or a payment's included (Plan 5 final fix wave): it is marked `offline`, so
+  // it renders no operator code either, both as a visit and as the worker's own request for its
+  // copy, which still gets the server's consent to keep it (offline-copy.ts).
+  it.each<[string, Record<string, string>]>([
+    ['a visit', {}],
+    ['the worker’s request for its copy', { 'x-ff-offline': 'snapshot' }],
+  ])('marks the offline page `offline` (%s)', async (_, headers) => {
+    const { proxy } = await load()
+    const res = await proxy(request('/offline/', headers))
+    expect(kindOf(res)).toBe('offline')
+    expect(res.headers.get('x-ff-offline')).toBe(headers['x-ff-offline'] ?? null)
+    expect(knownSources).not.toHaveBeenCalled()
+  })
+
   it('never takes the visitor’s own marker', async () => {
     const { proxy } = await load()
     const forged = { 'x-ff-route-kind': 'page' }

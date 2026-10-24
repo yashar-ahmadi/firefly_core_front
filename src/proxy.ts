@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { carriesCredential, type RouteKind } from '@/config/credential-routes'
+import type { RouteKind } from '@/config/credential-routes'
 import { getServerEnv, type ServerEnv } from '@/config/env'
 import { COOKIE } from '@/lib/auth/cookies'
 import { isExpiring } from '@/lib/auth/jwt'
@@ -12,6 +12,7 @@ import { isOfflineCopyRequest } from '@/lib/edge/offline-copy'
 import { leftAlone, pageHeaders, renderPage, type PageMark } from '@/lib/edge/page-render'
 import { isDecodable, isForwarded, isSkipped } from '@/lib/edge/proxy-paths'
 import { knownSources, resolveRedirect, ruleSpelling } from '@/lib/edge/redirects'
+import { routeKind } from '@/lib/edge/route-kind'
 import { statusPage } from '@/lib/edge/status-page'
 import { getClientIp } from '@/lib/http/client-ip'
 import { isQuietPrefetch } from '@/lib/http/prefetch'
@@ -39,9 +40,10 @@ import { isQuietPrefetch } from '@/lib/http/prefetch'
  * Every page that renders is marked for the layouts (`x-ff-route-kind`, never the visitor's own),
  * a prefetch too (it is marked and nothing else: no redirect lookup, no session refresh, no
  * account guard): `credential` when its URL holds a payment link's token or a payment's uuid (or
- * leads back to one), else `page`. Operator code renders only on `page` (see
- * `credential-routes.ts`). A credential page is never looked up as a redirect source: its path
- * never reaches the API's redirect resolver or a log line.
+ * leads back to one), `offline` for the offline page (the service worker shows it at any address
+ * that failed), else `page` (route-kind.ts). Operator code renders only on `page` (see
+ * `credential-routes.ts`). Only a `page` is looked up as a redirect source: a credential page's
+ * path never reaches the API's redirect resolver or a log line.
  *
  * The proxy sees the request as the browser sent it (`skipProxyUrlNormalize`, next.config.ts):
  * otherwise Next removes the router's flight headers before it runs, and a router prefetch could
@@ -192,14 +194,14 @@ export async function proxy(request: NextRequest): Promise<Response> {
   // Skipped paths never read the environment, so the health probe reports a broken one itself.
   if (isSkipped(pathname, decodable)) return leftAlone(request)
 
-  const kind: RouteKind = carriesCredential(request.nextUrl) ? 'credential' : 'page'
+  const kind: RouteKind = routeKind(request.nextUrl)
   // A blog page while the blog is switched off renders with 503 (read from memory, at most once
   // a minute from the API: blog-switch.ts).
   const blogOff =
     decodable && isRead(request) && isBlogPath(pathname) ? await blogSwitchOff() : null
   // The service worker's request for an offline page's anonymous copy (no cookie: it renders
   // for nobody) is answered with the consent to keep it (offline-copy.ts).
-  const offlineCopy = kind === 'page' && !blogOff && isOfflineCopyRequest(request)
+  const offlineCopy = kind !== 'credential' && !blogOff && isOfflineCopyRequest(request)
   const mark: PageMark = { kind, blogOff, offlineCopy }
   // A prefetch is marked like the visit (a kept document is shown on the click, and the snippet
   // gate fails closed) and nothing more: no redirect lookup (it would count a hit), no refresh.
