@@ -18,12 +18,12 @@ import { StoreLogo } from './store-logo'
 
 function TrustBadges({ zone, title }: { zone: ReactNode; title: string }) {
   return (
-    <section aria-labelledby="footer-trust">
+    <div role="group" aria-labelledby="footer-trust">
       <h2 id="footer-trust" className={FOOTER_HEADING}>
         {title}
       </h2>
       {zone}
-    </section>
+    </div>
   )
 }
 

@@ -73,7 +73,7 @@ export function appBadges(settings: AppLinkSettings, t: Translate): AppBadge[] {
 export function AppBadges({ badges, title }: { badges: readonly AppBadge[]; title: string }) {
   if (badges.length === 0) return null
   return (
-    <section aria-labelledby="footer-apps">
+    <div role="group" aria-labelledby="footer-apps">
       <h2 id="footer-apps" className={FOOTER_HEADING}>
         {title}
       </h2>
@@ -95,6 +95,6 @@ export function AppBadges({ badges, title }: { badges: readonly AppBadge[]; titl
           </li>
         ))}
       </ul>
-    </section>
+    </div>
   )
 }

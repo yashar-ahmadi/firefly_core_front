@@ -110,13 +110,13 @@ describe('the (checkout) layout', () => {
 
   it('the trust seals sit in the footer under «نمادهای اعتماد», only when there are some', async () => {
     const first = await renderLayout()
-    expect(screen.queryByRole('region', { name: 'نمادهای اعتماد' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'نمادهای اعتماد' })).toBeNull()
     first.unmount()
     mocks.snippets = [
       { id: 7, description: '', position: 'bottom_of_body', type: 'script', snippet: SEAL },
     ]
     await renderLayout()
-    const trust = within(screen.getByRole('contentinfo')).getByRole('region', {
+    const trust = within(screen.getByRole('contentinfo')).getByRole('group', {
       name: 'نمادهای اعتماد',
     })
     expect(within(trust).getByRole('img', { name: 'نماد اعتماد الکترونیکی' })).toBeInTheDocument()

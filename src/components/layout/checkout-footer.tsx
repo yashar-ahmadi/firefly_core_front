@@ -72,12 +72,12 @@ export function CheckoutFooter({ phone, responseTime, menu, trust, labels }: Che
         )}
       </div>
       {trust && (
-        <section aria-labelledby="footer-trust" className={cn(CONTAINER, 'pb-6')}>
+        <div role="group" aria-labelledby="footer-trust" className={cn(CONTAINER, 'pb-6')}>
           <h2 id="footer-trust" className={FOOTER_HEADING}>
             {labels.trust}
           </h2>
           {trust}
-        </section>
+        </div>
       )}
     </footer>
   )

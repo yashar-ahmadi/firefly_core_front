@@ -210,7 +210,8 @@ export function ContactBlock({
   if (!details && !support) return null
 
   return (
-    <section
+    <div
+      role="group"
       aria-labelledby="footer-contact"
       className={cn('rounded-card bg-ink-50 p-4 sm:p-6', className)}
     >
@@ -230,6 +231,6 @@ export function ContactBlock({
         )}
       </div>
       {details && <ContactDetailsList details={details} t={t} className="mt-5" />}
-    </section>
+    </div>
   )
 }

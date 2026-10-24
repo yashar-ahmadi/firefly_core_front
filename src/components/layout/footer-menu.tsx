@@ -80,7 +80,7 @@ export function FooterMenu({ items, t }: { items: readonly MenuNode[]; t: Transl
         {columns.map((column) => {
           const id = `footer-column-${column.key}`
           return (
-            <section key={column.key} aria-labelledby={id} className="min-w-0">
+            <div key={column.key} role="group" aria-labelledby={id} className="min-w-0">
               <h2 id={id} className={FOOTER_HEADING}>
                 {column.heading ? (
                   <MenuLink
@@ -93,7 +93,7 @@ export function FooterMenu({ items, t }: { items: readonly MenuNode[]; t: Transl
                 )}
               </h2>
               <FooterLinks nodes={column.links} />
-            </section>
+            </div>
           )
         })}
       </div>

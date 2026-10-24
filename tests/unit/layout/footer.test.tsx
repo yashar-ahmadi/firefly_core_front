@@ -144,7 +144,7 @@ beforeEach(() => {
 describe('SiteFooter: menu columns', () => {
   it('turns a `none` node with children into a column with a heading', async () => {
     await renderFooter()
-    const column = screen.getByRole('region', { name: 'خدمات مشتریان' })
+    const column = screen.getByRole('group', { name: 'خدمات مشتریان' })
     const heading = within(column).getByRole('heading', { level: 2, name: 'خدمات مشتریان' })
     expect(heading.querySelector('a')).toBeNull()
     expect(within(column).getByRole('link', { name: 'پرسش‌های متداول' })).toHaveAttribute(
@@ -159,7 +159,7 @@ describe('SiteFooter: menu columns', () => {
 
   it('collects top-level links without children under «لینک‌های مفید»', async () => {
     await renderFooter()
-    const column = screen.getByRole('region', { name: 'لینک‌های مفید' })
+    const column = screen.getByRole('group', { name: 'لینک‌های مفید' })
     expect(
       within(column)
         .getAllByRole('link')
@@ -231,7 +231,7 @@ describe('SiteFooter: identity and contact', () => {
 
   it('shows email, address with postal code, the map link and the response time', async () => {
     await renderFooter()
-    const contact = screen.getByRole('region', { name: 'ارتباط با ما' })
+    const contact = screen.getByRole('group', { name: 'ارتباط با ما' })
     expect(within(contact).getByRole('link', { name: 'support@shop.ir' })).toHaveAttribute(
       'href',
       'mailto:support@shop.ir',
@@ -256,7 +256,7 @@ describe('SiteFooter: identity and contact', () => {
     await renderFooter()
     const footer = screen.getByRole('contentinfo')
     expect(within(footer).getByRole('img', { name: 'فروشگاه' }).tagName).toBe('SPAN')
-    expect(screen.queryByRole('region', { name: 'ارتباط با ما' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'ارتباط با ما' })).toBeNull()
     expect(within(footer).queryByRole('link', { name: /دریافت از/ })).toBeNull()
   })
 })
@@ -264,7 +264,7 @@ describe('SiteFooter: identity and contact', () => {
 describe('SiteFooter: socials, apps and trust badges', () => {
   it('links each social account in a new tab, named after it, with its logo', async () => {
     await renderFooter()
-    const socials = screen.getByRole('region', { name: 'ما را دنبال کنید' })
+    const socials = screen.getByRole('group', { name: 'ما را دنبال کنید' })
     const instagram = within(socials).getByRole('link', { name: 'اینستاگرام' })
     expect(instagram).toHaveAttribute('href', 'https://instagram.com/fireflyshop')
     expect(instagram).toHaveAttribute('target', '_blank')
@@ -276,7 +276,7 @@ describe('SiteFooter: socials, apps and trust badges', () => {
 
   it('shows the first letter of the name when a social logo is missing or fails', async () => {
     await renderFooter()
-    const socials = screen.getByRole('region', { name: 'ما را دنبال کنید' })
+    const socials = screen.getByRole('group', { name: 'ما را دنبال کنید' })
     expect(within(socials).getByRole('link', { name: 'تلگرام' })).toHaveTextContent('ت')
     const instagram = within(socials).getByRole('link', { name: 'اینستاگرام' })
     fireEvent.error(instagram.querySelector('img') as HTMLImageElement)
@@ -286,7 +286,7 @@ describe('SiteFooter: socials, apps and trust badges', () => {
 
   it('shows only the app badges whose links are set, named by their store', async () => {
     await renderFooter()
-    const apps = screen.getByRole('region', { name: 'دریافت اپلیکیشن' })
+    const apps = screen.getByRole('group', { name: 'دریافت اپلیکیشن' })
     const links = within(apps).getAllByRole('link')
     expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
       ['دریافت از گوگل‌پلی', 'https://play.google.com/store/apps/details?id=ir.shop'],
@@ -305,7 +305,7 @@ describe('SiteFooter: socials, apps and trust badges', () => {
       web_application_link: 'https://app.shop.ir/',
     }
     await renderFooter()
-    const apps = screen.getByRole('region', { name: 'دریافت اپلیکیشن' })
+    const apps = screen.getByRole('group', { name: 'دریافت اپلیکیشن' })
     expect(
       within(apps)
         .getAllByRole('link')
@@ -325,12 +325,12 @@ describe('SiteFooter: socials, apps and trust badges', () => {
       android_application_download_link: null,
     }
     await renderFooter()
-    expect(screen.queryByRole('region', { name: 'دریافت اپلیکیشن' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'دریافت اپلیکیشن' })).toBeNull()
   })
 
   it('shows the trust badges (bottom snippet HTML) under a heading only when there are some', async () => {
     const first = await renderFooter()
-    expect(screen.queryByRole('region', { name: 'نمادهای اعتماد' })).toBeNull()
+    expect(screen.queryByRole('group', { name: 'نمادهای اعتماد' })).toBeNull()
     first.unmount()
 
     mocks.snippets = [
@@ -344,7 +344,7 @@ describe('SiteFooter: socials, apps and trust badges', () => {
       },
     ]
     await renderFooter()
-    const trust = screen.getByRole('region', { name: 'نمادهای اعتماد' })
+    const trust = screen.getByRole('group', { name: 'نمادهای اعتماد' })
     expect(within(trust).getByRole('img', { name: 'نماد اعتماد الکترونیکی' })).toBeInTheDocument()
     expect(trust.querySelector('[data-snippet-zone="bottom"]')).not.toBeNull()
     expect(trust.querySelector('script')).toBeNull()

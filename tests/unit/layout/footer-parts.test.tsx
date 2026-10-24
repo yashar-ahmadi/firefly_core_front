@@ -61,7 +61,7 @@ describe('FooterMenu', () => {
   it('shows no empty heading-only column on wide screens nor in the phone disclosures', () => {
     render(<FooterMenu items={items} t={t} />)
     const nav = screen.getByRole('navigation', { name: 'پیوندهای پایین صفحه' })
-    expect(within(nav).getByRole('region', { name: 'خدمات مشتریان' })).toBeInTheDocument()
+    expect(within(nav).getByRole('group', { name: 'خدمات مشتریان' })).toBeInTheDocument()
     // The column heading, and the same title as a phone disclosure's summary.
     const titles = within(nav).getAllByRole('heading', { level: 2, name: 'خدمات مشتریان' })
     expect(titles.filter((heading) => heading.closest('summary'))).toHaveLength(1)

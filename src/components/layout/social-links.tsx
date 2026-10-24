@@ -63,7 +63,7 @@ export function SocialLinks({ socials, title }: { socials: readonly Social[]; ti
   })
   if (links.length === 0) return null
   return (
-    <section aria-labelledby="footer-socials">
+    <div role="group" aria-labelledby="footer-socials">
       <h2 id="footer-socials" className={FOOTER_HEADING}>
         {title}
       </h2>
@@ -74,6 +74,6 @@ export function SocialLinks({ socials, title }: { socials: readonly Social[]; ti
           </li>
         ))}
       </ul>
-    </section>
+    </div>
   )
 }
