@@ -817,7 +817,11 @@ off, so no worker sits between the other specs and their routes and mocks.
   page, the account, search, compare, the generic listing, any filtered or sorted listing, the
   auth pages, order tracking, the pay link, the payment pages, `/offline/` and both 404 shells;
   the payment pages and the login that leads back to a pay link also send no referrer and name no
-  canonical.
+  canonical. Every page has exactly one robots tag: on a 404 it is Next's own `noindex` (written on
+  every 404, it cannot be turned off), so every 404 head says `robots: null`
+  (`NOT_FOUND_ROBOTS` in `features/seo/not-found-metadata.ts`), dropping its layout's (the
+  checkout's, the account's) instead of writing a second tag; `tests/unit/seo/not-found-robots.test.ts`
+  checks every not-found file.
 - **Hydration.** Anything that depends on "now" (relative dates) is computed client-side or given a
   fixed `now`. Mixed Latin/Persian titles use `dir="auto"`.
 - **Language and formatting.** `<html lang="fa" dir="rtl">`; Persian digits, «… تومان», Jalali dates

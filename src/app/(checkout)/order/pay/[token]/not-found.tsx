@@ -3,15 +3,19 @@ import { CONTAINER } from '@/components/layout/container'
 import { cn } from '@/components/ui/cn'
 import { REFUSAL_COPY } from '@/features/payment/link-refusal'
 import { PayLinkRefusal } from '@/features/payment/pay-link-refusal'
+import { NOT_FOUND_ROBOTS } from '@/features/seo/not-found-metadata'
 import { shopName } from '@/features/seo/shop-name'
 import { getSiteSettings } from '@/features/settings/api'
 
 /**
  * The 404's title. A page that throws `notFound()` loses its own metadata: Next takes this
- * file's instead (noindex is added to the 404 itself).
+ * file's instead. Next adds noindex to the 404 itself, its only robots tag (`NOT_FOUND_ROBOTS`).
  */
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: { absolute: `${REFUSAL_COPY.invalid.title} | ${await shopName()}` } }
+  return {
+    title: { absolute: `${REFUSAL_COPY.invalid.title} | ${await shopName()}` },
+    ...NOT_FOUND_ROBOTS,
+  }
 }
 
 /**

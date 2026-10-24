@@ -133,6 +133,8 @@ test.describe('SEO', () => {
       const { response, html } = await served(request, path)
       expect(response.status(), path).toBe(status)
       expect(saysNoindex(response, html), `${path}: noindex`).toBe(true)
+      // One robots tag: on a 404, Next's own noindex and no layout's beside it.
+      expect(robotsMetas(html), `${path}: one robots tag`).toHaveLength(1)
       // noindex with a canonical to another URL would be a mixed signal.
       for (const canonical of canonicalsIn(html)) {
         expect(new URL(canonical).pathname, `${path}: canonical`).toBe(
@@ -152,11 +154,19 @@ signedInTest.describe('SEO, signed in', () => {
     signedInTest.skip(workerInfo.project.name !== 'desktop', 'one pass a run (desktop project)')
   })
 
-  signedInTest('the account pages are noindex', async ({ page }) => {
-    for (const path of ['/account/', '/account/orders/', '/account/profile/']) {
+  signedInTest('the account pages are noindex, with one robots tag', async ({ page }) => {
+    for (const [path, status] of [
+      ['/account/', 200],
+      ['/account/orders/', 200],
+      ['/account/profile/', 200],
+      // An order that is not the account's: the account shell's 404 (read only).
+      ['/account/orders/0000000000/', 404],
+    ] as const) {
       const response = await page.request.get(path, { maxRedirects: 0 })
-      expect(response.status(), path).toBe(200)
-      expect(saysNoindex(response, await response.text()), `${path}: noindex`).toBe(true)
+      expect(response.status(), path).toBe(status)
+      const html = await response.text()
+      expect(saysNoindex(response, html), `${path}: noindex`).toBe(true)
+      expect(robotsMetas(html), `${path}: one robots tag`).toHaveLength(1)
     }
   })
 })

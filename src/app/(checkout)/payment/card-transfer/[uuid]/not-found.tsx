@@ -2,16 +2,17 @@ import type { Metadata } from 'next'
 import { CONTAINER } from '@/components/layout/container'
 import { cn } from '@/components/ui/cn'
 import { NOT_FOUND_TITLE, TransferRefusal } from '@/features/payment/card-transfer/transfer-refusal'
+import { NOT_FOUND_ROBOTS } from '@/features/seo/not-found-metadata'
 import { shopName } from '@/features/seo/shop-name'
 import { getSiteSettings } from '@/features/settings/api'
 import { formatIranMobile } from '@/lib/format/phone'
 
 /**
  * The 404's title. A page that throws `notFound()` loses its own metadata: Next takes this
- * file's instead (noindex is added to the 404 itself).
+ * file's instead. Next adds noindex to the 404 itself, its only robots tag (`NOT_FOUND_ROBOTS`).
  */
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: { absolute: `${NOT_FOUND_TITLE} | ${await shopName()}` } }
+  return { title: { absolute: `${NOT_FOUND_TITLE} | ${await shopName()}` }, ...NOT_FOUND_ROBOTS }
 }
 
 /**
