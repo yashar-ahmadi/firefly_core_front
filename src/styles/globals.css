@@ -106,6 +106,8 @@
   --animate-pop: pop 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
   /* The wishlist heart's beat when it is toggled. */
   --animate-heart: heart 450ms ease-out;
+  /* The cart badge's spring when the count rises (spec §7.1; cart-badge.tsx). */
+  --animate-badge-bump: badge-bump 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /*
    * Overlay motion (Radix data-state driven; used under `motion-safe:` only). Entrances use a
@@ -214,6 +216,18 @@
     to {
       transform: scale(1);
       opacity: 1;
+    }
+  }
+
+  @keyframes badge-bump {
+    0% {
+      transform: scale(1);
+    }
+    35% {
+      transform: scale(1.35);
+    }
+    100% {
+      transform: scale(1);
     }
   }
 
