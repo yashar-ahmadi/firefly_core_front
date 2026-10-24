@@ -44,8 +44,11 @@ const INDEXABLE: [name: string, path: string, types: string[]][] = [
 const CARD_TRANSFER = '/payment/card-transfer/00000000-0000-4000-8000-000000000000/'
 const PAY_LINK = '/order/pay/e2e-no-such-token/'
 
-/** Pages that must never be indexed, as a guest; `credential`: their URL holds a payment key. */
-const NOINDEX: [path: string, credential?: true][] = [
+/**
+ * Pages that must never be indexed, as a guest, with the status each answers (200 unless noted);
+ * `credential`: their URL holds a payment key.
+ */
+const NOINDEX: [path: string, options?: { status?: 404; credential?: true }][] = [
   ['/cart/'],
   ['/checkout/'],
   ['/checkout/thanks/5550001234/'],
@@ -58,16 +61,18 @@ const NOINDEX: [path: string, credential?: true][] = [
   ['/register/'],
   ['/forgot-password/'],
   ['/order/track/'],
-  [PAY_LINK, true],
-  ['/payment/callback/', true],
-  ['/payment/callback/?result=failed&code=gateway_callback_invalid', true],
-  [CARD_TRANSFER, true],
-  [`/login/?next=${PAY_LINK}`, true],
+  // An unknown token: the link's own 404 page, a real 404 (R9).
+  [PAY_LINK, { status: 404, credential: true }],
+  ['/payment/callback/', { credential: true }],
+  ['/payment/callback/?result=failed&code=gateway_callback_invalid', { credential: true }],
+  // The page reads the attempt in the browser: an unknown uuid is still the page.
+  [CARD_TRANSFER, { credential: true }],
+  [`/login/?next=${PAY_LINK}`, { credential: true }],
   ['/offline/'],
   // The shop's 404 (an unknown URL, through the catch-all) and the light root 404 (a malformed
   // thanks code, outside the shop layout: ruling P5-R2).
-  ['/this-page-does-not-exist/'],
-  ['/checkout/thanks/not-a-code/'],
+  ['/this-page-does-not-exist/', { status: 404 }],
+  ['/checkout/thanks/not-a-code/', { status: 404 }],
 ]
 
 async function served(request: APIRequestContext, path: string) {
@@ -124,9 +129,9 @@ test.describe('SEO', () => {
   test('noindex: private, transactional and thin pages; no referrer from credential pages', async ({
     request,
   }) => {
-    for (const [path, credential] of NOINDEX) {
+    for (const [path, { status = 200, credential = false } = {}] of NOINDEX) {
       const { response, html } = await served(request, path)
-      expect(response.status(), path).toBeLessThan(500)
+      expect(response.status(), path).toBe(status)
       expect(saysNoindex(response, html), `${path}: noindex`).toBe(true)
       // noindex with a canonical to another URL would be a mixed signal.
       for (const canonical of canonicalsIn(html)) {
