@@ -1149,6 +1149,20 @@ off, so no worker sits between the other specs and their routes and mocks.
   and about 1.1 KB of HTML (0.2 KB gzip) with the dev menu's 4 links, half of it the RSC
   payload's copy; rendered from inside `CategoriesMenu` instead (no RSC copy), it cost every
   shop page 85 B of JavaScript (measured, dropped).
+- **`/categories/` links every category in its HTML (Plan 5 Tasks 8–9).** Radix Tabs mounts the
+  active panel only, so the other roots' links were missing from the page's HTML. Every root's
+  `Tabs.Content` is `forceMount`ed with `hidden` on the inactive ones (Radix writes `hidden={false}`
+  on a forced panel; ours overrides it), and a panel's key changes when it hides: a panel left
+  mounted would keep its drill-in trail, so a root chosen again starts at its own level, as when
+  Radix unmounted it. Inside a panel every category is a link to its own page; one with children of
+  its own also has a «زیردسته‌ها» control (named «زیردسته‌های» and its name) that opens them inside
+  the page (its heading focused, «بازگشت» back). Every level below a root is rendered as well, the
+  ones not open `hidden`, so the categories of every depth are links in the HTML (the dev tree's 32,
+  two levels; `catalog/categories-deep.spec.ts` checks a third level against a shop of its own,
+  `support/mock-shop.ts`, since the page renders the tree on the server). `hidden` is `display:
+  none` whatever the element's own classes (Tailwind's preflight makes it `!important`). Its cost:
+  JavaScript 215,370 → 215,528 B over Tasks 8–9 (210.5 KB; not a guarded route); HTML 100.5 → 117.5
+  KB raw, 18.3 → 19.7 KB gzip on the dev tree.
 - **Plan 5 Task 8's figures** (the full run's guards, 220 rows, against Task 7's). Every page in
   the shop layout 1.7–1.8 KB less, desktop and phone alike (the lazy mega-menu, less the cart
   badge's bump and the audit's fixes, about 0.1 KB): home 218.5 KB, a category, a list and a
@@ -1178,26 +1192,30 @@ off, so no worker sits between the other specs and their routes and mocks.
   cart writes). A card outside a grid or rail brings its own scope. The single buttons
   (`HeartButton`, `CompareToggle`, `AddToCartButton`, `QuickViewLink`) keep their hooks for the
   buy box, quick view and the compare table and share their markup with the island.
-- **Total Blocking Time** (Playwright, 412×823, 4× CPU, 150 ms RTT, 1.6 Mbps; long-task time
-  over 50 ms from FCP to load + 5 s) on a 24-card listing: about 620–690 ms until Plan 5 Task 8,
-  about 460 ms since. The card island took about 80–120 ms off (Plan 2). Task 8's traces put the
-  rest in the swap relayout when Vazirmatn arrives (two tasks around 2.0–2.2 s) and the single
-  hydration commit (about 300 ms, ending at 4.1–4.9 s on that link). The desktop sidebar's
-  filters (379 elements on `/product/list/`, hidden below lg) were server-rendered and hydrated
-  on phones too; they now render from lg only (`SidebarFilters`): alternating A/B against
-  4519cb4, 7 runs each, the listing's median 624 → 462 ms and the phones category 601 → 408 ms
-  (the lazy mega-menu alone did not move the listing: 632 vs 690, noise). Until the viewport is
-  known, and below lg, the panel's static outline stands in (`FilterPanelSkeleton`, a Server
-  Component passed as `fallback`: its switches, each group's title and a 44 px row per option,
-  the brand search box, the price block and the swatch pills, about 85 plain elements on a phone),
-  as tall as the panel to the pixel (`catalog/sidebar-stability.spec.ts` compares the two with
-  and without JavaScript), so a desktop's panel moves nothing: an empty filtered listing's footer
-  shifted (CLS 0.0101 at 1440×900, now 0). It costs the listings 4 B of JavaScript and no phone
-  blocking time (A/B against Task 8, 7 runs: within noise). Tried and dropped: a
-  Suspense boundary per card (36 separate commits, but in one 1 s task), a plain `<a>` instead
-  of `next/link` (no change), no web font (worse). Not done: the card's RSC rows (about 4 KB each,
-  mostly Tailwind class strings; the compare item repeats the card's name and image) are small
-  next to the hydration itself.
+- **Total Blocking Time** (Playwright, 412×823, 4× CPU, 150 ms RTT, 1.6 Mbps; long-task time over 50
+  ms from FCP to load + 5 s) on a 24-card listing: about 620–690 ms until Plan 5 Task 8, about 460
+  ms since. The card island took about 80–120 ms off (Plan 2). Task 8's traces put the rest in the
+  swap relayout when Vazirmatn arrives (two tasks around 2.0–2.2 s) and the single hydration commit
+  (about 300 ms, ending at 4.1–4.9 s on that link). The desktop sidebar's filters (379 elements on
+  `/product/list/`, hidden below lg) were server-rendered and hydrated on phones too; they now
+  render from lg only (`SidebarFilters`): alternating A/B against 4519cb4, 7 runs each, the
+  listing's median 624 → 462 ms and the phones category 601 → 408 ms (the lazy mega-menu alone did
+  not move the listing: 632 vs 690, noise). Until the viewport is known, and below lg, the panel's
+  static outline stands in (`FilterPanelSkeleton`, a Server Component passed as `fallback`: its
+  switches, each group's title and a 44 px row per option, the brand search box, the price block and
+  the swatch pills, about 85 plain elements on a phone), as tall as the panel to the pixel
+  (`catalog/sidebar-stability.spec.ts` compares the two with and without JavaScript), so a desktop's
+  panel moves nothing: an empty filtered listing's footer shifted (CLS 0.0101 at 1440×900, now 0).
+  It costs the listings 4 B of JavaScript and no phone blocking time (A/B against Task 8, 7 runs:
+  within noise). Its cost is HTML: the outline is 2–6 KB of markup by the facets' rows (2.1 KB on
+  `/brand/samsung/`, 5.2 on `/product/list/`, 6.3 on the phones category), and the RSC payload
+  carries it again (a Server Component passed as a client component's `fallback` is serialised for
+  hydration as well as rendered): each listing's page is 4.9–16.0 KB larger raw, 0.7–1.3 KB gzip
+  (measured against a build without it, the brand page and the phones category; `/product/list/`'s
+  gzip moved within noise). Tried and dropped: a Suspense boundary per card (36 separate commits,
+  but in one 1 s task), a plain `<a>` instead of `next/link` (no change), no web font (worse). Not
+  done: the card's RSC rows (about 4 KB each, mostly Tailwind class strings; the compare item
+  repeats the card's name and image) are small next to the hydration itself.
 - **The phone search overlay and the iOS keyboard.** iOS raises the keyboard only for a field the
   visitor taps or one focused inside the tap's own event handling. The phone header field
   (`features/search/mobile-search.tsx`) is therefore a real, writable input (never read-only
@@ -1233,22 +1251,20 @@ off, so no worker sits between the other specs and their routes and mocks.
   An empty cart waits for no body, and a body asked for before a choice started lets nothing arrive
   when it comes (the arrival's effect has its dependencies). The arrival, the bodies and the
   screen-tall page cost every `/checkout/` state 25 B of JavaScript (a guest 218,808 → 218,833 B;
-  within each state's rounding: 213.7, 212.5 at the review, 216.9 signed in), with the guest form's
-  fixed room (Task 8's `guest-form-room`, two heights measured on that day's fields) removed: no
-  step needs one on arrival any more. **The wait is bounded** (Plan 5 Task 9): a choice that hangs,
-  its read or its write unanswered, held the skeleton until the server's timeouts (10 s a try; a
-  lost read was tried three times: about 33 s). After 3 s the skeleton names the wait («در حال
-  آماده‌سازی سفارش…», inside its own polite `status`, laid over its blocks: nothing moves); after 8
-  s, before a write's own 10 s, the steps show anyway, each with its own skeleton (the shipping
-  step's «در حال انتخاب روش ارسال پیش‌فرض») or the shopper's way out (the address picker: the newest
-  write wins, `useLatestWrite`). The reads the choices wait for (the address book, the shipping
-  options) are tried twice at most (`retryOnce`, use-shipping-options.ts: the same errors as
-  `shouldRetryQuery`, kept apart from it because importing the shared query module regrouped the
-  checkout's chunks, +161 B). A shop that takes no guest orders gets its login prompt as the
-  receiver's lazy body, like the form and the picker: it was the page's own code on every checkout,
-  and the guest form's chunk was fetched on arrival for a page that never showed it. With that,
-  every `/checkout/` state is 174 B lighter than before the bound (a guest 218,833 → 218,659 B,
-  213.5 KB; 212.4 at the review; 216.8 signed in).
+  within each state's rounding: 213.7, 212.5 at the review, 216.9 signed in). **The wait is
+  bounded** (Plan 5 Task 9): a choice that hangs, its read or its write unanswered, held the
+  skeleton until the server's timeouts (10 s a try; a lost read was tried three times: about 33 s).
+  After 3 s the skeleton names the wait («در حال آماده‌سازی سفارش…», inside its own polite `status`,
+  laid over its blocks: nothing moves); after 8 s, before a write's own 10 s, the steps show anyway,
+  each with its own skeleton (the shipping step's «در حال انتخاب روش ارسال پیش‌فرض») or the
+  shopper's way out (the address picker: the newest write wins, `useLatestWrite`). The reads the
+  choices wait for (the address book, the shipping options) are tried twice at most (`retryOnce`,
+  use-shipping-options.ts: the same errors as `shouldRetryQuery`, kept apart from it because
+  importing the shared query module regrouped the checkout's chunks, +161 B). A shop that takes no
+  guest orders gets its login prompt as the receiver's lazy body, like the form and the picker: it
+  was the page's own code on every checkout, and the guest form's chunk was fetched on arrival for a
+  page that never showed it. With that, every `/checkout/` state is 174 B lighter than before the
+  bound (a guest 218,833 → 218,659 B, 213.5 KB; 212.4 at the review; 216.8 signed in).
 - **The font is a subset** (`lib/fonts.ts` holds the command): 85 KB instead of the full variable
   font's 111 KB, preloaded (an HTTP `Link`) on every first visit; Latin Extended and IPA letters
   fall back to the system face.
