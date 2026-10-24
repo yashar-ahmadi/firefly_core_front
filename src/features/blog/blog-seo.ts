@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { isPlaceholderImage } from '@/components/layout/menu-tree'
 import { BLOG_PATH, blogCategoryPath, type BlogQuery } from '@/features/blog/blog-routes'
 import { listingIndexing } from '@/features/catalog/listing-routes'
-import { onSiteOrigin, siteBreadcrumb, trailBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
+import { blogBreadcrumb, blogStructuredData } from '@/features/blog/blog-structured-data'
+import { trailBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import type { BlogCategoryDetail } from '@/lib/api/types/blog'
 import { toPersianDigits } from '@/lib/format'
@@ -84,30 +85,14 @@ export function blogHomeJsonLd(siteUrl: string, shop: string): object[] {
   ]
 }
 
-/** The structured data's URL fields: a page, a picture, a logo, a trail's item. */
-const URL_KEYS = new Set(['url', 'item', '@id', 'image', 'logo'])
-
-/** `value` with every URL field (`URL_KEYS`, at any depth) moved onto `origin`. */
-export function onOrigin(value: unknown, origin: string): unknown {
-  if (Array.isArray(value)) return value.map((item) => onOrigin(item, origin))
-  if (typeof value !== 'object' || value === null) return value
-  return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [
-      key,
-      URL_KEYS.has(key) && typeof item === 'string'
-        ? onSiteOrigin(item, origin)
-        : onOrigin(item, origin),
-    ]),
-  )
-}
-
 /**
- * A category's JSON-LD: the backend's CollectionPage and BreadcrumbList, every URL (the page,
- * the blog, the publisher's logo, the trail) moved from `https://{SITE_DOMAIN}` onto the
- * storefront's origin, where `/media/` is forwarded to the API (seo digest §7.2).
+ * A category's JSON-LD: the backend's CollectionPage and BreadcrumbList set right for the shop
+ * (blog-structured-data.ts: every URL on the storefront's origin, no empty one, «وبلاگ»).
  */
 export function blogCategoryJsonLd(category: BlogCategoryDetail, siteUrl: string): object[] {
   const origin = new URL(siteUrl).origin
-  const collections = category.structured_data.map((item) => onOrigin(item, origin) as object)
-  return [...collections, siteBreadcrumb(category.breadcrumb_structured_data, siteUrl)]
+  const collections = category.structured_data.map(
+    (item) => blogStructuredData(item, origin) as object,
+  )
+  return [...collections, blogBreadcrumb(category.breadcrumb_structured_data, siteUrl)]
 }

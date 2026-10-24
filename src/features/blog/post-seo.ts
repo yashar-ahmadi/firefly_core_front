@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { isPlaceholderImage } from '@/components/layout/menu-tree'
-import { onOrigin } from '@/features/blog/blog-seo'
-import { siteBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
+import { blogBreadcrumb, blogStructuredData } from '@/features/blog/blog-structured-data'
 import { canonicalFor } from '@/features/seo/canonical'
 import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import type { BlogPostingJsonLd, PostDetail } from '@/lib/api/types/blog-post'
@@ -52,16 +51,16 @@ export function postMetadata(post: PostDetail, shop: string, siteUrl: string): M
 }
 
 /**
- * A post's JSON-LD: the backend's BlogPosting and BreadcrumbList with every URL (the page, the
- * picture, the publisher's logo, the trail) moved from `https://{SITE_DOMAIN}` onto the
- * storefront's origin, and `articleBody` as plain text (the API sends the raw HTML: digest bug
- * #3). Written escaped by `JsonLd`.
+ * A post's JSON-LD: the backend's BlogPosting and BreadcrumbList set right for the shop
+ * (blog-structured-data.ts: every URL on the storefront's origin, no empty one, «وبلاگ»), and
+ * `articleBody` as plain text (the API sends the raw HTML: digest bug #3). Written escaped by
+ * `JsonLd`.
  */
 export function postJsonLd(post: PostDetail, siteUrl: string): object[] {
   const origin = new URL(siteUrl).origin
   const postings = post.structured_data.map((item) => {
-    const moved = onOrigin(item, origin) as BlogPostingJsonLd
+    const moved = blogStructuredData(item, origin) as BlogPostingJsonLd
     return { ...moved, articleBody: htmlToText(item.articleBody) }
   })
-  return [...postings, siteBreadcrumb(post.breadcrumb_structured_data, siteUrl)]
+  return [...postings, blogBreadcrumb(post.breadcrumb_structured_data, siteUrl)]
 }

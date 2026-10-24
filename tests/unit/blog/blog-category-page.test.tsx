@@ -140,9 +140,11 @@ describe('the blog category route', () => {
     const [collection, trail] = blocks
     expect(collection?.data).toMatchObject({
       url: 'https://shop.ir/blog/category/tech-news/mobile-blog/',
-      isPartOf: { url: 'https://shop.ir/blog/' },
+      // Named as the shop names its blog (the backend says «بلاگ»).
+      isPartOf: { name: 'وبلاگ فایرفلای', url: 'https://shop.ir/blog/' },
       publisher: { logo: { url: 'https://shop.ir/media/site-logo.png' } },
     })
+    expect((trail?.data.itemListElement as { name: string }[])[1]?.name).toBe('وبلاگ')
     // The operator's description held `</script>`: written as `\u003c`, it cannot end the script.
     expect(collection?.raw).not.toContain('</script>')
     expect(collection?.raw).toContain('\\u003c/script>')

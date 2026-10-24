@@ -223,5 +223,18 @@ describe('the post’s head', () => {
     })
     expect(trail!.data).toMatchObject({ '@type': 'BreadcrumbList' })
     expect(JSON.stringify(trail!.data)).not.toContain('https://localhost')
+    // The blog's step named as the visible trail names it.
+    expect((trail!.data.itemListElement as { name: string }[])[1]?.name).toBe('وبلاگ')
+  })
+
+  it('JSON-LD of a shop without a logo: no empty logo URL', async () => {
+    const [posting] = postDetailFixture().structured_data
+    const publisher = {
+      '@type': 'Organization' as const,
+      name: 'فایرفلای',
+      logo: { '@type': 'ImageObject' as const, url: '' },
+    }
+    await show(postDetailFixture({ structured_data: [{ ...posting!, publisher }] }))
+    expect(jsonLdBlocks()[0]!.data.publisher).toEqual({ '@type': 'Organization', name: 'فایرفلای' })
   })
 })
