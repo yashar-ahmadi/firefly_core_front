@@ -717,6 +717,7 @@ kept; web push still registers it on opt-in. Its caches are named after the runn
 | --- | --- |
 | `/_next/static/*` | cache first (immutable files) |
 | an image under `/_next/image`, `/media/`, `/static/` (same origin) | stale while revalidate, at most 200 kept, the least recently stored first to go |
+| a navigation to a page never cached (below), a credential page (`/order/pay/…`, `/payment/…`, any letter case) or any address whose `next` leads back to one | the network; when it fails, the page built into the worker (`OFFLINE_FALLBACK_HTML`: no script, nothing loaded, `no-referrer`), never a page it kept |
 | a navigation to `/offline/` or `/` (`OFFLINE_PAGES`) | network first; after 4 s, or when the network fails, the anonymous copy kept; else the offline page. With nothing kept a slow network is waited for (no offline page at 4 s for a page that is merely slow) |
 | a navigation to any other page | the network; when it fails, the offline page (never a copy: none is ever kept) |
 | everything else (RSC fetches, the BFF, JSON, other origins) | not answered: the browser's own request |
@@ -749,11 +750,30 @@ itself (`res.setHeader('Vary', …)` in its app-page runtime, replacing any the 
 the 16.4.1 build), so nginx adds it (`deploy/nginx.conf.example`: `map $upstream_http_x_ff_offline`,
 `add_header Vary $ff_offline_vary`). The worker reads its copies by path with `ignoreVary` (one
 copy per path). The app files the kept HTML names (styles, scripts, the font) are kept with
-it, so the copy renders and hydrates offline. Offline, a signed-in visitor sees the guest's home
-page (the anonymous copy): nothing of theirs is ever stored. Logout tells the worker to forget the
+it, so the copy renders and hydrates offline. A signed-in visitor is shown the guest's home page
+(the anonymous copy) offline, and online too when the network has not answered `/` in 4 s (the
+installed app's start page on a slow network): nothing of theirs is ever stored. The copy says
+`hasSession: false` while the session flag cookie is set, which no server render does (the root
+layout's `hasSession` is that cookie), so the home page's `KeptCopySession`
+(`lib/session/kept-copy-session.tsx`, mounted with the PWA on by each kept shop page: the home page
+alone, 109 B gzip there, every other route without it; `tests/unit/session/kept-copy-pages.test.ts`
+holds the list) takes the cookie's session in place on mount: the page's own reads went out with the
+visitor's cookies, so the header and the visitor's reads come right, with no reload and no server
+render (a router refresh that fails offline becomes a full load of the same copy), hence no loop.
+(Task 6 said such a tab "reloads once on return": it did not. `SessionSwitchSweep` acts only on a
+cookie that changed after the page mounted, and a client navigation keeps the root layout's
+props, so the header stayed the guest's on every shop page until a full load: Plan 5 final
+review; `tests/unit/session/kept-copy-session.test.tsx`, `tests/e2e/pwa-session.spec.ts`.)
+Logout tells the worker to forget the
 kept pages and pictures (`features/pwa/purge-offline-pages.ts`, from `forgetSignedInStorage`;
 the avatar is a picture kept through `/_next/image`), which then keeps the anonymous copies
 again: belt and braces for the pages, as none holds a visitor's data.
+
+**The offline page carries no operator code.** It is shown in place of whatever page failed, at
+that page's address, so the proxy marks `/offline/` with its own route kind, `offline`
+(`lib/edge/route-kind.ts`: the snippet gate renders on `page` alone), and next.config sends it
+`Referrer-Policy: no-referrer`; its copy still gets the consent above. A credential page never
+shows even that one (the table: the built-in page). See «Payment credentials in URLs».
 
 **Registration and the install prompt cost no chunk on arrival.** The root layout writes a few
 lines of inline script (`features/pwa/register-sw.tsx`, production builds with `FEATURE_PWA` only):
@@ -774,9 +794,15 @@ measured). It is required through `createRequire` instead: a CommonJS external.
 
 **Testing offline in Playwright.** `context.setOffline(true)` cuts the pages' requests but not the
 service worker's own fetches (Chromium, seen on this build): `tests/e2e/support/pwa.ts` also
-aborts every request through `context.route`, which reaches the worker's. The PWA specs run in the
-`pwa` project, on the push shop's server with `FEATURE_PWA` on; the main e2e server runs with it
-off, so no worker sits between the other specs and their routes and mocks.
+aborts every request through `context.route`, which reaches the worker's (the browser's navigation
+preload does not pass through `context.route`: a spec that must hold a navigation turns preload
+off first, as `pwa-session.spec.ts` does). The PWA specs (`pwa.spec.ts`, `pwa-<topic>.spec.ts`)
+run in the `pwa` project, on the push shop's server with `FEATURE_PWA` on; the main e2e server
+runs with it off, so no worker sits between the other specs and their routes and mocks. The
+`pwa-journeys` project runs a few of those other specs' tests again on that server, the worker in
+control first (their `@worker` tag; `workerInControl` in `tests/e2e/support/pwa.ts`): a guest's
+checkout up to the review, sara's dashboard (read only), a payment link's page and the bank's
+return page; every navigation of theirs is answered by the worker.
 
 ## Rendering rules
 
@@ -816,12 +842,18 @@ off, so no worker sits between the other specs and their routes and mocks.
   FAQ, `/contact-us/`, `/links/`, the categories tab) serves one `<h1>`, a title, one absolute
   canonical on `SITE_URL`'s origin ending with `/`, one description, `og:title` and its JSON-LD:
   the backend's (Product, BlogPosting, CollectionPage, every BreadcrumbList) with every URL moved
-  onto the shop's origin, else the shop's own: Organization and WebSite with a SearchAction on
+  onto the shop's origin (the blog's also without an empty URL field such as a missing logo's
+  `publisher.logo.url: ""`, and naming the blog «وبلاگ» as the shop does where the backend says
+  «بلاگ»: `features/blog/blog-structured-data.ts`), else the shop's own: Organization and WebSite with a SearchAction on
   `/search/?q=` on the home page (`features/seo/organization-jsonld.tsx`, from the settings and
   socials; the backend's homepage has no structured data, so nothing is merged), FAQPage,
   a BreadcrumbList from the visible trail (brand, brands index, blog home, pages; the
-  categories tab, home › «دسته‌بندی‌ها», though it shows no trail), a ProfilePage of
-  the shop on `/links/` (`linkerJsonLd`). All written by `JsonLd` (`<` escaped). The product's
+  categories tab, home › «دسته‌بندی‌ها», though it shows no trail), a page's own node beside its
+  trail (a WebPage, an AboutPage for `about-us`, a ContactPage on `/contact-us/`: name, URL,
+  description, `inLanguage: fa-IR`; `features/seo/web-page-json-ld.ts`), a ProfilePage of
+  the shop on `/links/` (`linkerJsonLd`). All written by `JsonLd` (`<` escaped). A post's and a
+  blog category's `og:image` is on the shop's origin like their JSON-LD pictures
+  (`features/seo/site-media.ts`: the shop serves `/media/` and `/static/` in both topologies). The product's
   JSON-LD keeps the API's Rial prices labelled `IRR` (for search engines only, never shown);
   nothing the storefront builds carries a price. noindex: the cart, the checkout and its thanks
   page, the account, search, compare, the generic listing, any filtered or sorted listing, the
@@ -1204,6 +1236,17 @@ off, so no worker sits between the other specs and their routes and mocks.
   link 211.9 -> 212.1 KB and its open attempt 201.2 -> 201.4, the thanks page 188.2 -> 188.3 (the
   route's bank amount passed to `useLinkPayment` and `usePayOrder`); the listings +10 B (the shared
   `SEARCHABLE_OVER`, within their row). Every row is under its budget.
+- **The Plan 5 final fix wave's figures** (its second full run, 220 rows, against Task 9's; each
+  served chunk compared with e93c381's, gzip -9). One route grew: the home page, whose chunk holds
+  `KeptCopySession` (+109 B: 218.5 -> 218.6 KB as a guest, every home row +0.1). Every other
+  route's chunks are byte for byte e93c381's: the checkout's states (sara's 216.8 KB, 222,054 B,
+  still under its rounding step), the cart, the catalog (the costliest row still a signed-in
+  category with push on, 242.3 KB), the account, auth, payment and `/links/` rows; the post page
+  +1 B (a renamed lazy chunk's name) and the comment form's lazy chunk 3-5 B (its «دیدگاه»
+  notice), within their rows. The payment link's «open attempt» row reads 201.5 KB (Task 9's
+  report: 201.4), already so at e93c381: Task 9's fix round changed its payment code after its last
+  journeys run. A check of a store path the URL parser's way in `lib/links/store-href.ts`
+  (MenuLink, StoreLink, RichContent) was tried and left out: +15 B on every checkout state.
 - **Signed-in code.** What only a signed-in visitor sees loads with the session, never with a
   guest's page (the budget is measured as a guest): the header's account button (the profile
   read, the avatar) is a `next/dynamic` import rendered only while `hasSession` (server-rendered,
@@ -1320,7 +1363,9 @@ off, so no worker sits between the other specs and their routes and mocks.
   formatting, lists, tables, links and images; no scripts, styles, iframes, forms or event
   handlers; `http(s)`/`mailto`/`tel` URLs only; `/media` and `/static` made absolute on the API
   origin; external links (including `\`-spelled protocol-relative ones) open in a new tab with
-  `rel="noopener noreferrer"`; tables wrapped in a focusable scroll region. Every `id` is
+  `rel="noopener noreferrer"` (each URL checked as the browser's URL parser reads it: C0 controls
+  at its edges ignored, tabs and line breaks dropped, `lib/links/as-parsed.ts`, which safe-url's
+  `linkUrl` and the linker's store-path check share); tables wrapped in a focusable scroll region. Every `id` is
   dropped, except a blog post's heading ids (`headingIds`, its table of contents' anchors:
   `lib/html/heading-ids.ts`), kept on headings only, each on its first heading (the document
   never holds an id twice), and never one the page's own markup uses: `RESERVED_IDS`
@@ -1400,6 +1445,14 @@ wallet: `/login/?next=/order/pay/<token>/`). Every consumer reads that rule:
   on the credential pages (a later header rule wins in Next). The SMS link's trailing-slash 308
   is answered by Next before any header rule (it carries none, the baseline ones included); the
   page it leads to has the policy.
+- **The service worker's offline pages.** The worker shows a page in place of a navigation that
+  failed, at that navigation's address. A credential page's (or one whose `next` leads back to
+  one) never gets a page it kept: offline it gets the page built into the worker, which runs no
+  script, loads nothing and sends no referrer. The kept offline page (`/offline/`, for any other
+  page) is marked `offline` by the proxy: no operator code there either, and `no-referrer`
+  (`sw-offline-fetch.ts`, `lib/edge/route-kind.ts`; until the Plan 5 final fix wave the kept
+  offline page was an ordinary `page`, analytics and all, and the worker showed it at
+  `/order/pay/<token>/` offline).
 - **Full page loads.** Our links to them are plain `<a>` and `loadPage()`, never the client
   router: a script loaded on the page before (an analytics history listener) would otherwise see
   the new URL. The reverse is harmless: from a credential page, a client navigation keeps the
@@ -1723,18 +1776,22 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   linker's video players) are excluded element by element. `checkout/checkout-stability.spec.ts`
   sums a guest checkout's own layout shifts (under 0.1), and `cart/badge-bump.spec.ts` reads the
   cart badge's animation after an add under both motion settings.
-- **The suite at the end of Plan 5** (Task 9). Unit and component: 576 files, 5,218 tests (about
+- **The suite at the end of Plan 5** (Task 9; counts and run figures from the final fix wave).
+  Unit and component: 584 files, 5,283 tests (about
   6.5 minutes on four cores; the checkout's and payment's are the most timing-sensitive, so a
   wait in them covers only what it asserts: a lazy step body the test does not test is loaded
-  before, an effect's result is waited for). End to end: 1,029 tests in 62 files, mobile 318,
-  tablet 318, desktop 318, pwa 12, budget-push 47 and journeys 16; a routine run passes 721 and
-  skips 308 (tests scoped to another project, and the opt-in wallet journey), in about 14 minutes
-  with two workers; a route handler that fetches live (`liveJson`, `route.fetch()`) finishes
+  before, an effect's result is waited for). End to end: 1,043 tests in 64 files, mobile 319,
+  tablet 319, desktop 319, pwa 18, pwa-journeys 5, budget-push 47 and journeys 16; a routine run
+  passes 733 and skips 310 (tests scoped to another project, and the opt-in wallet journey), in
+  about 15 minutes with two workers; a route handler that fetches live (`liveJson`, `route.fetch()`) finishes
   before its test ends (`settleRoutes`, `tests/e2e/support/live-route.ts`, or the spec's own
-  teardown). Per run, from the backend's log: about 2,700 API requests, none answered 429;
-  31 auth attempts (20 logins, 11 logouts; at most 11 in a minute); 47 axe audits, none with a
-  finding; the writes listed above. The last two full runs, an hour apart as the budget allows,
-  were both green, every one of their 220 budget rows the same.
+  teardown). A test that drives a fake clock moves it only once the page has handled what it
+  waits on (payment-result.spec.ts's polling test: a 15 s jump made before the first answer left
+  the next read 15 s away under a full run's load). Per run, from the backend's log: about 2,700
+  API requests (2,739 in the final fix wave's run; the dev data's missing pictures add about
+  12,000 `/media/` 404s, outside the API's throttle), none answered 429; 31 auth attempts (20
+  logins, 11 logouts; at most 11 in a minute); 47 axe audits, none with a finding; the writes
+  listed above (and `pwa-journeys`' guest cart, cleared after).
 - **Lighthouse** is not part of `pnpm test:e2e`: `node scripts/lighthouse.mjs` (Lighthouse's CLI
   through npx, its version pinned in the script; the browser from `CHROME_PATH`, by default the
   preinstalled Chromium) runs home, a category, a product, the one post and a guest's `/checkout/`
@@ -1742,9 +1799,22 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   JSON reports to the system's temp folder and prints the median of each score and metric
   (`scripts/lighthouse-summary.mjs`, unit-tested). Targets: Performance 85, Accessibility,
   Best Practices and SEO 95 (the checkout's SEO is its intended noindex).
-- **CI** (`.github/workflows/ci.yml`, push and PR to `main`): install, `typecheck`, `lint`,
-  `format:check`, `test`, `build`. End-to-end tests are not run in CI (they need the backend, a
-  separate repository); run them locally before pushing.
+- **CI** (`.github/workflows/ci.yml`, push and PR to `main`): two jobs. The check job installs and
+  runs `typecheck`, `lint`, `format:check`, `test`, `build`; the Docker job builds the image as
+  deploy builds it, starts it with a dummy but valid environment, and checks `/healthz/` (200),
+  the image's own HEALTHCHECK (healthy) and a container without its environment (503 and its log
+  line). End-to-end tests are not run in CI (they need the backend, a separate repository); run
+  them locally before pushing.
+- **What the image's build type-checks.** `next build` checks `tsconfig.build.json`
+  (`typescript.tsconfigPath` in next.config.ts): `src/`, next.config.ts, `next-env.d.ts` and
+  Next's generated types, never a test or a test runner's config, which `.dockerignore` leaves out
+  of the image's context (`tests/`, `vitest.config.ts`, `vitest.setup.ts`, `playwright.config.ts`).
+  `pnpm typecheck` runs `tsc` on the whole project (tsconfig.json, tests included), then
+  `scripts/check-build-context.mjs`: it copies what `.dockerignore` lets through
+  (`scripts/build-context.mjs`, Docker's own matching rules) to a temporary folder and type-checks
+  tsconfig.build.json there, side-effect imports included, so a build file that needs a file the
+  image never gets fails locally and in the check job, before the Docker job (CI run 88 on
+  e93c381 was red there: vitest.setup.ts imported `tests/unit/support/network-guard`).
 
 ## Adding a page, a feature or a preset
 
