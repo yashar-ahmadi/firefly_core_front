@@ -121,9 +121,13 @@ describe('CheckoutPage', () => {
   })
 
   it('numbered sections with their own headings; later steps wait for the earlier ones', async () => {
-    serve(() => addressCart(), [])
+    serve(() => noDestinationCart(), [])
     renderPage(noDestinationCart())
-    expect(section(/۱.*گیرنده و آدرس/)).toHaveAttribute('data-state', 'active')
+    // The page's skeleton while the book is read for a default (first-visit.test.tsx).
+    expect(await screen.findByRole('region', { name: /۱.*گیرنده و آدرس/ })).toHaveAttribute(
+      'data-state',
+      'active',
+    )
     expect(section(/۲.*روش ارسال/)).toHaveAttribute('data-state', 'locked')
     expect(section(/۳.*پرداخت/)).toHaveAttribute('data-state', 'locked')
     expect(section(/۴.*بازبینی/)).toHaveAttribute('data-state', 'locked')
@@ -177,7 +181,9 @@ describe('CheckoutPage', () => {
     const work = address({ id: 10019, title: 'محل کار', is_default: false })
     serve(() => addressCart(work), [home, work])
     renderPage(addressCart(work))
-    await user.click(within(section(/گیرنده و آدرس/)).getByRole('button', { name: /ویرایش/ }))
+    // After the operator's default shipping, chosen on arrival behind the page's skeleton.
+    const receiver = await screen.findByRole('region', { name: /گیرنده و آدرس/ })
+    await user.click(within(receiver).getByRole('button', { name: /ویرایش/ }))
     await user.click(await screen.findByRole('radio', { name: /خانه/ }))
     await waitFor(() => expect(screen.getByRole('heading', { name: /روش ارسال/ })).toHaveFocus())
   })

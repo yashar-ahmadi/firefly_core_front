@@ -1,5 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { CART_KEY } from '@/features/cart/cart-cache'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { wallet } from '../payment/fixtures'
 import { address, addressCart, noDestinationCart, tehranOptions } from './fixtures'
@@ -7,9 +8,11 @@ import { calls, ok, placeButton, renderCheckout, signedInCart } from './place-su
 
 // A signed-in shopper's first visit (Task 3's amendment; use-auto-choices.ts): the page posts the
 // book's default as the destination and chooses the operator's default shipping by itself, its
-// own code; the receiver and shipping steps show their headings over a skeleton meanwhile, so
-// the visit goes from the cart to the review loading the review's body alone (the address
-// picker's and the options' code load only when the shopper is asked).
+// own code, so the visit goes from the cart to the review loading the review's body alone (the
+// address picker's and the options' code load only when the shopper is asked). The choices made
+// on arrival run behind the page's skeleton (Plan 5 Task 8 fix round): shown in their steps, each
+// opened and closed a step in turn and moved the steps below (CLS 0.15 on a phone). A choice
+// made again later (the shopper changed the address) shows in its step, the page staying.
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), push: vi.fn() }))
 const loaded = vi.hoisted(() => new Set<string>())
@@ -68,12 +71,10 @@ describe('a signed-in shopper’s first visit', () => {
     })
     renderCheckout({ cart: noDestinationCart(), hasSession: true })
 
-    // The default address on its way: the receiver step's heading over a named skeleton.
-    const receiver = screen.getByRole('region', { name: /گیرنده و آدرس/ })
-    expect(
-      await within(receiver).findByRole('status', { name: 'در حال انتخاب آدرس پیش\u{200C}فرض' }),
-    ).toBeInTheDocument()
+    // The default address on its way: the page's skeleton, no step yet.
     await waitFor(() => expect(calls(mocks.bffFetch, 'cart/destination/')).toHaveLength(1))
+    expect(screen.getByRole('status', { name: 'در حال بارگذاری' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: /گیرنده و آدرس/ })).toBeNull()
     expect(calls(mocks.bffFetch, 'cart/destination/')[0]![1]).toMatchObject({
       body: { address: address().id },
     })
@@ -86,5 +87,39 @@ describe('a signed-in shopper’s first visit', () => {
       body: { cash_on_delivery: false },
     })
     expect([...loaded]).toEqual(['review-section'])
+  })
+
+  it('the steps’ page is a screen tall, as its skeleton: the footer stays below the fold', async () => {
+    // The review's body arriving after the page's skeleton otherwise pushed a desktop's footer
+    // out of view (Plan 5 Task 8 fix round: CLS 0.03 at 1440x900).
+    mocks.bffFetch.mockImplementation((path: string) =>
+      path === 'cart/' ? Promise.resolve(ok(signedInCart())) : new Promise(() => {}),
+    )
+    renderCheckout({ cart: signedInCart(), hasSession: true })
+    const steps = (await screen.findByRole('region', { name: /روش ارسال/ })).parentElement!
+    expect(steps.parentElement).toHaveClass('min-h-dvh', 'content-start')
+  })
+
+  it('once arrived, a choice made again shows in its step; the page stays', async () => {
+    let current = signedInCart()
+    mocks.bffFetch.mockImplementation((path: string) => {
+      if (path === 'cart/') return Promise.resolve(ok(current))
+      if (path === 'cart/shipping/option/list/') return Promise.resolve(ok(tehranOptions()))
+      if (path === 'wallet/') return Promise.resolve(ok(wallet()))
+      return new Promise(() => {})
+    })
+    const { client } = renderCheckout({ cart: signedInCart(), hasSession: true })
+    await placeButton()
+    // The shipping choice gone (another address chosen in another tab, say): the operator's
+    // default is chosen again, in the shipping step.
+    current = addressCart(address())
+    await act(async () => client.setQueryData(CART_KEY, current))
+    const shipping = screen.getByRole('region', { name: /روش ارسال/ })
+    expect(
+      await within(shipping).findByRole('status', {
+        name: 'در حال انتخاب روش ارسال پیش\u{200C}فرض',
+      }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'در حال بارگذاری' })).toBeNull()
   })
 })

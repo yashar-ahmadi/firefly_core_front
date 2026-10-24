@@ -1218,8 +1218,13 @@ off, so no worker sits between the other specs and their routes and mocks.
   receiver form's skeleton is the form's height (`guest-form-room`, globals.css), and the
   checkout's loading skeleton is a screen tall, so the footer starts below the fold (Lighthouse
   measured a CLS of 0.46 on a guest's `/checkout/` before; `checkout-stability.spec.ts`: 0.000).
-  A signed-in checkout still shifts when the address picker (its height depends on the address
-  book) replaces its skeleton (0.16–0.27 measured with sara's writes refused, not the real flow).
+  A signed-in first visit's choices made for the shopper (`use-auto-choices.ts`: the book's
+  default address, the operator's default shipping) run behind that skeleton: shown as they
+  happened, each opened and closed its step and moved the steps below (k.yazdi's first visit:
+  CLS 0.148 on a 412 px phone, 0.115 at 1440×900; `checkout-signed-in-stability.spec.ts`: 0).
+  The page of steps is a screen tall too, so the footer stays below the fold as steps open and
+  close. A choice made again after arrival (another address resets the shipping) shows in its
+  step, as before.
 - **The font is a subset** (`lib/fonts.ts` holds the command): 85 KB instead of the full variable
   font's 111 KB, preloaded (an HTTP `Link`) on every first visit; Latin Extended and IPA letters
   fall back to the system face.

@@ -88,6 +88,12 @@ export function CheckoutPage({
   const { cart, cartQuery, signedIn, done, step } = checkout
   const expire = useSessionExpired()
   const page = useStepFocus(step)
+  // The choices made for the shopper on arrival (use-auto-choices) run behind the page's
+  // skeleton: shown in their steps, each opened and closed a step in turn, moving the steps
+  // below it. Arrived once they are made; a choice made again later shows in its step.
+  const choosing = checkout.autoDestination.working || checkout.autoShipping.working
+  const [arrived, setArrived] = useState(false)
+  if (!arrived && cart && !choosing) setArrived(true)
 
   const { error } = cartQuery
   useEffect(() => {
@@ -110,6 +116,7 @@ export function CheckoutPage({
   }
   // Empty after an order placed in this tab (a reload, Back from the bank): that order, first.
   if (cart.is_empty) return <EmptyCheckout placed={readLastPlaced()} />
+  if (!arrived) return <CheckoutSkeleton />
 
   const blocked = checkoutBlock(cart, false) === CHECKOUT_ISSUES
   // A refusal whose fix is in an earlier step is said at the top, until the review again.
@@ -127,7 +134,9 @@ export function CheckoutPage({
       ref={page}
       onPointerOver={ahead}
       onFocus={ahead}
-      className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-6"
+      // A screen tall at least, as the skeleton before it: the footer stays below the fold while
+      // the steps open, close and get their bodies.
+      className="grid min-h-dvh content-start gap-4 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-6"
     >
       <div className="flex min-w-0 flex-col gap-4">
         <CheckoutSummaryFolded cart={cart} />

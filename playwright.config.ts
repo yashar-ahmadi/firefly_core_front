@@ -19,7 +19,7 @@ const launchOptions = existsSync(chromiumPath) ? { executablePath: chromiumPath 
 const DESKTOP = { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }
 /** Specs of the `journeys` project only. */
 const JOURNEYS =
-  /\/(?:account\/(?:auth|account|orders-journey|wallet-journey)|checkout\/(?:checkout-(?:signed-in|place)|pay-link|card-transfer|guest-cod|user-wallet)|blog\/reading-list)\.spec\.ts$/
+  /\/(?:account\/(?:auth|account|orders-journey|wallet-journey)|checkout\/(?:checkout-(?:signed-in(?:-stability)?|place)|pay-link|card-transfer|guest-cod|user-wallet)|blog\/reading-list)\.spec\.ts$/
 /** The JS budget's specs: the `desktop` project measures them, and `budget-push` again. */
 const BUDGET = /\/catalog\/budget(?:-signed-in)?\.spec\.ts$/
 /** The PWA's specs: the `pwa` project only, on the server with FEATURE_PWA on. */
