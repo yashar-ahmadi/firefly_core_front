@@ -1140,6 +1140,20 @@ off, so no worker sits between the other specs and their routes and mocks.
   242.2); pages outside it byte for byte. The mega-menu's links are no longer in the server's
   HTML: crawlers reach the categories through `/categories/` (the bottom navigation), the
   footer's menu and the sitemap.
+- **Plan 5 Task 8's figures** (the full run's guards, 220 rows, against Task 7's). Every page in
+  the shop layout 1.7–1.8 KB less, desktop and phone alike (the lazy mega-menu, less the cart
+  badge's bump and the audit's fixes, about 0.1 KB): home 218.5 KB, a category, a list and a
+  brand 238.3, the product 235.9, `/brand/` 200.4, `/cart/` 226.9, the blog 203.6, a post 219.7,
+  the account pages 216.9–235.7 (push on included); the costliest is still a signed-in category
+  with push on, 242.3 KB of 250. Unchanged: `/links/` 169.2 (of 200), `/register/` 209.3,
+  `/forgot-password/` 205.4, the payment link, result and card-transfer pages, the thanks page
+  188.2, a signed-in checkout 212.5–216.9 and a guest's review 212.5 KB. Two routes outside the
+  shop layout (no mega-menu to shed) grew by bytes (each change's gzip cost measured in the
+  served chunks): a guest's `/checkout/` 213.6 → 213.7 KB (218,758 → 218,808 B: about 36 B for
+  the receiver form's room and the screen-tall skeleton, which took its CLS from 0.46 to 0, 10 B
+  for «شمارهٔ موبایل», 8 B for the logo link's 44 px, less 4 B for the checkbox's
+  `rounded-check`) and `/login/` 208.3 → 208.4 KB (about 8 B: the wording 7, the logo 7, the
+  checkbox −6).
 - **Signed-in code.** What only a signed-in visitor sees loads with the session, never with a
   guest's page (the budget is measured as a guest): the header's account button (the profile
   read, the avatar) is a `next/dynamic` import rendered only while `hasSession` (server-rendered,
@@ -1156,12 +1170,18 @@ off, so no worker sits between the other specs and their routes and mocks.
   (`HeartButton`, `CompareToggle`, `AddToCartButton`, `QuickViewLink`) keep their hooks for the
   buy box, quick view and the compare table and share their markup with the island.
 - **Total Blocking Time** (Playwright, 412×823, 4× CPU, 150 ms RTT, 1.6 Mbps; long-task time
-  over 50 ms from FCP to load + 5 s) stays around 600–800 ms on a 24-card listing. The card
-  island took about 80–120 ms off; the rest is the evaluation of the scripts with the inline RSC
-  payload (one task of about 330–450 ms), the relayout when Vazirmatn arrives (about 130–200 ms)
-  and React's single hydration commit (about 270 ms). Tried and dropped: a Suspense boundary per
-  card (36 separate commits, but in one 1 s task), a plain `<a>` instead of `next/link` (no
-  change), no web font (worse).
+  over 50 ms from FCP to load + 5 s) on a 24-card listing: about 620–690 ms until Plan 5 Task 8,
+  about 460 ms since. The card island took about 80–120 ms off (Plan 2). Task 8's traces put the
+  rest in the swap relayout when Vazirmatn arrives (two tasks around 2.0–2.2 s) and the single
+  hydration commit (about 300 ms, ending at 4.1–4.9 s on that link). The desktop sidebar's
+  filters (379 elements on `/product/list/`, hidden below lg) were server-rendered and hydrated
+  on phones too; they now render from lg only (`SidebarFilters`): alternating A/B against
+  4519cb4, 7 runs each, the listing's median 624 → 462 ms and the phones category 601 → 408 ms
+  (the lazy mega-menu alone did not move the listing: 632 vs 690, noise). Tried and dropped: a
+  Suspense boundary per card (36 separate commits, but in one 1 s task), a plain `<a>` instead
+  of `next/link` (no change), no web font (worse). Not done: the card's RSC rows (about 4 KB each,
+  mostly Tailwind class strings; the compare item repeats the card's name and image) are small
+  next to the hydration itself.
 - **The phone search overlay and the iOS keyboard.** iOS raises the keyboard only for a field the
   visitor taps or one focused inside the tap's own event handling. The phone header field
   (`features/search/mobile-search.tsx`) is therefore a real, writable input (never read-only
@@ -1180,7 +1200,15 @@ off, so no worker sits between the other specs and their routes and mocks.
 - **Layout stability.** Vazirmatn loads with `display: swap` behind Persian-tuned fallback faces
   (`styles/font-fallbacks.css`, listed in `lib/fonts.ts`), so text keeps its width and line breaks
   when the font arrives. Images have fixed frames, and countdowns and badges keep one width
-  through hydration.
+  through hydration. A lazily loaded body keeps its room while its code comes: the guest's
+  receiver form's skeleton is the form's height (`guest-form-room`, globals.css), and the
+  checkout's loading skeleton is a screen tall, so the footer starts below the fold (Lighthouse
+  measured a CLS of 0.46 on a guest's `/checkout/` before; `checkout-stability.spec.ts`: 0.000).
+  A signed-in checkout still shifts when the address picker (its height depends on the address
+  book) replaces its skeleton (0.16–0.27 measured with sara's writes refused, not the real flow).
+- **The font is a subset** (`lib/fonts.ts` holds the command): 85 KB instead of the full variable
+  font's 111 KB, preloaded (an HTTP `Link`) on every first visit; Latin Extended and IPA letters
+  fall back to the system face.
 
 ## Errors and degraded operation
 
@@ -1458,7 +1486,8 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   (`airfryer-vs-oven`, `laptop-for-students`, `smartwatch-health-features`: a load, a click from
   the blog, a reload) and answers the comment form's POST itself (a real one leaves a pending
   comment nobody can take back). Each run counts 2 views of `best-phones-under-30m` and 3 of its
-  own post per project, plus the budget guards' 8 loads of `best-phones-under-30m`. `E2E_LIVE_COMMENT=1` sends one guest
+  own post per project, plus the budget guards' 8 loads of `best-phones-under-30m` and the
+  accessibility audit's 2 (Plan 5 Task 8). `E2E_LIVE_COMMENT=1` sends one guest
   comment for real instead (desktop only, once: it stays pending for the operator to reject). A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
   mobile each run, for the guest's unpaid-orders ceiling; the dev backend answers a bank intent
   `400 gateway_unknown` when a gateway is named (the chooser shows), and the page withdraws that
@@ -1582,6 +1611,26 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   that file and run again. A
   spec that ends or changes its session logs in on its own, once per project, with `logIn` (as
   `tests/e2e/account/logout.spec.ts` does) or the form (`logInWithForm`), and logs out.
+- **Accessibility audit** (Plan 5 Task 8; spec §7.1, WCAG 2.1 AA). `tests/e2e/a11y.spec.ts` runs
+  axe-core (`@axe-core/playwright`, `tests/e2e/support/axe.ts`) on every page type, on a phone and
+  a desktop: home, category, product, the cart empty and with a line, the checkout's receiver step
+  and review (this context's own guest cart, cleared after), login, register, the account
+  dashboard (sara's shared session, read only), the blog home, one post (`POST_PATH`: two views a
+  run), a content page, FAQ, `/contact-us/`, `/links/`, order tracking, both 404 shells and
+  `/offline/`; `a11y-overlays.spec.ts` the same with the search and its suggestions, quick view,
+  the phone's filter sheet, the mega-menu and the mini-cart open. A `serious` or `critical`
+  violation of the WCAG 2.0/2.1 A and AA rules fails the test; every finding is printed
+  (`[axe] …`). No rule is ever turned off; third-party embeds (Google's sign-in iframe, the
+  linker's video players) are excluded element by element. `checkout/checkout-stability.spec.ts`
+  sums a guest checkout's own layout shifts (under 0.1), and `cart/badge-bump.spec.ts` reads the
+  cart badge's animation after an add under both motion settings.
+- **Lighthouse** is not part of `pnpm test:e2e`: `node scripts/lighthouse.mjs` (Lighthouse's CLI
+  through npx, its version pinned in the script; the browser from `CHROME_PATH`, by default the
+  preinstalled Chromium) runs home, a category, a product, the one post and a guest's `/checkout/`
+  three times each at its mobile defaults (simulated throttling) against `BASE_URL`, writes the
+  JSON reports to the system's temp folder and prints the median of each score and metric
+  (`scripts/lighthouse-summary.mjs`, unit-tested). Targets: Performance 85, Accessibility,
+  Best Practices and SEO 95 (the checkout's SEO is its intended noindex).
 - **CI** (`.github/workflows/ci.yml`, push and PR to `main`): install, `typecheck`, `lint`,
   `format:check`, `test`, `build`. End-to-end tests are not run in CI (they need the backend, a
   separate repository); run them locally before pushing.

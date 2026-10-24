@@ -50,6 +50,12 @@ pnpm dev             # http://localhost:3000
   `E2E_BASE_URL` آدرس دیگری می‌دهد و `PLAYWRIGHT_CHROMIUM_PATH` مسیر Chromium دلخواه.
 - CI (GitHub Actions) روی هر push و pull request به `main` بررسی نوع، lint، قالب‌بندی، آزمون واحد و build
   را اجرا می‌کند. آزمون‌های end-to-end به بک‌اند نیاز دارند و پیش از push روی سیستم خودتان اجرا می‌شوند.
+- دسترس‌پذیری: `tests/e2e/a11y.spec.ts` و `a11y-overlays.spec.ts` (بخشی از `pnpm test:e2e`) با axe-core هر
+  نوع صفحه و هر منو و پنجره را روی موبایل و دسکتاپ می‌سنجند (WCAG 2.1 AA، هیچ خطای serious یا critical).
+- Lighthouse بخشی از `pnpm test:e2e` نیست و دستی اجرا می‌شود: با سرور تولید بالا
+  (`pnpm build && pnpm start:standalone`) دستور `node scripts/lighthouse.mjs [home category product post checkout]`
+  هر صفحه را سه بار در حالت موبایل می‌سنجد، گزارش‌های JSON را در پوشهٔ موقت سیستم می‌گذارد و میانهٔ
+  امتیازها را جدول می‌کند (`BASE_URL`، `RUNS` و `CHROME_PATH` را می‌پذیرد).
 
 ## مستندات
 
@@ -77,8 +83,9 @@ nginx (which strips `Accept-Encoding` and compresses once with brotli or gzip; t
 itself only when no proxy strips that header). The app sends its own clickjacking, nosniff and
 referrer headers. `/healthz/` is the health probe: 200 with a valid environment, 503 without, and
 never an API call. `pnpm test:e2e` runs Playwright (mobile, tablet, desktop) against the standalone
-production server and a backend with sample data; CI runs typecheck, lint, format check, unit tests
-and build, and builds, starts and probes the Docker image.
+production server and a backend with sample data, axe-core accessibility checks included; CI runs
+typecheck, lint, format check, unit tests and build, and builds, starts and probes the Docker image.
+`node scripts/lighthouse.mjs` runs Lighthouse (mobile, three runs a page, the median) by hand.
 
 Docs: [DEPLOYMENT.md](docs/DEPLOYMENT.md) and [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) (Persian),
 [ARCHITECTURE.md](docs/ARCHITECTURE.md) (English).
