@@ -1,13 +1,17 @@
 import { expect, test } from '@playwright/test'
 import { checkoutReached, leaveCheckout, prepareCheckout } from '../support/checkout-states'
 import { shiftTotal, watchShifts } from '../support/layout-shifts'
+import { signedInTest } from '../support/session'
 
-// The checkout's layout stays put while its open step's body arrives (Plan 5 Task 8: Lighthouse
-// measured a CLS of 0.46 on a guest's /checkout/). Each step's body is its own chunk
-// (lazy-steps.tsx) shown over a skeleton meanwhile; a skeleton far shorter than its body pushed
-// the steps below it down by a page when the body came. Measured as the browser does
+// The checkout's layout stays put while it arrives (Plan 5 Task 8: Lighthouse measured a CLS of
+// 0.46 on a guest's /checkout/, the receiver form arriving over a far shorter skeleton). The page
+// now arrives in one piece behind its own skeleton, a screen tall: the choices made for the
+// shopper, then the open step's body (lazy-steps.tsx, `loadBody`). Measured as the browser does
 // (`layout-shift` entries without recent input), the guest's receiver step and the review, on a
-// phone and a desktop. Writes: this context's own guest cart, cleared after.
+// phone and a desktop. Writes: this context's own guest cart, cleared after. Signed in: sara's
+// cart as it is, the page's own writes refused (her default shipping cannot be chosen, so the
+// step asks: its options arrived over the step's skeleton, CLS 0.24 on a phone); k.yazdi's real
+// first visit: checkout-signed-in-stability.spec.ts.
 
 test.describe('the checkout keeps still while a step’s body arrives', () => {
   test.beforeEach(({}, testInfo) => {
@@ -35,4 +39,19 @@ test.describe('the checkout keeps still while a step’s body arrives', () => {
       }
     })
   }
+})
+
+signedInTest.describe('signed in, the shipping step asking (its default refused)', () => {
+  signedInTest('the options arrive with the page: CLS under 0.01', async ({ page }, testInfo) => {
+    signedInTest.skip(testInfo.project.name === 'tablet', 'a phone and a desktop')
+    await watchShifts(page)
+    await prepareCheckout(page, 'signed-in')
+    await page.goto('/checkout/')
+    await expect(page.getByText('یک روش ارسال انتخاب کنید.')).toBeVisible()
+    const cls = await shiftTotal(page)
+    console.log(
+      `[cls] checkout signed-in, shipping asked ${testInfo.project.name}: ${cls.toFixed(3)}`,
+    )
+    expect(cls).toBeLessThan(0.01)
+  })
 })

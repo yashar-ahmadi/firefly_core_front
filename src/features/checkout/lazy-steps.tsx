@@ -1,6 +1,6 @@
 'use client'
 
-import dynamic from 'next/dynamic'
+import { useEffect, useReducer, type ComponentType } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { reloadPage } from '@/lib/navigation/hard-navigation'
 import type { CheckoutStep } from './checkout-steps'
@@ -16,41 +16,10 @@ import type { CheckoutStep } from './checkout-steps'
 // draft are kept. The shopper at work in the page fetches the bodies of the steps still ahead
 // meanwhile (`preloadAhead`).
 
-/** One request however often it is asked for; a failed one may be asked again. */
-function once<T>(importer: () => Promise<T>): () => Promise<T> {
-  let loading: Promise<T> | null = null
-  return () =>
-    (loading ??= importer().catch((error: unknown) => {
-      loading = null
-      throw error
-    }))
-}
-
-const guestForm = once(() => import('./guest-receiver-form'))
-const addressPicker = once(() => import('./address-picker'))
-const shipping = once(() => import('./shipping-section'))
-const payment = once(() => import('./payment-section'))
-const review = once(() => import('./review-section'))
-
 /** A step's body on its way, or a choice being made for the shopper: a skeleton, named. */
-export function StepLoading({
-  label = 'در حال بارگذاری',
-  room = false,
-}: {
-  label?: string
-  /**
-   * Keeps the guest receiver form's room (`guest-form-room` in globals.css), so the steps below
-   * stay put when the form comes (Plan 5 Task 8: the swap was a CLS of 0.45 on a phone).
-   */
-  room?: boolean
-}) {
+export function StepLoading({ label = 'در حال بارگذاری' }: { label?: string }) {
   return (
-    <div
-      role="status"
-      aria-label={label}
-      // Whole strings: Prettier's Tailwind plugin trims the space a joined class would need.
-      className={room ? 'flex guest-form-room flex-col gap-3' : 'flex flex-col gap-3'}
-    >
+    <div role="status" aria-label={label} className="flex flex-col gap-3">
       {/* Read out by the live region (its name alone is not announced). */}
       <span className="sr-only">{`${label}…`}</span>
       <Skeleton className="h-16 rounded-card" />
@@ -77,60 +46,71 @@ function StepUnavailable() {
   )
 }
 
-export const GuestReceiverForm = dynamic(
-  () =>
-    guestForm()
-      .then((module) => module.GuestReceiverForm)
-      .catch(() => StepUnavailable),
-  { loading: () => <StepLoading room /> },
-)
+/**
+ * A step's body from its own chunk: its step's skeleton until the code is in, then the body, at
+ * once when the code is in already (the page arrives with its open step's body: `loadBody`;
+ * `next/dynamic` showed its skeleton for a frame and React held it 300 ms more, and the body's
+ * arrival then moved the steps below). One request however often `load` is asked for; a failed
+ * one may be asked again (a preload's failure is not the body's), and a body whose code cannot
+ * load says so (StepUnavailable).
+ */
+function stepBody<P extends object>(importer: () => Promise<ComponentType<P>>) {
+  let Body: ComponentType<P> | undefined
+  let loading: Promise<unknown> | undefined
+  const load = () =>
+    (loading ??= importer().then(
+      (component) => (Body = component),
+      (error: unknown) => {
+        loading = undefined
+        throw error
+      },
+    ))
+  function LazyBody(props: P) {
+    const [, loaded] = useReducer(() => true, false)
+    useEffect(() => {
+      if (Body) return
+      load().then(loaded, () => {
+        Body = StepUnavailable as ComponentType<P>
+        loaded()
+      })
+    }, [])
+    return Body ? <Body {...props} /> : <StepLoading />
+  }
+  return Object.assign(LazyBody, { load })
+}
 
-export const AddressPicker = dynamic(
-  () =>
-    addressPicker()
-      .then((module) => module.AddressPicker)
-      .catch(() => StepUnavailable),
-  { loading: () => <StepLoading /> },
+export const GuestReceiverForm = stepBody(() =>
+  import('./guest-receiver-form').then((module) => module.GuestReceiverForm),
 )
-
-export const ShippingSection = dynamic(
-  () =>
-    shipping()
-      .then((module) => module.ShippingSection)
-      .catch(() => StepUnavailable),
-  { loading: () => <StepLoading /> },
+export const AddressPicker = stepBody(() =>
+  import('./address-picker').then((module) => module.AddressPicker),
 )
-
-export const PaymentSection = dynamic(
-  () =>
-    payment()
-      .then((module) => module.PaymentSection)
-      .catch(() => StepUnavailable),
-  { loading: () => <StepLoading /> },
+export const ShippingSection = stepBody(() =>
+  import('./shipping-section').then((module) => module.ShippingSection),
 )
-
-export const ReviewSection = dynamic(
-  () =>
-    review()
-      .then((module) => module.ReviewSection)
-      .catch(() => StepUnavailable),
-  { loading: () => <StepLoading /> },
+export const PaymentSection = stepBody(() =>
+  import('./payment-section').then((module) => module.PaymentSection),
+)
+export const ReviewSection = stepBody(() =>
+  import('./review-section').then((module) => module.ReviewSection),
 )
 
 const BODIES: Record<CheckoutStep, (signedIn: boolean) => Promise<unknown>> = {
-  receiver: (signedIn) => (signedIn ? addressPicker() : guestForm()),
-  shipping: () => shipping(),
-  payment: () => payment(),
-  review: () => review(),
+  receiver: (signedIn) => (signedIn ? AddressPicker : GuestReceiverForm).load(),
+  shipping: () => ShippingSection.load(),
+  payment: () => PaymentSection.load(),
+  review: () => ReviewSection.load(),
 }
 const ORDER: CheckoutStep[] = ['receiver', 'shipping', 'payment', 'review']
+
+/** Loads the body of `step` (the page arrives once its open step's is in). Never rejects. */
+export const loadBody = (step: CheckoutStep, signedIn: boolean): Promise<unknown> =>
+  BODIES[step](signedIn).catch(() => undefined)
 
 /**
  * Fetches the bodies of the steps after `step` (the shopper at work in the page: a pointer over
  * it, a focus in it), never on arrival alone. Never rejects.
  */
 export function preloadAhead(step: CheckoutStep, signedIn: boolean): void {
-  for (const next of ORDER.slice(ORDER.indexOf(step) + 1)) {
-    void BODIES[next](signedIn).catch(() => undefined)
-  }
+  for (const next of ORDER.slice(ORDER.indexOf(step) + 1)) void loadBody(next, signedIn)
 }

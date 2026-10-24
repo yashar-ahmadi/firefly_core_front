@@ -78,7 +78,7 @@ describe('the orders after a checkout', () => {
     serve(mocks.bffFetch, () => signedInCart(), { [PLACE]: placed(), [UUID_INTENT]: pay })
     const { client } = renderCheckout({ cart: signedInCart(), hasSession: true })
     const spy = vi.spyOn(client, 'invalidateQueries')
-    const step = screen.getByRole('region', { name: /۳.*پرداخت/ })
+    const step = await screen.findByRole('region', { name: /۳.*پرداخت/ })
     await waitFor(() => expect(step).toHaveTextContent('درگاه بانکی'))
     await user.click(within(step).getByRole('button', { name: /ویرایش/ }))
     const wallet = await screen.findByRole('radio', { name: /^کیف پول$/ })

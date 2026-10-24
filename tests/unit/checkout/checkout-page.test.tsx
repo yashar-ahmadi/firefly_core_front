@@ -102,14 +102,14 @@ describe('CheckoutPage', () => {
     expect(screen.queryByRole('region', { name: /گیرنده و آدرس/ })).not.toBeInTheDocument()
   })
 
-  it('lines that cannot be ordered: a banner back to the cart, every step locked', () => {
+  it('lines that cannot be ordered: a banner back to the cart, every step locked', async () => {
     const cart = noDestinationCart({
       is_orderable: false,
       lines: [cartLine({ issue: 'insufficient_stock', available_quantity: 1, quantity: 3 })],
     })
     serve(() => cart)
     renderPage(cart)
-    const banner = screen.getByRole('alert')
+    const banner = await screen.findByRole('alert')
     expect(banner).toHaveTextContent('برخی کالاهای سبد خرید قابل سفارش نیستند')
     expect(within(banner).getByRole('link', { name: 'بازگشت به سبد خرید' })).toHaveAttribute(
       'href',
@@ -138,7 +138,7 @@ describe('CheckoutPage', () => {
     const cart = addressCart(address(), { shipping: codCart().shipping })
     serve(() => cart)
     renderPage(cart)
-    const receiver = section(/گیرنده و آدرس/)
+    const receiver = await screen.findByRole('region', { name: /گیرنده و آدرس/ })
     expect(receiver).toHaveAttribute('data-state', 'done')
     expect(receiver).toHaveTextContent('خانه')
     expect(section(/روش ارسال/)).toHaveTextContent('پیک موتوری تهران')
@@ -152,7 +152,7 @@ describe('CheckoutPage', () => {
     const cart = addressCart(address(), { shipping: codCart().shipping })
     serve(() => cart)
     renderPage(cart)
-    const shipping = section(/روش ارسال/)
+    const shipping = await screen.findByRole('region', { name: /روش ارسال/ })
     await user.click(within(shipping).getByRole('button', { name: /ویرایش/ }))
     await user.click(await screen.findByRole('radio', { name: /پست سفارشی/ }))
     await waitFor(() =>
@@ -163,10 +163,11 @@ describe('CheckoutPage', () => {
     expect(section(/روش ارسال/)).toHaveAttribute('data-state', 'done')
   })
 
-  it('the summary is the API’s: its total, on phones folded under «جمع کل»', () => {
+  it('the summary is the API’s: its total, on phones folded under «جمع کل»', async () => {
     const cart = addressCart(address(), { shipping: codCart().shipping, total: 2_438_000 })
     serve(() => cart)
     renderPage(cart)
+    await screen.findByRole('region', { name: /بازبینی/ })
     expect(screen.getAllByRole('heading', { name: 'خلاصه\u{0654} سفارش' }).length).toBeGreaterThan(
       0,
     )

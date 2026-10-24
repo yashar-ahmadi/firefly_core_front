@@ -45,7 +45,7 @@ describe('the payment lists the server could not read', () => {
       cart: onlineCart(),
       props: { catalog: catalog({ methods: null, gateways: null }) },
     })
-    const step = screen.getByRole('region', { name: /۳.*پرداخت/ })
+    const step = await screen.findByRole('region', { name: /۳.*پرداخت/ })
     await user.click(await within(step).findByRole('button', { name: 'تلاش دوباره' }))
     await waitFor(() =>
       expect(within(step).getByRole('status')).toHaveTextContent('باز هم بارگذاری نشد'),
@@ -63,7 +63,7 @@ describe('the payment lists the server could not read', () => {
       cart: onlineCart(),
       props: { catalog: catalog({ methods: null, gateways: null }) },
     })
-    const step = screen.getByRole('region', { name: /۳.*پرداخت/ })
+    const step = await screen.findByRole('region', { name: /۳.*پرداخت/ })
     expect(await within(step).findByText('روش\u{200C}های پرداخت بارگذاری نشد.')).toBeVisible()
     await user.click(within(step).getByRole('button', { name: 'تلاش دوباره' }))
     await waitFor(() => expect(calls(mocks.bffFetch, 'payment/method/list/')).toHaveLength(1))

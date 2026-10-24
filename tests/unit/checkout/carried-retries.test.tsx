@@ -97,7 +97,7 @@ describe('the gateway list', () => {
       cart: onlineCart(),
       props: { catalog: catalog({ methods: null, gateways: null }) },
     })
-    const step = screen.getByRole('region', { name: /۳.*پرداخت/ })
+    const step = await screen.findByRole('region', { name: /۳.*پرداخت/ })
     await user.click(await within(step).findByRole('button', { name: 'تلاش دوباره' }))
     const routes = await within(step).findByRole('radiogroup', { name: 'روش\u{200C}های پرداخت' })
     await waitFor(() =>
@@ -114,7 +114,7 @@ describe('the gateway list', () => {
   it('a gateway list the server could not read is said from the start', async () => {
     serve(mocks.bffFetch, () => onlineCart())
     renderCheckout({ cart: onlineCart(), props: { catalog: catalog({ gateways: null }) } })
-    const step = screen.getByRole('region', { name: /۳.*پرداخت/ })
+    const step = await screen.findByRole('region', { name: /۳.*پرداخت/ })
     expect(await within(step).findByText(/فهرست درگاه\u{200C}های بانکی خوانده نشد/u)).toBeVisible()
     expect(within(step).getByRole('button', { name: 'تلاش دوباره' })).toBeEnabled()
     expect(step).toHaveAttribute('data-state', 'active')

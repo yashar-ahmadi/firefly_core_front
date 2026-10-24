@@ -1214,17 +1214,23 @@ off, so no worker sits between the other specs and their routes and mocks.
 - **Layout stability.** Vazirmatn loads with `display: swap` behind Persian-tuned fallback faces
   (`styles/font-fallbacks.css`, listed in `lib/fonts.ts`), so text keeps its width and line breaks
   when the font arrives. Images have fixed frames, and countdowns and badges keep one width
-  through hydration. A lazily loaded body keeps its room while its code comes: the guest's
-  receiver form's skeleton is the form's height (`guest-form-room`, globals.css), and the
-  checkout's loading skeleton is a screen tall, so the footer starts below the fold (Lighthouse
-  measured a CLS of 0.46 on a guest's `/checkout/` before; `checkout-stability.spec.ts`: 0.000).
-  A signed-in first visit's choices made for the shopper (`use-auto-choices.ts`: the book's
-  default address, the operator's default shipping) run behind that skeleton: shown as they
-  happened, each opened and closed its step and moved the steps below (k.yazdi's first visit:
-  CLS 0.148 on a 412 px phone, 0.115 at 1440×900; `checkout-signed-in-stability.spec.ts`: 0).
-  The page of steps is a screen tall too, so the footer stays below the fold as steps open and
-  close. A choice made again after arrival (another address resets the shipping) shows in its
-  step, as before.
+  through hydration. The checkout arrives in one piece behind its skeleton, which is a screen
+  tall (so is the page of steps after it: the footer stays below the fold): first the choices
+  made for the shopper (`use-auto-choices.ts`: the book's default address, the operator's
+  default shipping), then the open step's body (`loadBody`, lazy-steps.tsx). Shown as they
+  happened, each choice opened and closed its step and the next body arrived over its step's
+  skeleton, moving the steps below: a guest's receiver form, 1,020–1,288 px over a 150 px
+  skeleton, was a CLS of 0.46 (Lighthouse), a signed-in first visit 0.148 on a phone and 0.115 at
+  1440×900, and the shipping options asked for after a refused default 0.24 and 0.09. All 0 now
+  (`checkout-stability.spec.ts`, `checkout-signed-in-stability.spec.ts`, k.yazdi's real first
+  visit). The step bodies are `stepBody` components, not `next/dynamic`: `next/dynamic` showed
+  its loading skeleton on a body's first mount even with the code in, and React held that
+  fallback 300 ms more (its Suspense throttle); a `stepBody` renders its body at once when its
+  code is in. After arrival a step opened by the shopper, or a choice made again (another address
+  resets the shipping), shows in its step as before. The arrival latch, the bodies and the
+  screen-tall page cost a guest's `/checkout/` 71 B of JavaScript (218,808 → 218,879 B, still
+  213.7 KB), with the guest form's fixed room (Task 8's `guest-form-room`, two heights measured
+  on that day's fields) removed: no step needs one on arrival any more.
 - **The font is a subset** (`lib/fonts.ts` holds the command): 85 KB instead of the full variable
   font's 111 KB, preloaded (an HTTP `Link`) on every first visit; Latin Extended and IPA letters
   fall back to the system face.

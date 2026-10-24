@@ -17,6 +17,7 @@ import { CheckoutSkeleton, EmptyCheckout, SessionEnded, UnorderableBanner } from
 import { shippingReady, stepState, type CheckoutStep, type StepState } from './checkout-steps'
 import { CheckoutSummaryAside, CheckoutSummaryFolded } from './checkout-summary'
 import {
+  loadBody,
   PaymentSection,
   preloadAhead,
   ReviewSection,
@@ -88,12 +89,15 @@ export function CheckoutPage({
   const { cart, cartQuery, signedIn, done, step } = checkout
   const expire = useSessionExpired()
   const page = useStepFocus(step)
-  // The choices made for the shopper on arrival (use-auto-choices) run behind the page's
-  // skeleton: shown in their steps, each opened and closed a step in turn, moving the steps
-  // below it. Arrived once they are made; a choice made again later shows in its step.
+  // The page arrives in one piece behind its skeleton: the choices made for the shopper first
+  // (use-auto-choices; shown in their steps, each opened and closed a step in turn, moving the
+  // steps below it), then the open step's body (arriving over its step's skeleton, it pushed the
+  // later steps down). A choice made again later, or a step opened later, shows in its step.
   const choosing = checkout.autoDestination.working || checkout.autoShipping.working
   const [arrived, setArrived] = useState(false)
-  if (!arrived && cart && !choosing) setArrived(true)
+  useEffect(() => {
+    if (!arrived && cart && !choosing) void loadBody(step, signedIn).then(() => setArrived(true))
+  }, [arrived, cart, choosing, step, signedIn])
 
   const { error } = cartQuery
   useEffect(() => {

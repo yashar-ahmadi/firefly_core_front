@@ -46,7 +46,7 @@ describe('a signed-in checkout', () => {
     serve(mocks.bffFetch, () => signedInCart(), { [PLACE]: placed(), [UUID_INTENT]: pay })
     renderCheckout({ cart: signedInCart(), hasSession: true })
     // The shop's default (the bank) is chosen for the shopper; the wallet is theirs to choose.
-    const step = screen.getByRole('region', { name: /۳.*پرداخت/ })
+    const step = await screen.findByRole('region', { name: /۳.*پرداخت/ })
     await waitFor(() => expect(step).toHaveTextContent('درگاه بانکی'))
     await user.click(within(step).getByRole('button', { name: /ویرایش/ }))
     const wallet = await screen.findByRole('radio', { name: /^کیف پول$/ })
@@ -86,7 +86,7 @@ describe('a signed-in checkout', () => {
     })
     const user = userEvent.setup()
     renderCheckout({ cart: signedInCart(), hasSession: true })
-    const step = screen.getByRole('region', { name: /۳.*پرداخت/ })
+    const step = await screen.findByRole('region', { name: /۳.*پرداخت/ })
     await waitFor(() => expect(step).toHaveTextContent('درگاه بانکی'))
     await user.click(within(step).getByRole('button', { name: /ویرایش/ }))
     const wallet = await screen.findByRole('radio', { name: /^کیف پول$/ })
