@@ -79,6 +79,20 @@ describe('CommentComposer for reviews', () => {
     expect(screen.queryByRole('form')).toBeNull()
   })
 
+  // The API's 201 always has its `msg` today; without one the form says it, in the UI's word (the
+  // blog's and the pages' forms say the same: src/features/comments/subject-comment-form.tsx).
+  it('without the API’s msg: the form’s own notice, «دیدگاه» as the buttons say', async () => {
+    mocks.bffFetch.mockResolvedValue({ data: {}, msg: '', status: 201 })
+    const user = renderComposer('comment')
+    await user.click(screen.getByRole('button', { name: 'ثبت دیدگاه' }))
+    await user.type(await screen.findByRole('textbox', { name: /^متن دیدگاه/ }), 'عالی')
+    await user.type(screen.getByRole('textbox', { name: /^نام \(/ }), 'سارا')
+    await user.click(screen.getByRole('button', { name: 'ارسال دیدگاه' }))
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'دیدگاه شما ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.',
+    )
+  })
+
   it('is hidden with the reason while product comments are switched off', () => {
     renderComposer('comment', false)
     expect(screen.queryByRole('button', { name: 'ثبت دیدگاه' })).toBeNull()

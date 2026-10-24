@@ -33,7 +33,7 @@ import {
 import { PointsInput, StarRatingInput } from './review-fields'
 import { commentsKey } from './use-comments'
 
-const DONE = 'نظر شما ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
+const DONE = 'دیدگاه شما ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
 
 export interface CommentFormProps {
   slug: string
