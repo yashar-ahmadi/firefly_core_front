@@ -1,0 +1,31 @@
+# Firefly storefront on Dokploy: Traefik middlewares (dynamic configuration).
+# میان‌افزارهای Traefik برای فروشگاه روی Dokploy؛ راهنمای کامل: docs/deploy-dokploy.html
+#
+# Copy to /etc/dokploy/traefik/dynamic/firefly.yml on the Dokploy server (Traefik watches that
+# directory and loads the file at once), then add the references to each shop domain in Dokploy:
+# Domains > (the domain) > Middlewares: `firefly-hsts@file`, and optionally `firefly-ratelimit@file`.
+# One copy serves every shop on the server. Defining a middleware applies it nowhere by itself.
+#
+# Behind nginx (docs/deploy-ubuntu.html) none of this is used: deploy/nginx.conf.example sends the
+# same HSTS header and holds the per-IP catalog limit.
+
+http:
+  middlewares:
+    # The one security header the app leaves to the edge: it sends X-Frame-Options, CSP
+    # frame-ancestors, X-Content-Type-Options and Referrer-Policy itself (src/config/security-headers.ts).
+    # Same value as the nginx example: one year, this host only. Traefik adds it to HTTPS responses.
+    firefly-hsts:
+      headers:
+        stsSeconds: 31536000
+
+    # Optional: a per-IP request limit, so one address cannot spend the shop's shared anonymous API
+    # budget with made-up pages (docs/DEPLOYMENT.md, "rate limit"). Unlike the nginx example it
+    # covers every path of the domain, static files and /api/bff/ included, so it is far more
+    # generous: a page view with its scripts, images and prefetches stays well inside the burst.
+    # The client is the connection's address, which is the visitor's while nothing sits in front
+    # of Traefik (behind a CDN, see the guide).
+    firefly-ratelimit:
+      rateLimit:
+        average: 30
+        period: 1s
+        burst: 150

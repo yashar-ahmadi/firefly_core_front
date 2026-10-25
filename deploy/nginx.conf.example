@@ -2,7 +2,8 @@
 # نمونهٔ پیکربندی nginx جلوی فروشگاه؛ برای هر فروشگاه یک server جدا بسازید.
 #
 # Replace every <...> placeholder. See docs/DEPLOYMENT.md for the full picture (backend settings,
-# topologies, health check). Copy into /etc/nginx/conf.d/<shop>.conf and run `nginx -t`.
+# topologies, health check). Copy into /etc/nginx/conf.d/<shop>.conf and run `nginx -t`, or let
+# `deploy/ubuntu/firefly.sh nginx <shop>` write it from this file (docs/deploy-ubuntu.html).
 #
 # The storefront container listens on 127.0.0.1:3000 here, e.g.
 #   docker run -d --name <shop>-front --env-file /etc/firefly/<shop>.env \
