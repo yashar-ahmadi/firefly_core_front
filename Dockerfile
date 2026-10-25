@@ -15,15 +15,20 @@ ARG NODE_VERSION=22.23
 FROM node:${NODE_VERSION}-alpine AS base
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     NEXT_TELEMETRY_DISABLED=1
+# Optional npm registry (a mirror) for pnpm itself and the packages, for build hosts that cannot
+# reach registry.npmjs.org: --build-arg NPM_REGISTRY=https://<mirror>/. Empty: the default.
+ARG NPM_REGISTRY=""
 WORKDIR /app
 # pnpm in the exact version pinned by "packageManager" in package.json, downloaded once here.
 COPY package.json ./
-RUN corepack enable pnpm && corepack install
+RUN if [ -n "$NPM_REGISTRY" ]; then export COREPACK_NPM_REGISTRY="${NPM_REGISTRY%/}"; fi && \
+    corepack enable pnpm && corepack install
 
 # ---------------------------------------------------------------------------------------------
 FROM base AS deps
 COPY pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    if [ -n "$NPM_REGISTRY" ]; then export npm_config_registry="$NPM_REGISTRY"; fi && \
     pnpm install --frozen-lockfile --store-dir /pnpm/store
 
 # ---------------------------------------------------------------------------------------------
