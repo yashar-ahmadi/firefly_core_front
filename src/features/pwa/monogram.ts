@@ -1,3 +1,4 @@
+import 'server-only'
 import { MONOGRAM_GLYPHS } from '@/features/pwa/monogram-glyphs'
 
 // The app icons' monogram (`/icons/<size>/` without a favicon or logo, app-icon.ts): the shop's
@@ -5,7 +6,7 @@ import { MONOGRAM_GLYPHS } from '@/features/pwa/monogram-glyphs'
 // the bundled Vazirmatn's outline (monogram-glyphs.ts, made by scripts/monogram-glyphs.mjs): no
 // text is laid out, so no font is needed at run time (the Docker image has no fontconfig, and
 // sharp's text layout drew nothing there). A first character the table lacks gets Lucide's
-// shopping bag (ISC), which needs no font either. Pure.
+// shopping bag (ISC), which needs no font either. Server only (the table is about 37 KB).
 
 export interface MonogramGlyph {
   char: string

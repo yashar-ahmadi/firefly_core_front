@@ -1,7 +1,10 @@
 // Made by scripts/monogram-glyphs.mjs from src/assets/fonts/vazirmatn/Vazirmatn-wght.woff2
 // (Vazirmatn, SIL Open Font License 1.1: src/assets/fonts/vazirmatn/OFL.txt). Do not edit.
 // Each entry: a character, its outline’s width and height (the longer side 1000 units, y down,
-// from 0 0), then the outline as an SVG path. Read by src/features/pwa/monogram.ts. Pure.
+// from 0 0), then the outline as an SVG path. Read by src/features/pwa/monogram.ts. Server only
+// (about 37 KB: never in a page’s bundle).
+
+import 'server-only'
 
 export const MONOGRAM_GLYPHS: readonly string[] = [
   'ا 123 1000 M123 0L0 0L0 1000L123 1000Z',

@@ -1,10 +1,12 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs'
 import sharp from 'sharp'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { monogramGlyph, monogramSvg } from '@/features/pwa/monogram'
 import { MONOGRAM_GLYPHS } from '@/features/pwa/monogram-glyphs'
 import { glyphTable } from '../../../scripts/monogram-glyphs.mjs'
+
+vi.mock('server-only', () => ({}))
 
 // The app icons' monogram (`/icons/<size>/` without a favicon or logo, Plan 5 final fix wave
 // round 2): the shop's first letter, white on the brand colour, drawn as an SVG path from the
