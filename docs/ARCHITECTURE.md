@@ -1244,17 +1244,21 @@ return page; every navigation of theirs is answered by the worker.
   link 211.9 -> 212.1 KB and its open attempt 201.2 -> 201.4, the thanks page 188.2 -> 188.3 (the
   route's bank amount passed to `useLinkPayment` and `usePayOrder`); the listings +10 B (the shared
   `SEARCHABLE_OVER`, within their row). Every row is under its budget.
-- **The Plan 5 final fix wave's figures** (its second full run, 220 rows, against Task 9's; each
-  served chunk compared with e93c381's, gzip -9). One route grew: the home page, whose chunk holds
-  `KeptCopySession` (+109 B: 218.5 -> 218.6 KB as a guest, every home row +0.1). Every other
-  route's chunks are byte for byte e93c381's: the checkout's states (sara's 216.8 KB, 222,054 B,
-  still under its rounding step), the cart, the catalog (the costliest row still a signed-in
-  category with push on, 242.3 KB), the account, auth, payment and `/links/` rows; the post page
-  +1 B (a renamed lazy chunk's name) and the comment form's lazy chunk 3-5 B (its «دیدگاه»
-  notice), within their rows. The payment link's «open attempt» row reads 201.5 KB (Task 9's
-  report: 201.4), already so at e93c381: Task 9's fix round changed its payment code after its last
-  journeys run. A check of a store path the URL parser's way in `lib/links/store-href.ts`
-  (MenuLink, StoreLink, RichContent) was tried and left out: +15 B on every checkout state.
+- **The Plan 5 final fix wave's figures** (its two rounds; rows against Task 9's, each served
+  chunk compared with the round before's, gzip -9). Round 1 grew one route: the home page, whose
+  chunk holds `KeptCopySession` (+109 B: 218.5 -> 218.6 KB as a guest, every home row +0.1);
+  every other route's chunks stayed e93c381's, the post page +1 B (a renamed lazy chunk's name)
+  and the comment form's lazy chunk 3-5 B (its «دیدگاه» notice), within their rows. Round 2 reads
+  every operator link as the browser's URL parser does before routing it on the client
+  (`lib/links/store-href.ts`, through `lib/links/as-parsed.ts`: MenuLink, StoreLink, RichContent):
+  +52 B on the (checkout) layout's chunk, +38 B on the (shop) layout's and +47 B on `/register/`'s
+  (the product comment form's lazy chunks 2-6 B smaller, «دیدگاه» there too). Of the budget
+  specs' 188 rows, 73 read 0.1 KB more and none more than that: sara's `/checkout/` 216.8 -> 216.9
+  KB (it crossed its rounding step; ruled acceptable: a security fix beats a rounding display), a
+  guest's 213.6 -> 213.7 and its review 212.4 -> 212.5; the thanks page stays 188.3 and the
+  costliest row a signed-in category with push on, 242.3 KB. The payment link's «open attempt»
+  row read 201.5 KB after round 1 (Task 9's report: 201.4), already so at e93c381: Task 9's fix
+  round changed its payment code after its last journeys run.
 - **Signed-in code.** What only a signed-in visitor sees loads with the session, never with a
   guest's page (the budget is measured as a guest): the header's account button (the profile
   read, the avatar) is a `next/dynamic` import rendered only while `hasSession` (server-rendered,
@@ -1372,8 +1376,9 @@ return page; every navigation of theirs is answered by the worker.
   handlers; `http(s)`/`mailto`/`tel` URLs only; `/media` and `/static` made absolute on the API
   origin; external links (including `\`-spelled protocol-relative ones) open in a new tab with
   `rel="noopener noreferrer"` (each URL checked as the browser's URL parser reads it: C0 controls
-  at its edges ignored, tabs and line breaks dropped, `lib/links/as-parsed.ts`, which safe-url's
-  `linkUrl` and the linker's store-path check share); tables wrapped in a focusable scroll region. Every `id` is
+  at its edges ignored, tabs and line breaks dropped, `lib/links/as-parsed.ts`, which the
+  sanitiser, safe-url's `linkUrl`, the linker's store-path check and `lib/links/store-href.ts`
+  share); tables wrapped in a focusable scroll region. Every `id` is
   dropped, except a blog post's heading ids (`headingIds`, its table of contents' anchors:
   `lib/html/heading-ids.ts`), kept on headings only, each on its first heading (the document
   never holds an id twice), and never one the page's own markup uses: `RESERVED_IDS`
@@ -1785,7 +1790,7 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   sums a guest checkout's own layout shifts (under 0.1), and `cart/badge-bump.spec.ts` reads the
   cart badge's animation after an add under both motion settings.
 - **The suite at the end of Plan 5** (Task 9; counts and run figures from the final fix wave).
-  Unit and component: 584 files, 5,283 tests (about
+  Unit and component: 586 files, 5,323 tests (about
   6.5 minutes on four cores; the checkout's and payment's are the most timing-sensitive, so a
   wait in them covers only what it asserts: a lazy step body the test does not test is loaded
   before, an effect's result is waited for). End to end: 1,043 tests in 64 files, mobile 319,
