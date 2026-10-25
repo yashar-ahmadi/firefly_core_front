@@ -92,6 +92,9 @@ describe('pending payments', () => {
 
 describe('whose they are: a logout forgets the session’s', () => {
   it('saved while signed in (the flag cookie set): the session’s; without it: a guest’s', () => {
+    // Each save prunes at the clock's moment: pinned to NOW, or the entries (started at NOW) age
+    // out of the 7 days once the real date passes it.
+    vi.spyOn(Date, 'now').mockReturnValue(NOW)
     flagCookie(true)
     savePending('uuid-signed-in', entry())
     flagCookie(false)
