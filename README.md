@@ -49,6 +49,14 @@ curl -i http://127.0.0.1:3000/healthz/   # ۲۰۰ وقتی متغیرها درس
 جلوی کانتینر nginx با TLS بگذارید ([`deploy/nginx.conf.example`](deploy/nginx.conf.example)). جزئیات، تنظیمات
 بک‌اند و چک‌لیست راه‌اندازی در [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
+دو راهنمای گام‌به‌گام (HTML، در مرورگر باز کنید):
+
+- [استقرار روی سرور اوبونتو](docs/deploy-ubuntu.html): Docker، nginx و Let's Encrypt با اسکریپت
+  [`deploy/ubuntu/firefly.sh`](deploy/ubuntu/firefly.sh) که ساخت، به‌روزرسانی بی‌وقفه (آبی و سبز)، بازگشت به
+  نسخهٔ قبل و پیکربندی nginx هر فروشگاه را انجام می‌دهد.
+- [استقرار با Dokploy](docs/deploy-dokploy.html): ساخت از مخزن GitHub با Dockerfile، دامنه و HTTPS خودکار با
+  Traefik و میان‌افزارهای [`deploy/dokploy/traefik-firefly.yml`](deploy/dokploy/traefik-firefly.yml).
+
 ## نوع فروشگاه (preset)
 
 ظاهر هر فروشگاه از یک preset می‌آید که با `STORE_PRESET` در زمان اجرا انتخاب می‌شود (ساخت دوباره لازم
@@ -113,6 +121,7 @@ curl -i http://127.0.0.1:3000/healthz/   # ۲۰۰ وقتی متغیرها درس
   سمت فروشگاه، و ردپای آزمون‌ها در پایگاه دادهٔ توسعه
 - [خلاصهٔ APIها](docs/backend-integration/)، [طراحی](docs/superpowers/specs/2026-10-15-storefront-design.md) و
   [برنامه‌های اجرا](docs/superpowers/plans/)
+- راهنماهای گام‌به‌گام استقرار (HTML): [اوبونتو](docs/deploy-ubuntu.html) و [Dokploy](docs/deploy-dokploy.html)
 - نمونهٔ nginx: [`deploy/nginx.conf.example`](deploy/nginx.conf.example)
 
 ---
@@ -144,4 +153,6 @@ runtime; CUSTOMIZATION shows each on a phone and a desktop with its WCAG AA cont
 
 Docs: [DEPLOYMENT.md](docs/DEPLOYMENT.md), [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) and
 [BACKEND-ISSUES.md](docs/BACKEND-ISSUES.md) (Persian), [ARCHITECTURE.md](docs/ARCHITECTURE.md)
-(English).
+(English). Step-by-step deployment guides (Persian, HTML): [Ubuntu](docs/deploy-ubuntu.html), with
+`deploy/ubuntu/firefly.sh` for blue/green deploys, rollback and per-shop nginx config, and
+[Dokploy](docs/deploy-dokploy.html), with Traefik middlewares in `deploy/dokploy/`.
