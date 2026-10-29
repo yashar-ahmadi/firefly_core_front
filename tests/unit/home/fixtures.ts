@@ -16,7 +16,7 @@ const EMPTY = {
   content: null,
 } as const
 
-const HEAD = { title: '', subtitle: '', link: null }
+const HEAD = { style: 'style_1', title: '', subtitle: '', link: null }
 
 /** Slide 1 of the dev slider: a mobile image, white text and a CTA. */
 export function slideFixture(overrides: Partial<HomeItem> = {}): HomeItem {

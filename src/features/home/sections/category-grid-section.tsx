@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react'
 import { CategoryThumb } from '@/components/layout/category-thumb'
 import { categoryPath } from '@/features/catalog/listing-routes'
 import { cn } from '@/components/ui/cn'
+import { CategoryCards, CategoryChips, CategoryTiles } from '@/features/display/category-styles'
+import { displayStyle } from '@/features/display/display-style'
 import type { HomeSection } from '@/lib/api/types/catalog'
 import { SectionShell } from './section-header'
 
@@ -49,12 +51,23 @@ export interface CategoryGridSectionProps {
 }
 
 /**
- * Category tiles (content.md §6.6): a round picture (or the name's first letter when the API
- * only has its placeholder) and the name, linking to `/product-category/{path}/`. No product
- * counts: they cover direct products only, so parents would read 0.
+ * The categories (content.md §6.6), each linking to `/product-category/{path}/`, in the
+ * operator's style: 1. round pictures (or the name's first letter when the API only has its
+ * placeholder) with the name, in even rows; 2. cards; 3. chips; 4. picture tiles
+ * (`category-styles`). No product counts: they cover direct products only, so parents would
+ * read 0.
  */
 export function CategoryGridSection({ section, seeAllLabel }: CategoryGridSectionProps) {
   if (section.categories.length === 0) return null
+  const style = displayStyle(section.style)
+  if (style !== 'style_1') {
+    const Body = { style_2: CategoryCards, style_3: CategoryChips, style_4: CategoryTiles }[style]
+    return (
+      <SectionShell section={section} seeAllLabel={seeAllLabel}>
+        <Body categories={section.categories} />
+      </SectionShell>
+    )
+  }
   return (
     <SectionShell section={section} seeAllLabel={seeAllLabel}>
       <ul className={LIST} style={columnVars(section.categories.length)}>

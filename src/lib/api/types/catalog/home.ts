@@ -1,6 +1,7 @@
 /** `GET homepage/` (content digest §2 and §6). Pure types. */
 import type { PostCard } from '@/lib/api/types/blog'
 import type { ProductCard } from '@/lib/api/types/catalog/product'
+import type { OperatorLink } from '@/lib/api/types/display'
 import type { CategoryCard } from '@/lib/api/types/settings'
 
 /** One operator meta tag; `field` may repeat (two `og:image`), keep the order. */
@@ -10,10 +11,7 @@ export interface MetaTag {
 }
 
 /** `url` is a `/…` storefront path (may carry a query) or an http(s) URL; `title` may be "". */
-export interface HomeLink {
-  url: string
-  title: string
-}
+export type HomeLink = OperatorLink
 
 /** A slide or a banner. "" means none for the text fields. */
 export interface HomeItem {
@@ -36,6 +34,11 @@ export type { PostCard } from '@/lib/api/types/blog'
 export interface HomeSectionHead {
   /** React key. */
   id: number
+  /**
+   * The operator's «سبک نمایش»: a `DisplayStyle` (`style_1` when none was picked), read through
+   * `displayStyle()`, so a fifth one added later draws as `style_1`.
+   */
+  style: string
   /** "" means don't render. */
   title: string
   subtitle: string

@@ -40,6 +40,11 @@ export interface CarouselProps {
   showDots?: boolean
   /** Keeps the track 56px in from both sides wherever arrows show: they sit beside the cards. */
   arrowGutters?: boolean
+  /**
+   * Where the selected slide sits: at the start (default), or centred, so the neighbours of a
+   * slide narrower than the track (`slidesPerView` above 1) peek in on both sides.
+   */
+  align?: 'start' | 'center'
   className?: string
 }
 
@@ -95,13 +100,14 @@ export function Carousel({
   showArrows = true,
   showDots = false,
   arrowGutters = false,
+  align = 'start',
   className,
 }: CarouselProps) {
   const slides = Children.toArray(children)
   const [viewportRef, api] = useEmblaCarousel({
     direction: 'rtl',
     loop,
-    align: 'start',
+    align,
     slidesToScroll: 'auto',
   })
   const selected = useEmblaValue(api, (a) => a.selectedScrollSnap(), 0)

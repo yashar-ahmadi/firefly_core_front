@@ -129,6 +129,8 @@
   /* The navigation progress bar (navigation-progress.tsx): fast at first, then crawling to 92%. */
   --animate-nav-progress: nav-progress 10s cubic-bezier(0.05, 0.75, 0.2, 1) forwards;
   --animate-nav-progress-done: nav-progress-done 300ms ease-out forwards;
+  /* The selected thumbnail's bar in a thumbnail slider (style 4): fills while its slide shows. */
+  --animate-slide-progress: slide-progress 6s linear forwards;
 
   @keyframes fade-in {
     from {
@@ -205,6 +207,15 @@
   @keyframes nav-progress-done {
     to {
       opacity: 0;
+    }
+  }
+
+  @keyframes slide-progress {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
     }
   }
 
