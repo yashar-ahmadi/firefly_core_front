@@ -153,6 +153,45 @@ describe('the blog category route', () => {
   })
 })
 
+describe('the blog category’s banners', () => {
+  const banner = (id: number, link: { url: string; title: string } | null) => ({
+    id,
+    title: `بنر ${id}`,
+    image: `http://localhost:8000/media/categories/banners/26/10/29/b-${id}.jpg`,
+    mobile_image: null,
+    alt: `تصویر بنر ${id}`,
+    link,
+  })
+
+  it('draws them under the head, above the posts, in the category’s style', async () => {
+    mocks.getBlogCategory.mockResolvedValue(
+      categoryDetailFixture({
+        banner_style: 'style_3',
+        banners: [
+          banner(7, { url: '/blog/category/buying-guide/', title: 'راهنمای خرید' }),
+          banner(8, null),
+        ],
+      }),
+    )
+    await renderTree(await BlogCategoryPage(props(CANONICAL)))
+    const banners = screen.getByRole('region', { name: 'بنرهای گوشی و موبایل' })
+    expect(banners).toHaveAttribute('data-style', 'style_3')
+    expect(within(banners).getByRole('link', { name: /بنر 7/ })).toHaveAttribute(
+      'href',
+      '/blog/category/buying-guide/',
+    )
+    // A banner without a link links nowhere.
+    expect(within(banners).getAllByRole('link')).toHaveLength(1)
+    const posts = screen.getByRole('heading', { level: 2, name: 'مطالب این دسته' })
+    expect(banners.compareDocumentPosition(posts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('draws nothing for a category without banners', async () => {
+    await renderTree(await BlogCategoryPage(props(CANONICAL)))
+    expect(screen.queryByRole('region', { name: /^بنرهای/ })).toBeNull()
+  })
+})
+
 describe('the blog category’s head', () => {
   it('the API’s page_title as an absolute title, the path as canonical, the social cards', async () => {
     const meta = await generateMetadata(props(CANONICAL))

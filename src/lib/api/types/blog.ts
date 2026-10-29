@@ -3,6 +3,7 @@
  * image is an absolute URL on the API host; datetimes are ISO-8601 with the Tehran offset.
  */
 import type { BreadcrumbListJsonLd } from '@/lib/api/types/catalog/enums'
+import type { CategoryBanner } from '@/lib/api/types/display'
 
 /** A category without its path (post cards, breadcrumbs): link it through the category list. */
 export interface BlogCategoryLight {
@@ -107,6 +108,10 @@ export interface BlogCategoryDetail extends BlogCategoryLight {
   content: string | null
   image: string
   icon: string
+  /** The banners' «سبک نمایش»: a `DisplayStyle` (`displayStyle()`), there even with no banner. */
+  banner_style: string
+  /** The active banners, in order (blog digest §5); [] for none. */
+  banners: CategoryBanner[]
   /** Root→self, self included; no paths (join the slugs). */
   breadcrumb: BlogCategoryLight[]
   /** The SEO title, else the name. */

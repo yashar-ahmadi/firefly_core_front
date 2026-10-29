@@ -3,6 +3,7 @@
  * Every detail here returns 404 when the record is unknown or a draft.
  */
 import type { BreadcrumbListJsonLd, SortValue } from '@/lib/api/types/catalog/enums'
+import type { CategoryBanner } from '@/lib/api/types/display'
 import type { CategoryCard } from '@/lib/api/types/settings'
 
 export type { CategoryCard } from '@/lib/api/types/settings'
@@ -63,6 +64,10 @@ export interface CategoryDetail extends CategoryBreadcrumbNode, CatalogSeo {
   default_sorting: SortValue | null
   /** Only when it has text and is flagged for the category page. */
   consider_before_buying: ConsiderBeforeBuying | null
+  /** The banners' «سبک نمایش»: a `DisplayStyle` (`displayStyle()`), there even with no banner. */
+  banner_style: string
+  /** The active banners, in order: one is a single banner, several a group; [] for none. */
+  banners: CategoryBanner[]
   question_answers: QuestionAnswer[]
   created: string
   updated: string

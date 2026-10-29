@@ -8,6 +8,7 @@ import { getStoreConfig } from '@/config/store-config'
 import { getCategory, getFilters, isPastLastPage } from '@/features/catalog/api'
 import { ListingExtras } from '@/features/catalog/components/listing-extras'
 import { ListingHero } from '@/features/catalog/components/listing-hero'
+import { CategoryBanners } from '@/features/display/category-banners'
 import { ProductListing } from '@/features/catalog/components/listing/product-listing'
 import { SubcategoryChips } from '@/features/catalog/components/subcategory-chips'
 import { parseListingParams, withDefaultSort } from '@/features/catalog/listing-params'
@@ -84,6 +85,9 @@ async function CategoryChips({ slug, path }: { slug: string; path: string }) {
  * slug; a path that is not its `path` (moved, or shortened) answers 308 to the canonical one with
  * the query kept. Segments are compared decoded, so `/…/%D8%AF…/` and `/…/د…/` are the same page.
  *
+ * Under the category's head, its banners in its `banner_style` (CategoryBanners), then the
+ * listing.
+ *
  * Status codes (R9): no loading.tsx; the category is awaited and `notFound()` or the redirect
  * happen before anything renders, and the listing (outside any Suspense) answers 404 for a
  * page past the last. Other failures reach the error boundary.
@@ -116,6 +120,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
           <CategoryChips slug={category.slug} path={category.path} />
         </ListingHero>
       </div>
+      <CategoryBanners
+        banners={category.banners}
+        style={category.banner_style}
+        name={category.name}
+        className="mb-4 md:mb-6"
+      />
       <ProductListing
         context={{ category: category.slug }}
         searchParams={searchParams}

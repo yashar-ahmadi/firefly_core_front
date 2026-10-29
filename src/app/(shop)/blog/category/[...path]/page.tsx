@@ -20,6 +20,7 @@ import { NoPosts } from '@/features/blog/components/no-posts'
 import { PostGrid } from '@/features/blog/components/post-grid'
 import { loadBlogCategory, loadBlogCategoryPosts } from '@/features/blog/page-data'
 import { ListingHero } from '@/features/catalog/components/listing-hero'
+import { CategoryBanners } from '@/features/display/category-banners'
 import { queryString } from '@/features/catalog/listing-routes'
 import { richContentHtml } from '@/features/content/rich-content'
 import { RichContentBody } from '@/features/content/rich-content-body'
@@ -78,7 +79,7 @@ function trail(category: BlogCategoryDetail) {
  * a missing or draft one is a real 404. A path that is not its `path` (moved, or shortened)
  * answers 308 to the canonical one with the query kept, as product categories do; segments are
  * compared decoded. Then its head (picture, name, short description, how many posts, its
- * subcategories), its posts (descendants' included) with the pager, its content, and the side
+ * subcategories), its banners in its `banner_style` (CategoryBanners), its posts (descendants' included) with the pager, its content, and the side
  * column. Indexable; BreadcrumbList and CollectionPage JSON-LD on the shop's origin.
  *
  * Status codes (R9): no loading.tsx; the category is awaited and `notFound()` or the redirect
@@ -120,6 +121,12 @@ export default async function BlogCategoryPage({ params, searchParams }: BlogCat
           />
         </ListingHero>
       </div>
+      <CategoryBanners
+        banners={category.banners}
+        style={category.banner_style}
+        name={category.name}
+        className="mb-4 md:mb-6"
+      />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0">

@@ -28,6 +28,8 @@ export function categoryFixture(overrides: Partial<CategoryDetail> = {}): Catego
     name: 'گوشی موبایل',
     slug: 'mobile-phone',
     path: 'digital/mobile-phone',
+    banner_style: 'style_1',
+    banners: [],
     parent_id: 10001,
     short_description: 'خرید انواع گوشی موبایل از فروشگاه فایرفلای.',
     description: null,

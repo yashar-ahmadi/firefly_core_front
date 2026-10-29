@@ -58,6 +58,8 @@ export function categoryDetailFixture(
     name: 'گوشی و موبایل',
     slug: 'mobile-blog',
     path: 'tech-news/mobile-blog',
+    banner_style: 'style_1',
+    banners: [],
     parent_id: 10001,
     short_description: 'همه چیز درباره گوشی های هوشمند.',
     description: 'همه چیز درباره گوشی های هوشمند.',

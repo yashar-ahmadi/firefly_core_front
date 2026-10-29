@@ -224,6 +224,39 @@ describe('the category page', () => {
   })
 })
 
+describe('the category’s banners', () => {
+  it('draws them under the head, in the category’s style; a lone one across the width', async () => {
+    useCategory(
+      categoryFixture({
+        banner_style: 'style_9',
+        banners: [
+          {
+            id: 7,
+            title: 'گوشی‌های تازه رسیده',
+            image: 'http://localhost:8000/media/categories/banners/26/10/29/new-phones.jpg',
+            mobile_image: null,
+            alt: 'بنر گوشی‌های تازه رسیده',
+            link: { url: '/product-category/digital/mobile-phone/', title: 'مشاهده' },
+          },
+        ],
+      }),
+    )
+    await renderPage(['digital', 'mobile-phone'])
+    const banners = screen.getByRole('region', { name: 'بنرهای گوشی موبایل' })
+    // An unknown style draws as style 1.
+    expect(banners).toHaveAttribute('data-style', 'style_1')
+    expect(
+      within(banners).getByRole('img', { name: 'بنر گوشی‌های تازه رسیده' }),
+    ).toBeInTheDocument()
+    expect(banners.querySelector('[data-count="1"]')).not.toBeNull()
+  })
+
+  it('draws nothing without banners', async () => {
+    await renderPage(['digital', 'mobile-phone'])
+    expect(screen.queryByRole('region', { name: /^بنرهای/ })).toBeNull()
+  })
+})
+
 describe('category metadata', () => {
   it('uses the backend SEO fields with an absolute title', async () => {
     useCategory(categoryFixture({ page_description: 'خرید گوشی' }))
