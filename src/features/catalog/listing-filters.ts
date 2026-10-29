@@ -89,7 +89,12 @@ export function facetGroups(
 export const SEARCHABLE_OVER = 8
 
 /** The switches of the filter panel, in display order. */
-export const FLAG_FILTERS = ['in_stock', 'has_discount', 'has_timed_discount', 'is_special'] as const
+export const FLAG_FILTERS = [
+  'in_stock',
+  'has_discount',
+  'has_timed_discount',
+  'is_special',
+] as const
 export type FlagFilter = (typeof FLAG_FILTERS)[number]
 
 /** The switch label is the `true` one; `false` only arrives from hand-made links. */
