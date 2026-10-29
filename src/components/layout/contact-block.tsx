@@ -1,4 +1,4 @@
-import { Clock, Mail, MapPin, MessageCircle, Phone, type LucideIcon } from 'lucide-react'
+import { Clock, Headset, Mail, MapPin, MessageCircle, Phone, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
@@ -13,6 +13,8 @@ type ContactSettings = Pick<
   SiteSettings,
   | 'phone'
   | 'phone2'
+  | 'sales_phone'
+  | 'sales_phone2'
   | 'email'
   | 'address'
   | 'postal_code'
@@ -38,10 +40,11 @@ function text(value: string | null | undefined): string {
 }
 
 /**
- * `phone` and `phone2` as links, each number once: two spellings of one number
- * (`+982191000000`, `021-9100-0000`) display the same and count as one.
+ * Two numbers as links, each once: two spellings of one number (`+982191000000`,
+ * `021-9100-0000`) display the same and count as one. Support (`phone`, `phone2`) and sales
+ * (`sales_phone`, `sales_phone2`) are two lines of their own, each read this way.
  */
-function uniquePhones(values: ReadonlyArray<string | null | undefined>) {
+export function uniquePhones(values: ReadonlyArray<string | null | undefined>) {
   const byLabel = new Map<string, string>()
   for (const value of values) {
     const phone = text(value)
@@ -79,9 +82,18 @@ function Item({
   )
 }
 
+/** A number to call: shown as `label`, dialled as `tel` (the E.164 value). */
+export interface PhoneLink {
+  label: string
+  tel: string
+}
+
 /** The shop's contact details, each one trimmed and checked, ready to show. */
 export interface ContactDetails {
-  phones: Array<{ label: string; tel: string }>
+  /** Support (`phone`, `phone2`). */
+  phones: PhoneLink[]
+  /** Sales and consultation (`sales_phone`, `sales_phone2`), apart from support. */
+  salesPhones: PhoneLink[]
   email: string
   address: string
   postalCode: string
@@ -90,8 +102,9 @@ export interface ContactDetails {
 }
 
 /**
- * The settings' contact details (`phone`, `phone2`, `email`, `address`, `postal_code`, `map`,
- * `response_time`), or null when none is set. Shared by the footer and the contact page.
+ * The settings' contact details (`phone`, `phone2`, `sales_phone`, `sales_phone2`, `email`,
+ * `address`, `postal_code`, `map`, `response_time`), or null when none is set. Shared by the
+ * footer, the contact page and a content page's contact block.
  */
 export function contactDetails(
   settings: Omit<ContactSettings, 'support_link'> | null,
@@ -99,20 +112,45 @@ export function contactDetails(
   if (!settings) return null
   const details: ContactDetails = {
     phones: uniquePhones([settings.phone, settings.phone2]),
+    // An API from before the sales lines leaves them out: undefined reads as unset.
+    salesPhones: uniquePhones([settings.sales_phone, settings.sales_phone2]),
     email: text(settings.email),
     address: text(settings.address),
     postalCode: text(settings.postal_code),
     map: mapLink(settings.map),
     responseTime: text(settings.response_time),
   }
-  const { phones, email, address, responseTime } = details
-  return phones.length || email || address || responseTime ? details : null
+  const { phones, salesPhones, email, address, responseTime } = details
+  return phones.length || salesPhones.length || email || address || responseTime ? details : null
+}
+
+/** Numbers side by side, a thin rule between them: `tel:` links, the number left to right. */
+function PhoneLinks({ phones }: { phones: PhoneLink[] }) {
+  return (
+    <span className="flex flex-wrap items-center gap-x-3">
+      {phones.map(({ label, tel }, index) => (
+        <span key={label} className="flex items-center gap-x-3">
+          {index > 0 && <span aria-hidden className="h-4 w-px bg-ink-300" />}
+          <a
+            href={`tel:${tel}`}
+            dir="ltr"
+            className={cn(
+              LINK,
+              'inline-flex min-h-11 items-center text-lg font-bold tracking-wide text-ink-900',
+            )}
+          >
+            {label}
+          </a>
+        </span>
+      ))}
+    </span>
+  )
 }
 
 /**
- * The details as a list in an `<address>`: phones (`tel:` with the E.164 value, shown as
- * «۰۲۱ ۹۱۰۰ ۰۰۰۰» left to right), email, address with postal code and map link, and the
- * response time; each missing value hides its row. One column on phones, two on tablets, side by
+ * The details as a list in an `<address>`: support phones and the sales line (`tel:` with the
+ * E.164 value, shown as «۰۲۱ ۹۱۰۰ ۰۰۰۰» left to right), email, address with postal code and
+ * map link, and the response time; each missing value hides its row. One column on phones, two on tablets, side by
  * side where there is room.
  */
 export function ContactDetailsList({
@@ -124,29 +162,18 @@ export function ContactDetailsList({
   t: Translate
   className?: string
 }) {
-  const { phones, email, address, postalCode, map, responseTime } = details
+  const { phones, salesPhones, email, address, postalCode, map, responseTime } = details
   return (
     <address className={cn('not-italic', className)}>
       <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] lg:gap-6">
         {phones.length > 0 && (
           <Item icon={Phone} label={t('contact_phone')}>
-            <span className="flex flex-wrap items-center gap-x-3">
-              {phones.map(({ label, tel }, index) => (
-                <span key={label} className="flex items-center gap-x-3">
-                  {index > 0 && <span aria-hidden className="h-4 w-px bg-ink-300" />}
-                  <a
-                    href={`tel:${tel}`}
-                    dir="ltr"
-                    className={cn(
-                      LINK,
-                      'inline-flex min-h-11 items-center text-lg font-bold tracking-wide text-ink-900',
-                    )}
-                  >
-                    {label}
-                  </a>
-                </span>
-              ))}
-            </span>
+            <PhoneLinks phones={phones} />
+          </Item>
+        )}
+        {salesPhones.length > 0 && (
+          <Item icon={Headset} label={t('contact_sales_phone')}>
+            <PhoneLinks phones={salesPhones} />
           </Item>
         )}
         {email && (

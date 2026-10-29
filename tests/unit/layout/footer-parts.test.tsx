@@ -104,6 +104,36 @@ describe('ContactBlock: phones', () => {
   })
 })
 
+describe('ContactBlock: the sales line', () => {
+  it('shows «مشاوره و فروش» with its own numbers, apart from support', () => {
+    renderContact({
+      phone: '+982191000000',
+      phone2: null,
+      sales_phone: '+982191000100',
+      sales_phone2: '+989121110022',
+    })
+    const row = screen.getByText('مشاوره و فروش').closest('li')!
+    const links = within(row).getAllByRole('link')
+    expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['۰۲۱ ۹۱۰۰ ۰۱۰۰', 'tel:+982191000100'],
+      ['۰۹۱۲ ۱۱۱ ۰۰۲۲', 'tel:+989121110022'],
+    ])
+    const support = screen.getByText('تلفن تماس').closest('li')!
+    expect(within(support).getByRole('link')).toHaveAttribute('href', 'tel:+982191000000')
+  })
+
+  it('is enough on its own to show the block, and is left out when unset', () => {
+    renderContact({ phone: null, phone2: null, sales_phone: '+982191000100', sales_phone2: null })
+    expect(screen.getByRole('link', { name: '۰۲۱ ۹۱۰۰ ۰۱۰۰' })).toBeVisible()
+    expect(screen.queryByText('تلفن تماس')).toBeNull()
+  })
+
+  it('shows nothing for an API without the sales keys', () => {
+    renderContact({ phone: '+982191000000', phone2: null })
+    expect(screen.queryByText('مشاوره و فروش')).toBeNull()
+  })
+})
+
 describe('ContactBlock: the shop’s address', () => {
   it('is labelled «آدرس» (the shop’s word for it everywhere, never «نشانی»)', () => {
     renderContact({ phone: null, phone2: null, address: 'تهران، خیابان ولیعصر' })

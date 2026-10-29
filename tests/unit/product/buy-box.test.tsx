@@ -255,3 +255,32 @@ describe('BuyBox: wholesale', () => {
     expect(screen.queryByText(/برای خرید عمده/)).toBeNull()
   })
 })
+
+describe('BuyBox: the sales line (مشاوره پیش از خرید)', () => {
+  it('offers the shop’s sales numbers as calls', () => {
+    renderWithProduct(
+      <BuyBox
+        contactPhone={PHONE}
+        salesPhones={[
+          { label: '۰۲۱ ۹۱۰۰ ۰۱۰۰', tel: '+982191000100' },
+          { label: '۰۹۱۲ ۱۱۱ ۰۰۲۲', tel: '+989121110022' },
+        ]}
+      />,
+      { product: s25Product() },
+    )
+    expect(screen.getByText('مشاوره پیش از خرید')).toBeVisible()
+    expect(screen.getByRole('link', { name: '۰۲۱ ۹۱۰۰ ۰۱۰۰' })).toHaveAttribute(
+      'href',
+      'tel:+982191000100',
+    )
+    expect(screen.getByRole('link', { name: '۰۹۱۲ ۱۱۱ ۰۰۲۲' })).toHaveAttribute(
+      'href',
+      'tel:+989121110022',
+    )
+  })
+
+  it('is left out while the shop has no sales line', () => {
+    renderBox({ product: s25Product() })
+    expect(screen.queryByText('مشاوره پیش از خرید')).toBeNull()
+  })
+})

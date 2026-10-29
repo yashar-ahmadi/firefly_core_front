@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
+import { uniquePhones } from '@/components/layout/contact-block'
 import { CONTAINER } from '@/components/layout/container'
 import { isPlaceholderImage } from '@/components/layout/menu-tree'
 import { cn } from '@/components/ui/cn'
@@ -115,6 +116,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
   if (product.question_count > 0) void getFirstComments(product.slug, 'question')
   const [settings, productSettings] = await Promise.all([getSiteSettings(), getProductSettings()])
   const config = getStoreConfig()
+  // The sales lines: the buy box's «مشاوره پیش از خرید», and the wholesale note's number.
+  const salesPhones = uniquePhones([settings?.sales_phone, settings?.sales_phone2])
   const intro = introParts(product.description, product.content)
   const hasSpecs = specRows(product.specifications).length > 0
   const sections: SectionLink[] = [
@@ -148,7 +151,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <div className="flex min-w-0 flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start xl:grid-cols-[minmax(0,1fr)_20rem]">
             <ProductSummary product={product} />
             <BuyBox
-              contactPhone={settings?.phone ?? null}
+              contactPhone={salesPhones[0]?.tel ?? settings?.phone ?? null}
+              salesPhones={salesPhones}
               className={cn('lg:sticky', STICKY_TOP)}
             />
           </div>

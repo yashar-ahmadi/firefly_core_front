@@ -11,8 +11,10 @@ import { productPath } from '@/features/catalog/listing-routes'
 import { compareItemFrom } from '@/features/compare/compare-item'
 import { CompareToggle } from '@/features/compare/compare-toggle'
 import { HeartButton } from '@/features/wishlist/heart-button'
+import type { PhoneLink } from '@/components/layout/contact-block'
 import { useT } from '@/lib/i18n/i18n-context'
 import { unavailableLabel } from '../buy-state'
+import { ConsultCall } from './consult-call'
 import { NotifyMe } from './notify-me'
 import { PriceBlock } from './price-block'
 import { useProduct } from './product-provider'
@@ -25,8 +27,10 @@ const BUY_NOW = 'خرید فوری'
 const CHECKOUT = '/checkout/'
 
 export interface BuyBoxProps {
-  /** The shop's phone (settings), for the wholesale note. */
+  /** The number for the wholesale note (settings: the first sales line, else support). */
   contactPhone: string | null
+  /** The shop's sales lines, for «مشاوره پیش از خرید»; none leaves it out. */
+  salesPhones?: PhoneLink[]
   className?: string
 }
 
@@ -35,9 +39,10 @@ export interface BuyBoxProps {
  * cart» and «buy now» (add, then checkout), the back-in-stock form when nothing can be bought,
  * the wholesale note, then wishlist, compare and share. Everything follows the variant chosen
  * in the picker, with no request. A missing combination or an out-of-stock variant disables
- * both buttons with the reason (review focus 1).
+ * both buttons with the reason (review focus 1). The shop's sales lines, when set, close it
+ * (ConsultCall).
  */
-export function BuyBox({ contactPhone, className }: BuyBoxProps) {
+export function BuyBox({ contactPhone, salesPhones = [], className }: BuyBoxProps) {
   const t = useT()
   const router = useRouter()
   const { product, variant, quantity, setQuantity, bounds, announcement } = useProduct()
@@ -110,6 +115,8 @@ export function BuyBox({ contactPhone, className }: BuyBoxProps) {
       {product.enable_major && (
         <WholesaleNote minOrder={variant?.major_min_order_limit ?? null} phone={contactPhone} />
       )}
+
+      <ConsultCall phones={salesPhones} />
 
       <div className="flex items-center justify-center gap-2 border-t border-ink-100 pt-3">
         <HeartButton productId={product.id} slug={product.slug} size="md" />

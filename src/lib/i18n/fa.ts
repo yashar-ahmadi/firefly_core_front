@@ -66,6 +66,7 @@ export const fa: Record<string, string> = {
   useful_links: 'لینک\u{200C}های مفید',
   contact_us: 'ارتباط با ما',
   contact_phone: 'تلفن تماس',
+  contact_sales_phone: 'مشاوره و فروش',
   contact_email: 'ایمیل',
   contact_address: 'آدرس',
   postal_code: 'کد پستی: {code}',
