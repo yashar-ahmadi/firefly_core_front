@@ -60,8 +60,8 @@ describe('FilterPanelSkeleton', () => {
     expect(brand.querySelector('[data-scroll]')).toHaveClass('max-h-72', 'overflow-hidden')
     expect(rows('brand')).toHaveLength(7)
     expect(container.querySelector('[data-skeleton-body="price"] [data-price]')).not.toBeNull()
-    // The three switches.
-    expect(container.querySelectorAll('[data-switch]')).toHaveLength(3)
+    // The four switches.
+    expect(container.querySelectorAll('[data-switch]')).toHaveLength(4)
   })
 
   it('draws a swatch group’s pills by name, a plain attribute’s rows', () => {

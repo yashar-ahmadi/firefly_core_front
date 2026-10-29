@@ -41,6 +41,7 @@ describe('parseListingParams', () => {
         in_stock: '1',
         is_special: '0',
         has_discount: 'false',
+        has_timed_discount: 'TRUE',
         special_first: 'FALSE',
         sort: 'sale',
         page: '3',
@@ -56,10 +57,17 @@ describe('parseListingParams', () => {
       in_stock: true,
       is_special: false,
       has_discount: false,
+      has_timed_discount: true,
       special_first: false,
       sort: 'sale',
       page: 3,
     })
+  })
+
+  it('reads has_timed_discount as the API does: true/false/1/0, anything else dropped', () => {
+    expect(parseListingParams({ has_timed_discount: 'true' })).toEqual({ has_timed_discount: true })
+    expect(parseListingParams({ has_timed_discount: '0' })).toEqual({ has_timed_discount: false })
+    expect(parseListingParams({ has_timed_discount: 'yes' })).toEqual({})
   })
 
   it('accepts every documented sort value and nothing else', () => {

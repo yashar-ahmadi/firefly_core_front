@@ -110,6 +110,7 @@ export function hasQuery(sp: RawParams): boolean {
  */
 export function genericListingTitle(q: ListingApiQuery, listName?: string | null): string {
   if (q.list && listName) return listName
+  if (q.has_timed_discount) return 'پیشنهادهای شگفت‌انگیز'
   if (q.has_discount) return 'تخفیف‌ها'
   if (q.is_special) return 'پیشنهادهای ویژه'
   if (q.sort === 'sale') return 'پرفروش‌ترین‌ها'

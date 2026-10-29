@@ -100,6 +100,14 @@ describe('genericListingTitle', () => {
     expect(genericListingTitle({ is_special: true })).toBe('پیشنهادهای ویژه')
     expect(genericListingTitle({ is_special: true, sort: 'date-desc' })).toBe('پیشنهادهای ویژه')
     expect(genericListingTitle({ has_discount: true, sort: 'sale' })).toBe('تخفیف‌ها')
+    // The home carousel's «مشاهدهٔ همه» of timed discounts (`has_timed_discount=true&in_stock=true`).
+    expect(genericListingTitle({ has_timed_discount: true, in_stock: true })).toBe(
+      'پیشنهادهای شگفت‌انگیز',
+    )
+    expect(genericListingTitle({ has_timed_discount: true, has_discount: true })).toBe(
+      'پیشنهادهای شگفت‌انگیز',
+    )
+    expect(genericListingTitle({ has_timed_discount: false })).toBe('همهٔ محصولات')
   })
 
   it("uses a curated list's name when the URL names one that exists", () => {

@@ -204,6 +204,16 @@ test.describe('curated list and generic listing', () => {
     await expect(page.locator('link[rel="canonical"]')).toHaveCount(0)
   })
 
+  test('timed discounts: titled «پیشنهادهای شگفت‌انگیز» and noindex', async ({ page }) => {
+    // The home carousel's «مشاهدهٔ همه» for the «محصولات با تخفیف زمان‌دار» source.
+    await page.goto('/product/list/?has_timed_discount=true&in_stock=true&special_first=false')
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'پیشنهادهای شگفت‌انگیز' }),
+    ).toBeVisible()
+    await expect(page).toHaveTitle(/^پیشنهادهای شگفت‌انگیز \|/)
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow')
+  })
+
   test('load more appends the next page and records it in the URL', async ({ page }) => {
     const errors = watchErrors(page)
     await page.goto('/product/list/')

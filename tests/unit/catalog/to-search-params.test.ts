@@ -18,10 +18,12 @@ describe('toSearchParams', () => {
       min_price: '0',
       max_price: '5000000',
       in_stock: 'false',
+      has_timed_discount: 'true',
       special_first: 'false',
       sort: 'date-desc',
     })
     const params = toSearchParams(query)
+    expect(params.get('has_timed_discount')).toBe('true')
     expect([...params.keys()]).toEqual([...params.keys()].sort())
     expect(params.get('brand')).toBe('samsung,apple')
     expect(params.get('attribute_values')).toBe('10005,10015')

@@ -150,6 +150,19 @@ describe('activeFilters', () => {
     expect(activeFilters({ max_price: 5_000 }, groups)[0]?.label).toBe('تا ۵٬۰۰۰ تومان')
   })
 
+  it('names the timed-discount switch «پیشنهاد شگفت‌انگیز», after the discount one', () => {
+    const chips = activeFilters({ has_timed_discount: true, has_discount: true }, groups)
+    expect(chips.map((chip) => chip.label)).toEqual([
+      'فقط تخفیف‌دارها',
+      'فقط پیشنهادهای شگفت‌انگیز',
+    ])
+    expect(chips[1]?.patch).toEqual({ has_timed_discount: undefined })
+    expect(activeFilters({ has_timed_discount: false }, groups)[0]?.label).toBe(
+      'بدون پیشنهاد شگفت‌انگیز',
+    )
+    expect(activeFilterCount({ has_timed_discount: true })).toBe(1)
+  })
+
   it('shows a URL list as a removable chip named after the list, counted and cleared', () => {
     const named = activeFilters(
       { list: 'best-selling-digital' },

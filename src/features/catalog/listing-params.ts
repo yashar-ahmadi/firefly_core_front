@@ -16,6 +16,11 @@ export type ListingApiQuery = {
   in_stock?: boolean
   is_special?: boolean
   has_discount?: boolean
+  /**
+   * Only cards whose discount ends (a countdown: «پیشنهاد شگفت‌انگیز»); `false` lists the rest
+   * (product digest §7).
+   */
+  has_timed_discount?: boolean
   special_first?: boolean
   sort?: SortValue
   page?: number
@@ -31,7 +36,13 @@ export type ListingContext = { category?: string; brand?: string; list?: string 
 
 type RawParams = Record<string, string | string[] | undefined>
 
-const BOOLEAN_KEYS = ['in_stock', 'is_special', 'has_discount', 'special_first'] as const
+const BOOLEAN_KEYS = [
+  'in_stock',
+  'is_special',
+  'has_discount',
+  'has_timed_discount',
+  'special_first',
+] as const
 const CONTEXT_KEYS = [
   'category',
   'brand',
