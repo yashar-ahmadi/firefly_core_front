@@ -128,13 +128,14 @@ function postLinks(file: string): Finding[] {
 const findings = sourceFiles(SRC).flatMap(postLinks)
 
 describe('P5-R1: links to a post are never prefetched', () => {
-  it('finds the post links it guards (cards, sidebar, search rows, the home’s carousel, my comments)', () => {
+  it('finds the post links it guards (cards, sidebar, search rows, the home’s post styles, my comments)', () => {
     const files = new Set(findings.map((finding) => finding.where.replace(/:\d+$/, '')))
     for (const file of [
       'src/features/blog/components/post-card.tsx',
       'src/features/blog/components/blog-sidebar.tsx',
       'src/features/search/results/search-results.tsx',
-      'src/features/home/sections/post-carousel-section.tsx',
+      // The home's post carousel in its four styles (tiles, the featured post, the list rows).
+      'src/features/display/post-styles.tsx',
       // `<Link href={href}>` with `const href = subjectHref(comment, blog)`: a post's, at times.
       'src/features/account/comments/comment-row.tsx',
     ]) {

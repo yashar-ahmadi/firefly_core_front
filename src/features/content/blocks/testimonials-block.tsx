@@ -97,8 +97,13 @@ export function TestimonialsBlock({ items, style, label }: TestimonialsBlockProp
     )
   }
   if (style === 'style_2') {
+    // Even rows: twos for 2 and 4 quotes, threes for any other count when wide.
+    const columns =
+      items.length % 3 !== 0 && items.length % 2 === 0
+        ? '@2xl:grid-cols-2'
+        : '@2xl:grid-cols-2 @5xl:grid-cols-3'
     return (
-      <ul className="grid gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3">
+      <ul className={cn('grid gap-4', items.length > 1 && columns)}>
         {items.map((item) => (
           <li key={item.id} className="min-w-0">
             <QuoteCard item={item} />

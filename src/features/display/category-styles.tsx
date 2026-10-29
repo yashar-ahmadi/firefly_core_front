@@ -4,6 +4,7 @@ import { isPlaceholderImage } from '@/components/layout/menu-tree'
 import { cn } from '@/components/ui/cn'
 import { SmartImage } from '@/components/ui/smart-image'
 import { categoryPath } from '@/features/catalog/listing-routes'
+import { BALANCED_GRID, balancedGridVars } from './balanced-grid'
 import type { CategoryCard } from '@/lib/api/types/settings'
 
 // A category grid's second to fourth styles (content digest §6.6); style 1 is the round tiles of
@@ -74,12 +75,16 @@ export function CategoryChips({ categories }: CategoryStyleProps) {
 
 /**
  * Style 4, picture tiles: each category's picture filling a 4:3 tile, the name in white on a
- * dark fade at its foot (AA on any picture), two columns on phones up to five from xl. A
- * category with only the API's placeholder shows its first letter on the brand's gradient.
+ * dark fade at its foot (AA on any picture), two columns on phones, up to three, four and five
+ * in even rows from md, lg and xl. A category with only the API's placeholder shows its first
+ * letter on the brand's gradient.
  */
 export function CategoryTiles({ categories }: CategoryStyleProps) {
   return (
-    <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-4 xl:grid-cols-5">
+    <ul
+      className={cn('grid grid-cols-2 gap-3 lg:gap-4', BALANCED_GRID)}
+      style={balancedGridVars(categories.length, { md: 3, lg: 4, xl: 5 })}
+    >
       {categories.map((category) => {
         const src = [category.image, category.icon].find((url) => !isPlaceholderImage(url))
         return (

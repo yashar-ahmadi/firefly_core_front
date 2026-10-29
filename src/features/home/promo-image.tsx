@@ -24,9 +24,11 @@ export interface PromoImageProps {
 
 /**
  * A slide or banner picture filling its positioned frame: a `<picture>` whose
- * `<source media="(max-width: 767px)">` serves the mobile image, optimised like next/image. If
- * the picture cannot load it is removed, so the frame's own background shows instead of a
- * broken-image icon.
+ * `<source media="(max-width: 767px)">` serves the mobile image, optimised like next/image.
+ * Fitted whole (`contain`), it lies on a blurred copy of itself that fills the frame, so a
+ * picture of another ratio than its frame never sits on a bare band. If the picture cannot load
+ * it is removed (with its copy), so the frame's own background shows instead of a broken-image
+ * icon.
  */
 export function PromoImage({
   image,
@@ -53,29 +55,47 @@ export function PromoImage({
   const main = props(image)
   const mobile = mobileImage ? props(mobileImage) : null
 
+  const sources = mobile && (
+    <source
+      media={MOBILE_MEDIA}
+      srcSet={mobile.srcSet ?? mobile.src}
+      sizes={mobile.srcSet ? mobile.sizes : undefined}
+    />
+  )
   return (
-    <picture>
-      {mobile && (
-        <source
-          media={MOBILE_MEDIA}
-          srcSet={mobile.srcSet ?? mobile.src}
-          sizes={mobile.srcSet ? mobile.sizes : undefined}
-        />
+    <>
+      {/* `contain`: the same picture, blurred, fills the frame behind it instead of a bare band
+          (one download: the same URL and candidates as the picture itself). */}
+      {fit === 'contain' && (
+        <picture aria-hidden>
+          {sources}
+          <img
+            {...main}
+            alt=""
+            // Never the LCP candidate: the picture over it is (the same URL, fetched once).
+            loading="lazy"
+            fetchPriority={undefined}
+            className="scale-110 object-cover opacity-70 blur-2xl saturate-150"
+          />
+        </picture>
       )}
-      {/* getImageProps gives the alt; the linter cannot see it through the spread. */}
-      {/* eslint-disable-next-line jsx-a11y/alt-text */}
-      <img
-        {...main}
-        // An image that failed before hydration never reports it: check once mounted.
-        ref={(img) => {
-          if (img?.complete && img.naturalWidth === 0) setFailed(image)
-        }}
-        onError={() => setFailed(image)}
-        className={cn(
-          'transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.02]',
-          fit === 'contain' ? 'object-contain' : 'object-cover',
-        )}
-      />
-    </picture>
+      <picture>
+        {sources}
+        {/* getImageProps gives the alt; the linter cannot see it through the spread. */}
+        {/* eslint-disable-next-line jsx-a11y/alt-text */}
+        <img
+          {...main}
+          // An image that failed before hydration never reports it: check once mounted.
+          ref={(img) => {
+            if (img?.complete && img.naturalWidth === 0) setFailed(image)
+          }}
+          onError={() => setFailed(image)}
+          className={cn(
+            'transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.02]',
+            fit === 'contain' ? 'object-contain' : 'object-cover',
+          )}
+        />
+      </picture>
+    </>
   )
 }

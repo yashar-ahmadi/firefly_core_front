@@ -5,6 +5,7 @@ import { SmartImage } from '@/components/ui/smart-image'
 import type { PostCard } from '@/lib/api/types/blog'
 import { formatJalaliDate } from '@/lib/format'
 import { blogPostPath } from '@/lib/links/post-link'
+import { BALANCED_GRID, balancedGridVars } from './balanced-grid'
 
 // A post carousel's cards and its four styles' bodies (content digest §6.7). Every card links to
 // `/blog/{slug}/`, never prefetched: a post's page counts a view per render (P5-R1).
@@ -51,10 +52,13 @@ export function PostTile({ post }: { post: PostCard }) {
   )
 }
 
-/** Style 2, a grid: the cards in rows, two on phones from sm, three from md, four from xl. */
+/** Style 2, a grid: the cards in even rows, two from sm, up to three from md and four from xl. */
 export function PostGrid({ posts }: { posts: PostCard[] }) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+    <ul
+      className={cn('grid gap-3 sm:grid-cols-2 sm:gap-4', BALANCED_GRID)}
+      style={balancedGridVars(posts.length, { md: 3, lg: 3, xl: 4 })}
+    >
       {posts.map((post) => (
         <li key={post.id} className="min-w-0">
           <PostTile post={post} />

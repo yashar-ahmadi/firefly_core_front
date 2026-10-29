@@ -66,8 +66,9 @@ export function StatsBlock({ items, style }: StatsBlockProps) {
         return (
           <div key={item.id} className={cn('min-w-0', look.item)}>
             <dt className={look.label}>{item.title}</dt>
-            <dd dir="auto" className={cn('tabular-nums', look.value)}>
-              {item.value}
+            {/* The figure keeps its own direction («۲۵۰۰۰+» as written), the row the page's. */}
+            <dd className={cn('tabular-nums', look.value)}>
+              <bdi>{item.value}</bdi>
             </dd>
             {icon && (
               <dd

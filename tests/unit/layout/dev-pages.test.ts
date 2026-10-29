@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { assertDevOnly } from '@/app/dev/dev-only'
 import CategoryListingPreviewPage from '@/app/dev/listing/[category]/page'
 import ListingPreviewPage from '@/app/dev/listing/page'
+import DisplayStylesPage from '@/app/dev/styles/page'
 import UiShowcasePage from '@/app/dev/ui/page'
 
 const api = vi.hoisted(() => ({
@@ -36,6 +37,7 @@ describe('development-only pages', () => {
     vi.stubEnv('NODE_ENV', 'production')
     expect(() => assertDevOnly()).toThrow(NOT_FOUND)
     expect(() => ListingPreviewPage({ searchParams: Promise.resolve({}) })).toThrow(NOT_FOUND)
+    expect(() => DisplayStylesPage()).toThrow(NOT_FOUND)
     await expect(
       CategoryListingPreviewPage({
         params: Promise.resolve({ category: 'mobile-phone' }),
@@ -54,6 +56,13 @@ describe('development-only pages', () => {
   it('the UI showcase’s <main> is the skip link’s target (id="main")', () => {
     vi.stubEnv('NODE_ENV', 'development')
     const found = mains(UiShowcasePage())
+    expect(found).toHaveLength(1)
+    expect(found[0]?.props.id).toBe('main')
+  })
+
+  it('the display styles’ review has one <main id="main">', () => {
+    vi.stubEnv('NODE_ENV', 'development')
+    const found = mains(DisplayStylesPage())
     expect(found).toHaveLength(1)
     expect(found[0]?.props.id).toBe('main')
   })

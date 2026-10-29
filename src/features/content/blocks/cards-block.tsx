@@ -139,6 +139,13 @@ function gridOf(count: number): string {
   return 'grid gap-4 @xl:grid-cols-2 @2xl:grid-cols-3'
 }
 
+/** Style 2's compact cards: threes for 3 and 6 when wide, else twos. */
+function rowGridOf(count: number): string {
+  if (count === 1) return 'grid gap-3'
+  if (count % 3 === 0) return 'grid gap-3 @2xl:grid-cols-2 @4xl:grid-cols-3'
+  return 'grid gap-3 @2xl:grid-cols-2'
+}
+
 /**
  * Style 4, steps: the cards as numbered steps joined by a line (down the page when narrow,
  * across it from 48rem of room), for a process («مراحل خرید»). The number replaces the icon.
@@ -208,7 +215,7 @@ export function CardsBlock({ items, style, label }: CardsBlockProps) {
   }
   const Card = style === 'style_2' ? RowCard : StackedCard
   return (
-    <ul className={style === 'style_2' ? 'grid gap-3 @2xl:grid-cols-2' : gridOf(items.length)}>
+    <ul className={style === 'style_2' ? rowGridOf(items.length) : gridOf(items.length)}>
       {items.map((item) => (
         <li key={item.id} className="min-w-0">
           <Card item={item} />

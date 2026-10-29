@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { CategoryThumb } from '@/components/layout/category-thumb'
 import { categoryPath } from '@/features/catalog/listing-routes'
 import { cn } from '@/components/ui/cn'
+import { balancedColumns } from '@/features/display/balanced-grid'
 import { CategoryCards, CategoryChips, CategoryTiles } from '@/features/display/category-styles'
 import { displayStyle } from '@/features/display/display-style'
 import type { HomeSection } from '@/lib/api/types/catalog'
@@ -29,11 +30,7 @@ const LIST = cn(
  */
 const ROW_CAPACITY = { md: 6, lg: 7, xl: 9 } as const
 
-/** Tiles per row for `count` tiles in rows of at most `capacity`, as even as wrapping allows. */
-export function balancedColumns(count: number, capacity: number): number {
-  const rows = Math.max(1, Math.ceil(count / capacity))
-  return Math.ceil(count / rows)
-}
+export { balancedColumns }
 
 function columnVars(count: number): CSSProperties {
   return {

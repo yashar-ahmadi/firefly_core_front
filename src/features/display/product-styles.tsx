@@ -12,6 +12,9 @@ import { StoreLink } from '@/lib/links/store-link'
 // A product carousel's third and fourth styles (content digest §6.5): the «پیشنهاد شگفت‌انگیز»
 // band and the ranked compact list. Styles 1 and 2 are the shop's own rail and grid.
 
+/** The band's header takes a column from lg: a card fewer in view than the plain rail's five. */
+const BAND_PER_VIEW = { base: 2.2, md: 3.2, lg: 4 }
+
 export interface ProductBandProps {
   /** The heading's id (`aria-labelledby`); the title is the band's h2. */
   id: string
@@ -84,6 +87,7 @@ export function ProductBand({
           products={products}
           ariaLabel={title || 'پیشنهاد شگفت‌انگیز'}
           showOutOfStockLabel={showOutOfStockLabel}
+          slidesPerView={BAND_PER_VIEW}
         />
       </div>
     </section>

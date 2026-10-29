@@ -12,6 +12,8 @@ export interface ProductRailProps {
   ariaLabel: string
   /** The shop's setting (product settings). */
   showOutOfStockLabel: boolean
+  /** Cards in view per breakpoint (default two and a bit, three and a half, five). */
+  slidesPerView?: SlidesPerView
 }
 
 /**
@@ -19,11 +21,16 @@ export interface ProductRailProps {
  * beside the track, never over the first and last cards. Server-renderable, and usable from
  * Client Components.
  */
-export function ProductRail({ products, ariaLabel, showOutOfStockLabel }: ProductRailProps) {
+export function ProductRail({
+  products,
+  ariaLabel,
+  showOutOfStockLabel,
+  slidesPerView = PER_VIEW,
+}: ProductRailProps) {
   // One CardScope per rail: the cards' buttons share its subscriptions.
   return (
     <CardScope>
-      <Carousel ariaLabel={ariaLabel} slidesPerView={PER_VIEW} arrowGutters>
+      <Carousel ariaLabel={ariaLabel} slidesPerView={slidesPerView} arrowGutters>
         {products.map((product) => (
           <ProductCard
             key={product.id}

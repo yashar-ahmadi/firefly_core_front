@@ -196,7 +196,7 @@ describe.each(DISPLAY_STYLES)('%s', (style) => {
     ])
     const terms = [...container.querySelectorAll('dt')].map((dt) => dt.textContent)
     expect(terms).toEqual(['سال تجربه', 'مشتری راضی'])
-    expect(screen.getByText('۲۵۰۰۰+').tagName).toBe('DD')
+    expect(screen.getByText('۲۵۰۰۰+').closest('dd')).not.toBeNull()
   })
 
   it('testimonials: each quote with its name and role', () => {

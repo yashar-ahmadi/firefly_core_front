@@ -88,5 +88,5 @@ export function VideoBlock({ block, style }: VideoBlockProps) {
       </div>
     )
   }
-  return player(false, 'mx-auto')
+  return player(false, 'mx-auto max-w-4xl')
 }
