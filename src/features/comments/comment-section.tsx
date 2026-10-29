@@ -14,7 +14,7 @@ const QUESTIONS = 'پرسش و پاسخ'
 
 export interface CommentSectionProps {
   subject: CommentSubject
-  /** The subject's counts of visible root entries: the tabs' badges. */
+  /** The subject's counts of visible entries, replies included: the tabs' badges. */
   commentCount: number
   questionCount: number
   /** Shown instead of the tabs (the blog switched off, with the operator's reason). */

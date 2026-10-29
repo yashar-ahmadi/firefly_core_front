@@ -32,7 +32,9 @@ export interface PostCard {
   author: PostAuthor | null
   /** In assignment order; may be empty, and may hold a draft category (no page of its own). */
   categories: BlogCategoryLight[]
+  /** Visible comments with their replies at any depth (blog digest §9): the tab's count. */
   comment_count: number
+  /** Visible questions with their answers at any depth. */
   question_count: number
   view_count: number
   /** Viewer-specific; false in every shared (anonymous) response. */

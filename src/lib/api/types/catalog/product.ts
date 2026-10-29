@@ -174,9 +174,12 @@ export interface ProductDetail extends CatalogSeo {
   /** The product's own, else inherited from its first category. */
   consider_before_buying: ConsiderBeforeBuying | null
   question_answers: QuestionAnswer[]
-  /** Visible root reviews. */
+  /**
+   * Visible reviews with their replies at any depth, the shop's included (approved, not
+   * withdrawn, under no hidden parent): the reviews tab's count. Not the list's `count`.
+   */
   comment_count: number
-  /** Visible root questions. */
+  /** Visible questions with their answers at any depth, by the same rule: the Q&A tab's count. */
   question_count: number
   rating: number
   rating_count: number

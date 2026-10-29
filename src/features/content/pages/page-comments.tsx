@@ -8,7 +8,7 @@ export interface PageCommentsProps {
   slug: string
   /** The page's form is open (`enable_comments`). */
   enableComments: boolean
-  /** The page's counts of visible root entries: the tabs' badges. */
+  /** The page's counts of visible entries, replies included: the tabs' badges. */
   commentCount: number
   questionCount: number
   /** The comments' list, its first page server-rendered (`<SeededComments>` in a Suspense). */

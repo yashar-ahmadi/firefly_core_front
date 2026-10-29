@@ -64,7 +64,9 @@ export interface PostDetail {
   categories: BlogCategoryLight[]
   /** Root→leaf of the post's deepest category, the leaf included; [] without one. */
   breadcrumb: BlogCategoryLight[]
+  /** Visible comments with their replies at any depth (blog digest §9): the tab's count. */
   comment_count: number
+  /** Visible questions with their answers at any depth. */
   question_count: number
   view_count: number
   /** The viewer's own: the read carries their session. */

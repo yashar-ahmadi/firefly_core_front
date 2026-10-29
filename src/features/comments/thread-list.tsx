@@ -40,7 +40,10 @@ export function ThreadPlaceholders({ count, label }: { count: number; label: str
 
 export interface ThreadListProps<T extends { id: number }> {
   query: UseInfiniteQueryResult<InfiniteData<Paginated<T>>>
-  /** The visible root entries (the subject's own count): with none, the empty sentence. */
+  /**
+   * The subject's own count of visible entries, replies included (above 0 exactly when a root
+   * thread shows): with none, the empty sentence.
+   */
   count: number
   copy: ThreadListCopy
   /** One root entry with its replies (a `<li>`). */

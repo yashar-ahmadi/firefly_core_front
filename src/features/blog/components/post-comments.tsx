@@ -8,7 +8,7 @@ import { useFeature } from '@/features/settings/feature-context'
 
 export interface PostCommentsProps {
   slug: string
-  /** The post's counts of visible root entries: the tabs' badges. */
+  /** The post's counts of visible entries, replies included: the tabs' badges. */
   commentCount: number
   questionCount: number
   /** The comments' list, its first page server-rendered (`<SeededComments>` in a Suspense). */

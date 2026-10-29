@@ -31,7 +31,10 @@ export function CommentPlaceholders({ type, count }: { type: CommentType; count:
 export interface CommentListProps {
   slug: string
   type: CommentType
-  /** The product's count of visible root entries (`comment_count` / `question_count`). */
+  /**
+   * The product's count of visible entries, replies included (`comment_count` /
+   * `question_count`): above 0 exactly when a root thread shows.
+   */
   count: number
   /** Page 1 as the server rendered it (anonymous); without it the list loads when in view. */
   initialPage?: Paginated<ProductComment> | null

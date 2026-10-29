@@ -53,6 +53,21 @@ describe('CommentList', () => {
     })
   })
 
+  // comment_count counts replies too (product digest §9): one root with two replies is «3».
+  it('lists the root threads whatever the count adds for their replies', async () => {
+    mocks.bffFetch.mockResolvedValue({ data: commentPage([comment()]), msg: '', status: 200 })
+    renderList(3)
+    // Placeholders while it loads: never more than three, whatever the count.
+    expect(
+      screen.getByLabelText('در حال بارگذاری دیدگاه\u{200C}ها').children.length,
+    ).toBeLessThanOrEqual(3)
+    act(() => intersect())
+    const list = await screen.findByRole('list', { name: 'دیدگاه\u{200C}ها' })
+    expect(within(list).getAllByRole('article').length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByText(/هنوز دیدگاهی/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'نمایش بیشتر' })).toBeNull()
+  })
+
   it('asks for nothing when there is nothing to list', () => {
     renderList(0, 'question')
     act(() => intersect())

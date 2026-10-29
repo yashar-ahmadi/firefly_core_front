@@ -15,7 +15,10 @@ export interface PageDetail extends PageCard {
   content: string | null
   /** The comment form is open. Old approved comments stay listed when it is not. */
   enable_comments: boolean
-  /** Approved root comments and questions: the tabs' counts. */
+  /**
+   * The tabs' counts: visible comments, and visible questions, each with their replies at any
+   * depth (approved, not withdrawn, under no hidden parent). Not the list's `count` (root threads).
+   */
   comment_count: number
   question_count: number
   /** Never empty: the SEO title, else the page's title. */

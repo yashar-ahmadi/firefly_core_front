@@ -37,7 +37,11 @@ export function CommentPlaceholders({ type, count }: { type: SubjectCommentType;
 export interface SubjectCommentListProps {
   subject: CommentSubject
   type: SubjectCommentType
-  /** The subject's count of visible root entries (`comment_count` / `question_count`). */
+  /**
+   * The subject's count of visible entries, replies included (`comment_count` /
+   * `question_count`): above 0 exactly when a root thread shows (a reply shows only under a
+   * shown parent).
+   */
   count: number
   /** Page 1 as the server rendered it (anonymous); without it the list loads when in view. */
   initialPage?: Paginated<SubjectComment> | null
