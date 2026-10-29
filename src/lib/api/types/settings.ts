@@ -36,9 +36,19 @@ export interface SiteSettings {
   logo: string | null
   logo2: string | null
   favicon: string | null
+  /**
+   * The theme's primary colour from the panel, always `#rrggbb` (lowercase); null: the store's
+   * own (THEME_PRIMARY, else the preset's). The storefront reads it through `panelTheme`.
+   */
+  primary_color: string | null
+  /** The secondary colour, the theme's accent; the same format and null rule. */
+  secondary_color: string | null
   /** E.164, usable in `tel:` as is. */
   phone: string | null
   phone2: string | null
+  /** The sales and consultation lines (E.164), apart from support; null when unset. */
+  sales_phone: string | null
+  sales_phone2: string | null
   response_time: string | null
   email: string | null
   address: string | null

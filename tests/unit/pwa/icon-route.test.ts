@@ -9,7 +9,13 @@ import { stubEnv, type FetchSpy } from '../bff/support'
 // the brand colour. Any other size is a 404.
 
 const mocks = vi.hoisted(() => ({
-  settings: null as { name?: string; favicon?: string | null; logo?: string | null } | null,
+  settings: null as {
+    name?: string
+    favicon?: string | null
+    logo?: string | null
+    primary_color?: string | null
+    secondary_color?: string | null
+  } | null,
 }))
 vi.mock('@/features/settings/api', () => ({ getSiteSettings: async () => mocks.settings }))
 
@@ -142,6 +148,18 @@ describe('/icons/<size>/', () => {
     }
     expect(white).toBeGreaterThan(500)
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it("the monogram takes the panel's primary colour when the operator chose one", async () => {
+    mocks.settings = {
+      name: 'فایرفلای',
+      favicon: null,
+      logo: null,
+      primary_color: '#1d4ed8',
+      secondary_color: null,
+    }
+    const png = await (await get('512')).arrayBuffer()
+    expect(await pixel(png, 4, 4)).toBe('#1d4ed8')
   })
 
   it('without settings: the monogram of the preset’s label', async () => {

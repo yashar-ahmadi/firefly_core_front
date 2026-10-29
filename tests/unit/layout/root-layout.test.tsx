@@ -110,6 +110,12 @@ describe('root layout metadata', () => {
     mocks.config = configWith({ THEME_PRIMARY: '#0E7490' })
     expect(await generateViewport()).toEqual({ themeColor: '#0E7490' })
   })
+
+  it("colours it with the panel's primary colour when the operator chose one", async () => {
+    mocks.config = configWith({ THEME_PRIMARY: '#0E7490' })
+    mocks.settings = { ...SETTINGS, primary_color: '#1d4ed8', secondary_color: null }
+    expect(await generateViewport()).toEqual({ themeColor: '#1d4ed8' })
+  })
 })
 
 describe('RootLayout', () => {
@@ -122,7 +128,9 @@ describe('RootLayout', () => {
       (element) => element.type === 'head' || element.type === 'body',
     )
     const headChildren = elements(head?.props.children)
-    expect(headChildren.find((element) => element.type === ThemeHead)).toBeDefined()
+    expect(headChildren.find((element) => element.type === ThemeHead)?.props.theme).toEqual(
+      mocks.config.theme,
+    )
     expect(headChildren.find((element) => element.type === Snippets)?.props.position).toBe(
       'in_head',
     )
@@ -164,6 +172,21 @@ describe('RootLayout', () => {
     expect(renderToStaticMarkup(<SkipLink label="پرش به محتوا" />)).toMatch(
       /^<a href="#main" class="[^"]*sr-only[^"]*focus:not-sr-only[^"]*">پرش به محتوا<\/a>$/,
     )
+  })
+
+  it("draws the theme with the panel's colours over the store's own", async () => {
+    mocks.config = configWith({ THEME_PRIMARY: '#0E7490', THEME_ACCENT: '#F59E0B' })
+    mocks.settings = { ...SETTINGS, primary_color: '#1d4ed8', secondary_color: '#be123c' }
+    const tree = await RootLayout({ children: null })
+    const head = elements(tree).find((element) => element.type === ThemeHead)
+    expect(head?.props.theme).toEqual({
+      ...mocks.config.theme,
+      primary: '#1d4ed8',
+      accent: '#be123c',
+    })
+    const css = renderToStaticMarkup(<ThemeHead theme={head?.props.theme as never} />)
+    expect(css).toContain('--brand-600:')
+    expect(css).not.toContain('#0E7490')
   })
 
   it('starts the snippets request together with the other loaders', async () => {

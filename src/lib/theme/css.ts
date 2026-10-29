@@ -55,7 +55,7 @@ function colourVariables(name: 'brand' | 'accent', hex: string): string[] {
 }
 
 /** The lightest brand shade (500 and darker) that is visible enough as a focus ring. */
-function focusColour(brandHex: string): string {
+export function focusColour(brandHex: string): string {
   const scale = generateScale(brandHex)
   const shade = FOCUS_SHADES.find(
     (s) => contrastRatio(scale[s], PAGE_BACKGROUND) >= FOCUS_MIN_CONTRAST,

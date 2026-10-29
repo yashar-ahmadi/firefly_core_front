@@ -15,6 +15,7 @@ import {
   getTranslations,
 } from '@/features/settings/api'
 import { SnippetHtmlZone, Snippets } from '@/features/settings/snippets'
+import { getTheme } from '@/features/settings/theme'
 import { COOKIE } from '@/lib/auth/cookies'
 import { vazirmatn } from '@/lib/fonts'
 import { createTranslator } from '@/lib/i18n/translator'
@@ -26,25 +27,27 @@ export async function generateMetadata(): Promise<Metadata> {
   return buildRootMetadata(getStoreConfig(), await getSiteSettings())
 }
 
-export function generateViewport(): Viewport {
-  return buildRootViewport(getStoreConfig().theme)
+export async function generateViewport(): Promise<Viewport> {
+  return buildRootViewport(await getTheme())
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const config = getStoreConfig()
   // getSnippets() is started here with the rest; the snippet slots below read its cached result.
   // The settings are the ones generateMetadata read (cache()): no second request.
-  const [features, translations, cookieStore, settings] = await Promise.all([
+  const [features, translations, cookieStore, settings, theme] = await Promise.all([
     getFeatureStatus(),
     getTranslations(),
     cookies(),
     getSiteSettings(),
+    getTheme(),
     getSnippets(),
   ])
   return (
     <html lang="fa" dir="rtl" className={vazirmatn.variable}>
       <head>
-        <ThemeHead theme={config.theme} />
+        {/* The panel's colours over the store's own (`getTheme`). */}
+        <ThemeHead theme={theme} />
         <Snippets position="in_head" />
       </head>
       <body>

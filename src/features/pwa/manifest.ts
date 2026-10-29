@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next'
 import { storeName, storeSlogan } from '@/app/_shell/metadata'
 import type { StoreConfig } from '@/config/resolve-store-config'
 import type { SiteSettings } from '@/lib/api/types/settings'
+import { withPanelColours } from '@/lib/theme/panel-colours'
 
 // The web app manifest (`/manifest.webmanifest`, src/app/manifest.ts) from the shop's settings
 // and store config. Pure. It is served whatever FEATURE_PWA says: the browser's own install
@@ -51,7 +52,8 @@ export function buildManifest(
     start_url: START_URL,
     scope: '/',
     display: 'standalone',
-    theme_color: config.theme.primary,
+    // The panel's primary colour when the operator chose one (as the pages' theme-color).
+    theme_color: withPanelColours(config.theme, settings).primary,
     background_color: '#ffffff',
     icons: [icon(192, 'any'), icon(512, 'any'), icon(512, 'maskable')],
     shortcuts: [

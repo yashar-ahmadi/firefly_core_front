@@ -75,6 +75,14 @@ describe('buildManifest', () => {
     expect(Object.values(manifest)).not.toContain(undefined)
   })
 
+  it("the panel's primary colour, when the operator chose one, over the preset's", () => {
+    const manifest = buildManifest(
+      config({ STORE_PRESET: 'carpet' }),
+      settings({ primary_color: '#1d4ed8', secondary_color: null }),
+    )
+    expect(manifest.theme_color).toBe('#1d4ed8')
+  })
+
   it('a blank name or slogan counts as none', () => {
     const manifest = buildManifest(config(), settings({ name: '  ', slogan: ' ' }))
     expect(manifest.name).toBe('فروشگاه')

@@ -4,6 +4,7 @@ import { getStoreConfig } from '@/config/store-config'
 import { appIcon, parseIconSize, type AppIcon, type IconSize } from '@/features/pwa/app-icon'
 import { fallbackIcon } from '@/features/pwa/fallback-icons'
 import { getSiteSettings } from '@/features/settings/api'
+import { withPanelColours } from '@/lib/theme/panel-colours'
 
 /**
  * `/icons/192/` and `/icons/512/`: the installed app's icons (the manifest's), PNGs made from the
@@ -28,7 +29,7 @@ async function iconOf(size: IconSize): Promise<AppIcon> {
       name: storeName(config, settings),
       favicon: settings?.favicon,
       logo: settings?.logo,
-      primary: config.theme.primary,
+      primary: withPanelColours(config.theme, settings).primary,
       apiUrl: getServerEnv().FIREFLY_API_URL,
     })
   } catch {
