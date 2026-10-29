@@ -6,6 +6,7 @@ import { toPromoItems } from '@/features/display/promo-item'
 import { PromoSlider } from '@/features/display/promo-slider'
 import { StyledRichText } from '@/features/display/styled-rich-text'
 import type { BlockPlacement, PageBlock, PageBlockItem } from '@/lib/api/types/page'
+import { httpUrl } from '@/lib/html/safe-url'
 import type { Translate } from '@/lib/i18n/translator'
 import { BlockFrame } from './block-frame'
 import { blocksAt, text } from './blocks'
@@ -139,7 +140,7 @@ function Block({
       )
     }
     case 'video':
-      if (!text(block.video_url)) return null
+      if (httpUrl(text(block.video_url)) === null) return null
       return (
         <BlockFrame block={block} style={style} bare={videoDrawsTitle(style)}>
           <VideoBlock block={block} style={style} />

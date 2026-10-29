@@ -197,13 +197,14 @@ export function readableTextOn(
 
 /** How far each step of `darkenUntil` lowers OKLab lightness. */
 const DARKEN_STEP = 0.005
-/** `darkenUntil` never goes darker than this (about ink-900). */
-const DARKEN_FLOOR = 0.2
+/** `darkenUntil` never goes darker than the darkest anchor `generateScale` takes (about ink-900). */
+const DARKEN_FLOOR = MIN_ANCHOR_L
 
 /**
  * The colour itself when `accepts` it, else the same hue and chroma made darker, step by step,
- * until `accepts` does (out-of-gamut steps lose chroma, as everywhere here). Stops at a lightness
- * of 0.2: a colour that is still refused there is returned at that lightness.
+ * until `accepts` does (out-of-gamut steps lose chroma, as everywhere here). Stops at the scale's
+ * darkest anchor: a colour still refused there is returned at that lightness, so the colour and
+ * the scale built from it agree.
  */
 export function darkenUntil(hex: string, accepts: (hex: string) => boolean): string {
   if (accepts(hex)) return hex.toLowerCase()

@@ -71,11 +71,27 @@ export function accentReads(hex: string): boolean {
   )
 }
 
+/** Darkened panel colours by role and input: they change only when the panel's do. */
+const darkened = new Map<string, string>()
+/** Bounds the memo however many colours a long-running server sees. */
+const DARKENED_MAX = 64
+
+/** `darkenUntil(hex, accepts)`, remembered: a light colour takes a few milliseconds to settle. */
+function readable(hex: string, role: 'primary' | 'accent'): string {
+  const key = `${role}:${hex}`
+  const known = darkened.get(key)
+  if (known !== undefined) return known
+  const colour = darkenUntil(hex, role === 'primary' ? primaryReads : accentReads)
+  if (darkened.size >= DARKENED_MAX) darkened.clear()
+  darkened.set(key, colour)
+  return colour
+}
+
 /**
  * The store's theme with the panel's colours over its primary and accent. A panel colour too
  * light to read as the shop draws it (a yellow primary on white) keeps its hue and is darkened
- * just enough (`darkenUntil`), so an operator's choice can never make the shop unreadable;
- * null, missing or malformed values leave the store's own colour.
+ * just enough (`darkenUntil`, remembered per colour), so an operator's choice can never make the
+ * shop unreadable; null, missing or malformed values leave the store's own colour.
  */
 export function withPanelColours(
   theme: ThemeConfig,
@@ -86,7 +102,7 @@ export function withPanelColours(
   if (primary === null && accent === null) return theme
   return {
     ...theme,
-    primary: primary === null ? theme.primary : darkenUntil(primary, primaryReads),
-    accent: accent === null ? theme.accent : darkenUntil(accent, accentReads),
+    primary: primary === null ? theme.primary : readable(primary, 'primary'),
+    accent: accent === null ? theme.accent : readable(accent, 'accent'),
   }
 }

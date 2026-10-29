@@ -1,6 +1,6 @@
 import { FileText, LockKeyhole } from 'lucide-react'
 import Link from 'next/link'
-import { contentPagePath } from '@/features/content/pages/page-routes'
+import { contentPagePath, MEMBERS_ONLY } from '@/features/content/pages/page-routes'
 import type { PageCard } from '@/lib/api/types/page'
 import { PAGES_ASIDE_HEADING_ID } from '@/lib/html/reserved-ids'
 
@@ -42,7 +42,7 @@ export function PagesAside({ pages }: { pages: readonly PageCard[] }) {
               {page.requires_login && (
                 <LockKeyhole
                   role="img"
-                  aria-label={'ویژه\u{0654} اعضا'}
+                  aria-label={MEMBERS_ONLY}
                   className="size-4 shrink-0 text-ink-500"
                 />
               )}

@@ -26,9 +26,14 @@ export interface CategoryBannersProps {
 export function CategoryBanners({ banners, style, name, className }: CategoryBannersProps) {
   const items = toPromoItems(banners ?? [])
   if (items.length === 0) return null
+  const look = displayStyle(style)
+  const label = `بنرهای ${name}`
+  // Style 2's carousel is a named region of its own: no section around it (as on the homepage).
+  const carousel = look === 'style_2' && items.length > 1
+  const Tag = carousel ? 'div' : 'section'
   return (
-    <section aria-label={`بنرهای ${name}`} data-style={displayStyle(style)} className={className}>
-      <PromoBanners items={items} style={displayStyle(style)} label={name} priority />
-    </section>
+    <Tag aria-label={carousel ? undefined : label} data-style={look} className={className}>
+      <PromoBanners items={items} style={look} label={carousel ? label : name} priority />
+    </Tag>
   )
 }

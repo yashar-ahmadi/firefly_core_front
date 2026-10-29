@@ -329,6 +329,8 @@ describe('blocks with nothing to draw render nothing', () => {
             block({ id: 4, type: 'rich_text', content: '<p>&nbsp;</p>' }),
             block({ id: 5, type: 'call_to_action', title: 'بدون دکمه', link: null }),
             block({ id: 6, type: 'stats', items: [item({ title: 'بی‌عدد', value: '' })] }),
+            // Not an http(s) URL: neither a player nor a link.
+            block({ id: 8, type: 'video', video_url: 'javascript:alert(1)' }),
           ],
           placement: 'after_content',
           contact: null,

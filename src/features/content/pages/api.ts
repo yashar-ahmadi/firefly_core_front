@@ -20,7 +20,9 @@ import { isJwt } from '@/lib/bff/session'
  *   (remembered a minute too, so a guest costs no API call); then the visitor's own session reads
  *   it with their token and IP, uncached, or, without one (or with a token the API refuses), the
  *   page sends them to sign in (`SIGN_IN`). The proxy refreshes an expiring token before the page
- *   renders, so a refused one means the session is over;
+ *   renders; should the API still refuse one, login's signed-in panel asks the API itself
+ *   (`useMe`, through the BFF, which refreshes or drops the session) and never sends the visitor
+ *   back unasked, so no redirect loop;
  * - **a staff preview of a draft**: only after that 404, and only for a visitor with a session
  *   (a JWT-shaped `ff_at`), the page is read again with their token and IP, uncached
  *   (`apiFetch` never caches a call with a token: digest §0 item 11). A staff account gets the

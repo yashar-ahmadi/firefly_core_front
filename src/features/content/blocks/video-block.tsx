@@ -1,5 +1,6 @@
 import { cn } from '@/components/ui/cn'
 import type { DisplayStyle } from '@/features/display/display-style'
+import { httpUrl } from '@/lib/html/safe-url'
 import type { PageBlock } from '@/lib/api/types/page'
 import { blockHeadingId, text } from './blocks'
 import { VideoPlayer } from './video-player'
@@ -54,8 +55,9 @@ function Words({ block, tone }: { block: PageBlock; tone: 'ink' | 'light' }) {
  * centred over the player; 4. a compact card, its cover opening the player in a dialog.
  */
 export function VideoBlock({ block, style }: VideoBlockProps) {
-  const url = text(block.video_url)
-  if (!url) return null
+  // Only an http(s) URL is ever a player or a link (the panel asks for https; this holds anyway).
+  const url = httpUrl(text(block.video_url))
+  if (url === null) return null
   const title = text(block.title) || 'ویدیو'
   const cover = text(block.image) || null
   const player = (inDialog = false, className?: string) => (

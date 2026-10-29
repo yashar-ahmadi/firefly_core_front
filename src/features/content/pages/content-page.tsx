@@ -19,7 +19,7 @@ import type { PageDetail, PageLayout } from '@/lib/api/types/page'
 import { PAGE_TITLE_ID } from '@/lib/html/reserved-ids'
 import { createTranslator } from '@/lib/i18n/translator'
 import { PageComments } from './page-comments'
-import { commentsShown, pageLayout } from './page-routes'
+import { commentsShown, MEMBERS_ONLY, pageLayout } from './page-routes'
 import { otherPages, PagesAside } from './pages-aside'
 
 /** Each layout's frame (content digest §3.2). */
@@ -34,9 +34,6 @@ const FRAMES: Record<PageLayout, string> = {
 }
 
 const TITLE = 'text-2xl leading-10 font-bold text-ink-900 md:text-3xl md:leading-[3rem]'
-
-/** «ویژهٔ اعضا»: a page for signed-in visitors only (`requires_login`). */
-export const MEMBERS_ONLY = 'ویژه\u{0654} اعضا'
 
 /** The pill under the title of a page for signed-in visitors only. */
 function MembersOnly() {

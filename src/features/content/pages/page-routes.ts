@@ -3,6 +3,9 @@ import type { PageDetail, PageLayout } from '@/lib/api/types/page'
 // A content page's URL, layout and what it shows (content digest §3.2, §10.1). Pure: safe in any
 // bundle.
 
+/** «ویژهٔ اعضا»: a page for signed-in visitors only (`requires_login`), wherever it is listed. */
+export const MEMBERS_ONLY = 'ویژه\u{0654} اعضا'
+
 /** The operator's contact page (content digest §3.2): its content shows above the contact form. */
 export const CONTACT_US_SLUG = 'contact-us'
 /**

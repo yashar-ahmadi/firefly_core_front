@@ -4,7 +4,7 @@ import { toCardProduct } from '@/features/catalog/card-product'
 import { ProductGrid } from '@/features/catalog/components/product-grid'
 import { blogPostPath } from '@/features/blog/blog-routes'
 import { brandPath, categoryPath } from '@/features/catalog/listing-routes'
-import { contentPagePath } from '@/features/content/pages/page-routes'
+import { contentPagePath, MEMBERS_ONLY } from '@/features/content/pages/page-routes'
 import type { SearchResults as Results } from '@/lib/api/types/search'
 import {
   CompactList,
@@ -63,7 +63,7 @@ function compactItems(results: Results, kind: Exclude<ResultKind, 'products'>): 
         name: page.title,
         // A page for signed-in visitors only (content digest §2): it sends a guest to login.
         description: page.requires_login
-          ? 'ویژه\u{0654} اعضا؛ با ورود به حساب باز می\u{200C}شود'
+          ? `${MEMBERS_ONLY}؛ با ورود به حساب باز می\u{200C}شود`
           : null,
         thumb: (
           <span

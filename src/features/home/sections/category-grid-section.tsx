@@ -30,8 +30,6 @@ const LIST = cn(
  */
 const ROW_CAPACITY = { md: 6, lg: 7, xl: 9 } as const
 
-export { balancedColumns }
-
 function columnVars(count: number): CSSProperties {
   return {
     '--cols-md': balancedColumns(count, ROW_CAPACITY.md),

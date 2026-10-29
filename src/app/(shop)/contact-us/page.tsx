@@ -53,9 +53,10 @@ export default async function ContactRoute() {
   const html = page?.content ? richContentHtml(page.content) : null
   const t = createTranslator(translations)
   const blocks = page?.blocks ?? []
-  const shared = { blocks, contact: contactDetails(settings), t }
-  const detailsInBlock = blocks.some((block) => block.type === 'contact_info')
-  const details = detailsInBlock ? null : contactDetails(settings)
+  const contact = contactDetails(settings)
+  const shared = { blocks, contact, t }
+  // A `contact_info` block shows the details: the side panel would repeat them.
+  const details = blocks.some((block) => block.type === 'contact_info') ? null : contact
   const before = blocksAt(blocks, 'before_content').length > 0
   const after = blocksAt(blocks, 'after_content').length > 0
   return (
