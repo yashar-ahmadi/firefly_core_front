@@ -65,9 +65,9 @@ export function PromoImage({
   return (
     <>
       {/* `contain`: the same picture, blurred, fills the frame behind it instead of a bare band
-          (one download: the same URL and candidates as the picture itself). */}
+          (one download: the same URL and candidates as the picture itself). Decorative: alt="". */}
       {fit === 'contain' && (
-        <picture aria-hidden>
+        <picture>
           {sources}
           <img
             {...main}
