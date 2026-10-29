@@ -16,11 +16,20 @@ Verification tags used throughout:
 - **[DOC]**: stated only by the guide. I could not exercise it without writing to the dev DB, for example by
   sending an OTP, enabling TOTP or toggling a feature.
 
+## Update 2026-10-29 (backend `new-requests`; settings-api §3, auth-api §1)
+
+| change | storefront |
+|---|---|
+| `/global/settings/` adds **`primary_color`, `secondary_color`** (`#rrggbb` lowercase or `null`, tab «رنگ‌بندی قالب»). | The shop's colours: panel → env → preset, darkened until readable (§8.1). |
+| `/global/settings/` adds **`sales_phone`, `sales_phone2`** (E.164 or `null`, «تلفن مشاوره و فروش ۱/۲»). | «مشاوره و فروش» in the footer, the contact page, the `contact_info` block and the buy box (§8.1). |
+| **OTP sandbox** (`OTP_SANDBOX=True` with `DEBUG`): sends answer 200 and SMS is offered, but no code leaves the server; read it in the panel. | Nothing to change (§11). |
+
 Dev-server facts that matter when you test against it:
 
 - `DEBUG=True` with the API-key gate off.
 - `SITE_DOMAIN=localhost` and `STOREFRONT_URL=http://localhost:3000`.
-- **Google, SMS and Telegram are all OFF.** Only email OTP and email registration are offered.
+- **Google, SMS and Telegram are all OFF.** Only email OTP and email registration are offered (unless the
+  OTP sandbox is on, §11, which advertises SMS too without sending anything).
 - Demo accounts from `fixtures/README.md` all use the password `Firefly@1234`:
   - `sara.ahmadi@example.com` / `+989121234501`: a normal customer with both identifiers verified.
   - `leila.rahimi@example.com`: a disabled account.
@@ -799,6 +808,8 @@ interface SiteSettings {
   favicon: string | null;             // absolute URL; square >= 32x32
   phone: string | null;               // E.164 "+982191000000" -> tel: as-is; format for display
   phone2: string | null;
+  sales_phone: string | null;         // 2026-10-29: «مشاوره و فروش» line, E.164 like phone; null = none
+  sales_phone2: string | null;        // 2026-10-29: independent of sales_phone (either may be set alone)
   response_time: string | null;       // display as-is
   email: string | null;               // customer contact email
   address: string | null;             // plain text, may be multi-line
@@ -812,6 +823,8 @@ interface SiteSettings {
   android_application_download_link: string | null;
   web_application_link: string | null;  // PWA link
   support_link: string | null;          // support/chat URL; null => hide support button
+  primary_color: string | null;         // 2026-10-29: "#rrggbb" lowercase (panel normalises #fff/#FFF); null = store theme
+  secondary_color: string | null;       // 2026-10-29: same format; independent of primary_color
   auth: AuthSettings;                   // always present; identical to /global/auth-settings/
 }
 ```
@@ -1085,6 +1098,8 @@ interface FeatureToggle { id: number; feature_key: FeatureKey; feature_display_n
 | `footer` | Footer rich-text block on every page. HTML: sanitise and absolutise. |
 | `copyright` | Plain-text bottom line on every page. |
 | `phone`, `phone2` | `tel:` links using the raw E.164 value. Display in a local format, optionally with Persian digits. |
+| `sales_phone`, `sales_phone2` | The «مشاوره و فروش» line(s), separate from support. Storefront: a row in the footer contact block, the contact page and the `contact_info` page block (`contactDetails().salesPhones`, deduplicated against `phone`/`phone2`); and «مشاوره پیش از خرید» in the product buy box (`ConsultCall`). Not in the header. The wholesale call-to-order uses the first sales line, else `phone`. |
+| `primary_color`, `secondary_color` | The panel's theme colours (tab «رنگ‌بندی قالب»). Storefront (`lib/theme/panel-colours.ts`, `features/settings/theme.ts`): panel colour → `THEME_PRIMARY`/`THEME_ACCENT` env → the store preset; `secondary_color` is the accent. A colour too light for white text (or too light on white) is darkened in OKLCH, hue kept, until the WCAG pairs pass. Used for the CSS variables, `theme-color`, the PWA manifest and the generated icons. |
 | `email` | `mailto:` contact. |
 | `response_time` | Shown next to the contact info as-is. |
 | `address`, `postal_code` | Contact block. Preserve line breaks. |
@@ -1284,6 +1299,7 @@ Items are tagged with where I verified them.
   - Production returns a JSON 404, and a 301 for a missing slash, which breaks POST bodies.
 - Google, SMS and Telegram are all disabled, so phone registration, phone OTP, Telegram and Google cannot be tested here.
 - There is no SMTP configuration in the fixtures. OTP sends to email most likely fail with 503 `auth_otp_send_failed` [CODE]. Use password login with the demo accounts.
+- **OTP sandbox (2026-10-29, auth-api §1).** With `DEBUG=True` and `OTP_SANDBOX=True` in the backend's `.env`, every OTP send (email and SMS) answers the usual `200` and `sms` is advertised in `available_otp_methods`, but nothing is sent: read the code in the panel under **کاربران › کدهای یکبار مصرف**. The code never appears in any response. The 2-minute gap, the daily cap and the 5 attempts still apply; Telegram is unchanged. It is forced off when `DEBUG` is off. The storefront needs nothing for it: it already follows `available_otp_methods`, so phone registration and phone OTP login can be tested locally with it on [LIVE: `sms_otp_enabled: true`, methods `email, sms`].
 - The `auth_attempt` bucket (20/min per IP) is shared by everything on 127.0.0.1. I tripped it once while probing [LIVE: `429 throttled`, `retry_after: 1`]. Expect occasional 429s while several people or agents test.
 - `STOREFRONT_URL=http://localhost:3000` affects sitemap `<loc>`, the robots `Sitemap:` line, payment links, short links and the payment callback host.
 - `SITE_DOMAIN=localhost` affects JSON-LD URLs, which become `https://localhost/...`.

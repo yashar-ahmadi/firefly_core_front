@@ -9,7 +9,8 @@ Related documents: [DEPLOYMENT.md](DEPLOYMENT.md) and [CUSTOMIZATION.md](CUSTOMI
 for the shop owner), the design spec in
 [superpowers/specs/2026-10-15-storefront-design.md](superpowers/specs/2026-10-15-storefront-design.md),
 the API digests in [backend-integration/](backend-integration/) and
-[BACKEND-ISSUES.md](BACKEND-ISSUES.md).
+[BACKEND-ISSUES.md](BACKEND-ISSUES.md) (and, for the 2026-10-29 backend round,
+[BACKEND-ISSUES-2026-10-29.md](BACKEND-ISSUES-2026-10-29.md)).
 
 ## Contents
 
@@ -209,6 +210,17 @@ visible in the `x-middleware-rewrite` response header.
   tag; Tailwind v4's `@theme inline` maps utilities (`bg-brand-600`, `rounded-card`…) onto the
   variables. `THEME_FONT=custom` adds an `@font-face` for `/fonts/custom/font.woff2` with Vazirmatn
   as the fallback.
+- **The panel's colours** (settings `primary_color`, `secondary_color`, «رنگ‌بندی قالب») sit over
+  the store's: `getTheme()` (`features/settings/theme.ts`, a React `cache()`) is
+  `withPanelColours(getStoreConfig().theme, await getSiteSettings())`
+  (`lib/theme/panel-colours.ts`, pure). Each colour is chosen on its own: panel, else `THEME_PRIMARY`
+  / `THEME_ACCENT`, else the preset; `secondary_color` is the accent. A panel colour that would
+  break a pair the contrast test checks for the presets (`primaryReads`, `accentReads`) keeps its
+  hue and is darkened in OKLCH just enough (`darkenUntil` in `lib/theme/color.ts`); env colours
+  are taken as given. Everything that paints the brand reads `getTheme()` or `withPanelColours`:
+  the root layout's `<style>` and `generateViewport`'s `theme-color`, the PWA manifest and the
+  generated app icons. Settings are cached 300 s, so a change shows within five minutes; without
+  settings (the API down) the store's own colours stand.
 - **The one build-time input** is the `next/image` host allow-list (`next.config.ts`
   `buildRemotePatterns`), built from `FIREFLY_API_URL` at build time and restricted to `/media/**`
   and `/static/**`; without it the build warns and allows any https host plus localhost.
@@ -531,6 +543,16 @@ links prefetch as any shop link: the search results' page rows, the aside, menus
   no comments (their lists answer 404 even for staff). Anyone else gets the same 404. A published
   page never carries a token, and an answer read with one never reaches a cache. Pages are
   rendered per request anyway (R5), and sent `private, no-store`.
+- **Pages for signed-in visitors only** (`requires_login`, 2026-10-29): the anonymous read
+  answers 401 (`not_authenticated`); `getPage()` remembers that a minute in process memory
+  (`missing.ts`, key `page-login-only:<slug>`, so a guest costs no API call), then reads the page
+  with the visitor's token and IP, uncached, or returns `SIGN_IN` without a session (or with a
+  token the API refuses, `token_not_valid`; the proxy has refreshed an expiring one already). The
+  route answers `SIGN_IN` with `redirect('/login/?next=/page/<slug>/')`. A 401 for the
+  storefront's own key (`api_key_*`) is never taken for it: it is thrown. Such a page is
+  `noindex`, wears «ویژهٔ اعضا» under its title, and its comments are not seeded on the server
+  (the lists read in the browser through the BFF, with the session). The aside and the search
+  rows list it for everyone with a lock (`requires_login` on `PageCard`).
 - **Status codes** (R9): no `loading.*`; the page is awaited and `notFound()` called (missing,
   a draft for a guest, `list`, a slug that is not one segment) before anything streams. Persian
   slugs are percent-encoded once for the API (`oneSegment`).
@@ -551,7 +573,8 @@ links prefetch as any shop link: the search results' page rows, the aside, menus
 - **Head** (`contentPageMetadata()`, `features/content/pages/page-seo.ts`, over
   `pageMetadata()`): the title absolute (`page_title` as written when it names the shop, else
   «<page_title> | <shop>»: the API's `page_title` falls back to the bare title, checked live);
-  the description (`page_description`, else `description`, else none); keywords when set; the
+  the description (`page_description`, which the API already falls back to an excerpt of the
+  content, else none; pages have no `description` since 2026-10-29); keywords when set; the
   canonical (`canonical_link`, else the page's own path, its trailing slash kept); the operator's
   `meta_tags` split, in order with repeats kept: `og:`, `article:`, `product:`, `profile:`,
   `book:`, `fb:` rows rendered by the page as `<meta property>` (React hoists them into the
@@ -564,11 +587,52 @@ links prefetch as any shop link: the search results' page rows, the aside, menus
   (`CommentsGate`): closed by `enable_comments`, or by a send's `403 page_comments_disabled`,
   which takes every form away and puts the API's sentence (focused) in its place. The shop's
   answer reads «پاسخ فروشگاه» on posts and pages alike, as in «دیدگاه‌های من».
+- **Blocks** (`blocks`, 2026-10-29; `features/content/blocks/`): `PageBlocks` draws the blocks
+  of one `placement`: `before_content` between the title and the text, `after_content` after it
+  and before the comments; with blocks above, the title stands above them, off the text's card.
+  Each of the 11 types has a component in four styles (`displayStyle(block.style)`), inside a
+  `BlockFrame` (`@container`, so the styles respond to the room the layout gives them, not to
+  the viewport; `data-block`, `data-style`; the block's own title and subtitle as its header, a
+  `section` labelled by that title unless the block is a bare list). `slider`, `banners` and `rich_text` reuse `features/display` (the
+  homepage's sections); `contact_info` reads the settings (`contactDetails()`); `video` is a
+  facade, the Aparat or YouTube player (the linker's `PLAYER_SANDBOX`, `PLAYER_ALLOW`) loaded on
+  press, any other URL a link; `gallery` opens a viewer (Embla in a Dialog) mounted once opened.
+  Unknown types, and blocks without what their type needs, draw nothing. The blocks are server
+  components; besides the shared carousel and accordion, only `video-player` and `gallery-block`
+  are client components of their own.
 - **`contact-us`** is never rendered here: `/page/contact-us/` redirects (308) to the contact
   page, `/contact-us/`, which shows the page's title, content and meta rows above the form (see
   Help centre, contact page and linker). The shop's own links to it (`contentPagePath`: search
   rows, the aside, «دیدگاه‌های من») go straight to `/contact-us/`; menus and the backend's sitemap
   still name `/page/contact-us/` and take the redirect.
+
+### Display styles and category banners
+
+The panel's «سبک نمایش» (`style`: `style_1`…`style_4`, 2026-10-29) is on every home section, page
+block and category's banners (`banner_style`). `displayStyle()` (`features/display/display-style.ts`)
+reads anything unknown as `style_1`, which is the design the shop had before, so nothing changes
+until an operator picks another.
+
+- **`features/display/`** holds the designs the homepage, the page blocks and the categories share:
+  `PromoSlider` (classic; peek, the slide centred with its neighbours' edges in view; split, the
+  picture beside a panel of words; thumbnails, a client `ThumbnailSlider` with a progress bar and
+  a pause button), `PromoBanners` (grid by count; carousel; cards with words under the picture;
+  mosaic), the product styles (`ProductBand`, the «پیشنهاد شگفت‌انگیز» band; `ProductRankedList`),
+  the category styles (cards, chips, picture tiles), the post styles (grid, featured, compact list)
+  and `StyledRichText`. `toPromoItem()` maps a block item onto the home slide/banner shape, so one
+  component draws both.
+- **Even rows**: grids whose count is not known (`balanced-grid.ts`) set their columns through CSS
+  variables per breakpoint (`balancedGridVars(count, max)`), picking the column count that leaves
+  the last row fullest.
+- **Banners fitted whole** (`fit="contain"`) draw a blurred, decorative copy of the picture behind
+  it (`PromoImage`, `alt=""`, lazy) instead of grey bars.
+- **Category banners** (`CategoryDetail.banners`, `BlogCategoryDetail.banners`, detail endpoints
+  only): `CategoryBanners` under the category's head, above the product listing or the posts, in
+  the category's `banner_style` through `PromoBanners`; the first banner is the page's priority
+  image. A section named «بنرهای <category>».
+- **`/dev/styles/`** (`app/dev/styles/`, dev only like `/dev/ui/`) renders every home section, page
+  block and category banner set in its four styles from fixtures (`fixtures.ts`, SVG data URLs, no
+  API), in the running store's colours: the review page for these designs.
 
 ### Help centre, contact page and linker
 
@@ -1556,8 +1620,8 @@ on a real link's page).
 src/
   app/                     routes only; (shop)/ has the header+footer layout; (checkout)/ the
                            quiet frame of the purchase (logo, «خرید امن», back to the cart); _shell/ holds
-                           root-layout helpers (metadata, theme head); dev/ui is a dev-only showcase
-                           (404 in production); api/bff, api/v1/payment/…, robots.txt, s/[code],
+                           root-layout helpers (metadata, theme head); dev/ui and dev/styles are
+                           dev-only showcases (404 in production); api/bff, api/v1/payment/…, robots.txt, s/[code],
                            healthz
   features/<domain>/       server loaders (`api.ts`, server-only), components, hooks, utils
   components/ui/           design-system primitives (Button, Sheet, Dialog, Carousel, Price…)

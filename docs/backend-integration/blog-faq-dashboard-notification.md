@@ -14,6 +14,18 @@ Notes on the dev environment:
 
 ---
 
+## Update 2026-10-29 (backend `new-requests`; blog-api §4, §5)
+
+- `comment_count` / `question_count` (post detail and every post card) count **replies at any depth**, each in its
+  parent's kind, the shop's included; a reply under a declined or withdrawn comment is neither listed nor counted. The
+  list's `count` is still root threads. JSON-LD `commentCount` is `comment_count`, and `comment[]` (≤5) now holds the
+  same entries it counts (comments and their replies; no questions). Storefront: tab badges unchanged.
+- Blog category detail: `banner_style` (`style_1`…`style_4`) and `banners[]` (`{id, title, image, mobile_image, alt,
+  link}`; active, in order; `[]` for none; detail only). Storefront: `CategoryBanners` under the category's head, above
+  the posts, in the homepage banner styles.
+
+---
+
 ## 0. Cross-cutting contract (applies to every endpoint here)
 
 ### 0.1 Envelope
@@ -141,8 +153,8 @@ interface PostCard {          // schema: PostList
   image: string;              // 500x500 thumb or placeholder, never null
   author: PostAuthor | null;  // null if author deleted (FK SET_NULL)
   categories: CategoryLight[];// assignment order; may be []; may include a DRAFT category (its detail 404s)
-  comment_count: number;      // visible top-level entries of type comment
-  question_count: number;     // visible top-level entries of type question
+  comment_count: number;      // visible entries of type comment, replies included at any depth (2026-10-29)
+  question_count: number;     // visible questions with their answers
   view_count: number;
   is_in_reading_list: boolean;// viewer flag; always false for guests
   published_at: string | null;// first publication moment; default sort key
@@ -266,6 +278,9 @@ interface BlogCategoryDetail {
   description: string | null;   // plain text
   content: string | null;       // rich HTML (rendered usually below the post list); same URL absolutisation as post content
   image: string; icon: string;
+  banner_style: 'style_1' | 'style_2' | 'style_3' | 'style_4'; // 2026-10-29; unknown → style_1
+  banners: { id: number; title: string; image: string; mobile_image: string | null; alt: string;
+             link: { url: string; title: string } | null }[];   // 2026-10-29; [] for none
   breadcrumb: CategoryLight[];  // root→self, includes self
   page_title: string;           // SEO title or category name
   page_description: string; page_keywords: string;  // "" when unset
@@ -388,9 +403,9 @@ interface BlogPostingLD {
   dateModified: string;                // 'YYYY-MM-DD' from post.updated
   articleBody: string;                 // RAW post HTML (tags included, media URLs relative)
   author?: { '@type': 'Person'; name: string };            // only if post has author
-  commentCount?: number;               // only if comment_count > 0; = comment_count (top-level comments only)
+  commentCount?: number;               // only if comment_count > 0; = comment_count (replies included, 2026-10-29)
   comment?: { '@type': 'Comment'; author: { '@type': 'Person'; name: string }; datePublished: string; text: string }[];
-                                       // ≤5 visible entries of ANY kind (replies & questions included) — can exceed commentCount
+                                       // ≤5 of the entries commentCount counts (comments and their replies; no questions)
 }
 interface CollectionPageLD {
   '@context': 'https://schema.org'; '@type': 'CollectionPage';

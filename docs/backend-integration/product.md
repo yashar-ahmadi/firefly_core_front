@@ -9,6 +9,16 @@ active discounts or staff token in dev).
 
 ---------------------------------------------------------------------------------------------------------------------
 
+## Update 2026-10-29 (backend `new-requests`; product-api §4, §7, §9)
+
+| change | storefront |
+|---|---|
+| `GET /product/list/?has_timed_discount=true` lists only products whose card counts down: the representative variant's discount in force **ends** (a `TimedDiscount`, or a manual discount with an end). `false` lists the rest. Same `true/false/1/0` rule as the other booleans. | Listing param, a switch in the filter panel, chip «فقط پیشنهادهای شگفت‌انگیز», generic title «پیشنهادهای شگفت‌انگیز» (§6.4, §6.5). |
+| Category detail: `banner_style` (`style_1`…`style_4`, always present) and `banners[]` (`{id, title, image, mobile_image, alt, link}`; active, in order; `[]` for none; only on the detail, not the list). `image` never null and never resized; `mobile_image` null → `image`; `link` null → not a link. | `CategoryBanners` under the category's head, above the listing, in the homepage banner styles (grid, carousel, cards, mosaic). |
+| `comment_count` / `question_count` (PDP) count **replies at any depth**, the shop's included, none under a hidden parent. The comment list's `count` is still root threads. | Tab badges unchanged; the summary's «N دیدگاه» counts replies too. |
+
+---------------------------------------------------------------------------------------------------------------------
+
 ## 0. TL;DR: the 20 things that will bite you
 
 1. **Storefront routes are fixed by the backend** (sitemap, JSON-LD, menus, breadcrumbs, homepage links). You must
@@ -315,6 +325,8 @@ interface CategoryDetail {
   default_sorting: SortValue | null;
   consider_before_buying: ConsiderBeforeBuying | null; // only when text exists AND the "show on category page" flag is set
   question_answers: QuestionAnswer[];     // admin FAQ (may be [])
+  banner_style: 'style_1' | 'style_2' | 'style_3' | 'style_4'; // 2026-10-29; unknown → style_1
+  banners: CategoryBanner[];              // 2026-10-29; active, operator order; [] for none
   page_title: string;                     // falls back to name
   page_description: string;               // "" when unset → omit the meta tag
   page_keywords: string;                  // "" when unset
@@ -325,6 +337,11 @@ interface CategoryDetail {
 interface CategoryBreadcrumbNode { id: number; name: string; slug: string; path: string; parent_id: number | null }
 interface ConsiderBeforeBuying { title: string | null; text: string /* HTML */; button: string | null }
 interface QuestionAnswer { question: string; answer: string }
+interface CategoryBanner {                // one = a single banner, several = a group; the style picks the design
+  id: number; title: string /* "" = none */; image: string /* never null, not resized */;
+  mobile_image: string | null /* null → image */; alt: string /* "" = none */;
+  link: { url: string; title: string } | null /* null → no link */;
+}
 ```
 Products for the category: `GET /product/list/?category=<slug>` (includes every published descendant).
 
@@ -404,6 +421,7 @@ products group of search. It is **not** used for the main search page (that is `
 | `is_special` | bool | special (admin flag) or non-special only | ignored if invalid |
 | `special_first` | bool, default `true` | `true`: special products are pinned first under every sort. `false`: they are ranked like any other product. Homepage carousels send `false`. | invalid value keeps the pin |
 | `has_discount` | bool | uses the **default/representative variant's** active discount only. A product without variants counts as not discounted. | ignored if invalid |
+| `has_timed_discount` | bool (2026-10-29) | the representative variant's discount in force **ends** (`discount_end_time` non-null): exactly the cards with a countdown. `false`: every other product (no discount, an endless one, no variants). | ignored if invalid |
 | `sort` | `date-desc` (default), `date-asc`, `price-desc`, `price-asc`, `sale` | see 3.8.2 | **400 `invalid_choice`**, `attr: "sort"` **[V]** |
 | `page`, `limit` | int | default `limit` is `paginator_number`; max 100 | §1.3 |
 
@@ -554,8 +572,8 @@ interface ProductDetail {
   related_products: ProductCard[];   // card shape; [] when disabled
   consider_before_buying: ConsiderBeforeBuying | null; // product's own, else inherited from its first category
   question_answers: QuestionAnswer[];// admin FAQ (NOT user Q&A)
-  comment_count: number;             // visible ROOT reviews (comment_type=comment)
-  question_count: number;            // visible ROOT questions
+  comment_count: number;             // visible reviews, REPLIES INCLUDED at any depth (2026-10-29)
+  question_count: number;            // visible questions with their answers
   rating: number;                    // one decimal; 0 = none
   rating_count: number;
   rating_breakdown: { score: 5 | 4 | 3 | 2 | 1; count: number; percent: number }[]; // always 5 rows, 5→1; percents rounded (may sum to 99)
@@ -1107,7 +1125,8 @@ and **ignore the brand**.
 ### 6.4 Filter UI and URL state
 - Mirror every filter in the browser query string. **Reset `page=1` on every change.**
 - Allowed params, mapped 1:1 to the API: `search`, `category`, `brand` (comma list), `attribute_values` (comma ids),
-  `min_price`, `max_price`, `in_stock`, `is_special`, `has_discount`, `special_first`, `sort`, `page`, `limit`.
+  `min_price`, `max_price`, `in_stock`, `is_special`, `has_discount`, `has_timed_discount`, `special_first`, `sort`,
+  `page`, `limit`.
 - Booleans must be exactly `true`/`false` or `1`/`0`. Anything else is silently ignored.
 - Price slider: initialise from `filters.price.min` and `filters.price.max` (purchasable variants only).
 - The sort dropdown comes from `filters.sort_options`.
@@ -1117,7 +1136,8 @@ and **ignore the brand**.
 
 ### 6.5 Generic listing `/product/list/` (no slug)
 Forward the browser query string as is to `GET /api/v1/product/list/`. There is no title or SEO data from the API.
-Build the title yourself from the params, e.g. "تخفیف‌ها" for `has_discount=true`.
+Build the title yourself from the params, e.g. "تخفیف‌ها" for `has_discount=true`, «پیشنهادهای شگفت‌انگیز» for
+`has_timed_discount=true` (the home carousel source «محصولات با تخفیف زمان‌دار» links here).
 
 ### 6.6 Product list page `/product/list/<slug>/`
 Fetch:
@@ -1136,6 +1156,7 @@ storage and RAM facets, and no category chips.
 | Best-selling | `?sort=sale&limit=10` (add `special_first=false` for "true" best sellers) |
 | Special offers | `?is_special=true&limit=10` (special ≠ discounted) |
 | Discounted | `?has_discount=true&limit=10` |
+| Timed discounts (countdown) | `?has_timed_discount=true&limit=10` |
 | One category / list | `?category=…&limit=10` / `?list=…&limit=10` |
 
 Add `in_stock=true` to show buyable products only. Homepage carousels come from `GET /api/v1/homepage/` (content

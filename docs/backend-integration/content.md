@@ -22,6 +22,21 @@ Swagger tags: Pages, Menu, Home Page, Search, Linker, Contact Us (`/api/v1/schem
 
 ---------------------------------------------------------------------------------------------------------
 
+## Update 2026-10-29 (backend `new-requests`; content-api §2, §3, §5, §9)
+
+What changed in the API, and where the storefront handles it (the sections below are corrected in place):
+
+| change | storefront |
+|---|---|
+| **Page blocks**: `PageDetail.blocks` (13 keys each: `id, type, style, placement, title, subtitle, content, image, mobile_image, alt, video_url, link, items`; items 10 keys). 11 types: `slider, banners, gallery, cards, stats, testimonials, faq, video, call_to_action, rich_text, contact_info`. `placement` `before_content` (between the title and `content`) or `after_content` (default; before the comments). The API sends only blocks that can draw; unknown type → draw nothing. | `features/content/blocks/` (`PageBlocks`, one component per type, each in 4 styles, in a `@container`); the slider, banners and text reuse `features/display`. Video: Aparat/YouTube player loaded on press (the linker's sandbox), other URLs a link. `contact_info` reads the settings (`contactDetails`). |
+| **`style`** (`style_1`…`style_4`, the panel's «سبک نمایش») on every home section and page block; unknown → `style_1`. | `displayStyle()`; every home section and block has four designs (`/dev/styles/` shows them all). |
+| **`requires_login`** on `PageCard` (list, search) and `PageDetail`. Guest → `401 not_authenticated` («برای دیدن این صفحه وارد حساب کاربری خود شوید.»); a refused token → `401 token_not_valid`; the comment list/submit of such a page too. Listed for everyone; not in the sitemap. | `getPage` (§3.2): the anonymous 401 is remembered a minute; a session reads it uncached; else `/login/?next=/page/<slug>/`. noindex, «ویژهٔ اعضا» pill, comments read in the browser (BFF, session). Lock in the pages aside and search rows. |
+| **No `description`** on pages (list, detail). `page_description` = SEO description, else an excerpt of `content`, else `""`. | Removed everywhere (head, JSON-LD, contact page). |
+| `comment_count` / `question_count` count **replies at any depth** (each in its parent's kind), none under a hidden parent. The list's `count` is still root threads. | Tab badges unchanged (they read these); >0 still means a root thread shows. |
+| Home product-carousel source **«محصولات با تخفیف زمان‌دار»** → `listing_query {has_timed_discount:'true', in_stock:'true', special_first:'false'}`. | Forwarded unchanged; `/product/list/` reads `has_timed_discount` (title «پیشنهادهای شگفت‌انگیز»). |
+
+---------------------------------------------------------------------------------------------------------
+
 ## 0. TL;DR — the things that will bite you
 
 1. **All calls server-side only.** `FIREFLY_API_URL` / `FIREFLY_API_KEY` without `NEXT_PUBLIC_`; `lib/firefly.ts` starts with
@@ -163,21 +178,44 @@ export interface PageCard {                     // pages/list results + search `
   title: string;
   slug: string;                                 // never "list" (reserved in panel)
   url: string;                                  // "/page/{slug}/" storefront path
-  description: string | null;
+  requires_login: boolean;                      // signed-in visitors only (2026-10-29): lock in lists; guest → 401
 }
 export interface PageDetail extends PageCard {
   layout: PageLayout;
-  content: string | null;                       // trusted HTML
+  content: string | null;                       // trusted HTML; null for a page of blocks only
+  blocks: PageBlock[];                          // before_content first, then after_content, each in operator order
   enable_comments: boolean;                     // form open?
-  comment_count: number;                        // approved, not withdrawn, TOP-LEVEL, type=comment
-  question_count: number;                       // same, type=question
+  comment_count: number;                        // visible type=comment entries, REPLIES INCLUDED at any depth (2026-10-29)
+  question_count: number;                       // same, type=question (answers included)
   page_title: string;                           // never empty (falls back to title)
-  page_description: string;                     // SEO desc → description → "" (omit tag when "")
+  page_description: string;                     // SEO desc → excerpt of content → "" (omit tag when "")
   page_keywords: string;                        // "" when unset (omit tag)
   canonical_link: string | null;                // absolute URL; null → use own url on storefront host
   meta_tags: MetaTag[];
   is_unpublished: boolean;                      // true only in staff preview of a draft
   created: string; updated: string;
+}
+
+// ---------- page blocks (2026-10-29) ----------
+export type DisplayStyle = 'style_1' | 'style_2' | 'style_3' | 'style_4';   // unknown → style_1
+export interface PageBlockItem {                // every key always present; the type's unread keys are null
+  id: number; title: string | null; subtitle: string | null; description: string | null; value: string | null;
+  image: string | null; mobile_image: string | null; icon: string | null; alt: string | null;
+  link: { url: string; title: string } | null;
+}
+export interface PageBlock {
+  id: number;
+  type: 'slider' | 'banners' | 'gallery' | 'cards' | 'stats' | 'testimonials' | 'faq'
+      | 'video' | 'call_to_action' | 'rich_text' | 'contact_info';   // unknown → don't draw
+  style: DisplayStyle;
+  placement: 'before_content' | 'after_content';
+  title: string;                                // "" = none; call_to_action always has one
+  subtitle: string | null;                      // null for banners, rich_text
+  content: string | null;                       // rich_text only (trusted HTML)
+  image: string | null; mobile_image: string | null; alt: string | null;   // CTA background, video cover
+  video_url: string | null;                     // video only: https page URL (Aparat/YouTube page, not an embed)
+  link: { url: string; title: string } | null;  // CTA button (always) or slider/banners/cards see-all
+  items: PageBlockItem[] | null;                // null for item-less types; never [] for item types
 }
 
 // ---------- page comments ----------
@@ -291,7 +329,7 @@ export interface HomeItem {                     // a slide or a banner
   alt: string;                                  // may be ""
   link: HomeLink | null;                        // null → not clickable
 }
-interface SectionHead { id: number; title: string; subtitle: string; link: HomeLink | null }
+interface SectionHead { id: number; style: DisplayStyle; title: string; subtitle: string; link: HomeLink | null }
 type NoContent = { items: null; products: null; listing_query: null; categories: null; posts: null; content: null };
 export type HomeSection =
   | (SectionHead & Omit<NoContent, 'items'> & { type: 'slider'; items: HomeItem[] })
@@ -414,8 +452,15 @@ export type ErrorCode =
 - Draft preview: staff/superuser `Authorization` → draft returned with `is_unpublished: true`. Fetch with
   `cache: 'no-store'`, dynamic render, banner "پیش‌نویس — منتشر نشده", `robots: { index: false }`, keep behind staff login.
   Preview applies to the page only: comment list/submit of a draft are 404 even for staff.
-- Real example (dev): `about-us` → `layout: "default"`, `description: null`, `enable_comments: true`, `comment_count: 1`,
+- Real example (dev): `about-us` → `layout: "default"`, `enable_comments: true`, `comment_count: 1`,
   `page_description: ""`, `page_keywords: ""`, `canonical_link: null`, `meta_tags: []`.
+- **Login-only pages** (`requires_login`, 2026-10-29): guest → 401 `not_authenticated`; a refused token → 401
+  `token_not_valid` (never confuse with the key's 401 `api_key_missing`/`api_key_invalid`). Storefront: anonymous cached
+  read first (public pages stay cached); its 401 remembered a minute (`page-login-only:<slug>`); then the session's
+  `ff_at` read uncached; no session or a refused token → redirect `/login/?next=/page/<slug>/`. noindex; comment lists
+  read in the browser through the BFF (the anonymous server seed would 401).
+- **Blocks** (2026-10-29): drawn above (`before_content`) and below (`after_content`) the content; with blocks above,
+  or no content at all, the h1 heads the page instead of the article's card.
 
 **Layout** (operator picks one of three; it is a request, not HTML):
 | value | panel label | storefront |
@@ -429,7 +474,7 @@ export type ErrorCode =
 | field | where | when unset |
 |---|---|---|
 | `page_title` | `<title>` | page title (never empty) |
-| `page_description` | `meta description` | `description`, else `""` → omit key |
+| `page_description` | `meta description` | excerpt of `content` (30 words of the first paragraph), else `""` → omit key |
 | `page_keywords` | `meta keywords` | `""` → omit key |
 | `canonical_link` | `link rel=canonical` | `null` → `page.url` resolved on `metadataBase` (set `metadataBase` to storefront origin in root layout) |
 | `meta_tags[]` | one `<meta>` per row | `[]`; order preserved; duplicates allowed |
@@ -441,14 +486,15 @@ export type ErrorCode =
 - Root layout: `metadataBase: new URL(STOREFRONT_ORIGIN)`, a default string `title`.
 
 **Comments block on the page**: render if `enable_comments || comment_count + question_count > 0`. Form only when
-`enable_comments`. Tab counters = `comment_count` / `question_count` (top-level only). Old approved comments stay visible
+`enable_comments`. Tab counters = `comment_count` / `question_count` (replies included since 2026-10-29). Old approved comments stay visible
 after the operator closes the form (dev: `about-us` historically; guide example).
 
 **Contact form under `/page/contact-us/`** (optional): when `page.slug === 'contact-us'`, also fetch subjects and render
 `<ContactForm>` below the content (alternative to a dedicated `/contact/` route).
 
-**Panel facts** (`panel-pages-home` §2): fields title (≤200), layout, enable_comments (default off), description,
-content (WYSIWYG with images), slug (auto from title, unique, **`list` reserved** — panel refuses it), status
+**Panel facts** (`panel-pages-home` §2): fields title (≤200), layout, enable_comments (default off), requires_login
+(«فقط برای کاربران واردشده», 2026-10-29), content (WYSIWYG with images; optional: a page may be blocks only), blocks
+(inline + their own admin, «بلوک‌های صفحات»: type, style, placement, order, active, type-dependent fields and items), slug (auto from title, unique, **`list` reserved** — panel refuses it), status
 (draft default / published), SEO title/description/keywords/canonical, meta tags tab (field/value rows). Pages are NOT
 auto-added to menus (operator adds a menu item). Changing a published slug breaks old URLs (menus follow automatically;
 redirects are a separate panel feature). Deleting a page deletes its comments; menu items pointing to it become
@@ -594,8 +640,13 @@ No params, no pagination, never 404 (unconfigured store → 200 with empty SEO s
 Fetch **without** `Authorization` (shared cache, `revalidate: 60`); throw on failure so ISR keeps last good version.
 
 ### 6.1 Section envelope (all types)
-- 11 keys: `id, type, title, subtitle, link, items, products, listing_query, categories, posts, content`; unused content
-  keys are `null` (never `[]`/`""`). Verified live for all 11 sections in dev.
+- 12 keys: `id, type, style, title, subtitle, link, items, products, listing_query, categories, posts, content`; unused
+  content keys are `null` (never `[]`/`""`). Verified live for all 11 sections in dev.
+- `style` (2026-10-29): `style_1`…`style_4`, the operator's «سبک نمایش» (default `style_1`); the numbering is shared, the
+  designs per type; unknown → `style_1`. Storefront designs: slider (classic, peek, split, thumbnails), banner group
+  (grid, carousel, cards, mosaic), product carousel (rail, grid, «پیشنهاد شگفت‌انگیز» band, ranked list), category grid
+  (round, cards, chips, picture tiles), post carousel (carousel, grid, featured + list, compact list), rich text (card,
+  plain, tinted panel, centred).
 - Order = operator `display_order` ascending (ties: creation order). Don't assume count/order.
 - `title`/`subtitle`: `""` → don't render (≤200 chars each).
 - Section `link` = operator "see all" `{url, title}` or `null`. `title` may be `""` → storefront label "مشاهدهٔ همه".
@@ -655,6 +706,7 @@ Result: never render skeletons or "no products" placeholders for missing section
   | newest | `{sort:'date-desc', in_stock:'true', special_first:'false'}` |
   | best_selling | `{sort:'sale', in_stock:'true', special_first:'false'}` |
   | discounted | `{has_discount:'true', in_stock:'true', special_first:'false'}` |
+  | timed_discount (2026-10-29) | `{has_timed_discount:'true', in_stock:'true', special_first:'false'}` |
   | category | `{category:'<slug>', [sort:'<category.default_sorting>'], in_stock:'true', special_first:'false'}` |
   | brand | `{brand:'<slug>', in_stock:'true', special_first:'false'}` |
   | product_list | `{list:'<slug>', [sort:'<list.default_sorting>'], in_stock:'true', special_first:'false'}` |
@@ -702,7 +754,7 @@ Result: never render skeletons or "no products" placeholders for missing section
 Dev: title «فایرفلای | فروشگاه اینترنتی کالای اصل», description + keywords set, `meta_tags: []`.
 
 ### 6.10 Panel options per section (exhaustive — nothing else exists)
-Common: type (6), title/subtitle (≤200), see-all URL + title, display_order (required int), active, starts_at/ends_at
+Common: type (6), style («سبک نمایش», style_1–4, 2026-10-29), title/subtitle (≤200), see-all URL + title, display_order (required int), active, starts_at/ends_at
 (end > start; Jalali picker), item_limit (only carousels & grid; 1–24; default 10). Slider/banner items: image
 (required), mobile_image, alt (≤200), title (≤200), description, text_color (colorfield hex, blank = default),
 link_url (≤500, path or http(s)) + link_title (≤100), display_order, active. Product carousel: product_source + one of

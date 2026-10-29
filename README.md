@@ -35,7 +35,8 @@ pnpm dev             # http://localhost:3000
 بدون `.env` هم کار می‌کند: در حالت توسعه `FIREFLY_API_URL` پیش‌فرض `http://localhost:8000` و `SITE_URL`
 پیش‌فرض `http://localhost:3000` است. برای امتحان نوع دیگری از فروشگاه مثلاً `STORE_PRESET=carpet` را در
 `.env` بگذارید. `pnpm build` به بک‌اند نیاز ندارد. نمایش اجزای رابط کاربری در حالت توسعه:
-`http://localhost:3000/dev/ui/`.
+`http://localhost:3000/dev/ui/`؛ و هر چهار «سبک نمایش» بخش‌های صفحهٔ اصلی، بلوک‌های صفحه و بنرهای
+دسته‌بندی کنار هم: `http://localhost:3000/dev/styles/`.
 
 ## شروع سریع (تولید)
 
@@ -60,7 +61,8 @@ curl -i http://127.0.0.1:3000/healthz/   # ۲۰۰ وقتی متغیرها درس
 ## نوع فروشگاه (preset)
 
 ظاهر هر فروشگاه از یک preset می‌آید که با `STORE_PRESET` در زمان اجرا انتخاب می‌شود (ساخت دوباره لازم
-نیست)، و رنگ‌ها و گردی گوشه‌هایش را می‌توان با `THEME_PRIMARY`، `THEME_ACCENT` و `THEME_RADIUS` عوض کرد:
+نیست)، و رنگ‌ها و گردی گوشه‌هایش را می‌توان با `THEME_PRIMARY`، `THEME_ACCENT` و `THEME_RADIUS` عوض کرد.
+رنگ اصلی و ثانویه‌ای که اپراتور در پنل («رنگ‌بندی قالب») انتخاب کند بر این‌ها مقدم است:
 
 | preset      | مناسب برای               | رنگ‌ها             |
 | ----------- | ------------------------ | ------------------ |
@@ -118,7 +120,8 @@ curl -i http://127.0.0.1:3000/healthz/   # ۲۰۰ وقتی متغیرها درس
 - [راهنمای سفارشی‌سازی](docs/CUSTOMIZATION.md): نوع فروشگاه، رنگ و فونت، آنچه از پنل می‌آید، کلیدهای ترجمه
 - [Architecture](docs/ARCHITECTURE.md) (انگلیسی): لایه‌ها، BFF، کوکی‌ها، کش، قواعد رندر، ساختار پوشه‌ها
 - [مشکلات بک‌اند](docs/BACKEND-ISSUES.md): گزارش (فقط گزارش؛ کد بک‌اند تغییر نکرده) با سطح، محل و راه‌حل
-  سمت فروشگاه، و ردپای آزمون‌ها در پایگاه دادهٔ توسعه
+  سمت فروشگاه، و ردپای آزمون‌ها در پایگاه دادهٔ توسعه؛ و [مشکلات دور درخواست‌های ۲۰۲۶-۱۰-۲۹](docs/BACKEND-ISSUES-2026-10-29.md)
+  (سبک نمایش، بلوک‌های صفحه، صفحهٔ ویژهٔ اعضا، بنر دسته، رنگ و تلفن فروش، پیشنهاد شگفت‌انگیز)
 - [خلاصهٔ APIها](docs/backend-integration/)، [طراحی](docs/superpowers/specs/2026-10-15-storefront-design.md) و
   [برنامه‌های اجرا](docs/superpowers/plans/)
 - راهنماهای گام‌به‌گام استقرار (HTML): [اوبونتو](docs/deploy-ubuntu.html) و [Dokploy](docs/deploy-dokploy.html)
@@ -152,7 +155,8 @@ Six presets (`STORE_PRESET`: default, digital, agro, boardgame, carpet, paint) s
 runtime; CUSTOMIZATION shows each on a phone and a desktop with its WCAG AA contrast table.
 
 Docs: [DEPLOYMENT.md](docs/DEPLOYMENT.md), [CUSTOMIZATION.md](docs/CUSTOMIZATION.md) and
-[BACKEND-ISSUES.md](docs/BACKEND-ISSUES.md) (Persian), [ARCHITECTURE.md](docs/ARCHITECTURE.md)
+[BACKEND-ISSUES.md](docs/BACKEND-ISSUES.md) with [BACKEND-ISSUES-2026-10-29.md](docs/BACKEND-ISSUES-2026-10-29.md)
+(Persian), [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 (English). Step-by-step deployment guides (Persian, HTML): [Ubuntu](docs/deploy-ubuntu.html), with
 `deploy/ubuntu/firefly.sh` for blue/green deploys, rollback and per-shop nginx config, and
 [Dokploy](docs/deploy-dokploy.html), with Traefik middlewares in `deploy/dokploy/`.
