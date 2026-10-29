@@ -2,6 +2,8 @@ import { screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ContentPageRoute from '@/app/(shop)/page/[slug]/page'
 import { clearMissing } from '@/features/catalog/loaders/missing'
+import { ApiError } from '@/lib/api/errors'
+import type { PageBlock } from '@/lib/api/types/page'
 import { renderTree, thrown } from '../blog/page-support'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { answerPages, readsOf, type PageApi } from './page-api-mock'
@@ -27,13 +29,20 @@ vi.mock('next/navigation', () => ({
   notFound: () => {
     throw new Error('NEXT_NOT_FOUND')
   },
+  redirect: (to: string) => {
+    throw new Error(`NEXT_REDIRECT ${to}`)
+  },
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 vi.mock('@/lib/api/server', () => ({ apiFetch: mocks.apiFetch }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: vi.fn(() => new Promise(() => {})) }))
 vi.mock('@/features/settings/api', () => ({
   getTranslations: async () => ({}),
-  getSiteSettings: async () => ({ name: 'فایرفلای' }),
+  getSiteSettings: async () => ({
+    name: 'فایرفلای',
+    phone: '+982191000000',
+    sales_phone: '+982191000100',
+  }),
 }))
 vi.mock('@/config/env', async () => {
   const { parseServerEnv } = await import('@/config/env-schema')
@@ -86,6 +95,20 @@ describe('a content page’s layout', () => {
     const [[, options]] = readsOf(mocks.apiFetch, 'pages/list')
     expect(options).toMatchObject({ query: { limit: 100 }, revalidate: 300 })
     expect(options).not.toHaveProperty('token')
+  })
+
+  it('with_sidebar: a page for signed-in visitors only has a lock named «ویژهٔ اعضا»', async () => {
+    const list = [
+      { id: 4, title: 'باشگاه', slug: 'club', url: '/page/club/', requires_login: true },
+      { id: 3, title: 'قوانین', slug: 'terms', url: '/page/terms/', requires_login: false },
+    ]
+    await show({ page: pageFixture({ layout: 'with_sidebar' }), list })
+    const aside = screen.getByRole('complementary', { name: 'صفحه\u{200C}های دیگر' })
+    const club = within(aside).getByRole('link', { name: /باشگاه/ })
+    expect(within(club).getByRole('img', { name: 'ویژه\u{0654} اعضا' })).toBeInTheDocument()
+    expect(
+      within(within(aside).getByRole('link', { name: /قوانین/ })).queryByRole('img'),
+    ).toBeNull()
   })
 
   it('default: one readable column, no aside, no list read', async () => {
@@ -238,5 +261,126 @@ describe('a staff preview of a draft', () => {
       [null, 300, null],
       ['aaa.bbb.ccc', null, '5.6.7.8'],
     ])
+  })
+})
+
+describe('a page for signed-in visitors only', () => {
+  const members = pageFixture({ requires_login: true, title: 'باشگاه مشتریان', slug: 'club' })
+
+  it('sends a guest to login and back, with no token read and nothing rendered', async () => {
+    const error = await thrown(show({ page: null, loginOnly: true }, 'club'))
+    expect(error).toHaveProperty('message', 'NEXT_REDIRECT /login/?next=/page/club/')
+    expect(readsOf(mocks.apiFetch, 'pages/club').map(([, o]) => o.token ?? null)).toEqual([null])
+  })
+
+  it('remembers the 401 a minute: a second guest costs no API call', async () => {
+    await thrown(show({ page: null, loginOnly: true }, 'club'))
+    mocks.apiFetch.mockClear()
+    await thrown(show({ page: null, loginOnly: true }, 'club'))
+    expect(readsOf(mocks.apiFetch, 'pages/')).toEqual([])
+  })
+
+  it('reads it again with a signed-in visitor’s token, uncached, with the members’ pill', async () => {
+    mocks.cookies.set('ff_at', 'aaa.bbb.ccc')
+    await show({ page: null, loginOnly: true, memberPage: members }, 'club')
+    expect(screen.getByRole('heading', { level: 1, name: 'باشگاه مشتریان' })).toBeInTheDocument()
+    expect(screen.getByText('ویژه\u{0654} اعضا')).toBeInTheDocument()
+    const reads = readsOf(mocks.apiFetch, 'pages/club').map(([, options]) => [
+      options.token ?? null,
+      options.revalidate ?? null,
+    ])
+    expect(reads).toEqual([
+      [null, 300],
+      ['aaa.bbb.ccc', null],
+    ])
+    // Its comments are read in the browser, with the session: no anonymous server read.
+    expect(readsOf(mocks.apiFetch, 'pages/club/comment')).toEqual([])
+  })
+
+  it('sends a visitor whose token the API refuses to login', async () => {
+    mocks.cookies.set('ff_at', 'aaa.bbb.ccc')
+    const error = await thrown(show({ page: null, loginOnly: true, memberPage: 'refused' }, 'club'))
+    expect(error).toHaveProperty('message', 'NEXT_REDIRECT /login/?next=/page/club/')
+  })
+
+  it('is a 404 when the token read finds no page (deleted meanwhile)', async () => {
+    mocks.cookies.set('ff_at', 'aaa.bbb.ccc')
+    const error = await thrown(show({ page: null, loginOnly: true, memberPage: null }, 'club'))
+    expect(error).toHaveProperty('message', 'NEXT_NOT_FOUND')
+  })
+
+  it('a refused API key is a fault, never a login: the error page', async () => {
+    mocks.apiFetch.mockRejectedValue(
+      new ApiError({ status: 401, code: 'api_key_invalid', detail: 'کلید نامعتبر است.' }),
+    )
+    const error = await thrown(ContentPageRoute({ params: Promise.resolve({ slug: 'club' }) }))
+    expect(error).toBeInstanceOf(ApiError)
+  })
+})
+
+describe('a content page’s blocks', () => {
+  const block = (overrides: Partial<PageBlock>): PageBlock => ({
+    id: 1,
+    type: 'rich_text',
+    style: 'style_1',
+    placement: 'after_content',
+    title: '',
+    subtitle: null,
+    content: null,
+    image: null,
+    mobile_image: null,
+    alt: null,
+    video_url: null,
+    link: null,
+    items: null,
+    ...overrides,
+  })
+
+  it('draws the blocks above and below the content, the title heading the page', async () => {
+    await show({
+      page: pageFixture({
+        blocks: [
+          block({ id: 1, placement: 'before_content', title: 'بالای متن', content: '<p>یک</p>' }),
+          block({ id: 2, title: 'پایین متن', content: '<p>دو</p>' }),
+        ],
+      }),
+    })
+    const [above, below] = ['بالای متن', 'پایین متن'].map((name) =>
+      screen.getByRole('heading', { level: 2, name }).closest('[data-block]')!,
+    )
+    const text = document.querySelector('article .rich-content')!
+    expect(above.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(text.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // With blocks above the text, the title heads the page, outside the article.
+    const title = screen.getByRole('heading', { level: 1, name: 'درباره ما' })
+    expect(title.closest('article')).toBeNull()
+  })
+
+  it('a page of blocks only (no content) has its title and blocks, no empty article', async () => {
+    await show({
+      page: pageFixture({
+        content: null,
+        blocks: [block({ title: 'متن', content: '<p>تنها بلوک</p>' })],
+      }),
+    })
+    expect(screen.getByRole('heading', { level: 1, name: 'درباره ما' })).toBeInTheDocument()
+    expect(screen.queryByRole('article', { name: 'درباره ما' })).toBeNull()
+    expect(screen.getByText('تنها بلوک')).toBeInTheDocument()
+  })
+
+  it('skips a block of a type this storefront does not know', async () => {
+    await show({
+      page: pageFixture({ blocks: [block({ type: 'countdown', title: 'شمارنده' })] }),
+    })
+    expect(screen.queryByText('شمارنده')).toBeNull()
+  })
+
+  it('fills the contact block from the settings: support and sales lines', async () => {
+    await show({
+      page: pageFixture({ blocks: [block({ type: 'contact_info', title: 'راه‌های ارتباط' })] }),
+    })
+    const region = screen.getByRole('region', { name: 'راه‌های ارتباط' })
+    expect(within(region).getByRole('link', { name: '۰۲۱ ۹۱۰۰ ۰۰۰۰' })).toBeInTheDocument()
+    expect(within(region).getByRole('link', { name: '۰۲۱ ۹۱۰۰ ۰۱۰۰' })).toBeInTheDocument()
   })
 })

@@ -6,6 +6,17 @@ const APARAT_PATH = /^\/v\/([A-Za-z0-9]+)(?:\/.*)?$/
 /** A YouTube video id. */
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/
 
+/**
+ * The player's sandbox: its scripts and its own origin (it needs both to play), fullscreen and
+ * the links it opens (the provider's page in a new tab), nothing more: no top navigation, forms
+ * or downloads.
+ */
+export const PLAYER_SANDBOX = 'allow-scripts allow-same-origin allow-presentation allow-popups'
+
+/** What a player iframe may use. */
+export const PLAYER_ALLOW =
+  'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
+
 const APARAT_HOSTS = new Set(['aparat.com', 'www.aparat.com'])
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com'])
 

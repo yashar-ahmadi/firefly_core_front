@@ -182,6 +182,50 @@ describe('the contact page', () => {
     expect(info.queryByRole('link', { name: /پشتیبانی/ })).toBeNull()
   })
 
+  it('draws the page’s blocks: the contact block in the side card’s place, the call below', async () => {
+    const block = {
+      subtitle: null,
+      content: null,
+      image: null,
+      mobile_image: null,
+      alt: null,
+      video_url: null,
+      items: null,
+    }
+    await show({
+      page: pageFixture({
+        ...CONTACT_PAGE,
+        blocks: [
+          {
+            ...block,
+            id: 10006,
+            type: 'contact_info',
+            style: 'style_2',
+            placement: 'before_content',
+            title: 'راه‌های ارتباط با ما',
+            link: null,
+          },
+          {
+            ...block,
+            id: 10007,
+            type: 'call_to_action',
+            style: 'style_2',
+            placement: 'after_content',
+            title: 'پیش از ثبت سفارش، قوانین را بخوانید',
+            alt: '',
+            link: { url: '/page/terms/', title: 'قوانین و مقررات' },
+          },
+        ],
+      }),
+    })
+    const details = screen.getByRole('region', { name: 'راه‌های ارتباط با ما' })
+    expect(within(details).getByRole('link', { name: '۰۲۱ ۹۱۰۰ ۰۰۰۰' })).toBeInTheDocument()
+    // Shown once: the side card is left out while the block shows them.
+    expect(screen.queryByRole('region', { name: 'راه\u{200C}های ارتباطی' })).toBeNull()
+    const call = screen.getByRole('link', { name: 'قوانین و مقررات' })
+    expect(form().compareDocumentPosition(call) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('throws when the subjects cannot be read (the error page)', async () => {
     mocks.apiFetch.mockImplementation((path: string) =>
       path === 'contact-us/subject/list'

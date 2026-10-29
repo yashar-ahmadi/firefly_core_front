@@ -1,4 +1,4 @@
-import { FileText } from 'lucide-react'
+import { FileText, LockKeyhole } from 'lucide-react'
 import Link from 'next/link'
 import { contentPagePath } from '@/features/content/pages/page-routes'
 import type { PageCard } from '@/lib/api/types/page'
@@ -14,7 +14,8 @@ export function otherPages(pages: readonly PageCard[], current: string): PageCar
 /**
  * The `with_sidebar` layout's aside (content digest §3.2: its content is the storefront's
  * choice; the guide's is the other pages): «صفحه‌های دیگر», as plain links (a page counts no
- * views: prefetching is harmless). Beside the content from lg, sticky; below it on phones.
+ * views: prefetching is harmless), a page for signed-in visitors only marked with a lock
+ * («ویژهٔ اعضا» for screen readers). Beside the content from lg, sticky; below it on phones.
  * Nothing when there is no other page (or the list could not be read).
  */
 export function PagesAside({ pages }: { pages: readonly PageCard[] }) {
@@ -35,9 +36,16 @@ export function PagesAside({ pages }: { pages: readonly PageCard[] }) {
               className="flex min-h-11 items-center gap-2 rounded-control px-2 py-2.5 text-base leading-6 text-ink-700 transition-colors duration-150 hover:bg-ink-50 hover:text-ink-900"
             >
               <FileText aria-hidden className="size-5 shrink-0 text-brand-700" />
-              <span dir="auto" className="min-w-0">
+              <span dir="auto" className="min-w-0 flex-1">
                 {page.title}
               </span>
+              {page.requires_login && (
+                <LockKeyhole
+                  role="img"
+                  aria-label={'ویژه\u{0654} اعضا'}
+                  className="size-4 shrink-0 text-ink-500"
+                />
+              )}
             </Link>
           </li>
         ))}

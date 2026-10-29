@@ -24,24 +24,26 @@ export function contentPageTitle(page: Pick<PageDetail, 'page_title' | 'title'>,
 /**
  * The page's head (`pageMetadata`: keys without a value left out, never `undefined`):
  * - title: `contentPageTitle`;
- * - description: `page_description`, else `description`, else none (the layout's stays);
+ * - description: `page_description` (the SEO description, else an excerpt of the content), else
+ *   none (the layout's stays);
  * - keywords only when set;
  * - canonical (and `og:url`): `canonical_link`, else the page's own `/page/<slug>/`;
  * - Open Graph `website` and Twitter, unless the operator wrote that field as a meta row;
  * - the operator's `name=` meta rows through `other` (repeats kept, in order); the `property=`
  *   ones (`og:`, `article:`…) the page renders itself (`propertyMetaTags`);
- * - a staff preview of a draft: `noindex, nofollow`.
+ * - a staff preview of a draft, and a page for signed-in visitors only: `noindex, nofollow`.
  */
 export function contentPageMetadata(page: PageDetail, shop: string, siteUrl: string): Metadata {
   return pageMetadata({
     title: contentPageTitle(page, shop),
-    description: page.page_description || page.description,
+    description: page.page_description,
     keywords: page.page_keywords,
     canonical: canonicalFor(page.canonical_link, contentPagePath(page.slug), siteUrl),
     siteName: shop,
     card: 'summary',
     metaTags: page.meta_tags,
-    robots: page.is_unpublished ? { index: false, follow: false } : null,
+    // A draft's preview, and a page for signed-in visitors only (no crawler has an account).
+    robots: page.is_unpublished || page.requires_login ? { index: false, follow: false } : null,
   })
 }
 
@@ -64,7 +66,7 @@ export function contentPageJsonLd(
       type: page.slug === ABOUT_SLUG ? 'AboutPage' : 'WebPage',
       name: page.title,
       path,
-      description: page.page_description || page.description,
+      description: page.page_description,
       siteUrl,
     }),
     trailBreadcrumb([{ name: page.title, path }], siteUrl, 'خانه'),

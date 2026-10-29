@@ -40,8 +40,8 @@ describe('contentPageJsonLd', () => {
     expect(jsonLdString(node!)).not.toContain('</script>')
   })
 
-  it('the description falls back as the head’s does: page_description, else description', () => {
-    const [node] = contentPageJsonLd(pageFixture({ description: 'دربارهٔ فروشگاه' }), SITE)
+  it('the description is the head’s: page_description', () => {
+    const [node] = contentPageJsonLd(pageFixture({ page_description: 'دربارهٔ فروشگاه' }), SITE)
     expect(node).toMatchObject({ description: 'دربارهٔ فروشگاه' })
   })
 })

@@ -1,17 +1,23 @@
+import { LockKeyhole } from 'lucide-react'
 import { Suspense } from 'react'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
+import { contactDetails } from '@/components/layout/contact-block'
 import { CONTAINER } from '@/components/layout/container'
 import { PreviewBar } from '@/components/layout/preview-bar'
 import { cn } from '@/components/ui/cn'
 import { SeededComments } from '@/features/comments/seeded-comments'
-import { CommentPlaceholders } from '@/features/comments/subject-comment-list'
+import { CommentPlaceholders, SubjectCommentList } from '@/features/comments/subject-comment-list'
+import { blocksAt } from '@/features/content/blocks/blocks'
+import { PageBlocks } from '@/features/content/blocks/page-blocks'
 import { richContentHtml } from '@/features/content/rich-content'
 import { getPageCards } from '@/features/content/pages/api'
 import { RichContentBody } from '@/features/content/rich-content-body'
 import { JsonLd } from '@/features/seo/json-ld'
 import { propertyMetaTags } from '@/features/seo/page-metadata'
+import { getSiteSettings, getTranslations } from '@/features/settings/api'
 import type { PageDetail, PageLayout } from '@/lib/api/types/page'
 import { PAGE_TITLE_ID } from '@/lib/html/reserved-ids'
+import { createTranslator } from '@/lib/i18n/translator'
 import { PageComments } from './page-comments'
 import { commentsShown, pageLayout } from './page-routes'
 import { otherPages, PagesAside } from './pages-aside'
@@ -27,6 +33,21 @@ const FRAMES: Record<PageLayout, string> = {
   with_sidebar: 'grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:gap-8',
 }
 
+const TITLE = 'text-2xl leading-10 font-bold text-ink-900 md:text-3xl md:leading-[3rem]'
+
+/** «ویژهٔ اعضا»: a page for signed-in visitors only (`requires_login`). */
+export const MEMBERS_ONLY = 'ویژه\u{0654} اعضا'
+
+/** The pill under the title of a page for signed-in visitors only. */
+function MembersOnly() {
+  return (
+    <p className="inline-flex items-center gap-1.5 self-start rounded-pill bg-brand-50 px-3 py-1 text-sm font-medium text-brand-800 ring-1 ring-brand-100">
+      <LockKeyhole aria-hidden className="size-4" />
+      {MEMBERS_ONLY}
+    </p>
+  )
+}
+
 export interface ContentPageProps {
   page: PageDetail
   /** The page's JSON-LD (`contentPageJsonLd`). */
@@ -34,23 +55,39 @@ export interface ContentPageProps {
 }
 
 /**
- * A content page (content digest §3.2): the operator's `property=` meta rows (Open Graph needs
- * `property`, which Next's metadata cannot write: React hoists these into <head>), its JSON-LD,
- * the staff preview's bar, the trail, then the layout's frame (`data-layout`): the article (its
- * title, the page's one h1; the content, sanitised: `/media` on the API, shop links routed in the
- * browser, a post's never prefetched), the comments block when it shows (`commentsShown`), and
- * the `with_sidebar` aside (the other pages: the list is read for that layout only, cached like
- * the pages). Server-rendered; the comments' first page streams in its own `<Suspense>`.
+ * A content page (content digest §2, §3.2): the operator's `property=` meta rows (Open Graph
+ * needs `property`, which Next's metadata cannot write: React hoists these into <head>), its
+ * JSON-LD, the staff preview's bar, the trail, then the layout's frame (`data-layout`): the
+ * title (the page's one h1, with «ویژهٔ اعضا» on a page for signed-in visitors only), the
+ * blocks placed above the content (`before_content`), the article (the content, sanitised:
+ * `/media` on the API, shop links routed in the browser, a post's never prefetched), the blocks
+ * placed below it, the comments block when it shows (`commentsShown`), and the `with_sidebar`
+ * aside (the other pages: the list is read for that layout only, cached like the pages).
+ *
+ * The title sits on the article's card when the article comes first; with blocks above it, or
+ * no content at all (a page of blocks), it heads the page on its own. Blocks follow the layout's
+ * column. Server-rendered; the comments' first page streams in its own `<Suspense>`, except on
+ * a page for signed-in visitors only, whose lists answer a guest 401: the browser reads them
+ * with the visitor's session.
  */
 export async function ContentPage({ page, jsonLd }: ContentPageProps) {
   const layout = pageLayout(page.layout)
-  const others = layout === 'with_sidebar' ? otherPages(await getPageCards(), page.slug) : []
+  const [cards, settings, translations] = await Promise.all([
+    layout === 'with_sidebar' ? getPageCards() : [],
+    getSiteSettings(),
+    getTranslations(),
+  ])
+  const others = otherPages(cards, page.slug)
+  const t = createTranslator(translations)
   // `full_width`: each picture outside a link is a focusable scroll region, as tables are.
   const html = page.content
     ? richContentHtml(page.content, { wideImages: layout === 'full_width' })
     : null
   const comments = commentsShown(page)
   const head = layout === 'default' ? FRAMES.default : undefined
+  const titleOnCard = html !== null && blocksAt(page.blocks, 'before_content').length === 0
+  const blocks = { blocks: page.blocks, contact: contactDetails(settings), t }
+  const membersOnly = page.requires_login === true
 
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
@@ -64,18 +101,28 @@ export async function ContentPage({ page, jsonLd }: ContentPageProps) {
       <Breadcrumbs items={[{ name: page.title }]} className={cn('mb-2', head)} />
       <div data-layout={layout} className={FRAMES[layout]}>
         <div className="flex min-w-0 flex-col gap-8 md:gap-10">
-          <article
-            aria-labelledby={PAGE_TITLE_ID}
-            className="min-w-0 rounded-card bg-white p-4 shadow-card md:p-8"
-          >
-            <h1
-              id={PAGE_TITLE_ID}
-              dir="auto"
-              className="mb-4 text-2xl leading-10 font-bold text-ink-900 md:mb-6 md:text-3xl md:leading-[3rem]"
+          {!titleOnCard && (
+            <header className="-mb-2 flex flex-col gap-2 md:-mb-4">
+              <h1 id={PAGE_TITLE_ID} dir="auto" className={TITLE}>
+                {page.title}
+              </h1>
+              {membersOnly && <MembersOnly />}
+            </header>
+          )}
+          <PageBlocks placement="before_content" {...blocks} />
+          {html && (
+            <article
+              aria-labelledby={PAGE_TITLE_ID}
+              className="min-w-0 rounded-card bg-white p-4 shadow-card md:p-8"
             >
-              {page.title}
-            </h1>
-            {html ? (
+              {titleOnCard && (
+                <div className="mb-4 flex flex-col gap-2 md:mb-6">
+                  <h1 id={PAGE_TITLE_ID} dir="auto" className={TITLE}>
+                    {page.title}
+                  </h1>
+                  {membersOnly && <MembersOnly />}
+                </div>
+              )}
               <RichContentBody
                 html={html}
                 className={cn(
@@ -83,12 +130,9 @@ export async function ContentPage({ page, jsonLd }: ContentPageProps) {
                   layout === 'full_width' && 'rich-content-wide',
                 )}
               />
-            ) : (
-              page.description && (
-                <p className="text-base leading-8 text-ink-800">{page.description}</p>
-              )
-            )}
-          </article>
+            </article>
+          )}
+          <PageBlocks placement="after_content" {...blocks} />
           {comments && (
             <PageComments
               slug={page.slug}
@@ -96,14 +140,22 @@ export async function ContentPage({ page, jsonLd }: ContentPageProps) {
               commentCount={page.comment_count}
               questionCount={page.question_count}
             >
-              <Suspense
-                fallback={<CommentPlaceholders type="comment" count={page.comment_count} />}
-              >
-                <SeededComments
+              {membersOnly ? (
+                <SubjectCommentList
                   subject={{ kind: 'page', slug: page.slug }}
+                  type="comment"
                   count={page.comment_count}
                 />
-              </Suspense>
+              ) : (
+                <Suspense
+                  fallback={<CommentPlaceholders type="comment" count={page.comment_count} />}
+                >
+                  <SeededComments
+                    subject={{ kind: 'page', slug: page.slug }}
+                    count={page.comment_count}
+                  />
+                </Suspense>
+              )}
             </PageComments>
           )}
           {page.is_unpublished && (page.enable_comments || page.comment_count > 0) && (

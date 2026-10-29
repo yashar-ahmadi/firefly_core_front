@@ -1,4 +1,4 @@
-import { FileText } from 'lucide-react'
+import { FileText, LockKeyhole } from 'lucide-react'
 import { CategoryThumb } from '@/components/layout/category-thumb'
 import { toCardProduct } from '@/features/catalog/card-product'
 import { ProductGrid } from '@/features/catalog/components/product-grid'
@@ -61,13 +61,20 @@ function compactItems(results: Results, kind: Exclude<ResultKind, 'products'>): 
         // counter; docs/ARCHITECTURE.md, «Content pages»): prefetched as any shop link.
         href: contentPagePath(page.slug),
         name: page.title,
-        description: page.description,
+        // A page for signed-in visitors only (content digest §2): it sends a guest to login.
+        description: page.requires_login
+          ? 'ویژه\u{0654} اعضا؛ با ورود به حساب باز می\u{200C}شود'
+          : null,
         thumb: (
           <span
             aria-hidden
             className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-700"
           >
-            <FileText className="size-5" />
+            {page.requires_login ? (
+              <LockKeyhole className="size-5" />
+            ) : (
+              <FileText className="size-5" />
+            )}
           </span>
         ),
       }))

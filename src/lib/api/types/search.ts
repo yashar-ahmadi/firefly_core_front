@@ -11,7 +11,11 @@ export interface PageCard {
   slug: string
   /** "/page/{slug}/". */
   url: string
-  description: string | null
+  /**
+   * Only a signed-in visitor sees the page (content digest §2): listed for everyone, with a lock;
+   * the page itself answers a guest 401.
+   */
+  requires_login: boolean
 }
 
 export interface SearchGroup<T> {

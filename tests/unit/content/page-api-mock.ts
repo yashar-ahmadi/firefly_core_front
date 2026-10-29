@@ -16,9 +16,15 @@ export interface PageApi {
   staffPage?: PageDetail | null
   list?: PageCard[]
   comments?: SubjectComment[]
+  /** The page is for signed-in visitors only: the anonymous read answers 401. */
+  loginOnly?: boolean
+  /** Such a page read with a token: the page, null (a 404), or `refused` (401 token_not_valid). */
+  memberPage?: PageDetail | null | 'refused'
 }
 
 const notFound = () => new ApiError({ status: 404, code: 'not_found', detail: 'یافت نشد.' })
+const unauthenticated = (code: string) =>
+  new ApiError({ status: 401, code, detail: 'برای دیدن این صفحه وارد حساب کاربری خود شوید.' })
 const ok = (data: unknown) =>
   Promise.resolve({ data, msg: '', status: 200, headers: new Headers() })
 
@@ -28,6 +34,12 @@ export function answerPages(apiFetch: Mock, api: PageApi): void {
     if (path.startsWith('pages/list')) return ok(paginated(api.list ?? PAGE_CARDS))
     if (path.endsWith('/comment/list')) return ok(paginated(api.comments ?? []))
     if (path.startsWith('pages/')) {
+      if (api.loginOnly) {
+        if (!options.token) return Promise.reject(unauthenticated('not_authenticated'))
+        const member = api.memberPage ?? null
+        if (member === 'refused') return Promise.reject(unauthenticated('token_not_valid'))
+        return member ? ok(member) : Promise.reject(notFound())
+      }
       const answer = options.token ? (api.staffPage ?? null) : api.page
       return answer ? ok(answer) : Promise.reject(notFound())
     }

@@ -8,7 +8,7 @@ import { httpUrl } from '@/lib/html/safe-url'
 import { asParsed, isRootPath } from '@/lib/links/as-parsed'
 import { isBlogPostPath } from '@/lib/links/post-link'
 import { isShortLinkPath } from '@/lib/links/short-link'
-import { videoEmbedUrl } from './video-embed'
+import { PLAYER_ALLOW, PLAYER_SANDBOX, videoEmbedUrl } from './video-embed'
 
 export type ThumbnailSide = 'right' | 'left'
 
@@ -83,12 +83,6 @@ function buttonLink(link: LinkerLink, side: ThumbnailSide): ReactNode {
   ) : null
 }
 
-/**
- * What a player may do (both need their scripts and their own origin's storage; fullscreen;
- * the provider's page in a new tab), nothing more: no top navigation, forms or downloads.
- */
-const PLAYER_SANDBOX = 'allow-scripts allow-same-origin allow-presentation allow-popups'
-
 /** An Aparat or YouTube player, lazily loaded, sandboxed, in a 16:9 frame; the title under it. */
 function VideoEmbed({ link, src }: { link: LinkerLink; src: string }) {
   const title = link.title.trim() || 'ویدیو'
@@ -100,7 +94,7 @@ function VideoEmbed({ link, src }: { link: LinkerLink; src: string }) {
           title={title}
           loading="lazy"
           sandbox={PLAYER_SANDBOX}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allow={PLAYER_ALLOW}
           allowFullScreen
           // YouTube refuses to play without the page's origin as the referrer (its error 153).
           referrerPolicy="strict-origin-when-cross-origin"

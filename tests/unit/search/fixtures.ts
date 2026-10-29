@@ -147,7 +147,7 @@ export function searchResults(changes: Partial<SearchResults> = {}): SearchResul
           title: 'راهنمای خرید گوشی',
           slug: 'phone-guide',
           url: '/page/phone-guide/',
-          description: null,
+          requires_login: false,
         },
       ],
       listing_query: { search: 'گوشی' },

@@ -98,6 +98,28 @@ describe('the blog posts in the search results', () => {
     )
   })
 
+  it('marks a page for signed-in visitors only («ویژهٔ اعضا»); others say nothing more', () => {
+    const results = searchResults()
+    const club = {
+      ...results.pages.items[0]!,
+      id: 10005,
+      title: 'باشگاه مشتریان',
+      slug: 'club',
+      requires_login: true,
+    }
+    show({
+      ...results,
+      pages: { ...results.pages, count: 2, items: [...results.pages.items, club] },
+    })
+    const pages = screen.getByRole('region', { name: /^صفحه/ })
+    expect(within(pages).getByRole('link', { name: /باشگاه مشتریان/ })).toHaveTextContent(
+      'ویژه\u{0654} اعضا',
+    )
+    expect(within(pages).getByRole('link', { name: /راهنمای خرید گوشی/ })).not.toHaveTextContent(
+      'اعضا',
+    )
+  })
+
   it('leaves the posts out while the blog is switched off', () => {
     show(searchResults(), false)
     expect(posts()).toBeNull()

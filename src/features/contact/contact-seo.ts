@@ -19,7 +19,7 @@ export function contactHeading(page: PageDetail | null): string {
 /** The page's description: the operator's page's, else a sentence of our own naming the shop. */
 function contactDescription(page: PageDetail | null, shop: string): string {
   const fallback = `راه\u{200C}های تماس با ${shop}: تلفن، ایمیل، آدرس و فرم ارسال پیام.`
-  return page?.page_description || page?.description || fallback
+  return page?.page_description || fallback
 }
 
 /**

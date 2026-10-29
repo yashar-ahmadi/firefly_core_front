@@ -2,7 +2,8 @@ import type { PageCard, PageDetail } from '@/lib/api/types/page'
 import type { SubjectComment } from '@/lib/api/types/subject-comment'
 
 // Content pages as the dev backend answers them (content digest §3: `about-us`, `contact-us`,
-// `terms` on 2026-10-19), and crafted variants.
+// `terms` on 2026-10-19; `requires_login` and `blocks`, and no `description`, since
+// 2026-10-29), and crafted variants.
 
 export function pageFixture(overrides: Partial<PageDetail> = {}): PageDetail {
   return {
@@ -11,9 +12,10 @@ export function pageFixture(overrides: Partial<PageDetail> = {}): PageDetail {
     slug: 'about-us',
     url: '/page/about-us/',
     layout: 'default',
-    description: null,
+    requires_login: false,
     content:
       '<h2>ما که هستیم؟</h2>\nفایرفلای از سال ۱۳۹۸ کار خود را با هدف عرضه کالای اصل آغاز کرد.',
+    blocks: [],
     enable_comments: true,
     comment_count: 1,
     question_count: 0,
@@ -31,16 +33,16 @@ export function pageFixture(overrides: Partial<PageDetail> = {}): PageDetail {
 
 /** `pages/list/?limit=100` as the dev backend orders it (by title). */
 export const PAGE_CARDS: PageCard[] = [
-  { id: 2, title: 'تماس با ما', slug: 'contact-us', url: '/page/contact-us/', description: null },
-  { id: 4, title: 'حریم خصوصی', slug: 'privacy', url: '/page/privacy/', description: null },
-  { id: 1, title: 'درباره ما', slug: 'about-us', url: '/page/about-us/', description: null },
   {
-    id: 3,
-    title: 'قوانین و مقررات',
-    slug: 'terms',
-    url: '/page/terms/',
-    description: null,
+    id: 2,
+    title: 'تماس با ما',
+    slug: 'contact-us',
+    url: '/page/contact-us/',
+    requires_login: false,
   },
+  { id: 4, title: 'حریم خصوصی', slug: 'privacy', url: '/page/privacy/', requires_login: false },
+  { id: 1, title: 'درباره ما', slug: 'about-us', url: '/page/about-us/', requires_login: false },
+  { id: 3, title: 'قوانین و مقررات', slug: 'terms', url: '/page/terms/', requires_login: false },
 ]
 
 export function pageComment(overrides: Partial<SubjectComment> = {}): SubjectComment {

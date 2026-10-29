@@ -58,18 +58,22 @@ describe('contentPageMetadata', () => {
   it('never sets a key to undefined, whatever is unset', () => {
     const sparse: Metadata[] = [
       meta(),
-      meta({ description: null, page_description: '', page_keywords: '', meta_tags: [] }),
+      meta({ page_description: '', page_keywords: '', meta_tags: [] }),
+      meta({ requires_login: true }),
       meta({ meta_tags: [{ field: 'og:image', value: 'https://cdn.shop.ir/a.png' }] }),
       meta({ is_unpublished: true }),
     ]
     for (const head of sparse) expect(undefinedKeys(head)).toEqual([])
   })
 
-  it('description: page_description, else the page’s description', () => {
+  it('description: page_description (the API fills it from the content); none when ""', () => {
     expect(meta({ page_description: 'درباره فروشگاه.' }).description).toBe('درباره فروشگاه.')
-    expect(meta({ page_description: '', description: 'فروشگاه ما.' }).description).toBe(
-      'فروشگاه ما.',
-    )
+    expect(meta({ page_description: '' })).not.toHaveProperty('description')
+  })
+
+  it('a page for signed-in visitors only is noindex, nofollow', () => {
+    expect(meta({ requires_login: true }).robots).toEqual({ index: false, follow: false })
+    expect(meta({ requires_login: false })).not.toHaveProperty('robots')
   })
 
   it('keywords when set', () => {

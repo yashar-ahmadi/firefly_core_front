@@ -6,6 +6,8 @@ import { PreviewBar } from '@/components/layout/preview-bar'
 import { cn } from '@/components/ui/cn'
 import { getStoreConfig } from '@/config/store-config'
 import { getContactPage, getContactSubjects } from '@/features/contact/api'
+import { blocksAt } from '@/features/content/blocks/blocks'
+import { PageBlocks } from '@/features/content/blocks/page-blocks'
 import { ContactForm } from '@/features/contact/contact-form'
 import { ContactInfo } from '@/features/contact/contact-info'
 import { contactHeading, contactJsonLd, contactMetadata } from '@/features/contact/contact-seo'
@@ -49,7 +51,13 @@ export default async function ContactRoute() {
   ])
   const title = contactHeading(page)
   const html = page?.content ? richContentHtml(page.content) : null
-  const details = contactDetails(settings)
+  const t = createTranslator(translations)
+  const blocks = page?.blocks ?? []
+  const shared = { blocks, contact: contactDetails(settings), t }
+  const detailsInBlock = blocks.some((block) => block.type === 'contact_info')
+  const details = detailsInBlock ? null : contactDetails(settings)
+  const before = blocksAt(blocks, 'before_content').length > 0
+  const after = blocksAt(blocks, 'after_content').length > 0
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
       {propertyMetaTags(page?.meta_tags ?? []).map((tag, index) => (
@@ -66,6 +74,11 @@ export default async function ContactRoute() {
       >
         {title}
       </h1>
+      {before && (
+        <div className="mb-6 flex flex-col gap-8 md:gap-10">
+          <PageBlocks placement="before_content" {...shared} />
+        </div>
+      )}
       {html && (
         <RichContentBody
           html={html}
@@ -78,7 +91,7 @@ export default async function ContactRoute() {
           details ? 'lg:grid-cols-[22rem_minmax(0,1fr)]' : 'max-w-3xl',
         )}
       >
-        {details && <ContactInfo details={details} t={createTranslator(translations)} />}
+        {details && <ContactInfo details={details} t={t} />}
         <section
           aria-labelledby={FORM_TITLE_ID}
           className="rounded-card bg-white p-4 shadow-card md:p-6"
@@ -94,6 +107,11 @@ export default async function ContactRoute() {
           <ContactForm subjects={subjects} />
         </section>
       </div>
+      {after && (
+        <div className="mt-8 flex flex-col gap-8 md:mt-10 md:gap-10">
+          <PageBlocks placement="after_content" {...shared} />
+        </div>
+      )}
     </div>
   )
 }
