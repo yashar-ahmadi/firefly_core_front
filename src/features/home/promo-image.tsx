@@ -27,8 +27,9 @@ export interface PromoImageProps {
  * `<source media="(max-width: 767px)">` serves the mobile image, optimised like next/image.
  * Fitted whole (`contain`), it lies on a blurred copy of itself that fills the frame, so a
  * picture of another ratio than its frame never sits on a bare band. If the picture cannot load
- * it is removed (with its copy), so the frame's own background shows instead of a broken-image
- * icon.
+ * it is hidden (with its copy), so the frame's own background shows instead of a broken-image
+ * icon. Hidden, not removed: unmounting the scaled, blurred copy when hydration finds the picture
+ * broken counts as a layout shift of the frame (0.005 on a category page with three banners).
  */
 export function PromoImage({
   image,
@@ -40,7 +41,8 @@ export function PromoImage({
 }: PromoImageProps) {
   const origin = useOptionalStoreConfig()?.mediaOrigin
   const [failed, setFailed] = useState<string | null>(null)
-  if (failed === image) return null
+  // `visibility: hidden` is inherited by the <img> and takes both out of the accessibility tree.
+  const hidden = failed === image ? 'invisible' : undefined
 
   const props = (src: string) =>
     getImageProps({
@@ -67,7 +69,7 @@ export function PromoImage({
       {/* `contain`: the same picture, blurred, fills the frame behind it instead of a bare band
           (one download: the same URL and candidates as the picture itself). Decorative: alt="". */}
       {fit === 'contain' && (
-        <picture>
+        <picture className={hidden}>
           {sources}
           <img
             {...main}
@@ -79,7 +81,7 @@ export function PromoImage({
           />
         </picture>
       )}
-      <picture>
+      <picture className={hidden}>
         {sources}
         {/* getImageProps gives the alt; the linter cannot see it through the spread. */}
         {/* eslint-disable-next-line jsx-a11y/alt-text */}

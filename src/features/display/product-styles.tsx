@@ -105,7 +105,9 @@ export interface ProductRankedListProps {
  * Style 4, the ranked compact list: each product a row of its rank, picture, name and price, in
  * columns of three rows that scroll sideways (one and a bit columns on phones, three from md,
  * four from lg), the order the operator's source gave (best sellers read as a top list). The
- * whole row is the product's link; there is no add button here.
+ * whole row is the product's link; there is no add button here. The list is `relative`: the
+ * price's `sr-only` words are absolutely positioned, and with the page as their containing block
+ * the rows scrolled out of view would widen the page sideways on phones.
  */
 export function ProductRankedList({
   products,
@@ -116,7 +118,7 @@ export function ProductRankedList({
     <ol
       aria-label={label}
       className={cn(
-        '-mx-4 grid snap-x snap-mandatory scroll-px-4 auto-cols-[min(20rem,85%)] grid-flow-col grid-rows-3 gap-x-3 gap-y-2 overflow-x-auto px-4 pt-1 pb-2',
+        'relative -mx-4 grid snap-x snap-mandatory scroll-px-4 auto-cols-[min(20rem,85%)] grid-flow-col grid-rows-3 gap-x-3 gap-y-2 overflow-x-auto px-4 pt-1 pb-2',
         '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         'sm:auto-cols-[calc((100%-0.75rem)/2)] md:mx-0 md:auto-cols-[calc((100%-1.5rem)/3)] md:px-0 lg:auto-cols-[calc((100%-2.25rem)/4)]',
       )}

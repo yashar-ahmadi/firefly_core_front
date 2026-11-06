@@ -42,22 +42,32 @@ describe('PromoImage', () => {
     expect(img).toHaveAttribute('fetchpriority', 'high')
   })
 
-  it('removes a picture that fails to load, so the frame shows instead', () => {
-    const { container } = renderImage()
-    fireEvent.error(container.querySelector('img')!)
-    expect(container).toBeEmptyDOMElement()
+  /** Every <picture> hidden (`invisible`), none removed: unmounting them shifts the frame. */
+  const allHidden = (container: HTMLElement) => {
+    const pictures = [...container.querySelectorAll('picture')]
+    expect(pictures.length).toBeGreaterThan(0)
+    for (const picture of pictures) expect(picture).toHaveClass('invisible')
+  }
+
+  it('hides a picture that fails to load (and its blurred copy), so the frame shows instead', () => {
+    const { container } = renderImage({ fit: 'contain' })
+    expect(container.querySelectorAll('picture')).toHaveLength(2)
+    fireEvent.error(container.querySelectorAll('img')[1]!)
+    expect(container.querySelectorAll('picture')).toHaveLength(2)
+    allHidden(container)
   })
 
-  it('removes a picture that had already failed before it was hydrated', () => {
+  it('hides a picture that had already failed before it was hydrated', () => {
     stubFinishedImages(0)
     const { container } = renderImage()
-    expect(container).toBeEmptyDOMElement()
+    allHidden(container)
   })
 
   it('keeps a picture that had already loaded', () => {
     stubFinishedImages(1920)
     const { container } = renderImage()
     expect(container.querySelector('picture > img')).toHaveAttribute('src', IMAGE)
+    expect(container.querySelector('picture')).not.toHaveClass('invisible')
   })
 
   it('tries a new picture again after a failed one', () => {
@@ -75,5 +85,6 @@ describe('PromoImage', () => {
       'src',
       'https://api.shop.ir/media/homepage/next.png',
     )
+    expect(container.querySelector('picture')).not.toHaveClass('invisible')
   })
 })
