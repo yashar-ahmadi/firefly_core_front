@@ -1319,6 +1319,16 @@ return page; every navigation of theirs is answered by the worker.
   costliest row a signed-in category with push on, 242.3 KB. The payment link's «open attempt»
   row read 201.5 KB after round 1 (Task 9's report: 201.4), already so at e93c381: Task 9's fix
   round changed its payment code after its last journeys run.
+- **The backend's 2026-11-05 round** (docs/BACKEND-CHANGES-2026-11-05.md). Category banners
+  (2026-10-29) had put the carousel (Embla, 9.2 KB) on every category page, banners or not: a
+  server module imported it for style 2's row, and Turbopack ships every client component a
+  page's server modules import, a server-side `dynamic()` of it included (tried: +0.2 KB). Run
+  against the new sample data, the signed-in category read 251.0 KB (252.7 with push on) of 250.
+  The row is now `BannerCarousel` (`features/display/banner-carousel.tsx`), a client module whose
+  own `dynamic()` splits the carousel off in the browser's graph: it loads with a style 2 row of
+  two banners or more, still rendered on the server (a content page's style 2 banners hydrate
+  with no shift). A category is 239.7 KB as a guest again (248.4 before); the round's own
+  changes cost the shop layout about 0.2 KB (the menu's members-only lock).
 - **Signed-in code.** What only a signed-in visitor sees loads with the session, never with a
   guest's page (the budget is measured as a guest): the header's account button (the profile
   read, the avatar) is a `next/dynamic` import rendered only while `hasSession` (server-rendered,

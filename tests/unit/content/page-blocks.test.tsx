@@ -130,10 +130,12 @@ describe.each(DISPLAY_STYLES)('%s', (style) => {
     )
   })
 
-  it('banners: every banner linked', () => {
+  it('banners: every banner linked', async () => {
     show([block({ type: 'banners', style, title: 'بنرها', items: slides(3) })])
+    // Style 2's carousel is loaded where it is drawn (next/dynamic): found once it has arrived.
     for (const n of [1, 2, 3]) {
-      expect(screen.getAllByRole('img', { name: `تصویر اسلاید ${n}` }).length).toBeGreaterThan(0)
+      const pictures = await screen.findAllByRole('img', { name: `تصویر اسلاید ${n}` })
+      expect(pictures.length).toBeGreaterThan(0)
     }
   })
 

@@ -1,10 +1,10 @@
 import { ChevronLeft } from 'lucide-react'
-import { Carousel } from '@/components/ui/carousel'
 import { cn } from '@/components/ui/cn'
 import { PromoImage } from '@/features/home/promo-image'
 import { hasImage, PromoTile } from '@/features/home/promo-tile'
 import type { HomeItem } from '@/lib/api/types/catalog'
 import { StoreLink } from '@/lib/links/store-link'
+import { BannerCarousel } from './banner-carousel'
 import type { DisplayStyle } from './display-style'
 
 // Banners in the panel's four styles (content digest §6.4): the homepage's banner groups, a
@@ -249,7 +249,7 @@ export function PromoBanners({ items: all, style, label, priority = false }: Pro
 
   if (style === 'style_2' && items.length > 1) {
     return (
-      <Carousel ariaLabel={label} slidesPerView={CAROUSEL_PER_VIEW} arrowGutters>
+      <BannerCarousel ariaLabel={label} slidesPerView={CAROUSEL_PER_VIEW} arrowGutters>
         {items.map((item, index) => (
           <Tile
             key={item.id}
@@ -260,7 +260,7 @@ export function PromoBanners({ items: all, style, label, priority = false }: Pro
             context={context}
           />
         ))}
-      </Carousel>
+      </BannerCarousel>
     )
   }
 

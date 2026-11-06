@@ -98,8 +98,9 @@ describe('home sections in each style', () => {
   it.each(DISPLAY_STYLES)('draws every banner of a group in %s', async (style) => {
     const items = banners(5)
     await renderSections([styled(bannerSection(items), style)])
+    // Style 2's carousel is loaded where it is drawn (next/dynamic): found once it has arrived.
     for (const item of items) {
-      expect(screen.getAllByRole('img', { name: item.alt }).length).toBeGreaterThan(0)
+      expect((await screen.findAllByRole('img', { name: item.alt })).length).toBeGreaterThan(0)
     }
   })
 

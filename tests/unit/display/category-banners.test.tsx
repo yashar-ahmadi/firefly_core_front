@@ -23,9 +23,10 @@ function banner(id: number): CategoryBanner {
 const banners = (count: number) => Array.from({ length: count }, (_, index) => banner(index + 1))
 
 describe('CategoryBanners', () => {
-  it.each(DISPLAY_STYLES)('is one region named after the category in %s', (style) => {
+  it.each(DISPLAY_STYLES)('is one region named after the category in %s', async (style) => {
     render(<CategoryBanners banners={banners(3)} style={style} name="گوشی موبایل" />)
-    const regions = screen.getAllByRole('region', { name: 'بنرهای گوشی موبایل' })
+    // Style 2's carousel is loaded where it is drawn (next/dynamic): found once it has arrived.
+    const regions = await screen.findAllByRole('region', { name: 'بنرهای گوشی موبایل' })
     expect(regions).toHaveLength(1)
     // Style 2's carousel is that region itself, never a region inside another.
     expect(within(regions[0]!).queryAllByRole('region')).toHaveLength(0)
