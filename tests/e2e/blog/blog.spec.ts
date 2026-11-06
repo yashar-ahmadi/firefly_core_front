@@ -59,7 +59,8 @@ test.describe('the blog', () => {
       .click()
     await expect(page).toHaveURL(/\/blog\/\?page=2$/)
     await expect(archive(page)).toHaveAccessibleName('همه\u{0654} مطالب')
-    await expect(archive(page).getByRole('article')).toHaveCount(7)
+    // 18 published posts in the sample data (the scheduled one is a draft until 2031), 12 a page.
+    await expect(archive(page).getByRole('article')).toHaveCount(6)
     await expect(main(page).getByRole('region', { name: 'مطالب ویژه' })).toHaveCount(0)
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/blog\/\?page=2$/)
     await page.waitForLoadState('load')

@@ -35,7 +35,7 @@ async function refuseWrites(page: Page): Promise<string[]> {
 }
 
 shirinTest(
-  'the wallet: her balance, the top-up box with its bounds, the ledger as the API gives it',
+  'the wallet: her balance, the top-up box (closed: no gateway), the ledger as the API gives it',
   async ({ page }) => {
     const errors = watchErrors(page)
     const tried = await refuseWrites(page)
@@ -57,17 +57,15 @@ shirinTest(
       toman(wallet.balance),
     )
 
-    // The top-up box: its bounds in Persian digits; an amount under the floor refused here.
+    // The top-up box: the dev backend runs no bank, and its gateway list names only the gateways
+    // an intent can use (BACKEND-ISSUES M-4): none, so the box says so with the support line and
+    // offers no amount (its bounds and refusals: tests/unit/wallet).
     const box = page.getByRole('region', { name: 'افزایش موجودی' })
     await expect(box).toBeVisible()
-    const amount = box.getByRole('textbox', { name: /مبلغ شارژ/ })
-    await expect(amount).toHaveAccessibleDescription(
-      new RegExp(`حداقل ${toman(wallet.minimum_top_up_amount)}`),
+    await expect(box.getByRole('status')).toHaveText(
+      'شارژ کیف پول با درگاه بانکی اکنون ممکن نیست؛ با پشتیبانی تماس بگیرید.',
     )
-    await amount.fill(String(Math.max(1, wallet.minimum_top_up_amount - 1)))
-    await expect(amount).toHaveValue(/^[۰-۹٬]+$/)
-    await box.getByRole('button', { name: 'افزایش موجودی' }).click()
-    await expect(amount).toHaveAccessibleDescription(/حداقل مبلغ شارژ/)
+    await expect(box.getByRole('textbox', { name: /مبلغ شارژ/ })).toHaveCount(0)
 
     // The ledger: the first row's balance after it, as the API gives it.
     const rows = page.getByRole('list', { name: 'تراکنش‌های کیف پول' }).getByRole('listitem')

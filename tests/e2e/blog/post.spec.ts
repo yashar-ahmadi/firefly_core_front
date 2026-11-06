@@ -13,7 +13,7 @@ import { watchErrors } from '../support/watch-errors'
 
 const POST = '/blog/best-phones-under-30m/'
 const SUBMIT = /\/api\/bff\/blog\/post\/[^/]+\/comment\/submit\/$/
-const OK = 'نظر شما با موفقیت ثبت شد و پس از تأیید نمایش داده می شود.'
+const OK = 'نظر شما با موفقیت ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
 /** A post of the blog home's first page that no other spec opens, per project (its views). */
 const OWN_POST: Record<string, string> = {
   mobile: 'airfryer-vs-oven',
@@ -107,6 +107,8 @@ test.describe('a post', () => {
     await page.goto(POST)
     await shellHydrated(page)
     const comments = main(page).getByRole('region', { name: 'دیدگاه\u{200C}ها و پرسش\u{200C}ها' })
+    // The post's comments (three in the sample data) are read after the page: counted once here.
+    await expect(comments.getByRole('article').first()).toBeVisible()
     const before = await comments.getByRole('article').count()
     await comments.getByRole('button', { name: 'ثبت دیدگاه' }).click()
     await comments.getByRole('textbox', { name: /^متن دیدگاه/ }).fill('مقاله خوبی بود.')

@@ -54,7 +54,8 @@ test.describe('the contact page', () => {
     const main = page.getByRole('main')
     await expect(main.getByRole('heading', { level: 1 })).toHaveText('تماس با ما')
     await expect(main.getByRole('heading', { name: 'ساعات پاسخگویی' })).toBeVisible()
-    const info = main.getByRole('region', { name: 'راه\u{200C}های ارتباطی' })
+    // The page's contact block, named as the sample data titles it.
+    const info = main.getByRole('region', { name: 'راه\u{200C}های ارتباط با ما' })
     await expect(info.getByRole('link', { name: 'support@firefly-core.ir' })).toBeVisible()
     await expect(info.getByRole('link', { name: 'مشاهده روی نقشه' })).toBeVisible()
     await expect(subject(page).locator('option')).toHaveText([

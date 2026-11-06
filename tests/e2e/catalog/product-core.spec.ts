@@ -99,7 +99,9 @@ test.describe('product page', () => {
       .click()
     await expect(page).toHaveURL(/[?&]variant=10003(?:&|$)/)
     await page.goBack()
-    await expect(page.getByRole('heading', { level: 1, name: 'گوشی های پرچمدار' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'گوشی\u{200C}های پرچمدار' }),
+    ).toBeVisible()
     await page.goForward()
     await expect(page).toHaveURL(/[?&]variant=10003(?:&|$)/)
     await expect(axis(page, 'رنگ').getByRole('radio', { name: /^طلایی/ })).toHaveAttribute(

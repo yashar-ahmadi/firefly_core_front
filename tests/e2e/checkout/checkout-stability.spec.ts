@@ -9,8 +9,10 @@ import { signedInTest } from '../support/session'
 // shopper, then the open step's body (lazy-steps.tsx, `loadBody`). Measured as the browser does
 // (`layout-shift` entries without recent input), the guest's receiver step and the review, on a
 // phone and a desktop. Writes: this context's own guest cart, cleared after. Signed in: sara's
-// cart as it is, the page's own writes refused (her default shipping cannot be chosen, so the
-// step asks: its options arrived over the step's skeleton, CLS 0.24 on a phone); k.yazdi's real
+// cart, the page's own writes refused (her default shipping cannot be chosen, so the step asks:
+// its options arrived over the step's skeleton, CLS 0.24 on a phone). The sample data now keeps
+// her open cart alive with its shipping chosen (backend change log F-2), so the page's read of it
+// through the BFF is answered as if none were: nothing is written to her account. k.yazdi's real
 // first visit: checkout-signed-in-stability.spec.ts.
 
 test.describe('the checkout keeps still while a step’s body arrives', () => {
@@ -46,6 +48,29 @@ signedInTest.describe('signed in, the shipping step asking (its default refused)
     signedInTest.skip(testInfo.project.name === 'tablet', 'a phone and a desktop')
     await watchShifts(page)
     await prepareCheckout(page, 'signed-in')
+    // Her cart as read by the page, its shipping not chosen (as the sample data's used to be).
+    await page.route(
+      (url) => url.pathname === '/api/bff/cart/',
+      async (route) => {
+        if (route.request().method() !== 'GET') return route.fallback()
+        const response = await route.fetch()
+        const body = (await response.json()) as { data: { shipping: Record<string, unknown> } }
+        body.data.shipping = {
+          ...body.data.shipping,
+          code: null,
+          title: null,
+          is_selected: false,
+          is_available: false,
+          price: 0,
+          packaging_cost: 0,
+          reason: null,
+          freight_paid_by_recipient: false,
+          cash_on_delivery: false,
+          cod_fee: 0,
+        }
+        return route.fulfill({ response, json: body })
+      },
+    )
     await page.goto('/checkout/')
     await expect(page.getByText('یک روش ارسال انتخاب کنید.')).toBeVisible()
     const cls = await shiftTotal(page)

@@ -120,8 +120,10 @@ test.describe('route table', () => {
     request,
   }) => {
     // The route handler relays Django's answer (order digest §3.2.11: an unknown token is a 302
-    // to the result page, `gateway_callback_invalid`), never the catch-all's 404. No payment has
-    // this token: nothing is written.
+    // with `gateway_callback_invalid`), never the catch-all's 404. Its target is the shop's result
+    // URL when that host is allowed, else `/` (backend change log X7): the dev data's result URL
+    // is on the production domain, which a dev backend does not allow, so here it is `/`, on this
+    // shop. No payment has this token: nothing is written.
     const response = await get(
       request,
       '/api/v1/payment/gateway/callback/zarinpal/e2e-no-such-token/',
@@ -129,7 +131,7 @@ test.describe('route table', () => {
     expect(response.status()).toBe(302)
     expect(response.headers()['cache-control']).toBe('no-store')
     const location = new URL(response.headers()['location'] ?? '', 'http://x')
-    expect(location.pathname).toBe('/payment/callback/')
+    expect(location.pathname).toBe('/')
     expect(location.searchParams.get('code')).toBe('gateway_callback_invalid')
   })
 

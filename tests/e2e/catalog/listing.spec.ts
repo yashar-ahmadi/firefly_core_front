@@ -180,7 +180,9 @@ test.describe('curated list and generic listing', () => {
   test('the list page shows its six products', async ({ page }) => {
     const errors = watchErrors(page)
     await page.goto('/product/list/flagship-phones/')
-    await expect(page.getByRole('heading', { level: 1, name: 'گوشی های پرچمدار' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'گوشی\u{200C}های پرچمدار' }),
+    ).toBeVisible()
     await expect(firstPage(page).getByRole('article')).toHaveCount(6)
     await page.waitForLoadState('load')
     expect(errors).toEqual([])

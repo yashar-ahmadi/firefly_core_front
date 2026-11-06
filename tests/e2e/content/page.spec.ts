@@ -13,7 +13,7 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // once, on the desktop.
 
 const SUBMIT = /\/api\/bff\/pages\/[^/]+\/comment\/submit\/$/
-const OK = 'نظر شما با موفقیت ثبت شد و پس از تأیید نمایش داده می شود.'
+const OK = 'نظر شما با موفقیت ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
 const TITLE = 'دیدگاه\u{200C}ها و پرسش\u{200C}ها'
 
 const main = (page: Page) => page.getByRole('main')
@@ -44,9 +44,10 @@ test.describe('a content page', () => {
       .find((data) => data['@type'] === 'BreadcrumbList')
     expect(trail.itemListElement.at(-1)).toMatchObject({ name: 'درباره ما' })
 
-    // The comments, page 1 in the HTML: sara's, and the shop's answer under it.
+    // The comments, page 1 in the HTML: sara's, and the shop's answer under it. The tab's count is
+    // the API's `comment_count`, which counts replies too: 2.
     const comments = commentsOf(page)
-    await expect(comments.getByRole('tab', { name: 'دیدگاه\u{200C}ها (۱ دیدگاه)' })).toBeVisible()
+    await expect(comments.getByRole('tab', { name: 'دیدگاه\u{200C}ها (۲ دیدگاه)' })).toBeVisible()
     const list = comments.getByRole('list', { name: 'دیدگاه\u{200C}ها' })
     await expect(list.getByText(/همهٔ کالاها اصل و سالم/)).toBeVisible()
     await expect(

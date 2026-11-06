@@ -23,7 +23,7 @@ const BFF = { 'X-Requested-With': 'ff' }
 const WRITES =
   /\/api\/bff\/(?:payment\/order\/[^/]+\/intent|order\/\d{10}\/cancel|cart\/reorder)\/$/
 const REVIEW = /\/api\/bff\/order\/\d{10}\/review\/$/
-const SAVED = 'نظر شما با موفقیت ثبت شد و پس از تأیید نمایش داده می شود.'
+const SAVED = 'نظر شما با موفقیت ثبت شد و پس از تأیید نمایش داده می\u{200C}شود.'
 
 async function read<T>(page: Page, path: string): Promise<T> {
   const response = await page.request.get(`/api/bff/${path}`, { headers: BFF })

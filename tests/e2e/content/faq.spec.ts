@@ -25,7 +25,7 @@ test.describe('the help centre', () => {
     await expect(main(page).getByRole('heading', { level: 2 })).toHaveText(CATEGORIES)
     await expect(main(page).locator('details')).toHaveCount(11)
     await expect(question(page, 10005).locator('summary')).toHaveText(
-      'هزینه ارسال چطور محاسبه می شود؟',
+      'هزینه ارسال چطور محاسبه می\u{200C}شود؟',
     )
 
     await expect(page).toHaveTitle(/^پرسش\u{200C}های متداول \| /u)
@@ -35,7 +35,7 @@ test.describe('the help centre', () => {
     expect(faq.mainEntity).toHaveLength(11)
     expect(faq.mainEntity[4]).toMatchObject({
       '@type': 'Question',
-      name: 'هزینه ارسال چطور محاسبه می شود؟',
+      name: 'هزینه ارسال چطور محاسبه می\u{200C}شود؟',
       acceptedAnswer: { '@type': 'Answer', text: expect.stringContaining('وزن مرسوله') },
     })
     await page.waitForLoadState('load')
