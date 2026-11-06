@@ -18,8 +18,9 @@ withdrawal request (cancelled). Wallet balance of shirin was debited 530,000 by 
    `STOREFRONT_URL + /api/v1/payment/gateway/callback/<GATEWAY_CODE>/<callback_token>/` [code:
    `payment/services/intent.py:332-338`]. The Next.js host **must proxy that exact path (GET *and* POST, form body,
    trailing slash preserved) to the Django backend**, otherwise the customer lands on a 404 and — contrary to the
-   deployment guide — the payment is **never** booked: the reconciliation cron only re-verifies round trips whose
-   browser came back; un-returned ones are expired after 15 min without asking the bank (§11 #15).
+   deployment guide — the payment is booked only for Zarinpal, Zibal and IDPay, which the reconciliation cron now
+   asks itself about a handoff nobody came back from (backend 2026-11-05, B-1); the six others still close an
+   un-returned handoff unasked and their bank gives the money back within 72 h (§11 #15).
 2. **The result page path is NOT hard-coded** — it is the admin setting `GatewaySetting.result_url`
    ("آدرس نتیجهٔ پرداخت"), frozen onto each transaction at intent time; host must be in
    `GATEWAY_RESULT_URL_ALLOWED_HOSTS` (default: `SITE_DOMAIN` + host of `STOREFRONT_URL`). Seed value:
@@ -31,7 +32,8 @@ withdrawal request (cancelled). Wallet balance of shirin was debited 530,000 by 
 3. **Payment link page `/order/pay/<token>`** (no trailing slash in the SMS URL) must exist on the storefront
    [code: `order/services/payment_link.py:127`]. It is the guest's only door back to pay/cancel/resume.
 4. Never conclude from the redirect params; always `GET /api/v1/payment/<uuid>/status/` (240/h shared budget →
-   poll ≥15 s with backoff).
+   poll ≥15 s with backoff). A payment the shopper never came back from may settle 30–45 min after its intent
+   (B-1).
 5. **Persist context before redirecting to the bank** (payment uuid → order_code, order uuid or link token, kind).
    The status endpoint does not return the link token, and guests have no history.
 6. **Pure pay-on-delivery orders (amount_charged_online == 0) are NOT confirmed by placement.** You must call the
@@ -43,10 +45,13 @@ withdrawal request (cancelled). Wallet balance of shirin was debited 530,000 by 
 8. Lists (`method/list`, `gateway/list`) are **paginated**: read `data.results`, not `data`.
 9. Idempotency-Key: placement (logged-in only way to recognise a retry; ≤64 chars), intents and top-up
    (one key per user click; reuse on double-click/retry of *the same* attempt; new key for a genuine retry).
+   A placement key that already placed an order, sent with another cart that has goods, gets 409
+   `order_idempotency_key_reused` and nothing is placed (backend 2026-11-05, M-20): send it again with a new key.
 10. One open online attempt per order. 409 `payment_attempt_open` carries `data.open_attempt` → offer
     "continue" / "abandon" (`POST /payment/<uuid>/cancel/`).
-11. Replay of a card-transfer intent (same key) returns `destination_cards: []` [live bug] → always load cards via
-    `GET /payment/<uuid>/card-transfer/`.
+11. Replay of an intent (same key) answers exactly the first answer, `destination_cards` and `delivery_collection`
+    included (backend 2026-11-05, M-2; it used to answer `destination_cards: []`). The card-transfer page still reads
+    `GET /payment/<uuid>/card-transfer/` itself: it is a page of its own (a full page load).
 12. `wallet_and_gateway`: wallet part is *reserved*, not paid, until the bank settles; show "کنار گذاشته شد".
 13. Guest receipts: guests can only see `failed` + `failure_reason: payment_receipt_rejected`, never the
     reason text; while the receipt is under review the link page answers 409 `order_not_payable`.
@@ -108,7 +113,7 @@ Error: `{ "msg": "...", "code": <http>, "data": { "type": "client_error"|"valida
   image degrades to the default placeholder URL, never null in practice (schema says nullable).
 - Strings that are "empty" are `""` not null: `failure_reason`, `instruction`, `rejection_reason`,
   `payout_reference`, `reason`, `settlement_reference`, `card_pan_masked`, manual `terminal_reference`, etc.
-  (schema marks `failure_reason` nullable; observed always `""` when nothing failed).
+  (`failure_reason` is a non-null string in the schema too since the backend's 2026-11-05 round, J-2).
 
 ### 1.5 Feature switches that affect this scope
 503 `feature_disabled` with `data.feature` ∈ `online_payment | pay_on_delivery | wallet | guest_checkout |
@@ -246,7 +251,7 @@ export interface CartAdjustment {         // data.adjustments of order_cart_chan
 // ===== order list / detail =====
 export interface ProgressStep { status: OrderStatus; label: string; state: ProgressStepState; reached_at: ISODateTime | null }
 export interface Progress { is_terminal: boolean; steps: ProgressStep[] }
-export interface OrderLinePreview { product_name: string; variant_name: string | null; image: string | null }
+export interface OrderLinePreview { product_name: string; variant_name: string | null; image: string | null; quantity: number /* 2026-11-05 */ }
 export interface OrderSummaryBase {
   uuid: string;
   order_code: string;
@@ -263,11 +268,15 @@ export interface OrderSummaryBase {
   item_count: number;
   shipping_method_title: string;
   postal_tracking_code: string | null;
-  is_payable: boolean;                 // owes online money now (does NOT check deadline)
+  is_payable: boolean;                 // owes online money now AND payment_expires_at not passed (2026-11-05, M-1)
   payment_url: string | null;          // present until cancelled, even after payment/expiry
+  payment_expires_at: ISODateTime | null; // 2026-11-05: the current window (order's or amendment top-up's); kept after payment; null once cancelled
   can_cancel: boolean;                 // status === awaiting_payment
 }
-export interface OrderListItem extends OrderSummaryBase { item_preview: OrderLinePreview[] } // ≤3 lines
+export interface OrderListItem extends OrderSummaryBase {
+  item_preview: OrderLinePreview[];   // ≤3 lines
+  line_count: number;                 // 2026-11-05 (J-33): every line; «+n» = line_count − item_preview.length
+}
 export interface OrderMilestones {
   confirmed_at: ISODateTime | null; packed_at: ISODateTime | null; dispatched_at: ISODateTime | null;
   delivered_at: ISODateTime | null; cancelled_at: ISODateTime | null; returned_at: ISODateTime | null;
@@ -313,7 +322,8 @@ export interface OrderDetail extends OrderSummaryBase {
   lines: OrderLine[];
   timeline: OrderTimelineEntry[];       // oldest→newest; includes receipt-rejection & corrections
 }
-// NOTE: detail has NO item_preview, NO payment deadline, NO payments (use payment/history?order_code=)
+// NOTE: detail has NO item_preview and NO payments (use payment/history?order_code=); the deadline is
+// `payment_expires_at` (OrderSummaryBase, 2026-11-05)
 
 export interface OrderQRCode { order_code: string; encoded_value: string; content_type: 'image/png'; qr_code: string /* data:image/png;base64,… */ }
 export interface OrderCancelInput { reason?: string } // ≤500; operator-only visibility
@@ -385,15 +395,19 @@ export interface PaymentIntent {
   payment: PaymentStatusInfo | null;   // null only: free order confirmed via pay_on_delivery
   status: PaymentStatus | null;        // mirrors payment.status
   handoff: RedirectPayload | null;     // bank_gateway / wallet_and_gateway / top-up
-  destination_cards: BankCard[];       // card_transfer only; [] otherwise (and [] on key replay!)
-  delivery_collection: PaymentStatusInfo | null; // door-share row (see §11 for wallet caveat)
+  destination_cards: BankCard[];       // card_transfer only; [] otherwise (a key replay: the same, M-2)
+  delivery_collection: PaymentStatusInfo | null; // door-share row, every route (wallet too since M-3)
+}
+export interface PaymentCancelResult extends PaymentStatusInfo { // POST payment/<uuid>/cancel/ (200)
+  capture_parked: boolean;             // the bank took money the shop could not book (J-34); always present
 }
 export interface OpenAttempt {
   payment: string;                     // payment uuid
   method: 'bank_gateway' | 'card_transfer' | PaymentMethodName;   // bank_gateway also for wallet+gateway pair
   status: 'pending' | 'awaiting_review' | PaymentStatus;
   amount: Toman;
-  expires_at: ISODateTime | null;      // null = bank answered, verification in progress
+  expires_at: ISODateTime | null;      // null = bank answered, verification in progress; else an upper bound
+                                       // (Zarinpal/Zibal/IDPay: up to ~90 min after the intent, B-1)
   handoff: RedirectPayload | null;     // only while still valid
   destination_cards: BankCard[];
 }
@@ -495,8 +509,11 @@ Legend: **Auth** `public` = AllowAny (credential may be a token in the URL), `us
   the cart (COD is chosen in the cart via `cart/shipping/select/ {cash_on_delivery:true}`).
 - 201 → `OrderPlacementResult` (new). **200 → same shape = replay of an already-placed order** (only way to tell).
   Replay rules [code `order/views.py`]:
-  - logged-in: the `Idempotency-Key` is looked up **first**, scoped to the account; a key that already created an
-    order returns that order (200) even if you now have a live cart → never reuse a key for the next purchase.
+  - logged-in: the `Idempotency-Key` is looked up beside the cart, scoped to the account; a key that already created
+    an order returns that order (200) only while nothing else is there to place (no cart, an empty one, or the cart
+    that order froze: a double submit). With another cart that has goods → 409 `order_idempotency_key_reused`,
+    nothing placed, the cart untouched: send the same request with a new key (backend 2026-11-05, M-20; it used to
+    answer the old order). Never reuse a key for the next purchase.
   - guest: the cart token is looked up only when no live cart is behind the request (placement closes the cart).
     [live] replaying with the same token after success → 200 same order; `GET /cart/` with that token now returns
     an empty cart with `token: ""`.
@@ -506,6 +523,7 @@ Legend: **Auth** `public` = AllowAny (credential may be a token in the URL), `us
   payment link (also for pure COD). Payment deadline `payment_expires_at` = now + 72 h (default).
 - Errors (in check order roughly): 503 `feature_disabled` (feature=`guest_checkout`, guest only → send to login);
   400 validation (`receiver.*`, e.g. `invalid_iranian_mobile`, postal code `invalid`); 400 `order_idempotency_key_invalid`;
+  409 `order_idempotency_key_reused`;
   404 `cart_not_found`; 409 `order_cart_changed` (+`data.adjustments`); 409 `order_cart_empty`;
   409 `order_destination_required`; 409 `order_shipping_method_required`; 409 `order_shipping_method_unavailable`;
   400 `order_receiver_required`; 400 `order_receiver_forbidden` [live]; 409 `order_coupon_no_longer_valid`;
@@ -572,33 +590,44 @@ Legend: **Auth** `public` = AllowAny (credential may be a token in the URL), `us
 
 #### 3.1.9 `GET /api/v1/order/pay/<token>/` — payment-link page data
 - Auth: public (token). Throttle `order_payment_link` 30/min. → `OrderPaymentLink` [live]. Pure read, opens nothing.
-- Refusals in this order [code `resolve_payment_link`]: 404 `order_payment_link_invalid` (unknown/malformed token, or
-  cancelled order — token revoked) → 410 `order_payment_link_expired` (deadline passed — **checked before "already
-  paid"**, so an old paid order's link also says expired [live]) → opens if status `awaiting_payment` and
-  (online not fully settled OR amount_charged_online==0 [pure COD confirm]) or an amendment top-up is pending →
-  else 409 `order_already_settled` | `order_collected_on_delivery` | `order_not_payable` (incl. receipt under review [live]).
+- Refusals in this order [code `resolve_payment_link`, backend 2026-11-05]: 404 `order_payment_link_invalid`
+  (unknown/malformed token, or cancelled order — token revoked) → an order the link takes no more money for, **whatever
+  its deadline** (M-5): 409 `order_already_settled` (online all arrived, nothing due at the door) |
+  `order_online_settled_rest_on_delivery` (online all arrived, the courier still collects
+  `data.amount_outstanding_on_delivery`, Toman, after what the door already took; only until delivered, cancelled or
+  returned: M-6) | `order_collected_on_delivery` (nothing charged online, confirmed) | `order_not_payable` (incl. receipt
+  under review [live]) → only then 410 `order_payment_link_expired` (deadline passed while money is still owed online:
+  the one refusal that sends the shopper to support) → opens if status `awaiting_payment` and (online not fully
+  settled OR amount_charged_online==0 [pure COD confirm]) or an amendment top-up is pending. [live 2026-11-06: an
+  old paid order's link says `order_already_settled`; three processing orders with a 15,000–21,000 door share say
+  `order_online_settled_rest_on_delivery`.]
 
 #### 3.1.10 `POST /api/v1/order/pay/<token>/cancel/` — guest cancel via link
 - Auth: public (token). Throttle `order_payment_link`. Body `{ reason? }`.
 - 200 → `OrderPaymentLink` with `status:'cancelled'`, `is_payable:false`, `can_cancel:false`, `expires_at:null`,
   `open_attempt:null` (note `amount_outstanding_online` keeps its value) [live].
-- Errors: same link refusals first (404/410/409 above; receipt-under-review → `order_not_payable`, never
-  `order_receipt_pending`), then 409 `order_cancellation_not_allowed`. Second call → 404 `order_payment_link_invalid` [live].
+- Errors: same link refusals first (404/409/410 above, `order_online_settled_rest_on_delivery` included;
+  receipt-under-review → `order_not_payable`, never `order_receipt_pending`), then 409 `order_cancellation_not_allowed`.
+  Second call → 404 `order_payment_link_invalid` [live].
 
 ### 3.2 Payment
 
 #### 3.2.1 `GET /api/v1/payment/method/list/`
-- Auth: public. Throttle `payment_status` (shared 240/h). Paginated `Paginated<PaymentMethodOption>` sorted by
-  `display_order` [live: 5 routes; COD max 20,000,000; card_transfer max 50,000,000].
+- Auth: public. Throttle `payment_catalogue` (1200/h, shared with the gateway list only, backend 2026-11-05 M-21;
+  it used to be the 240/h `payment_status`). Paginated `Paginated<PaymentMethodOption>` sorted by `display_order`
+  [live: 5 routes; COD max 20,000,000; card_transfer max 50,000,000; with no usable gateway both bank routes come
+  `is_available:false`, reason «درگاه پرداخت پیکربندی نشده است.» (live 2026-11-06)].
 - Routes switched off by a feature switch are present with `is_available:false` + `reason`; routes the operator
   disabled in the route settings are absent.
 
 #### 3.2.2 `GET /api/v1/payment/gateway/list/`
-- Auth: public. Throttle `payment_status`. Paginated `Paginated<GatewayOption>` [live: ZARINPAL (default, min 10,000),
-  ZIBAL (min 10,000, max 500,000,000)]. Effective floor = max(minimum_amount, 1,000 Toman adapter floor).
+- Auth: public. Throttle `payment_catalogue`. Paginated `Paginated<GatewayOption>` [live 2026-10-18: ZARINPAL
+  (default, min 10,000), ZIBAL (min 10,000, max 500,000,000); live 2026-11-06: `count: 0`, dev credentials are not
+  usable]. Effective floor = max(minimum_amount, 1,000 Toman adapter floor).
 - If only one gateway → don't show a chooser; omit `gateway_code` (server picks default, then first usable).
-- Caveat: list filters by `is_active` only; a listed gateway with unreadable/missing credentials is refused at intent
-  time (`gateway_unknown` if named, `gateway_not_configured` if defaulted) [live in dev] — see §11.
+- Lists only the gateways an intent can use (adapter present, credentials readable: backend 2026-11-05, M-4), and
+  `is_default` marks the one an unnamed intent really goes to. Every listed code is accepted; `gateway_unknown` means
+  the list is out of date (read it again). An empty list: both bank routes answer 503 `gateway_not_configured`.
 
 #### 3.2.3 `POST /api/v1/payment/order/<order_uuid>/intent/` — open attempt (logged-in owner)
 - Auth: user (owner-scoped via queryset; other's/unknown uuid → 404 `not_found` [live]). Throttle `payment_attempt`
@@ -643,37 +672,41 @@ Legend: **Auth** `public` = AllowAny (credential may be a token in the URL), `us
 #### 3.2.5 `GET /api/v1/payment/<payment_uuid>/status/` — poll one payment
 - Auth: public (uuid is the credential). Throttle `payment_status` 240/h shared. → `PaymentStatusInfo` [live].
   Works for any purpose (order charge, door collection, top-up). **Does not include the receipt** (card transfer).
-- Errors: 404 `payment_not_found` [live]; 403 `payment_forbidden` when a *signed-in* caller asks for another account's
-  payment — an **anonymous** request for the same uuid gets 200 [live] (see §11).
+- Errors: 404 `payment_not_found` [live]. Whoever holds the uuid reads it, signed in or not and whosever it is
+  (backend 2026-11-05, M-7): no more 403 `payment_forbidden` here (nor on cancel, the card-transfer read and the
+  receipt), so there is no retry without the session.
 
 #### 3.2.6 `POST /api/v1/payment/<payment_uuid>/cancel/` — abandon an attempt
 - Auth: public (uuid). Throttle `payment_attempt`. No body. → 200 `PaymentStatusInfo` with `status:'cancelled'`,
   `failure_reason:'payment_attempt_abandoned'` [live]. Already-finished attempts: 200 with current state (idempotent) [live].
 - Combined attempt cancelled as a whole; wallet leg refunded (`order_payment_reversal` ledger row).
-- Parked capture (bank took money, shop could not book): still 200 but `msg` = «این تلاش بسته شد. مبلغی که بانک برای آن
-  برداشته روی سفارش ثبت نشده و فروشگاه آن را پیگیری می‌کند.» → show that, not "pay again".
+- 200 also carries `capture_parked` (boolean, always present; backend 2026-11-05, J-34): true when the bank took money
+  the shop could not book (a parked capture); the envelope `msg` then says «این تلاش بسته شد. مبلغی که بانک برای آن
+  برداشته روی سفارش ثبت نشده و فروشگاه آن را پیگیری می‌کند.» → show that, not "pay again". Decide on the flag,
+  never by comparing `msg` (the panel may reword it).
 - Cancelling an attempt the bank hasn't answered **sends the customer a "payment failed" SMS** with the link — explain
   this on screen when the user is merely switching method.
 - Errors: 400 `payment_target_invalid` (not an order online charge — e.g. delivery_collection [live] or top-up uuid [code]);
-  409 `payment_under_review` (receipt in queue [live]); 403 `payment_forbidden`; 404 `payment_not_found`.
+  409 `payment_under_review` (receipt in queue [live]); 404 `payment_not_found`. (No 403 since M-7.)
 
 #### 3.2.7 `GET /api/v1/payment/<payment_uuid>/card-transfer/` — transfer instructions
 - Auth: public (uuid). Throttle `payment_status`. → `CardTransferInstruction` [live]. Pure read, active cards only.
 - `expires_at` is the **order** deadline; the attempt itself closes earlier (route TTL; dev fixture 24 h) — read
   `open_attempt.expires_at` (link page / 409 body) for the real cut-off.
-- Errors: 400 `payment_target_invalid` (not card_transfer / not order charge [live]), 403, 404.
+- Errors: 400 `payment_target_invalid` (not card_transfer / not order charge [live]), 404.
 
 #### 3.2.8 `POST /api/v1/payment/<payment_uuid>/card-transfer/receipt/` — upload slip (multipart)
 - Auth: public (uuid). Throttle `payment_receipt_upload` 10/h. Fields in §2. → 201 `CardTransferReceipt`
   (`status:'awaiting_review'`) [live]. Payment → `awaiting_review`; order `awaiting_payment` → `awaiting_review`;
   stock hold + deadline extended to now+168 h.
 - Errors [live]: 400 `payment_receipt_image_too_small` (client_error, attr null); 400 `payment_receipt_image_invalid`
-  (decodable but not JPEG/PNG/WEBP, e.g. GIF, or >6000 px side / >40 MP); 400 validation `invalid_image` attr `image`
-  (bytes that are not an image at all — DRF's own code); 413 `payment_receipt_image_too_large` (>5 MiB); 400 validation
+  (client_error, attr null: not JPEG/PNG/WEBP, e.g. GIF, >6000 px side / >40 MP, or bytes that are not an image at all
+  — backend 2026-11-05, J-26: no more DRF `invalid_image` [live 2026-11-06]); 413 `payment_receipt_image_too_large`
+  (>5 MiB, image or not [live 2026-11-06]); 400 validation
   `invalid_code` attr `payer_card_last_digits`; 400 validation `payment_receipt_paid_at_in_future` attr `paid_at`;
   400 validation `does_not_exist` attr `destination_card` (no such id); 400 `payment_destination_card_invalid`
   (inactive card); 409 `payment_receipt_already_submitted` [live]; 400 `payment_target_invalid` (not card transfer / no
-  longer open → open a new intent); 403/404.
+  longer open → open a new intent); 404.
 
 #### 3.2.9 `GET /api/v1/payment/history/` — my payments
 - Auth: user. Paginated `Paginated<PaymentHistoryItem>`, newest first; includes order charges (each leg), door
@@ -804,7 +837,8 @@ Notation: **A** = `amount_charged_online`, **O** = `amount_outstanding_online`, 
    (so a lost response can be retried safely); create a new one for the next purchase. Never reuse.
 3. `POST /order/place/` with `Idempotency-Key: placementKey`, body `{ expected_total: cart.total, customer_note? }`
    (+ `receiver` only if the cart has no saved address). Handle 409 `order_total_changed` → re-read cart, show new total,
-   ask again (new click, same key is fine since nothing was created).
+   ask again (new click, same key is fine since nothing was created). 409 `order_idempotency_key_reused` (the key
+   placed an earlier order; 2026-11-05) → nothing was created either: send the same request once with a new key.
 4. On 201/200 store `{orderUuid, orderCode, paymentUrl, paymentExpiresAt, A, D}`; clear the cart badge.
 5. If `requires_online_payment === false` (A == 0, i.e. pure COD or free order) → immediately
    `POST /payment/order/<uuid>/intent/ {route:'pay_on_delivery'}` (own Idempotency-Key) → success page
@@ -929,7 +963,7 @@ Render `description` and `instruction` (sanitised HTML) per route; `icon` via `a
 | open_attempt | Show |
 |---|---|
 | `method:'bank_gateway'`, `handoff != null` | «یک پرداخت نیمه‌تمام دارید» → [ادامه در {gateway_title}] = goToBank(handoff) · [انصراف] |
-| `method:'bank_gateway'`, `handoff == null`, `expires_at != null` | handoff expired; attempt will close at expires_at → [انصراف و پرداخت دوباره] (cancel then new intent) |
+| `method:'bank_gateway'`, `handoff == null`, `expires_at != null` | handoff expired; the attempt closes **at the latest** at expires_at («حداکثر تا»: the bank's «no» closes it sooner) → [انصراف و پرداخت دوباره] (cancel then new intent). For Zarinpal, Zibal and IDPay `expires_at` is up to an hour past the handoff's expiry plus its 15-min grace (~90 min by default): the server asks the bank first and books a payment made there (backend 2026-11-05, B-1) — tell the shopper not to pay again if they paid; the bank comes from the handoff while held, else the device's pending entry. Other gateways: closed unasked, the bank returns the money within 72 h |
 | `expires_at == null` | bank answered; verification running (or parked capture) → «پرداخت قبلی در حال بررسی است» + poll status; do not send to bank; cancel allowed but if parked the money is not returned automatically |
 | `method:'card_transfer'`, `status:'pending'` | cards (`destination_cards`) + upload form + [انصراف] |
 | `status:'awaiting_review'` | receipt under review (only seen for amendment top-ups) → wait |
@@ -938,8 +972,8 @@ Render `description` and `instruction` (sanitised HTML) per route; `icon` via `a
 ### 5.10 Result page (`/payment/callback/` = admin result_url) algorithm
 1. Parse `result`, `payment`, `code`. Look up `pendingPayment[payment]` from localStorage (may be missing: other device).
 2. If no `payment`: «بازگشت از بانک نامعتبر بود» (`gateway_callback_invalid`) → link to orders / tracking. Stop.
-3. `GET /payment/<payment>/status/` (with Bearer if logged in; on 403 `payment_forbidden` retry **without** Bearer —
-   see §11). Branch on `status` (truth), use `code` only to choose wording:
+3. `GET /payment/<payment>/status/` (with Bearer if logged in: whosever the payment, it answers since the backend's
+   2026-11-05 round, M-7). Branch on `status` (truth), use `code` only to choose wording:
 
 | status / failure_reason (+code) | Copy (Persian) | Actions |
 |---|---|---|
@@ -977,14 +1011,16 @@ Render `description` and `instruction` (sanitised HTML) per route; `icon` via `a
 ### 5.13 Amendment top-up (operator edited a paid order upward) — customer-visible effects only
 - No customer endpoint for amendments. Customer gets SMS «پرداخت اصلاحیه سفارش» with amount (delta) + payment link;
   window = 48 h (re-sets the link deadline).
-- Order list/detail: status stays `processing`/`packing`, `is_payable: true`, `money.amount_outstanding_online = delta`
-  [live: order 7330195771], `is_fully_paid` stays `true`(!), `can_cancel:false`. Pay with any online route via either door
+- Order list/detail: status stays `processing`/`packing`, `is_payable: true` while the window is open,
+  `money.amount_outstanding_online = delta` [live: order 7330195771], `is_fully_paid: false` until the delta is paid
+  (backend 2026-11-05, M-1; it used to stay `true`), `can_cancel:false`, `payment_expires_at` = the top-up's deadline. Pay with any online route via either door
   (link page opens for it). Card-transfer receipt for the delta doesn't change order status.
 - After settlement: order money & lines are replaced (new figures), status unchanged, **no timeline row**, SMS
   «اصلاح سفارش». Once the order is `sent`, top-up refused: 409 `order_amendment_not_allowed` → support.
 - Downward amendment → credit released by operator: wallet ledger `amendment_credit` (account) or bank transfer
   (`refund_out` row in payment history).
-- Expired window: still `is_payable:true` but every attempt → 409 `order_hold_expired` / 410 link expired (§11).
+- Expired window: `is_payable:false` from the deadline (backend 2026-11-05, M-1; it used to stay `true` while every
+  attempt → 409 `order_hold_expired` / 410 link expired, §11 #6).
 
 ### 5.14 Cancellation, refunds, returns (customer view)
 - Customer can cancel only `awaiting_payment` (both doors). Everything later → contact support.
@@ -1001,7 +1037,7 @@ Render `description` and `instruction` (sanitised HTML) per route; `icon` via `a
 
 | status | status_display | group (tab) | Pay | Cancel | Review | Notes |
 |---|---|---|---|---|---|---|
-| awaiting_payment | در انتظار پرداخت | awaiting_payment «در انتظار پرداخت» | if `is_payable` → pay O; if `!is_payable && payment_url` (A==0) → «تأیید سفارش» (pay_on_delivery) | `can_cancel` (true) | no | auto-cancelled by sweep after deadline (≤30 min lag); `is_payable` stays true until then |
+| awaiting_payment | در انتظار پرداخت (pure COD, A==0: «در انتظار تأیید», 2026-11-05 J-35) | awaiting_payment «در انتظار پرداخت» | if `is_payable` → pay O; if `!is_payable && payment_url` (A==0) → «تأیید سفارش» (pay_on_delivery) | `can_cancel` (true) | no | auto-cancelled by sweep after deadline (≤30 min lag); `is_payable` is false from the deadline (2026-11-05, M-1) |
 | awaiting_review | در انتظار بررسی | in_progress «جاری» | no | no (`order_receipt_pending`) | no | receipt in queue; link page = `order_not_payable` |
 | processing | در حال انجام | in_progress | only if amendment top-up (`is_payable`) | no | no | `is_confirmed` true |
 | packing | بسته‌بندی | in_progress | same | no | no | |
@@ -1023,12 +1059,14 @@ sent→packing, cancelled→processing) — don't assume monotonic progress.
 - Step `label` = status_display (returned final step «مسترد شده», not the tab label «مرجوعی»).
 
 ### 6.3 My Orders list card (`OrderListItem`)
-order_code, `status_display` badge, `placed_at` (Jalali), `total`, `item_count`, up to 3 thumbnails (`item_preview`),
+order_code, `status_display` badge, `placed_at` (Jalali), `total`, `item_count`, up to 3 thumbnails (`item_preview`, each
+with its `quantity`; «+n» = `line_count − item_preview.length`, 2026-11-05),
 `address_summary`, `shipping_method_title`, `postal_tracking_code` (copy), mini progress; buttons:
 - Pay: `is_payable` → logged-in intent on `uuid` (or navigate to `payment_url`).
 - Confirm COD: `status==='awaiting_payment' && !is_payable && payment_url` → pay_on_delivery intent on `uuid`.
 - Cancel: `can_cancel` → confirm dialog → `POST /order/<code>/cancel/`.
-- The list has no money breakdown and **no payment deadline** (neither does the detail).
+- The list has no money breakdown. The payment deadline is `payment_expires_at` (list and detail, 2026-11-05): shown
+  beside the pay button, never compared with the device's clock (`is_payable` already respects it).
 Tabs: `?status_group=<key>`; counters likely from `GET /api/v1/dashboard/summary/` (dashboard digest).
 
 ### 6.4 Order detail page (`OrderDetail`)
@@ -1104,6 +1142,7 @@ come from the API overview.
 | order_cart_changed | 409 | drop guest token, re-read cart, re-select shipping, re-confirm (`data.adjustments`) |
 | order_unpaid_limit_reached | 409 | show `detail` verbatim (3 variants) + link to unpaid orders; no pay/cancel buttons when all are under review |
 | order_idempotency_key_invalid | 400 | client bug (key >64) |
+| order_idempotency_key_reused | 409 | (2026-11-05) the key placed an earlier order and this is another cart: nothing placed, cart untouched → same request, new key |
 | cart_not_found | 404 | back to shop |
 | order_money_snapshot_invalid / order_code_unavailable | 500 | retry once; then support |
 | feature_disabled (guest_checkout) | 503 | redirect to login/register |
@@ -1117,8 +1156,9 @@ come from the API overview.
 | order_already_cancelled | 409 | refresh order |
 | order_receipt_pending | 409 | "رسید در حال بررسی؛ امکان لغو نیست" |
 | order_payment_link_invalid | 404 | "لینک معتبر نیست" (also: order cancelled) → tracking page |
-| order_payment_link_expired | 410 | "مهلت پرداخت تمام شده" — may also be an old *paid* order → offer tracking |
-| order_already_settled | 409 | "پرداخت آنلاین این سفارش انجام شده" (if D>0 add "مبلغ تحویل را به پیک بپردازید") |
+| order_payment_link_expired | 410 | "مهلت پرداخت تمام شده" — money still owed online past the deadline (never a paid order since M-5) → support re-opens the link; tracking |
+| order_already_settled | 409 | "پرداخت آنلاین این سفارش انجام شده" |
+| order_online_settled_rest_on_delivery | 409 | "باقی مبلغ هنگام تحویل پرداخت می‌شود" with `data.amount_outstanding_on_delivery`; no pay button (backend 2026-11-05, M-6) |
 | order_collected_on_delivery | 409 | "سفارش تأیید شده؛ مبلغ هنگام تحویل" |
 | order_not_payable | 409 | "سفارش فعلاً قابل پرداخت نیست" (receipt under review, cancelled, returned…) → tracking |
 | order_hold_expired | 409 | deadline passed (logged-in door) → place a new order |
@@ -1146,9 +1186,9 @@ come from the API overview.
 | payment_wallet_covers_full_amount | 409 | switch to `wallet` |
 | wallet_insufficient_funds | 409 | re-read balance; wallet_and_gateway with 0 balance → bank_gateway |
 | payment_wallet_required_authentication | 403 | login to use wallet |
-| payment_forbidden | 403 | intent: can't pay another account's order with your wallet; status/cancel: see §11 (retry anonymously) |
+| payment_forbidden | 403 | intent: can't pay another account's order with your wallet (status/cancel/card-transfer/receipt no longer answer it: M-7) |
 | wallet_frozen | 403 | show `detail` (= freeze_message) |
-| gateway_unknown | 400 | re-read gateways / omit code |
+| gateway_unknown | 400 | the gateway list is out of date (it lists usable gateways only, M-4): re-read it |
 | gateway_amount_not_supported | 400 | other gateway / route |
 | gateway_token_expired | 410 | new key, new intent |
 | gateway_rejected | 502 | bank said no; offer other bank/route; don't auto-retry |
@@ -1166,8 +1206,7 @@ come from the API overview.
 |---|---|---|
 | payment_receipt_image_too_large | 413 | ≤5 MiB |
 | payment_receipt_image_too_small | 400 | ≥300×300 |
-| payment_receipt_image_invalid | 400 | JPEG/PNG/WEBP, ≤6000 px side, ≤40 MP |
-| invalid_image (validation, attr image) | 400 | not an image file |
+| payment_receipt_image_invalid | 400 | JPEG/PNG/WEBP, ≤6000 px side, ≤40 MP; also bytes that are no image at all (J-26) |
 | payment_receipt_paid_at_in_future (validation, attr paid_at) | 400 | check date/time |
 | invalid_code (attr payer_card_last_digits) | 400 | exactly 4 digits |
 | payment_destination_card_invalid | 400 | card deactivated → reload cards |
@@ -1205,7 +1244,7 @@ fixed 72 h sentence), `gateway_unavailable` (failed), `payment_receipt_rejected`
 | Short stock hold | 30 min (`reservation_ttl_minutes`) from placement; re-taken at each bank/wallet/combined intent | expired hold silently re-taken; fails only if units gone (`order_stock_reservation_failed`) |
 | Hold for card_transfer / COD intents | until payment deadline | — |
 | Receipt review horizon | upload/rejection + 168 h (deadline & hold extended) | awaiting_review orders are never auto-cancelled |
-| Amendment top-up window | 48 h (resets link deadline) | after it payments refused but `is_payable` stays true |
+| Amendment top-up window | 48 h (resets link deadline) | after it payments refused and `is_payable` is false (2026-11-05; it used to stay true) |
 | Attempt TTL per route (`attempt_ttl_minutes`) | column default 30 min; seed card_transfer 2880 [fixture: bank 30, wallet 15, combined 30, card 1440, COD 4320] | sweep `expire_payment_attempts` hourly at :00 and on every new intent for that order → `payment_attempt_expired`; read real cut-off from `open_attempt.expires_at` |
 | Bank handoff | 15 min (`handoff.expires_at`) | resend → 410 `gateway_token_expired` |
 | Bank verification retries | cron every 15 min, backoff 5 min, max 8, give up after 120 min | then attempt closed without SMS; operator "needs action" |
@@ -1233,7 +1272,8 @@ fixed 72 h sentence), `gateway_unavailable` (failed), `payment_receipt_rejected`
       (+detail), awaiting reviews, wallet (balance, ledger, top-up, withdrawals).
 - [ ] Ops: set admin «آدرس نتیجهٔ پرداخت» to `${STOREFRONT_URL}/payment/callback/`; host must be in
       `GATEWAY_RESULT_URL_ALLOWED_HOSTS`; set `STOREFRONT_URL` correctly (it builds SMS links and the bank callback).
-- [ ] Placement: `expected_total` always; Idempotency-Key per checkout (logged-in); guest uses cart token; 200 vs 201.
+- [ ] Placement: `expected_total` always; Idempotency-Key per checkout (logged-in), kept until a 2xx, a new one on
+      409 `order_idempotency_key_reused`; guest uses cart token; 200 vs 201.
 - [ ] Drop guest cart token on login (merge explicitly) and after successful placement.
 - [ ] Pure COD (A==0): auto-call `pay_on_delivery` intent after placement; "Confirm order" button in My Orders when
       `awaiting_payment && !is_payable && payment_url`.
@@ -1262,41 +1302,54 @@ fixed 72 h sentence), `gateway_unavailable` (failed), `payment_receipt_rejected`
 
 ## 11. Suspected backend bugs / inconsistencies (verified)
 
-1. **Card-transfer intent replay drops the cards** [live]. Re-POSTing `route:'card_transfer'` with the same
+1. **Fixed in the backend 2026-11-05 (M-2): a replay answers exactly the first answer, its cards and door collection
+   included.** Was: **Card-transfer intent replay drops the cards** [live]. Re-POSTing `route:'card_transfer'` with the same
    `Idempotency-Key` returns 201 with the same pending payment but `destination_cards: []` (first response had 2
    cards). Cause: replay path builds `PaymentIntent(payment, status)` only (`payment/services/intent.py`
    `_open_order_attempt` → `_replayed_attempt`), so `destination_cards` and `delivery_collection` are empty/null on
    every replay (bank replays do rebuild `handoff`). Doc promises the replay returns "the same attempt".
    Workaround: always `GET /payment/<uuid>/card-transfer/`.
-2. **`wallet` route never creates/returns the delivery-collection row** [live: order 0404614013, COD with 70,000 online
+2. **Fixed in the backend 2026-11-05 (M-3): the wallet route opens the door collection too; both figures are right.**
+   Was: **`wallet` route never creates/returns the delivery-collection row** [live: order 0404614013, COD with 70,000 online
    freight paid by wallet → `delivery_collection: null`, history has no `delivery_collection` row]. `bank_gateway`,
    `card_transfer`, `wallet_and_gateway` call `_open_delivery_collection`, `_open_wallet` does not. The API doc says any
    order with a door share has that row in `delivery_collection`. Workaround: render door amount from
    `money.amount_to_collect_on_delivery`, not from `delivery_collection`.
-3. **Gateway list ≠ usable gateways** [live in dev]. `GET payment/gateway/list/` filters `is_active` only
+3. **Fixed in the backend 2026-11-05 (M-4): the list names only usable gateways (none in dev, live 2026-11-06) and
+   `is_default` is where an unnamed intent goes; the storefront no longer withdraws a gateway for the page on
+   `gateway_unknown`, it reads the list again.** Was: **Gateway list ≠ usable gateways** [live in dev]. `GET payment/gateway/list/` filters `is_active` only
    (`GatewayConfig.objects.usable()`), while intents require adapter + readable credentials
    (`gateways/services/accounts.py::_is_usable`). Listed ZARINPAL → intent with `gateway_code:'ZARINPAL'` = 400
    `gateway_unknown`; without code = 503 `gateway_not_configured`. A storefront can offer a bank that can never work.
-4. **Paid orders' links answer "expired, contact support to pay"** [live: delivered order 6270624849 → 410
+4. **Fixed in the backend 2026-11-05 (M-5): the 409s come before the deadline; only an order still owed online gets
+   the 410 [live 2026-11-06: 6270624849 → `order_already_settled`].** Was: **Paid orders' links answer "expired,
+   contact support to pay"** [live: delivered order 6270624849 → 410
    `order_payment_link_expired`, detail «…برای پرداخت با پشتیبانی تماس بگیرید»]. `resolve_payment_link` checks the
    deadline before `order_already_settled`, so after 72 h every old SMS link of a *paid* order shows a misleading
    "pay via support" message. Within 72 h the same link says `order_already_settled` [live 7573331679].
-5. **`order_already_settled` for orders that still owe money at the door** [live: 0404614013 — online share paid,
+5. **Fixed in the backend 2026-11-05 (M-6): its own 409 `order_online_settled_rest_on_delivery` with
+   `data.amount_outstanding_on_delivery`, on the link page, the link's cancel and both intents; the storefront's D>0
+   wording is gone.** Was: **`order_already_settled` for orders that still owe money at the door** [live: 0404614013 — online share paid,
    289,000 still due at door, link answers «برای این سفارش مبلغ پرداخت‌نشده‌ای باقی نمانده است»]. The CHK-19 fix
    only covers A==0. Storefront must add its own wording when D>0.
-6. **Expired amendment top-up keeps `is_payable: true` forever** [live: order 7330195771 (user j.abbasi), processing,
+6. **Fixed in the backend 2026-11-05 (M-1): `is_payable` is false from `payment_expires_at`, `is_fully_paid` false
+   while a top-up waits, and list and detail publish `payment_expires_at`.** Was: **expired amendment top-up keeps
+   `is_payable: true` forever** [live: order 7330195771 (user j.abbasi), processing,
    `is_payable:true`, `amount_outstanding_online: 3,814,182`, intent → 409 `order_hold_expired`, link → 410]. No sweep
    touches non-`awaiting_payment` orders and `is_payable` ignores the deadline; also `is_fully_paid:true` while a delta
    is owed. And neither list nor detail publishes the payment deadline, so the client cannot hide the dead button
    (only the link page's `expires_at` / placement's `payment_expires_at` expose it).
-7. **Signing in reduces access to a payment** [live]. `GET /payment/<uuid>/status/` for another account's payment:
+7. **Fixed in the backend 2026-11-05 (M-7): the uuid is the credential, whoever asks; the four uuid calls no longer
+   answer 403 and the storefront's anonymous retry (`?anon=1`) is gone.** Was: **Signing in reduces access to a
+   payment** [live]. `GET /payment/<uuid>/status/` for another account's payment:
    with Bearer → 403 `payment_forbidden`; anonymous → 200 (`payment/services/access.py`). Since non-wallet routes let
    any logged-in user pay someone else's order via its link, that payer's result page polling with their token gets
    403. Workaround: retry without Authorization on 403.
 8. **Idempotency doc vs behaviour**: replaying a key after its attempt settled the order returns
    409 `order_already_settled` (payability check runs before the replay lookup), not `payment_idempotency_conflict`
    as documented [live: shirin wallet key `pay-w-1`]. Handle both.
-9. **Receipt "not an image" code**: non-image bytes → 400 `validation_error` `invalid_image` (attr `image`, DRF's code),
+9. **Fixed in the backend 2026-11-05 (J-26): non-image bytes get `payment_receipt_image_invalid` (attr null), and 413
+   when over the size [live 2026-11-06].** Was: **Receipt "not an image" code**: non-image bytes → 400 `validation_error` `invalid_image` (attr `image`, DRF's code),
    not the documented `payment_receipt_image_invalid` (that one only for decodable non-JPEG/PNG/WEBP e.g. GIF) [live].
 10. **Two independent COD ceilings** [code]: cart accepts COD up to the *shipping method's* `cod_max_amount`
     (`cart/services/checkout.py:122`); the `pay_on_delivery` route's `max_amount` (PaymentMethodSetting, 20,000,000 in
@@ -1319,7 +1372,12 @@ fixed 72 h sentence), `gateway_unavailable` (failed), `payment_receipt_rejected`
 14. **Doc claims vs code on gateway result-URL check order**: doc says `gateway_result_url_invalid` is refused "before
     anything"; code checks gateway resolution and amount range first (`gateways/services/checkout.py:107-110`), so a
     misconfigured shop may surface `gateway_unknown`/`gateway_amount_not_supported` first. Cosmetic.
-15. **A payment whose browser never returns is never verified** [code]. `reconcile_gateway_transactions` re-verifies
+15. **Fixed in the backend 2026-11-05 (B-1), for Zarinpal, Zibal and IDPay only: the cron asks the bank about a handoff
+    nobody came back from (after its grace, 15 min by default) and books a payment made there, holding the attempt
+    open meanwhile (`open_attempt.expires_at` up to ~90 min: shown «حداکثر تا»); a late return is verified like any
+    other. The six other gateways are still closed unasked (their bank returns the money within 72 h), and the
+    expired-handoff row says which applies when this device knows the gateway.** Was: **A payment whose browser never
+    returns is never verified** [code]. `reconcile_gateway_transactions` re-verifies
     only `VERIFIABLE_STATUSES` = RETURN_FROM_BANK, ERROR (`gateways/services/reconciliation.py::_rows_to_verify`);
     rows still `REDIRECT_TO_BANK` (customer paid then closed the tab, 3-DS finished in another browser, or the
     storefront callback proxy is broken) are just flipped to `EXPIRE_GATEWAY_TOKEN` once the 15-min handoff expires
@@ -1331,6 +1389,11 @@ fixed 72 h sentence), `gateway_unavailable` (failed), `payment_receipt_rejected`
     within 72 h; please pay again".
 
 ## 12. Open questions for the backend team
+_Answered in the backend's 2026-11-05 change log: payment deadline in list/detail and `is_payable` honouring it
+(Q-1, yes); replays rebuild cards and door collection (Q-2, yes); the wallet opens the door collection (Q-3, yes);
+`gateway/list` uses the intents' predicate (Q-4, yes); settled before expired, with its own code when D>0 (Q-5);
+the 403 asymmetry removed, the uuid is the credential (Q-6); the result path is each shop's `result_url`, kept per
+payment (Q-7); no invoice PDF (Q-8); reconciliation asks Zarinpal, Zibal and IDPay (B-1). The questions as asked:_
 - Can `OrderList`/`OrderDetail` expose `payment_expires_at` (and can `is_payable` honour it / amendment windows)?
 - Should card-transfer (and any) intent replays rebuild `destination_cards`/`delivery_collection` (bug 1)?
 - Should `_open_wallet` open the delivery-collection row like the other online routes (bug 2)?

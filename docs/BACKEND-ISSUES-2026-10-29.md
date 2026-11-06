@@ -1,5 +1,9 @@
 # گزارش مشکلات backend: دور درخواست‌های ۲۰۲۶-۱۰-۲۹
 
+> **وضعیت (۲۰۲۶-۱۱-۰۶):** backend به این موارد هم در فهرست تغییرات ۲۰۲۶-۱۱-۰۵ پاسخ داده است (`NJ-1`
+> پرچم `target.requires_login` در منو، `NJ-2` و `NJ-3` در پنل، `NF-1` تا `NF-5` در دادهٔ نمونه). آنچه
+> storefront کرد: [BACKEND-CHANGES-2026-11-05.md](BACKEND-CHANGES-2026-11-05.md).
+
 این گزارش جدا از [BACKEND-ISSUES.md](BACKEND-ISSUES.md) است (که در حال رفع است) و فقط به قابلیت‌های تازهٔ
 شاخهٔ `new-requests` backend می‌پردازد: فیلتر تخفیف زمان‌دار (`has_timed_discount`)، شمارش پاسخ‌ها در
 `comment_count` و `question_count`، حالت آزمایشی کد یکبارمصرف (`OTP_SANDBOX`)، «سبک نمایش» بخش‌ها و

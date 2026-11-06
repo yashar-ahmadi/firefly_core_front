@@ -60,8 +60,9 @@ active discounts or staff token in dev).
     returns **404**. Validate slugs through the detail endpoints.
 15. Invalid `attribute_values` and boolean params are **silently ignored or return 0 results**. An invalid `sort` or
     `min_price`/`max_price` returns **400**.
-16. `product_count` in `/category/list/` counts **direct products only** (parents usually show 0).
-    `/filters/` counts the whole subtree.
+16. `product_count` in `/category/list/` (and `categories[]` of the homepage and search) counts the **whole visible
+    subtree**, each product once, since 2026-11-05 (J-12): it equals `count` of `/product/list/?category=<slug>`.
+    `/filters/` counts the whole subtree too.
 17. `default_sorting` on a category or list page is **not applied** by the server. Send it yourself as `sort`.
 18. SEO: `page_description` and `page_keywords` come back as `""` when unset, so omit those tags. If
     `canonical_link` is null, self-canonicalize. `structured_data` is an **array** and `breadcrumb_structured_data` is
@@ -224,16 +225,15 @@ Other storefront paths in the same family (covered by other digests, listed for 
     that returns 404.
 - **Slug `list` collision** (see §11): `/product/list/` is the generic listing, so a product whose slug is literally
   `list` cannot be reached at `/product/list/`. The backend does **not** reserve `list` for products.
-- **JSON-LD and SMS URLs use `https://<SITE_DOMAIN>`, not `STOREFRONT_URL`** **[V]**:
-  - Breadcrumb JSON-LD items: `https://localhost/product-category/...` in dev.
-  - `offers.url`: `https://localhost/product/<slug>/`.
-  - Back-in-stock SMS link: `https://SITE_DOMAIN/product/<slug>/` (catalog guide §10).
-  - The sitemap uses `http://localhost:3000/...`.
+- **JSON-LD and SMS URLs use `STOREFRONT_URL`** (since 2026-11-05, M-12/X5/K-3; they used `https://<SITE_DOMAIN>`):
+  - Breadcrumb JSON-LD items, `offers.url` and the back-in-stock SMS link are on `STOREFRONT_URL`, each exactly the
+    sitemap's `<loc>` (a Persian slug percent-encoded); dev: `http://localhost:3000/...`.
+  - JSON-LD pictures are on the backend's `PUBLIC_FILES_ORIGIN` (default `https://SITE_DOMAIN`; a CDN path prefix is
+    allowed; a picture that already has a full CDN URL is no longer prefixed twice).
 
-  In production, make sure `STOREFRONT_URL === https://SITE_DOMAIN`, or the two sets of URLs disagree.
-- **JSON-LD `image` is `https://<SITE_DOMAIN>/media/CACHE/...`** **[V]**: it points at the storefront domain, not the
-  API domain. If the storefront (Next.js) runs on SITE_DOMAIN, it must **proxy or rewrite `/media/*` and `/static/*`
-  to the API**, or a reverse proxy must do it. Otherwise the structured-data images return 404.
+  Embed the JSON-LD as it comes (the storefront no longer rewrites any origin). In production `STOREFRONT_URL` must be
+  the storefront's `SITE_URL`; when `PUBLIC_FILES_ORIGIN` is left empty the storefront's own `/media/` and `/static/`
+  forwarding serves those pictures (docs/DEPLOYMENT.md).
 - **Internal links inside rich HTML** are relative storefront paths. Route them with the router.
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -301,10 +301,10 @@ interface CategoryListItem {
   parent_id: number | null;
   short_description: string | null;
   image: string;                      // 500x500 jpg or placeholder; never null
-  icon: string;                       // jpg (no alpha) or placeholder; never null
+  icon: string;                       // PNG with transparency, ≤256×256 (J-19), or placeholder; never null
   show_in_homepage: boolean;
   default_sorting: SortValue | null;  // schema also allows "" — treat "" as null
-  product_count: number;              // DIRECTLY attached published products only (roots usually 0)
+  product_count: number;              // the whole visible subtree, each product once (J-12)
   created: string; updated: string;
 }
 ```
@@ -348,9 +348,8 @@ Products for the category: `GET /product/list/?category=<slug>` (includes every 
 ### 3.4 `GET /product/brand/list/`
 Params: `search`, `page`, `limit`.
 
-Order is "by name", but in practice **Unicode code-point order** **[V]**: پ, چ, ژ and گ sort after ی. The dev list ends
-with "…هایسنس, پاناسونیک, چای احمد, چرم مشهد". If you need a real Persian A–Z, re-sort on the client with
-`Intl.Collator('fa')`.
+Order is the **Persian alphabet** (since 2026-11-05, J-18; it was code-point order), then names that start with a digit,
+then Latin A–Z regardless of case and diacritics. Show it as it comes: the storefront's `/brand/` no longer re-sorts.
 ```ts
 interface BrandListItem { id: number; name: string; slug: string; image: string /* 70x70 */; product_count: number; created: string; updated: string }
 ```
@@ -384,7 +383,7 @@ Dev **[V]**:
 interface ProductListPageDetail {
   id: number; name: string; slug: string;
   description: string | null; content: string | null;
-  product_category: CategoryLight | null;   // {id,name,slug,parent_id} — NO path! (see §11)
+  product_category: (CategoryLight & { breadcrumb: CategoryBreadcrumbNode[] }) | null; // + root→self chain (J-16)
   show_category_filter: boolean;            // false → filters?list= returns categories: []
   default_sorting: SortValue | null;
   question_answers: QuestionAnswer[];
@@ -847,17 +846,19 @@ type InputType = 'radio' | 'pattern' | 'color' | 'select';
 type CommentType = 'comment' | 'question';
 interface BreadcrumbListJsonLd {
   '@context': 'https://schema.org'; '@type': 'BreadcrumbList';
-  itemListElement: { '@type': 'ListItem'; position: number; name: string; item: string }[]; // position 1 = «خانه» https://SITE_DOMAIN/
+  itemListElement: { '@type': 'ListItem'; position: number; name: string; item: string }[]; // position 1 = «خانه» STOREFRONT_URL/
 }
 interface ProductJsonLd {
   '@context': 'https://schema.org/'; '@type': 'Product';
-  name: string; image: string /* https://SITE_DOMAIN/media/... */; description: string /* = page_description, may be "" */;
+  name: string; image: string /* PUBLIC_FILES_ORIGIN/media/... */; description: string /* = page_description, may be "" */;
   sku: string; mpn: string;   // representative variant sku, else "<product_id:06>-<variant_id:06>", else product id
   offers:
     | { '@type': 'Offer'; url: string; priceCurrency: 'IRR'; price: string /* RIAL = toman×10; "0" if no variants */; availability: string }
     | { '@type': 'AggregateOffer'; url: string; priceCurrency: 'IRR'; lowPrice: string; highPrice: string; offerCount: number; availability: string };
   brand?: { '@type': 'Brand'; name: string };   // product brand, else site name
-  review?: { '@type': 'Review'; author: { '@type': 'Person'; name: string }; datePublished: string /* YYYY-MM-DD */; reviewBody: string }[]; // ≤5 root reviews; no reviewRating, no aggregateRating
+  review?: { '@type': 'Review'; author: { '@type': 'Person'; name: string }; datePublished: string /* YYYY-MM-DD, Tehran */; reviewBody: string;
+             reviewRating?: { '@type': 'Rating'; ratingValue: number; bestRating: 5; worstRating: 1 } }[]; // ≤5 root reviews (J-17)
+  aggregateRating?: { '@type': 'AggregateRating'; ratingValue: number; ratingCount: number; bestRating: 5; worstRating: 1 }; // rating_count > 0 (J-17)
 }
 ```
 - `AggregateOffer` is used when the product is variable and **more than one variant is purchasable**. The range covers
@@ -1076,9 +1077,9 @@ if (!text) return null;   // skip fully empty rows
 | `page_keywords` | all 4 | `""` when unset, so omit the tag. |
 | `canonical_link` | all 4 | `null` means self-canonical on the storefront domain, with the trailing slash. For filtered listings (with query params), self-canonical to the clean path is recommended. |
 | `structured_data` | **product only** | array; emit each element as `<script type="application/ld+json">` |
-| `breadcrumb_structured_data` | all 4 | object; product: Home → category chain (no product); category: Home → … → self; brand: Home → brand; list page: Home → category chain → self |
+| `breadcrumb_structured_data` | all 4 | object; product: Home → category chain → product (J-17; «خانه ← محصول» without a published chain); category: Home → … → self; brand: Home → brand; list page: Home → category chain → self |
 | `is_unpublished` | product | `true` means `noindex` plus a banner. There is no other robots/noindex field in these responses. |
-| meta tags | **not exposed** | The panel has a "تگ های متا" tab for these 4 entities, but these APIs don't return them (§11). |
+| `meta_tags` | all 4 | `{field, value}[]`, oldest first, `[]` when none (since 2026-11-05, M-13). The storefront writes each: `name=` rows through the metadata (a row replaces our own value of that field; `robots` only when the page sets none of its own), `property=` rows (`og:`, `article:`…) rendered by the page (`OperatorMetaTags`). |
 
 For `og:image`, use `product.image` (API host, 500×500). Never show prices taken from the JSON-LD (they are in Rial).
 
@@ -1286,7 +1287,7 @@ digest). For a category grid outside the homepage, use `/category/list/?show_in_
 - [ ] Meta tags only when non-empty; both JSON-LD blocks in `<head>` (array versus object); `is_unpublished` gives `noindex` and a banner.
 - [ ] A null `variant.image` falls back to the product image; `rating === 0` shows "بدون امتیاز".
 - [ ] ➕ `trailingSlash: true`; catch-all category route; generic `/product/list/` route; Unicode slugs decoded and re-encoded; malformed-percent guard.
-- [ ] ➕ `/media/*` and `/static/*` proxied from the storefront domain (for JSON-LD images) and `STOREFRONT_URL === https://SITE_DOMAIN` in prod.
+- [ ] ➕ Backend `STOREFRONT_URL` equal to the storefront's `SITE_URL`; `/media/*` and `/static/*` forwarded from the storefront domain (JSON-LD images while `PUBLIC_FILES_ORIGIN` is empty).
 - [ ] ➕ `TRUSTED_PROXY_IPS` and `X-Forwarded-For` arranged before launching comment and notify forms behind a BFF.
 - [ ] ➕ Image `onError` fallback; `next/image` `remotePatterns` for the API host.
 - [ ] ➕ Wishlist hearts filled client-side with the token; publicly cached responses fetched without a token; DELETE handles 204 with no JSON.
@@ -1302,6 +1303,7 @@ digest). For a category grid outside the homepage, use `/category/list/?show_in_
      are silently dropped. S25 Ultra question 10026 shows `replies: []` although reply 10027 exists and is approved.
    - The MPTT fields in the fixture are inconsistent; a `ProductComment.objects.rebuild()` would fix the data.
    - Impact: the dev UI can't show admin replies. The README claims "۶ پرسش‌وپاسخ با جواب مدیر".
+   - **Fixed in the sample data (2026-11-05, F-1):** the five answers show; the README says «۶ پرسش، ۵ پاسخ‌داده‌شده».
 2. **Two different "site origins"** **[V]**.
    - The sitemap uses `STOREFRONT_URL` (`http://localhost:3000/...`).
    - The JSON-LD (`offers.url`, `image`, every breadcrumb `item`) and the back-in-stock SMS link use
@@ -1312,12 +1314,16 @@ digest). For a category grid outside the homepage, use `/category/list/?show_in_
      the storefront domain must serve `/media/` or those images 404.
    - The comment on `STOREFRONT_URL` in `settings.py` ("exactly one outward-facing URL – the pay link") is also
      outdated.
+   - **Fixed (backend 2026-11-05, M-12/X5/K-3/J-30):** pages on `STOREFRONT_URL`, pictures on `PUBLIC_FILES_ORIGIN`,
+     the SMS link on `STOREFRONT_URL`; the comment corrected. The storefront embeds the JSON-LD as it comes.
 3. **Panel meta tags are never published for catalog pages** **[V][C]**.
    - The admin pages for Product, Category, Brand and ProductList include the "تگ های متا" inline
      (`SeoAdminMixin.inlines` → `MetadataModel`).
    - `pages/serializers.py` and `homepage/serializers.py` expose `meta_tags`, but none of the product, category, brand
      or list-page serializers do; the live keys lack them.
    - Operators can enter tags that the storefront can never render.
+   - **Fixed (2026-11-05, M-13):** `meta_tags` on product, category, brand and list-page detail (and blog post and
+     category); the storefront writes them (see §5.11's table).
 4. **The slug `list` is not reserved for catalog models** **[C]**.
    - `pages` reserves `list` (`RESERVED_PAGE_SLUGS`), but `pages/tests/test_models.py` explicitly asserts that every
      other SEO model (Product, Category, Brand, ProductList) accepts `list`.
@@ -1325,11 +1331,14 @@ digest). For a category grid outside the homepage, use `/category/list/?show_in_
      list page with slug `list` **can never be fetched** through its detail endpoint (you get the list endpoint
      instead).
    - On the storefront, a product with slug `list` collides with the generic `/product/list/` route.
+   - **Fixed in the panel (2026-11-05, M-15):** `list` (and `category` for a post) is refused (`reserved_slug`).
 5. **Guide §17.2 notify flow contradicts the server** **[V]**.
    - The snippet shows the notify form when `!variant.in_stock`, but `/notify/` is product-level and returns 400
      `stock_notification_already_in_stock` whenever any variant is buyable. Tested on S25 Ultra, whose variant
      10004 is out of stock.
    - There is no way to subscribe to a specific variant.
+   - **Guide corrected (2026-11-05, M-14):** show the form only while the product's `in_stock` is false, as the
+     storefront does; a per-variant subscription is out of that round.
 6. **OpenAPI schema versus reality** **[V]**. Generated clients will be wrong in these places:
    - Many always-present fields are not `required`, so they come out optional: `is_special_product`,
      `is_collection`, `enable_major`, `extra_detail` and `canonical_link` on cards and detail; `sku`,
@@ -1345,26 +1354,37 @@ digest). For a category grid outside the homepage, use `/category/list/?show_in_
    - `product_category` has no `path`, and there is no `breadcrumb` array, unlike category and product detail.
    - To link the category you need the category tree, or you have to parse `breadcrumb_structured_data` URLs, which
      are on SITE_DOMAIN.
+   - **Fixed (2026-11-05, J-16):** `product_category.breadcrumb` (`{id, name, slug, path, parent_id}`, root→category);
+     the storefront builds the list page's trail from it.
 8. **Breadcrumb JSON-LD is inconsistent** **[V]**. The product breadcrumb ends at the deepest category and omits the
    product, while the category, brand and list-page breadcrumbs end with the page itself. JSON-LD `Review` entries
    have no `reviewRating`; there is deliberately no `aggregateRating` (per the guide), but expect Search Console
-   warnings.
+   warnings. **Fixed (2026-11-05, J-17):** the product's trail ends with the product, `aggregateRating` when
+   `rating_count > 0`, `reviewRating` on each rated review, review dates Tehran's day.
 9. **Brand list and filter brands are "ordered by name" in code-point order, not Persian alphabetical order**
-   **[V]**: پ, چ, ژ and گ sort last.
+   **[V]**: پ, چ, ژ and گ sort last. **Fixed (2026-11-05, J-18):** the Persian alphabet, then digits, then Latin;
+   the same rule for provinces and cities with digits or Latin letters.
 10. **Image specs limit the UI** **[C]**.
     - Category `icon` is forcibly re-encoded to JPEG (transparent PNG and SVG icons get a solid background).
+      **Fixed (2026-11-05, J-19):** PNG keeping its transparency, at most 256×256 (a blog category's 64×64); the URLs
+      changed. The other image limits stay (out of that round).
     - Brand logos are 70×70 JPEG crops (too small for a brand hero).
     - Product and gallery images are 500×500 crops with no original exposed, so there is no zoom or retina.
 11. **Comment submit validates in two passes** **[V]**. A guest who omits both `name` and `review` first sees only
     the `review` error; the name error appears on the next submit. Notify reports missing `first_name` and
-    `last_name` one at a time.
+    `last_name` one at a time. **Fixed (2026-11-05, J-11):** one 400 with every field error: the name `required`
+    (left out) or `blank`; notify's guest fields `required`/`blank`, before `stock_notification_already_in_stock`; a
+    signed-in account without a name gets `first_name` and `last_name` together (`invalid`). A filled honeypot is
+    always the plain 201.
 12. **Category filters are not inherited** **[V]**. `/filters/?category=digital` returns `attributes: []` because
     only attributes marked filterable on that exact category are used. Parent categories have no attribute facets
-    unless the admin duplicates the setup. The guide implies this, but it is easy to miss.
+    unless the admin duplicates the setup. The guide implies this, but it is easy to miss. **Unchanged (J-13,
+    deliberate for now).**
 13. **The list-page definition and `?attribute_values=` use different matching rules** **[C]**. A list page ORs all
     its values (across attributes) and only looks at **variant** values. The facet filter groups values per
     attribute (AND across attributes) and also accepts spec-sheet values. A product whose matching value is only in
-    the spec sheet appears in `?attribute_values=` but not in `?list=`.
+    the spec sheet appears in `?attribute_values=` but not in `?list=`. **Fixed (2026-11-05, J-14):** `?list=` uses the
+    `?attribute_values=` rule (OR within an attribute, AND across them, spec-sheet values counted).
 14. **Minor validation gaps** **[V]**:
     - `?max_price=-5` is accepted (200, 0 results).
     - `?comment_type=bogus` on the comment *list* returns 400 `invalid_choice`; the guide only documents this for
@@ -1372,9 +1392,12 @@ digest). For a category grid outside the homepage, use `/category/list/?show_in_
     - `weight_grams: 0` is published for a virtual product.
 15. **`consider_before_buying` fallback** **[C]** takes the product's "first" category from an unordered M2M
     prefetch. It ignores that category's published state and its "show on category page" flag, so it is
-    non-deterministic when a product has several categories that each have a card.
+    non-deterministic when a product has several categories that each have a card. **Fixed (2026-11-05, J-15):** the
+    deepest published category with a card (siblings in tree order); `null` under a hidden branch.
 16. **Pricing trap from the catalog guide** (documented there, not re-tested): if the price drops below an active
-    timed-discount amount, `final_price` becomes 0 and `discount_percent` 100, and the cart charges 0.
+    timed-discount amount, `final_price` becomes 0 and `discount_percent` 100, and the cart charges 0. **Fixed
+    (2026-11-05, B-2):** such a variant is `in_stock: false`, a cart line with it `issue: "unavailable"`, and the
+    panel refuses it everywhere.
 17. **Docs versus dev config** (not bugs): the guide's sample says `paginator_number` is 12 and
     `related_items_number` is 4 or 10; dev has 24 and 8. Never hardcode them.
 

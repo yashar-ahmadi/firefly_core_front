@@ -151,19 +151,14 @@ re-sent to a redirect target. `apiPath` refuses `.`/`..` segments.
   `Cache-Control: no-store`, sets no cookie and is
   byte-for-byte the body the proxied read would give. Cost: the empty-cart shape may be up to 60 s
   stale;
-- sends exactly three payment calls without the session when asked with `?anon=1`:
-  `GET payment/<uuid>/status/`, `GET payment/<uuid>/card-transfer/` (the cards) and
-  `POST payment/<uuid>/card-transfer/receipt/` (multipart, still streamed under the 6 MiB cap).
-  They go with no bearer, no cart token, no refresh and no cookie change, and without the flag
-  (`lib/bff/anonymous.ts`). The API refuses a signed-in visitor another account's payment (403
-  `payment_forbidden`) but answers the same call made anonymously (order digest §11 #7); the
-  result and card-transfer pages retry with the flag after that 403 (and from then on), and treat
-  a payment answered only that way as not this account's (`foreign`). On any other path the flag
-  is an ordinary query parameter (forwarded, the session attached). Being answered with the
-  session is not ownership either: a guest order's payment has no owner, so the API answers it to
-  any signed-in visitor. Both pages offer the account's order pages, the owner's door (the order's
-  uuid) and the owner-only reads (a rejected receipt's reason) only once `GET order/<code>/`
-  answered for this account (`features/payment/use-order-ownership.ts`, one read per page, which
+- sends the payment's own calls (`payment/<uuid>/status/`, `cancel/`, `card-transfer/` and its
+  receipt) with the session like any other: the uuid is the credential, whoever holds it, signed
+  in or not (the backend's 2026-11-05 round, BACKEND-ISSUES M-7; the 403 `payment_forbidden` it
+  used to give a signed-in visitor for another account's payment, and the storefront's `?anon=1`
+  retry without the session, are gone). Being answered is not ownership: the result and
+  card-transfer pages offer the account's order pages, the owner's door (the order's uuid) and
+  the owner-only reads (a rejected receipt's reason) only once `GET order/<code>/` answered for
+  this account (`features/payment/use-order-ownership.ts`, one read per page, which
   also gives the order's link for the card transfer's cut-off and cancel); otherwise tracking or
   the order's link page.
 
@@ -1098,8 +1093,9 @@ return page; every navigation of theirs is answered by the worker.
   regrouped three of the shop's shared chunks (the same 89,875 raw bytes): the shop's pages load
   the same code, 661 B less gzip. A component a server component renders is a client reference of
   the whole route, loaded on every visit: the card transfer's calm page (also its not-found page)
-  therefore takes its tracking link and its «کپی لینک این صفحه» from the island as props
-  (`renderTrack`, `extra`) instead of importing them (they cost the route 4.6 KB first). The
+  therefore takes its tracking link from the island as a prop (`renderTrack`) instead of importing
+  it (it cost the route 4.6 KB first, with the copy-link button another account's payment used to
+  need). The
   tracking links on the other pages (`TrackLink`) hand the order's code over in session storage;
   the code helpers they need live apart from the form's (`order-code.ts`), so they carry no phone
   formatter.
@@ -1714,12 +1710,10 @@ in source as `\u{XXXX}` escapes (with the regex `u` flag where relevant).
   own post per project, plus the budget guards' 8 loads of `best-phones-under-30m` and the
   accessibility audit's 2 (Plan 5 Task 8). `E2E_LIVE_COMMENT=1` sends one guest
   comment for real instead (desktop only, once: it stays pending for the operator to reject). A guest places one order per run (`tests/e2e/checkout/checkout-place.spec.ts`: a new
-  mobile each run, for the guest's unpaid-orders ceiling; the dev backend answers a bank intent
-  `400 gateway_unknown` when a gateway is named (the chooser shows), and the page withdraws that
-  gateway for itself and tries the next with a press, refused too, until the bank routes close
-  (`support/bank-refusals.ts`: one press per gateway the page offers, never one tried before,
-  however many the dev data lists); `503 gateway_not_configured` when none is named; two of the 30
-  an hour of `payment_attempt` with today's two gateways)
+  mobile each run, for the guest's unpaid-orders ceiling; the dev backend lists no usable gateway
+  (its list names only usable ones since the backend's 2026-11-05 round, BACKEND-ISSUES M-4) and
+  its method list closes both bank routes, so card to card is the default route: one card-transfer
+  intent, one of the 30 an hour of `payment_attempt`, and its page opens)
   and hands it to the `orders` guard (`tests/e2e/support/order-guard.ts`), so the dev database
   keeps no open unpaid order: a fixture whose teardown runs however the test ends (a timeout
   included), with request contexts of its own, cancels every payment attempt the test opened and

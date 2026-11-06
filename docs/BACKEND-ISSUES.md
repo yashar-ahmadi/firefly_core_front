@@ -1,5 +1,11 @@
 # گزارش یکپارچهٔ مشکلات backend فایرفلای (Firefly Core)
 
+> **وضعیت (۲۰۲۶-۱۱-۰۶):** تیم backend به همهٔ موارد این گزارش در «فهرست تغییرات backend برای storefront»
+> (۲۰۲۶-۱۱-۰۵، شاخهٔ `develop`) پاسخ داده است: بیشترشان رفع شده‌اند و بقیه دلیلشان آمده است. آنچه
+> storefront با هر مورد کرد، و راه‌حل‌هایی که برداشته شدند یا ماندند، در
+> [BACKEND-CHANGES-2026-11-05.md](BACKEND-CHANGES-2026-11-05.md) است. متن زیر گزارش همان زمان است و
+> «راه‌حل در storefront» آن ممکن است دیگر در کد نباشد.
+
 این گزارش مشکلات و ناهمخوانی‌هایی را که هنگام ساخت storefront (Next.js) برای backend فایرفلای (Django REST) پیدا شد در یک سند و بدون تکرار گرد آورده است. منبع آن هفت digest یکپارچه‌سازی در `docs/backend-integration/` است (`auth-settings.md`، `blog-faq-dashboard-notification.md`، `cart-address.md`، `content.md`، `order-payment.md`، `product.md`، `seo-cache-deploy.md`). هر digest بخشی با عنوان «Suspected backend bugs / inconsistencies» دارد و `order-payment.md` بخش «Open questions for the backend team» هم دارد. **storefront هیچ تغییری در کد backend نداده است.** همهٔ موارد زیر فقط گزارش‌اند و «راه‌حل» هر مورد کاری است که سمت storefront انجام می‌شود یا تصمیمی که به تیم backend/ops برمی‌گردد. به این‌ها یافته‌هایی افزوده شده که هنگام ساخت storefront (Plan 1 تا 5) پیدا شد؛ هر یک پیش از نوشتن، فقط با خواندن کد backend یا با درخواست‌های GET روی dev server دوباره راستی‌آزمایی شده و در بخش «افزوده‌شده هنگام ساخت storefront» هر سطح آمده است (یا مورد موجودِ هم‌موضوع با بند «افزوده» گسترش یافته). هرجا digest نسبت به چیزی مطمئن نبوده (مثلاً فقط از روی مستندات یا فقط با خواندن کد)، همان نکته در متن آمده است. تاریخ راستی‌آزمایی‌های زنده: ۲۰۲۶-۱۰-۱۵ روی dev server (`http://localhost:8000`)، و برای موارد افزوده ۲۰۲۶-۱۰-۲۴.
 
 **شیوهٔ راستی‌آزمایی (در هر مورد)**

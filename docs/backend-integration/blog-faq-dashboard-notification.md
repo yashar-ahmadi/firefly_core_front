@@ -8,7 +8,7 @@ Side effects from testing: one reading-list row was added and then removed (sara
 
 Notes on the dev environment:
 - The `X-API-Key` gate is off in dev. Even an invalid key returns 200. In production every request needs the key: a missing key gives `401 api_key_missing`, and a bad or disabled key gives `401 api_key_invalid`. The key is checked before the JWT.
-- `SITE_DOMAIN=localhost` and `STOREFRONT_URL=http://localhost:3000`. JSON-LD URLs come out as `https://localhost/...`, while sitemap URLs come out as `http://localhost:3000/...` (see Bugs).
+- `SITE_DOMAIN=localhost` and `STOREFRONT_URL=http://localhost:3000`. Since 2026-11-05 (M-12) JSON-LD page URLs come out as `http://localhost:3000/...`, the same as the sitemap's, and pictures as `https://localhost/...` (`PUBLIC_FILES_ORIGIN` unset: `https://SITE_DOMAIN`).
 - The `media/` source files are not present in dev (they are gitignored), so image URLs 404 (see Bugs). Only `/static/defaults/default.png` actually loads.
 - `DEBUG=True`. A URL that matches no route (for example a bad `subject_type` in a path, or a non-numeric notification id) returns Django's **HTML** 404 page in dev. In production (`handler404 = utils.error_views.not_found`) it returns the JSON envelope with `code: not_found` and the detail «آدرس درخواستی یافت نشد.».
 
@@ -104,7 +104,7 @@ How to react: on `token_not_valid`, refresh once with `POST /api/v1/account/auth
 | `comment_submit` | 10/hour (`THROTTLE_COMMENT_SUBMIT`) | blog + product + **page** comment submit (one shared budget) | per user, or per IP for guests. **Only successful submissions count**; validation failures and honeypot drops do not. |
 | `saved_items` | 60/minute per customer (`THROTTLE_SAVED_ITEMS`) | reading-list POST/DELETE + product wishlist POST/DELETE (shared) | reading the list is not counted |
 
-A 429 returns `code: throttled`, `data.retry_after` in seconds and a `Retry-After` header. **`Retry-After` is not in `CORS_EXPOSE_HEADERS`** (only `X-Cart-Token` is), so browser code must read `data.retry_after`.
+A 429 returns `code: throttled`, `data.retry_after` in seconds and a `Retry-After` header. Since 2026-11-05 (J-9) `Retry-After` is CORS-exposed too; `data.retry_after` stays the countdown's source.
 
 **SSR/BFF gotcha:** if guest comment posts or public GETs go through the Next.js server, every visitor shares that server's IP budget (10 comments per hour for the whole site, 2000 GETs per hour). Either submit guest comments from the browser directly, or configure the Next.js server as a trusted proxy (`TRUSTED_PROXY_IPS` + `TRUSTED_PROXY_HOPS`) and forward the client IP in `X-Forwarded-For`. Cache public GETs (see 1.11).
 
@@ -192,7 +192,7 @@ Query parameters (all optional):
 |---|---|---|
 | `search` | string | Word-by-word AND over `name` + `description` (the body is not searched). Matching is case-insensitive. Persian/Arabic-Indic digits are treated as Latin digits, ي/ى as ی, ك as ک, ZWNJ as a space, and tatweel is ignored. A repeated word counts once, and only the first 8 distinct words are used. Live: `search=1405` matched «…سال ۱۴۰۵». |
 | `category` | slug(s) | Includes **descendant categories** and returns the OR union with duplicates removed. Repeat the parameter or comma-separate it (both verified to give the same result). **Unknown slugs are ignored, and if none match the filter is dropped and ALL posts come back** (verified: `category=nonexistent` → count 19). A draft category's slug still filters (and returns its published posts). |
-| `author` | number | Numeric author id. A non-numeric value gives `400 invalid` with `attr: "author"`. The schema types it as `number`, so `author=1.5` returns 200 with `count: 0`. Author ids are not exposed anywhere in the blog payloads; they are only known from the admin panel. |
+| `author` | integer ≥ 1 | Numeric author id. A non-numeric or decimal value gives `400 invalid`, zero or negative `400 min_value`, both with `attr: "author"` (since 2026-11-05, J-10; the schema says `integer`, `minimum: 1`). Author ids are not exposed anywhere in the blog payloads; they are only known from the admin panel. The storefront never sends it. |
 | `ordering` | `published_at`, `created`, `updated`, `name`, `view_count`, each optionally prefixed with `-` | Comma-separated multiple keys work (`-view_count,name` verified). An invalid value gives `400 invalid_choice` with `attr: "ordering"`. The default is `-published_at` (posts with null `published_at` go last, then `-created`, then id as a tie-break). |
 | `page`, `limit` | int | `limit` defaults to the admin `paginator_number` (12 live) and is capped at 100. |
 
@@ -235,13 +235,12 @@ interface PostDetail {
   published_at: string | null; created: string; updated: string;
 }
 ```
-Things the API does **not** provide: **reading time** (compute it from the `content` text yourself), an author bio/id/slug, `og:*` fields beyond the above, a noindex flag (only `is_unpublished`), prev/next post, and comments (those are a separate endpoint). The model has a `meta_tags()` helper, but it is not exposed for posts.
+Things the API does **not** provide: **reading time** (compute it from the `content` text yourself), an author bio/id/slug, a noindex flag (only `is_unpublished`), prev/next post, and comments (those are a separate endpoint). The operator's meta rows **are** published since 2026-11-05 (M-13): `meta_tags: {field, value}[]` on post and category detail, oldest first, `[]` when none; the storefront writes each (a field the operator wrote replaces its own `og:`/`article:` value).
 
 **TOC:** the `headings` ids match the `id`s inside `content`.
 - Build each `href` with `'#' + encodeURIComponent(id)` and scroll with `document.getElementById(id)`, not `querySelector`.
-- Two headings with the same text get **the same id**, and the browser jumps to the first one.
-- A heading made only of punctuation gets `id=""`.
-- An empty heading still consumes a TOC number, so the numbering skips (see Bugs).
+- Since 2026-11-05 (J-22) every id is unique: a repeated text gets `x`, `x-2`, `x-3`; a heading of punctuation only gets `section-<n>`.
+- An empty heading is not listed and takes no number: the numbering has no gaps.
 - Add `scroll-margin-top` to clear a sticky header.
 
 **Related logic (server-side; the client only renders):**
@@ -394,14 +393,14 @@ JSON-LD: render `<script type="application/ld+json">{JSON.stringify(data.structu
 ```ts
 interface BlogPostingLD {
   '@context': 'https://schema.org'; '@type': 'BlogPosting';
-  mainEntityOfPage: { '@type': 'WebPage'; '@id': string };  // https://{SITE_DOMAIN}/blog/{slug}/
+  mainEntityOfPage: { '@type': 'WebPage'; '@id': string };  // {STOREFRONT_URL}/blog/{slug}/ (M-12)
   headline: string;
   description: string;                 // = page_description ('' if unset)
-  image: string;                       // https://{SITE_DOMAIN}/media/CACHE/... (or /static/defaults/default.png)
-  publisher: { '@type': 'Organization'; name: string; logo: { '@type': 'ImageObject'; url: string } }; // '' when site settings unset
-  datePublished: string;               // 'YYYY-MM-DD' from post.created (NOT published_at)
-  dateModified: string;                // 'YYYY-MM-DD' from post.updated
-  articleBody: string;                 // RAW post HTML (tags included, media URLs relative)
+  image: string;                       // {PUBLIC_FILES_ORIGIN}/media/CACHE/... (or /static/defaults/default.png)
+  publisher?: { '@type': 'Organization'; name: string; logo?: { '@type': 'ImageObject'; url: string } }; // no logo without one, no publisher without site settings (J-37)
+  datePublished: string;               // 'YYYY-MM-DD', Tehran: the day of published_at (created for a never-published post; J-20)
+  dateModified: string;                // 'YYYY-MM-DD', Tehran, never before datePublished
+  articleBody: string;                 // the post's plain text
   author?: { '@type': 'Person'; name: string };            // only if post has author
   commentCount?: number;               // only if comment_count > 0; = comment_count (replies included, 2026-10-29)
   comment?: { '@type': 'Comment'; author: { '@type': 'Person'; name: string }; datePublished: string; text: string }[];
@@ -411,17 +410,17 @@ interface CollectionPageLD {
   '@context': 'https://schema.org'; '@type': 'CollectionPage';
   name: string;                        // 'دسته‌بندی: {name}'
   description: string;                 // short_description || page_description || ''
-  url: string;                         // https://{SITE_DOMAIN}/blog/category/{path}/
-  isPartOf: { '@type': 'Blog'; name: string /* 'بلاگ {site}' */; url: string /* https://{SITE_DOMAIN}/blog/ */ };
-  publisher: { '@type': 'Organization'; name: string; logo: { '@type': 'ImageObject'; url: string } };
+  url: string;                         // {STOREFRONT_URL}/blog/category/{path}/
+  isPartOf: { '@type': 'Blog'; name: string /* 'وبلاگ {site}' (J-5) */; url: string /* {STOREFRONT_URL}/blog/ */ };
+  publisher?: { '@type': 'Organization'; name: string; logo?: { '@type': 'ImageObject'; url: string } }; // as BlogPosting's
 }
 interface BreadcrumbListLD {
   '@context': 'https://schema.org'; '@type': 'BreadcrumbList';
   itemListElement: { '@type': 'ListItem'; position: number; name: string; item: string }[];
-  // [1] 'خانه' https://{SITE_DOMAIN}/ , [2] 'بلاگ' https://{SITE_DOMAIN}/blog/ , then each category of the (deepest) chain → /blog/category/{path}/
+  // [1] 'خانه' {STOREFRONT_URL}/ , [2] 'وبلاگ' {STOREFRONT_URL}/blog/ , then each category of the (deepest) chain → /blog/category/{path}/
 }
 ```
-- The JSON-LD host is always `https://{SITE_DOMAIN}` (hard-coded https), **not** `STOREFRONT_URL` and not the API host. The sitemap uses `STOREFRONT_URL`. In dev the two differ: `https://localhost/blog/x/` versus `http://localhost:3000/blog/x/`. If the storefront domain is not `SITE_DOMAIN`, rewrite or override these URLs, or make `SITE_DOMAIN` the storefront domain and proxy `/media` and `/static` there, since the image and logo URLs point at `{SITE_DOMAIN}/media/...`.
+- Since 2026-11-05 (M-12) the JSON-LD's pages are on `STOREFRONT_URL`, exactly the sitemap's `<loc>`, and its pictures on `PUBLIC_FILES_ORIGIN` (default `https://{SITE_DOMAIN}`). The storefront embeds both blocks as they come: no origin rewriting, no empty-logo stripping, no «بلاگ» rename.
 - There is no FAQ JSON-LD (see section 2).
 - Sitemap: `/sitemap.xml` is served by the API host, outside `/api/v1`, with no key required.
   - Posts appear as `{STOREFRONT_URL}/blog/{slug}/` (`lastmod` = post `updated`, `weekly`, `0.9`).
@@ -931,23 +930,25 @@ Lifecycle the storefront must implement:
    - The JSON-LD image and logo URLs are also `https://{SITE_DOMAIN}/media/...`.
    - The scheme is hard-coded to https.
    - Either the page URLs point at the wrong host (when `SITE_DOMAIN` is the API host) or the images break unless the storefront proxies `/media` (when `SITE_DOMAIN` is the storefront host).
-2. **`datePublished` in BlogPosting comes from `created` (the draft start), not `published_at`.** Live, `upcoming-campaign-preview` has `published_at` 2026-09-19 but `datePublished` "2026-09-13". The guide documents this, but it contradicts the API-21 fix that introduced `published_at`. The sitemap `lastmod` for that post (2026-09-13) is also earlier than its publication.
-3. **`articleBody` is the raw post HTML** (tags included, media URLs relative and not absolutised). schema.org expects plain text. Also, `commentCount` counts top-level comments only while the `comment[]` array includes replies and questions, so the array can be longer than `commentCount` (live: commentCount 2, 3 entries). This is documented, but structured-data validators may flag it.
-4. **Image URLs for missing source files:** the first response returns the placeholder, and later responses return dead `/media/CACHE/...` URLs. In dev (media sources absent), the first `GET /blog/category/list/` returned `/static/defaults/default.png` for every category image. The second call returned `http://localhost:8000/media/CACHE/images/categories/.../*.jpg`, which **404s** (verified with curl). The same happens for post thumbnails, while `banner` URLs (no thumbnail) 404 directly. This contradicts the "image is never broken; placeholder when missing" promise in `utils/images.py` and the guide. The frontend needs an `onError` fallback.
-5. **OpenAPI: `DELETE /api/v1/devices/unregister/` has no `requestBody`** in `schema.yaml` (`requestBody: null`, and there is no `PushDeviceUnregisterRequest` component), although the endpoint requires a JSON body `{registration_id}`. Generated clients will not send it, so hand-write this call.
+   - **Fixed (2026-11-05, M-12/X5/K-3):** pages on `STOREFRONT_URL`, pictures on `PUBLIC_FILES_ORIGIN`.
+2. **`datePublished` in BlogPosting comes from `created` (the draft start), not `published_at`.** Live, `upcoming-campaign-preview` has `published_at` 2026-09-19 but `datePublished` "2026-09-13". The guide documents this, but it contradicts the API-21 fix that introduced `published_at`. The sitemap `lastmod` for that post (2026-09-13) is also earlier than its publication. **Fixed (2026-11-05, J-20):** `datePublished` is `published_at`'s Tehran day; `lastmod` the later of `updated` and `published_at`.
+3. **`articleBody` is the raw post HTML** (tags included, media URLs relative and not absolutised). schema.org expects plain text. Also, `commentCount` counts top-level comments only while the `comment[]` array includes replies and questions, so the array can be longer than `commentCount` (live: commentCount 2, 3 entries). This is documented, but structured-data validators may flag it. **Fixed before 2026-11-05 (J-20):** `articleBody` is plain text and `commentCount` is `comment_count`.
+4. **Image URLs for missing source files:** the first response returns the placeholder, and later responses return dead `/media/CACHE/...` URLs. In dev (media sources absent), the first `GET /blog/category/list/` returned `/static/defaults/default.png` for every category image. The second call returned `http://localhost:8000/media/CACHE/images/categories/.../*.jpg`, which **404s** (verified with curl). The same happens for post thumbnails, while `banner` URLs (no thumbnail) 404 directly. This contradicts the "image is never broken; placeholder when missing" promise in `utils/images.py` and the guide. The frontend needs an `onError` fallback. **Partly fixed (M-16/J-23):** a missing thumbnail's source gets the placeholder, no longer cached; a raw picture (`banner`) whose file is gone still 404s, so the `onError` fallback stays.
+5. **OpenAPI: `DELETE /api/v1/devices/unregister/` has no `requestBody`** in `schema.yaml` (`requestBody: null`, and there is no `PushDeviceUnregisterRequest` component), although the endpoint requires a JSON body `{registration_id}`. Generated clients will not send it, so hand-write this call. **Fixed in the schema (2026-11-05, J-3):** `PushDeviceUnregisterRequest`, `required: true`.
 6. **Unrouted 404s are HTML in DEBUG.** For example `DELETE /dashboard/comment/review/1/delete/` and `POST /notification/abc/read/` return Django's HTML debug page in dev. The guides promise the JSON `not_found`, which only `handler404` delivers when `DEBUG=False`.
-7. **CORS allow-list omits `STOREFRONT_URL`.** `CORS_ALLOWED_ORIGINS` contains only localhost:3000/8000, 127.0.0.1:3000/8000 and `http(s)://SITE_DOMAIN`. A preflight from `https://shop.example.com` gets no `Access-Control-Allow-Origin` (verified). There is no environment variable to extend it, although the settings say the storefront "is not necessarily served from this API's own domain". `Retry-After` is also not CORS-exposed.
-8. **Blog category `post_count` ignores scheduling** (code-verified). `CategoryListView` counts `posts__page_display_status=PUBLISH` without the `schedule <= now` condition that `Post.objects.published()` (API-21) applies. Legacy rows with "publish + future schedule" are counted before they go live. There are no such rows in the fixtures, so the impact is low.
-9. **View counter counts staff previews of "publish + future schedule" posts** (code-verified). `PostDetailView.retrieve` increments the counter when `page_display_status == PUBLISH`, even though `is_unpublished` is true for that post. The guide says previews never count. This also only affects legacy rows, so the impact is low.
-10. **TOC numbering gap and empty ids** (code-verified in `blog/services/content.py`). Counters are incremented **before** the "empty text → skip" check, so an empty `<hN>` (for example one containing only an image) makes the numbering jump. A heading made only of punctuation gets `id=""`. Duplicate heading texts produce duplicate ids (documented).
+7. **CORS allow-list omits `STOREFRONT_URL`.** `CORS_ALLOWED_ORIGINS` contains only localhost:3000/8000, 127.0.0.1:3000/8000 and `http(s)://SITE_DOMAIN`. A preflight from `https://shop.example.com` gets no `Access-Control-Allow-Origin` (verified). There is no environment variable to extend it, although the settings say the storefront "is not necessarily served from this API's own domain". `Retry-After` is also not CORS-exposed. **Fixed (2026-11-05, K-4/J-9):** `STOREFRONT_URL`'s origin is allowed, more with `EXTRA_CORS_ALLOWED_ORIGINS`; `Retry-After` exposed. (The storefront calls the API server-side anyway.)
+8. **Blog category `post_count` ignores scheduling** (code-verified). `CategoryListView` counts `posts__page_display_status=PUBLISH` without the `schedule <= now` condition that `Post.objects.published()` (API-21) applies. Legacy rows with "publish + future schedule" are counted before they go live. There are no such rows in the fixtures, so the impact is low. **Fixed (2026-11-05, J-21):** a not-yet-due post is no longer counted (still direct posts only: live, `tech-news` has `post_count: 1` while `?category=tech-news` lists 4).
+9. **View counter counts staff previews of "publish + future schedule" posts** (code-verified). `PostDetailView.retrieve` increments the counter when `page_display_status == PUBLISH`, even though `is_unpublished` is true for that post. The guide says previews never count. This also only affects legacy rows, so the impact is low. **Fixed (2026-11-05, J-21):** neither `HEAD` nor a staff preview of a not-yet-due post counts; every `GET` of a published post still does.
+10. **TOC numbering gap and empty ids** (code-verified in `blog/services/content.py`). Counters are incremented **before** the "empty text → skip" check, so an empty `<hN>` (for example one containing only an image) makes the numbering jump. A heading made only of punctuation gets `id=""`. Duplicate heading texts produce duplicate ids (documented). **Fixed (2026-11-05, J-22):** see §1.5's TOC notes.
 11. **Guide inaccuracies (code-verified):**
     - The blog guide says the comment tree is "two-level" in one place and "unlimited depth" in another. The code (MPTT, any visible parent) allows unlimited depth.
     - The blog guide says the comment throttle is shared "with the product comment form". `CommentCreateViewMixin.throttle_scope='comment_submit'` is also used by **page** comments, so the budget is shared by three forms.
     - The blog guide says `Author.full_name` may be a whitespace-only string and that a signed-in commenter's name falls back to the username. The code (`User.get_display_name`) returns the full name or «کاربر», never whitespace and never the username.
     - The dashboard guide row 5 says "under `/api/v1/account/address/`". The real routes are `list/`, `create/`, `{id}/`, `{id}/update/`, `{id}/delete/` and `{id}/set-default/`.
-12. **Blog `author` filter is typed `number`.** `?author=1.5` returns 200 with `count: 0` instead of 400 (only non-numeric input is rejected). This is minor.
-13. **FAQ `answer` HTML is not absolutised**, unlike blog and product rich text, and is not sanitized. This is documented, but it is an inconsistency every client has to work around.
-14. **Route shadowing.** API: a post or blog category whose slug is `list` can never be fetched (`post/list/` and `category/list/` are matched first). Storefront: a post with slug `category` collides with `/blog/category/...`. This is an edge case, and slugs are not reserved by the panel as far as I could see.
+    - **2026-11-05 (J-24):** the first three corrected in the blog guide; the dashboard row names the six routes' common prefix on purpose.
+12. **Blog `author` filter is typed `number`.** `?author=1.5` returns 200 with `count: 0` instead of 400 (only non-numeric input is rejected). This is minor. **Fixed (2026-11-05, J-10):** `400 invalid`/`min_value` on `author`.
+13. **FAQ `answer` HTML is not absolutised**, unlike blog and product rich text, and is not sanitized. This is documented, but it is an inconsistency every client has to work around. **Partly fixed (M-18):** absolute URLs now; never sanitised (operator HTML, deliberate), so the storefront's sanitiser stays.
+14. **Route shadowing.** API: a post or blog category whose slug is `list` can never be fetched (`post/list/` and `category/list/` are matched first). Storefront: a post with slug `category` collides with `/blog/category/...`. This is an edge case, and slugs are not reserved by the panel as far as I could see. **Fixed in the panel (2026-11-05, M-15):** `list` and, for a post, `category` are refused.
 
 Things I checked that are **not** bugs:
 - Schema nullability is correct for `author`, `badge` and `brand` (`allOf` + `nullable: true`).

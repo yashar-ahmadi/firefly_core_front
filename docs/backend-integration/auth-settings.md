@@ -55,7 +55,7 @@ Dev-server facts that matter when you test against it:
    - `msg` is a generic per-HTTP-status sentence.
    - Some codes reuse the same name with different HTTP statuses:
      - `auth_token_invalid` is 400 on most endpoints but 401 on refresh.
-     - `auth_google_token_invalid` is 401 or 503.
+     - Google is no longer one of them (backend 2026-11-05, J-7): `auth_google_token_invalid` is always 401, `auth_google_unavailable` always 503.
 5. **`429` always carries `data.retry_after`, an integer of at least 1** [LIVE].
    - The `Retry-After` header is **not CORS-exposed** (only `X-Cart-Token` is) [LIVE]. A browser on another origin must read the body.
 6. **Build the login and registration UI only from `auth`** (inside `/global/settings/`, or `/global/auth-settings/`).
@@ -133,7 +133,7 @@ interface ApiError { msg: string; code: number; data: ApiErrorData }
   - The API adds its own codes: `invalid_code` (OTP or TOTP that is not exactly 6 digits), and `invalid_image`, `image_invalid` and `image_too_large` (avatar).
   - The details for `required`, `null` and similar are DRF Persian text and not meant for end users.
 - `client_error` is a business error. `attr` is `null`.
-- `server_error` is a 5xx. In this scope it is always 503: `auth_otp_send_failed`, `auth_google_token_invalid` (Google unreachable), or `feature_disabled`.
+- `server_error` is a 5xx. In this scope it is always 503: `auth_otp_send_failed`, `auth_google_unavailable` (Google unreachable, or its 5xx or 429; since 2026-11-05, J-7), or `feature_disabled`.
 - Example successful bodies with no payload return `data: {}`. This covers logout, logout-all, totp enable and disable, and password-reset confirm [LIVE for logout].
   - The schema types these as `Record<string, any>`.
 
@@ -334,7 +334,7 @@ Errors:
   - Also returned for `register_method: phone` without `otp_method` when neither channel exists.
 - `validation_error`:
   - `attr: otp_method`, code `invalid`: an incompatible channel, e.g. sms for email [LIVE].
-  - `attr: email` or `phone_number`, code **`invalid`** (not `required`), when missing [LIVE: "وارد کردن ایمیل الزامی است."]. The same attrs carry `invalid` for a bad format.
+  - `attr: email` or `phone_number`, code **`required`** when missing (since 2026-11-05, J-6; it was `invalid`) ["وارد کردن ایمیل الزامی است."]. The same attrs carry `invalid` for a bad format.
   - Missing `first_name`, `last_name` or `register_method` gives `required` [LIVE].
 - `feature_disabled` (503):
   - `data.feature = "registration"`, plus a `Retry-After` header (300, advisory only).
@@ -365,8 +365,8 @@ Errors:
   - `auth_token_invalid` [LIVE] and `auth_token_expired`.
   - `auth_otp_channel_unavailable` and `auth_otp_send_failed`.
   - `feature_disabled` when registration is switched off.
-- **WARNING (backend bug, see §13):** this endpoint does **not** validate channel compatibility. The sent `otp_method` is **persisted before sending**.
-  - Only send `email` for email registrations, and `sms` or `telegram` (from `available_otp_methods`) for phone registrations.
+- Channel compatibility (backend 2026-11-05, M-11; §13 #1 fixed): an `otp_method` that cannot reach the registration's identifier is `400 validation_error` with `attr: "otp_method"` and `register/start`'s sentence; nothing is sent and the code the visitor has stays valid. A new channel is saved only once a code went by it: after `auth_otp_channel_unavailable` or `auth_otp_send_failed`, a resend without `otp_method` goes by the previous one. An expired or verified registration with an incompatible channel gets this 400 first.
+  - Only send `email` for email registrations, and `sms` or `telegram` (from `available_otp_methods`) for phone registrations. The storefront maps `otp_method` under the identifier (`code-flow-errors.ts`).
 
 ### 4.4 `POST /api/v1/account/auth/register/complete/`: Public, no dedicated bucket
 
@@ -451,9 +451,8 @@ Errors:
   - A newly created account never gets `requires_totp`.
 - Errors:
   - `auth_google_disabled` (400) [LIVE on dev]. Hide the button and re-read settings.
-  - `auth_google_token_invalid`:
-    - **401**: the token is bad, expired, for another client, or has no email. Get a new token and retry once.
-    - **503**: Google could not be reached for `access_token` validation. Retry later.
+  - `auth_google_token_invalid` (**always 401** since 2026-11-05, J-7): Google refused the token (400, 401 or 403 on the token check or the profile read), it is expired, for another client, or has no email. Get a new token from the button.
+  - `auth_google_unavailable` (**503**, new, J-7): Google could not be reached, or answered 5xx or 429, on either call, or the ID token's certificates could not be fetched. Nothing was said about the token: show the message and send the same token again a little later (the storefront offers «تلاش دوباره» on the login page's first step; on the TOTP step its own button resends it).
   - `auth_google_email_unverified` (400): suggest email or phone registration.
   - `auth_account_disabled` (403).
   - `feature_disabled` (503): the email has no account and registration is off. Existing users still log in.
@@ -589,7 +588,7 @@ Errors [LIVE unless marked]:
 - `auth_email_already_exists` / `auth_phone_already_exists`
 - `auth_contact_unchanged` ("این مقدار همان اطلاعات فعلی و تأیید شده شما است.")
 - `auth_otp_channel_unavailable`, `auth_otp_throttled`, `auth_otp_daily_limit` and `auth_otp_send_failed`
-- validation `invalid` on `otp_method` when it is incompatible ("برای تأیید ایمیل فقط روش «ایمیل» قابل استفاده است."), and on `email` or `phone_number`
+- validation `invalid` on `otp_method` when it is incompatible ("برای تأیید ایمیل فقط روش «ایمیل» قابل استفاده است."), and on `email` or `phone_number` (`required` when missing, since 2026-11-05: J-6)
 
 ### 4.18 `POST /api/v1/account/profile/contact/verify/`: JWT, `auth_attempt`
 
@@ -770,7 +769,8 @@ Branches that depend on auth-settings are marked **[AS]**. Branches that depend 
 | `auth_totp_invalid` | 400 | client_error | any TOTP | Under TOTP field; "enter next code / sync clock". |
 | `auth_totp_locked` | 429 | client_error + retry_after | any TOTP | Lock field for `retry_after`. |
 | `auth_google_disabled` | 400 | client_error | Google | Hide button; refetch settings. |
-| `auth_google_token_invalid` | 401 / 503 | client_error / server_error | Google | 401: new token, retry once. 503: retry later. |
+| `auth_google_token_invalid` | 401 | client_error | Google | A new token (always 401 since 2026-11-05, J-7). |
+| `auth_google_unavailable` | 503 | server_error | Google | Google unreachable: show it, send the same token again later (J-7). |
 | `auth_google_email_unverified` | 400 | client_error | Google | Suggest email/phone sign-up. |
 | `throttled` | 429 | client_error + retry_after | any | Wait `retry_after`; no immediate retry. |
 | `feature_disabled` | 503 | server_error + feature, feature_name | register start/resend, Google new-account (and other apps) | Hide control, show detail, refetch feature-status; **no auto-retry**. |
@@ -885,8 +885,8 @@ interface Languages {
 }
 interface EnabledLanguage {
   language_code: 'fa' | 'en';         // only these two codes are possible
-  language_name: string | null;       // null/"" if operator cleared it -> show code (schema says non-null)
-  icon: string | null;                // RELATIVE path like "/media/languages/fa.png" -> prefix API origin
+  language_name: string;              // "" if operator cleared it, never null (J-2, migration settings/0021) -> show code
+  icon: string | null;                // absolute URL (J-4), or null
   is_rtl: boolean;                    // drives dir= of the whole UI
   translations: Record<string, unknown> | null;  // full dictionary (plural key here!)
 }
@@ -1154,7 +1154,7 @@ Every null field means "do not render that section". This is part of the guide's
 - Set `<html lang dir>` from `is_rtl`.
 - Merge `translations` over the bundled strings.
 - Refresh with `get-translation/<code>/` (note the singular `translation` key).
-- The language switcher shows `language_name ?? language_code` and `icon` prefixed with the API origin.
+- A language switcher would show `language_name || language_code` (an empty name, never null: J-2) and `icon` as it comes (absolute). The storefront is Persian only and shows neither.
 - Persist the choice client-side, for example in a cookie or localStorage.
 
 ### 8.6 Feature gating
@@ -1362,8 +1362,9 @@ Items are tagged with where I verified them.
      - `sms` or `telegram` on an email registration either fails (`auth_otp_channel_unavailable` or `auth_otp_send_failed`), or tries to send to a null phone. Either way the bad channel stays saved, so later resends without `otp_method` keep failing.
    - Expected: `400 validation_error` on `otp_method`, as in `register/start`.
    - Mitigation: the client only offers compatible channels.
+   - **Fixed (backend 2026-11-05, M-11):** exactly that 400, nothing sent, the channel saved only after a successful send (§4.3).
 2. **Schema vs code drift.** Generated clients and validators will be wrong in these places:
-   - `EnabledLanguage.language_name`: the schema says `string`, non-null. The model allows `null` (`null=True, default=''`) and the guide says null is possible. [SCHEMA+CODE]
+   - `EnabledLanguage.language_name`: the schema says `string`, non-null. The model allows `null` (`null=True, default=''`) and the guide says null is possible. [SCHEMA+CODE] **Fixed (2026-11-05, J-2):** the column refuses NULL; `""`, never null.
    - `VersionCheck.changes`: the schema says `Record<string, string>` (child `CharField`). `release_note` is nullable, so values can be `null`; the guide says so too. [SCHEMA+CODE]
    - `otp_code` and `totp_code`: the schema has `pattern: [0-9]{6}` and `maxLength: 6`, but the server accepts Persian and Arabic digits and trims whitespace.
      - A Persian-digit OTP passed format validation and reached token validation (`auth_token_invalid`) [LIVE].
@@ -1372,23 +1373,24 @@ Items are tagged with where I verified them.
    - `ExtraSnippet.type`: the schema marks it optional, but it is always present [LIVE].
    - `logout`, `logout-all`, `totp/enable`, `totp/disable` and `password-reset/confirm` responses are typed `Record<string, any>`. The actual value is `{}`.
    - The error enums per status are global unions, not per endpoint [SCHEMA].
-3. **`languages[].icon` is a relative path** (`language.icon.url`, e.g. `/media/languages/fa.png`). Every other file field in `/global/*` is absolute, and the schema describes it as "Flag image URL". [CODE + DOC; live icons are null so not observed]
+3. **`languages[].icon` is a relative path** (`language.icon.url`, e.g. `/media/languages/fa.png`). Every other file field in `/global/*` is absolute, and the schema describes it as "Flag image URL". [CODE + DOC; live icons are null so not observed] **Fixed before 2026-11-05 (J-4):** absolute.
 4. **Sitemap and JSON-LD use different hosts.** [LIVE+CODE]
    - Sitemap `<loc>` uses `STOREFRONT_URL`, e.g. `http://localhost:3000/product/apple-iphone-15/`.
    - Product and blog JSON-LD and breadcrumbs (`product/services/structured_data.py`, `blog/services/structured_data.py`, `utils/absolute_urls.py`) use `https://{SITE_DOMAIN}`, giving `https://localhost/product/apple-iphone-15/` [LIVE in `/api/v1/product/detail/apple-iphone-15/`].
    - The settings guide says the sitemap URLs are "the same site paths the structured data points to". The paths match, but the **hosts and schemes differ whenever `STOREFRONT_URL` is not `https://SITE_DOMAIN`**.
    - The "back in stock" SMS link (`product/services/notifications.py`) also uses `SITE_DOMAIN`.
    - Storefront impact: canonical and JSON-LD URLs taken from the API can point to a different origin than the sitemap.
+   - **Fixed (backend 2026-11-05, M-12/X5/K-3):** pages are on `STOREFRONT_URL` (each exactly the sitemap's `<loc>`, a Persian slug percent-encoded), pictures on `PUBLIC_FILES_ORIGIN` (default `https://SITE_DOMAIN`; a CDN URL is no longer prefixed twice), and the SMS link too. The storefront embeds the JSON-LD as it comes (no origin rewriting); `STOREFRONT_URL` must equal its `SITE_URL`.
 5. **Demo data points to a route that is not in the sitemap.** `settings.support_link = https://firefly-core.ir/contact-us/`, but the published contact page is `/page/contact-us/` [LIVE]. Either add a `/contact-us/` route or redirect on the storefront, or ask the operator to change the link.
 6. **`auth_identifier_invalid` breaks the guide's field-error convention** [LIVE].
    - The guide says field errors carry `attr`, and tells the UI to show this one "under the identifier field".
    - The backend returns it as `type: client_error` with `attr: null`.
-7. **Missing identifier at `register/start` returns `invalid`, not `required`** [LIVE: `attr: "email"`, code `invalid`, "وارد کردن ایمیل الزامی است."]. Don't rely on `required` to detect a missing identifier.
-8. **Case-sensitivity is inconsistent** [LIVE]. `languages/?platform=` is case-insensitive, but `get-translation/<code>/` is not (`FA` returns 404).
+7. **Missing identifier at `register/start` returns `invalid`, not `required`** [LIVE: `attr: "email"`, code `invalid`, "وارد کردن ایمیل الزامی است."]. Don't rely on `required` to detect a missing identifier. **Fixed (2026-11-05, J-6):** `required` (here and at `profile/contact/request/`), same `attr` and sentence.
+8. **Case-sensitivity is inconsistent** [LIVE]. `languages/?platform=` is case-insensitive, but `get-translation/<code>/` is not (`FA` returns 404). **Fixed (2026-11-05, J-8):** `FA` is 200 with `language_code: "fa"`; the storefront asks for `fa` anyway.
 9. **Same code, different statuses.**
    - `auth_token_invalid` is 400 on registration, reset and logout, and 401 on refresh [LIVE].
-   - `auth_google_token_invalid` is 401 or 503 [CODE].
-   - Clients must branch on the HTTP status as well as the code. This is documented, but easy to miss.
+   - `auth_google_token_invalid` is 401 or 503 [CODE]. **Fixed (2026-11-05, J-7):** always 401; Google unreachable is the new `503 auth_google_unavailable`.
+   - Clients must branch on the HTTP status as well as the code for `auth_token_invalid`. This is documented, but easy to miss.
 10. **Generic `throttled` detail uses Latin digits** [LIVE: "…در 1 ثانیه در دسترس باشد."]. The auth guide says the Persian 429 messages render the number in Persian digits. Cosmetic only: never parse the message; use `retry_after`.
-11. **Dev-only HTML errors** [LIVE]. With DEBUG on, a missing trailing slash on POST gives an HTML 500 RuntimeError, and unknown `/api/v1/...` paths give an HTML 404 instead of the JSON envelope (`handler404` is bypassed under DEBUG). Not a production bug, but clients must not assume every response is JSON.
-12. **`Retry-After` is not CORS-exposed** [LIVE]. The guide warns about this, but the auth guide's checklist still tells clients to read "data.retry_after **or** the Retry-After header". In a cross-origin browser, only the body value is readable.
+11. **Dev-only HTML errors** [LIVE]. With DEBUG on, a missing trailing slash on POST gives an HTML 500 RuntimeError, and unknown `/api/v1/...` paths give an HTML 404 instead of the JSON envelope (`handler404` is bypassed under DEBUG). Not a production bug, but clients must not assume every response is JSON. **Since 2026-11-05 (K-5/K-9):** an unsafe method without the slash is a `308` to it (method and body kept), DEBUG or not; the unknown path's HTML 404 stays in development.
+12. **`Retry-After` is not CORS-exposed** [LIVE]. The guide warns about this, but the auth guide's checklist still tells clients to read "data.retry_after **or** the Retry-After header". In a cross-origin browser, only the body value is readable. **Fixed (2026-11-05, J-9):** `Access-Control-Expose-Headers: X-Cart-Token, Retry-After`; `data.retry_after` stays the countdown's source (the storefront calls the API server-side anyway).

@@ -249,6 +249,9 @@ export interface MenuTarget<T extends MenuTargetType = MenuTargetType> {
   type: T;                                      // always equals the node's link_type
   id: number;                                   // id of the target row in ITS table (not the menu item id)
   slug: string;                                 // current slug; for categories ONLY the last path segment
+  requires_login: boolean;                      // a page's own flag, false for other types (2026-11-05, NJ-1):
+                                                // still listed, same url; a guest who opens it gets 401 → login.
+                                                // The storefront's MenuLink adds a lock «ویژهٔ اعضا».
 }
 interface MenuNodeBase {
   id: number;                                   // menu item id (React key)
@@ -299,7 +302,7 @@ export interface CategoryCard {
   image: string; icon: string;                  // absolute; placeholder, never null
   show_in_homepage: boolean;
   default_sorting: CategorySorting | '' | null;
-  product_count: number;                        // DIRECT published products only (parents often 0!)
+  product_count: number;                        // the whole visible subtree, each once (2026-11-05, J-12)
   created: string; updated: string;
 }
 export interface BrandCard {                    // search brands.items (product/brand/list card)
@@ -725,9 +728,9 @@ Result: never render skeletons or "no products" placeholders for missing section
   `show_in_homepage`, in **tree pre-order** — verified: digital, digital/mobile-phone, home-appliance,
   home-appliance/refrigerator, fashion, fashion/men-clothing).
 - Link: `/product-category/{path}/`. `image`/`icon` absolute, never null (placeholder `/static/defaults/default.png`).
-- **`product_count` = direct products only** → parents show 0 (dev: digital, fashion, beauty-health all 0). Don't
-  show counts, or only when > 0. Subtree counts: `GET /product/filters/` `categories[].product_count` (children) or
-  `count` of `GET /product/list/?category=…`.
+- **`product_count` counts the whole visible subtree** since 2026-11-05 (J-12): equal to `count` of
+  `GET /product/list/?category=…` (dev: `digital` 26). The storefront's cards (`style_2`) say it («۲۶ کالا»), not
+  when 0.
 - No automatic see-all; only operator `link` (dev section 10003/10009 have `link: null`).
 
 ### 6.7 `post_carousel`
@@ -882,7 +885,7 @@ Dev: `logo: null`, `avatar_letter: "ف"`, name «فروشگاه فایرفلای
 | `email` | address | `mailto:…` | `<a href>` button |
 | `phone` | as typed (`02191001234`) | `tel:+982191001234` (E.164) | `<a href>` button; may show `value` |
 | `text` | plain text (multi-line) | `null` | not a link: `title` as heading, `value` as text, `white-space: pre-line`, NEVER innerHTML |
-| `video` | http(s) video URL or store path | absolute (as button) | embed `<iframe>` only for aparat.com (`/v/{id}` → `https://www.aparat.com/video/video/embed/videohash/{id}/vt/frame`) and youtube.com `watch?v=` / youtu.be → `https://www.youtube.com/embed/{id}`; otherwise a button. Verify embed URL patterns with providers. |
+| `video` | http(s) video URL or store path | absolute (as button) | embed `<iframe>` only for aparat.com (www, m; `/v/{id}` → `https://www.aparat.com/video/video/embed/videohash/{id}/vt/frame`) and youtube.com (www, m) `watch?v=` / youtu.be → `https://www.youtube-nocookie.com/embed/{id}`; otherwise a button. A page block's `video_url` on these hosts always has a readable id since 2026-11-05 (NJ-3: the panel refuses the rest); other https hosts are links. |
 | unknown | — | — | render nothing |
 Dropped server-side: inactive links; phone with extension (`#123`); invalid button/video URL, invalid email/phone;
 `text` with empty/whitespace value; socials with unknown platform or invalid URL (e.g. `javascript:`).
@@ -1097,7 +1100,7 @@ Network/5xx: page/homepage/linker/subject fetches throw (ISR keeps last good); m
 - [ ] Slider/banner: `<picture>` mobile source, `text_color` only on title/description, link/CTA rules, first-image eager+high priority only.
 - [ ] Banner grid by count (1/2/3/4/many).
 - [ ] Product/post cards = listing components; hearts and reading-list badges hydrated per viewer (paginate to `next: null`).
-- [ ] Category links from `path`; hide `product_count` (or only > 0).
+- [ ] Category links from `path`; `product_count` (whole subtree since J-12) only when > 0.
 - [ ] `/product/list/` page forwarding params verbatim; `noindex, follow` or topic canonical.
 - [ ] Build environment can reach API (or force-dynamic).
 - [ ] Homepage SEO with empty-key omission; OG via property.
@@ -1133,32 +1136,38 @@ Network/5xx: page/homepage/linker/subject fetches throw (ISR keeps last good); m
 2. **OpenAPI: `search/` and `search/suggest/` declare `q` `minLength: 1, maxLength: 200`**, but the effective minimum
    is 2 characters after normalization (`?q=س` → 400 `min_length`; verified) and normalized max is 100
    (`'a'*150` → 400 `max_length` "…بیش از ۱۰۰…"; verified). Generated clients/validators from the schema will be wrong.
+   **Unchanged on purpose (2026-11-05, J-1):** the schema's limits are the raw text's; the prepared text's (2–100) are
+   in the parameter's description.
 3. **Typo in the `null` validation message**: `"این مقدار نباید توهی باشد."` ("توهی" should be "تهی") — verified live
    (`POST contact-us/message/submit/` with `"name": null`); the guide reproduces it. User-visible only on programming
-   errors, but don't surface raw.
+   errors, but don't surface raw. **Fixed (2026-11-05, J-5):** «این مقدار نباید خالی باشد.», code still `null`.
 4. **Lazy thumbnail placeholder flicker (observed in dev under concurrent load)**: the same product image came back as
    `http://localhost:8000/static/defaults/default.png` on one `search/suggest/` call and as the real
    `/media/CACHE/images/products/.../<hash>.jpg` on the next (seen for `samsung-galaxy-tab-a9` with `q=ab` and for a
    charger with `q=شارژر`, response sizes 565 vs 634 bytes). `utils/images.py::thumbnail_url` swallows
    `FileNotFoundError/OSError` during imagekit's on-first-access generation and returns the placeholder. Combined with
    storefront caching (homepage 60 s, suggest 60 s) a placeholder can be cached. Likely a race in lazy generation;
-   worth pre-generating thumbnails (or not caching responses containing the placeholder) in production.
+   worth pre-generating thumbnails (or not caching responses containing the placeholder) in production. **Fixed before
+   2026-11-05 (J-23):** a concurrent request gets the thumbnail's URL; the placeholder only for a missing source.
 5. **Inconsistent `data.type` for contact-form 400s**: the three contact-specific codes
    (`contact_subject_required`, `contact_subject_unavailable`, `contact_channel_required`) come as
    `type: "client_error"` with `attr: null`, while every other 400 from the same endpoint (incl. the closely related
    `invalid_iranian_mobile`, attr `phone`) is `validation_error` with an attr. Documented, but means generic
-   "attr → field" mapping misses them; map by code.
+   "attr → field" mapping misses them; map by code. **Deliberate (2026-11-05, J-6):** domain refusals; keep mapping by
+   code.
 6. **`CategoryCard.product_count` semantics differ by endpoint**: direct-only on homepage `category_grid` / category
    list / search groups (dev: parents `digital`, `fashion`, `beauty-health`, `grocery` all `0` while their subtrees have
    products) vs subtree counts in `/product/filters/`. Documented in the guide, but a homepage grid of top-level
-   categories (dev section 10003) will show "0 products" for every parent if rendered naively.
+   categories (dev section 10003) will show "0 products" for every parent if rendered naively. **Fixed (2026-11-05,
+   J-12):** every endpoint counts the whole visible subtree.
 7. **Pagination silently ignores invalid `limit`**: `limit=0` and `limit=-5` return 200 with `page_size: 20` instead of
    a validation error (verified on `pages/list/`). Not harmful, but differs from strict `page` handling (`page=0`/`abc`
-   → 404).
+   → 404). **Unchanged on purpose (2026-11-05, J-10).**
 8. **Slashless API path → 301** (`/api/v1/menu/main` → `/api/v1/menu/main/`, verified; Django `APPEND_SLASH`). For POSTs
    this would drop the body — always use trailing slashes. In DEBUG dev, a non-slug menu key (`/menu/a%20b/`) returns
    Django's HTML debug 404 rather than the JSON envelope (prod uses `handler404 = not_found` → JSON; not verifiable
-   here).
+   here). **Since 2026-11-05 (K-5/K-9):** `POST`, `PUT`, `PATCH`, `DELETE` and `OPTIONS` get a `308` instead (method
+   and body kept); `GET`/`HEAD` keep the 301. Still write the slash.
 10. **Reserved-slug protection exists only for pages.** `pages/models.py` has `RESERVED_PAGE_SLUGS = {'list'}` (panel
    refuses `list` because of `/api/v1/pages/list/`). Products and blog posts use the shared `seo.AbstractBaseSeoModel`
    `SlugField(allow_unicode=True, unique=True)` with **no reserved values** (grep of `product/` and `blog/`: no reserved
@@ -1167,7 +1176,7 @@ Network/5xx: page/homepage/linker/subject fetches throw (ISR keeps last good); m
    `url`/sitemap `/product/list/` (= the query listing page) and a post slugged `category` would get `/blog/category/`
    — both unreachable on a Next.js router where static segments win. Verified by code inspection, not by creating rows.
    Storefront mitigation: none possible without backend change; flag to backend team (reserve `list` for products and
-   `category` for posts).
+   `category` for posts). **Fixed in the panel (2026-11-05, M-15):** `reserved_slug`.
 11. **Guide sample vs dev data drift (not a bug, FYI)**: guide examples show `footer` with `items: []` and different page
    ids/layouts/descriptions; the dev DB has a populated footer, all pages `layout: "default"`, `description: null`,
    and rich text without `<p>` wrappers. Don't hard-code against guide samples.

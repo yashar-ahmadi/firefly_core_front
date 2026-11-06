@@ -14,10 +14,22 @@ Sample accounts: password `Firefly@1234`. Log in with `POST /api/v1/account/auth
 2. **Guest identity is `X-Cart-Token`.** It is issued only by the first successful `POST /cart/item/add/` (also by merge and reorder, but those require login). Read it from `data.token`, not from the header. Store it unless it is `""`. Update it after *every* successful response.
 3. **Logged-in users:** send the guest token **once** right after login (ideally on `POST /cart/merge/`), show `adjustments`, then delete the stored token and never send it again.
 4. **An expired or invalid access token makes cart calls silently anonymous** (GET returns an empty cart with `token:""`). Refresh the access token proactively before cart calls. Only `merge` (401 `cart_token_required`) and `reorder` (401 `token_not_valid`) tell you.
-5. **Checkout order:** destination, then `GET shipping/option/list/`, then `POST shipping/select/`, then re-read the cart, then place the order with `expected_total`. These all **clear the shipping selection**: any item change (even a no-op PUT), applying or removing a coupon, changing the destination, a real merge, reorder, and editing or deleting the address that is the destination (when the province or city changes).
+5. **Checkout order:** destination, then `GET shipping/option/list/`, then `POST shipping/select/`, then re-read the cart, then place the order with `expected_total`. These all **clear the shipping selection**: any real item change, applying or removing a coupon, changing the destination, a real merge, reorder, and editing or deleting the address that is the destination (when the province or city changes). A PUT of the quantity a line already has, and the destination the cart already has, keep it (2026-11-05).
 6. **Money sent to the gateway is `amount_charged_online`.** Use neither `total` nor `amount_payable_online`. If `amount_charged_online === 0`, place the order as pay-on-delivery and do not redirect to a gateway.
 7. **Tax is non-zero in the sample data (10%).** Never hard-code a rate; display `tax_amount`.
 8. **Things that come back only once:** `coupon.detached_reason`, `adjustments` (merge, implicit merge, reorder) and `reorder_skipped`. Surface them from the response that carries them.
+
+## Update 2026-11-05 (backend storefront change log, `develop`; cart-api §4, §7, §8)
+
+| change | storefront |
+|---|---|
+| **M-9:** a `PUT cart/item/{id}/` with the quantity the line already has writes nothing and **keeps** the shipping choice and COD (only `expires_at` moves); stock is not checked for it. | The stepper still sends only a changed value (a request saved); the shipping choice is re-checked before payment as before (§3.3). |
+| **X6:** `POST cart/destination/` with the destination the cart already has (the same address id, or the same province and city) keeps the shipping choice. | Nothing to change (§3.8). |
+| **M-10:** a real merge moves the guest's province and city (or saved address, when it is the user's own) onto a user cart that has no destination. | The steps follow `destination` as before: asked only when it is missing (signed in: a saved address, §3.11). |
+| **J-28 / M-8:** every option of `cart/shipping/option/list/` adds **`cash_on_delivery_available`** and **`cash_on_delivery_refusal`** (the select's own verdict for this cart with `cash_on_delivery: true`); `cod_max_amount` is the ceiling for this cart and option (the method's, and with nothing online the lower of it and the «پرداخت در محل» payment method's `max_amount`). | The COD box: shown for a chosen, available method that collects at the door while the shop offers it; ticked only where the API says it may; refused for this cart it stays, disabled, with why (the ceiling named). No comparison is made in the browser (`shipping-option.tsx`). |
+| **M-8:** select with COD on a cart that pays nothing online while the «پرداخت در محل» payment method is off (or has no row): **400 `cart_cod_route_disabled`** (new). `cart_cod_limit_exceeded`'s `detail` names the ceiling that refused («…در این فروشگاه حداکثر … تومان است.» for the payment method's). A cart that chose COD before the method went off or its cap came down reads `is_selected: true, is_available: false` with that sentence, and placement refuses it (`order_shipping_method_unavailable`). | `cart_cod_route_disabled` is a COD refusal like the ceiling: the same method chosen prepaid, the API's sentence said, the list read again. A stale choice is chosen again like any `is_available: false` (§3.10). |
+| **J-1:** an address's `postal_code` that is not 10 digits gets one `invalid` error («کد پستی باید دقیقاً ۱۰ رقم باشد.»), whatever its length (no `max_length` beside it); OpenAPI `maxLength: 11` with a pattern that takes `12345-67890`. `receiver_mobile` still gets two errors (`invalid`, `invalid_iranian_mobile`). | The form shows every message of a field (`address-errors.ts`); digits are made Latin and dashes dropped before our own check, as before (§7.2). |
+| **J-2:** the OpenAPI `Address` read schema now marks every field `readOnly` and `required` (`postal_code` 10 digits or `""`, `plaque`/`unit` nullable); `GET cart/` no longer declares 400/404 and the option list no longer declares 400. | The hand-written types already said so (§4). |
 
 ---
 
@@ -182,7 +194,7 @@ No params. No endpoint-specific errors (only 401 api-key, 405, 429). Empty and "
 - `quantity` (required int, 0..10000) is the **absolute** final quantity. `0` removes the line. `-1` gives `min_value`, a missing field gives `required`.
 - The line lookup comes first: a variant not in the cart, or a variant that does not exist at all (999999), gives 400 `cart_item_not_found` (`این کالا در سبد خرید شما نیست.`), **even for `quantity:0`**. On a "remove" action, treat `cart_item_not_found` as success and re-render.
 - The same stock and limit errors as add apply, but `quantity:0` bypasses stock checks.
-- Repeating the same quantity is idempotent for the quantity, **but it still clears the shipping selection and COD** (verified; see section 10).
+- Repeating the same quantity is a no-op: nothing is written, the shipping selection and COD are kept and only `expires_at` moves; stock is not checked for it (backend 2026-11-05, M-9; it used to clear the selection). A real change still clears it (section 10).
 
 ### 3.4 DELETE `/cart/item/{variant_id}/remove/`
 No body. A missing line gives 400 `cart_item_not_found`; treat that as success.
@@ -241,7 +253,7 @@ No body. A missing line gives 400 `cart_item_not_found`; treat that as success.
 
 - The cart stores **either** an address **or** a raw province/city pair; setting one clears the other. `destination.province_id` and `city_id` are filled in both modes.
 - **Changing the destination clears the shipping selection and COD.** Re-fetch the options.
-- `destination.address` (in logged-in mode) is a full `Address` object, so it contains PII. According to the guide, every destination call clears the selection, even one that re-sends the same destination (not separately verified).
+- `destination.address` (in logged-in mode) is a full `Address` object, so it contains PII. Re-sending the destination the cart already has (the same address id, or the same province and city) keeps the selection and only moves `expires_at` (backend 2026-11-05, X6). A saved address in the city of a stored province/city pair is a new destination.
 
 ### 3.9 GET `/cart/shipping/option/list/`
 - No params. Returns `{options: ShippingOption[], adjustments: Adjustment[]}`. It is the only read that requires a cart (404 `cart_not_found`). It sends the `X-Cart-Token` header.
@@ -251,7 +263,7 @@ No body. A missing line gives 400 `cart_item_not_found`; treat that as success.
 - Without a destination, only zone-less rules match. Verified: before a destination, `peyk-tehran` and `hozouri` were unavailable while `post-*` and `tipax` priced nationally. **Always set the destination first.**
 - With a valid **free-shipping coupon**, every available option has `price:0`, but `packaging_cost` is kept and `total = packaging_cost` (verified). The list does **not** show the original fare. The saving appears as `shipping_discount` only after selection.
 - With `pay_on_delivery` off, the COD fields are neutralised (see 1.6).
-- `supports_cash_on_delivery:true` does **not** mean COD will pass the ceiling. The list never pre-checks `cod_max_amount` against this cart (verified: `peyk-tehran` was advertised as COD-capable on a cart whose door amount was over 20M, and select then failed). The UI may pre-warn by comparing `goods_payable + tax_amount + cod_fee (+ total if freight_payer==='recipient')` with `cod_max_amount`, but the server decides.
+- **`cash_on_delivery_available` / `cash_on_delivery_refusal`** (backend 2026-11-05, J-28) are the select's own answer for this cart with `cash_on_delivery: true`: available, or the code it would refuse with, in its order (`feature_disabled`, `cart_shipping_method_unavailable`, `cart_cod_not_supported`, `cart_cod_route_disabled`, `cart_cod_limit_exceeded`). `cod_max_amount` is the ceiling for this cart with this option (the method's, and with nothing charged online the lower of it and the «پرداخت در محل» payment method's `max_amount`); it may differ between options of one cart. Live 2026-11-06: a 1.45M cart in Tehran had `peyk-tehran` available; an S25 Ultra cart had it refused with `cart_cod_limit_exceeded`. Enable the COD box from the verdict, name the ceiling for `cart_cod_limit_exceeded`, and never compare amounts in the client; the select still decides.
 - This endpoint can also perform the implicit post-login merge, so read `data.adjustments` here too.
 
 ### 3.10 POST `/cart/shipping/select/`
@@ -262,8 +274,10 @@ No body. A missing line gives 400 `cart_item_not_found`; treat that as success.
   2. 400 `cart_shipping_method_not_found` (`روش ارسال انتخاب‌شده معتبر نیست.`): an unknown or inactive code.
   3. 400 `cart_shipping_method_unavailable`: `detail` equals the option's `reason` (for example `برای این وزن روش های ارسال ارزان تری در دسترس است.`, or `سبد خرید شما خالی است.` on an empty cart).
   4. 400 `cart_cod_not_supported` (`این روش ارسال، پرداخت وجه کالا در محل را پشتیبانی نمی‌کند.`).
-  5. 400 `cart_cod_limit_exceeded` (`مبلغ قابل دریافت در محل برای این روش ارسال حداکثر ۲۰٬۰۰۰٬۰۰۰ تومان است.`). The **whole request rolls back** (verified: the cart was left unselected). Suggest continuing without COD.
-  6. 404 `cart_not_found`.
+  5. 400 `cart_cod_route_disabled` (backend 2026-11-05, M-8): with this option nothing is charged online and the shop's «پرداخت در محل» payment method is off or has no row (`پرداخت کامل سفارش هنگام تحویل در حال حاضر ممکن نیست. …`). A cart with a prepayment or an online fare is not affected.
+  6. 400 `cart_cod_limit_exceeded`: the detail names the ceiling that refused, the method's (`…برای این روش ارسال حداکثر …`) or, with nothing online, the payment method's (`مبلغ قابل پرداخت در محل در این فروشگاه حداکثر ۲۰٬۰۰۰٬۰۰۰ تومان است.`, live 2026-11-06). The **whole request rolls back** (verified: the cart was left unselected). Suggest continuing without COD.
+  7. 404 `cart_not_found`.
+- A cart that chose COD before the payment method went off or its cap came down reads `shipping.is_selected: true, is_available: false` with that sentence as `reason`; placement refuses it with `order_shipping_method_unavailable`. Choose shipping again, as for any `is_available: false`.
 - None of the failures change the cart. Verified: failed add, coupon and destination calls all kept the existing selection.
 
 ### 3.11 POST `/cart/merge/` (login required)
@@ -272,7 +286,7 @@ No body. A missing line gives 400 `cart_item_not_found`; treat that as success.
     - Lines are summed and each one is re-validated and clamped. `adjustments` reported `[{variant_id:10005, product_name:"گوشی موبایل اپل آیفون ۱۶ پرو مکس", requested:3, applied:2, was_dropped:false}]`.
     - **The user's coupon wins.** The guest's coupon moves over only if the user had none.
     - **The shipping selection and COD are cleared.**
-    - **The user cart's destination is kept, and the guest destination is discarded even when the user cart has none** (verified with kamran; this is undocumented).
+    - **The user cart's destination is kept; when it has none, the guest's province and city (or saved address, when it is the user's own) move over** (backend 2026-11-05, M-10; it used to be discarded, verified with kamran).
     - The guest cart is deactivated.
     - `data.token` is the **user cart's** token.
   - **The user has no cart (adoption, kamran via a plain GET):** the guest cart is re-owned with the **same token**. Coupon, shipping selection and destination are all kept, the expiry moves to 180 days, and `adjustments:[]`.
@@ -434,8 +448,12 @@ interface ShippingOption {
   freight_payer: 'sender' | 'recipient'; // recipient = پس‌کرایه (fare not in online invoice)
   supports_cash_on_delivery: boolean;    // false → don't render COD checkbox
   cod_fee: Toman;
-  cod_max_amount: Toman | null;    // null = no ceiling
+  cod_max_amount: Toman | null;    // null = no ceiling; this cart with this option (2026-11-05)
   prepayment_percentage: number;   // 0..100; read amount from cart.prepayment
+  cash_on_delivery_available: boolean;   // 2026-11-05: select with COD would pass for this cart
+  cash_on_delivery_refusal:              // its code when it would not, else null
+    | 'feature_disabled' | 'cart_shipping_method_unavailable' | 'cart_cod_not_supported'
+    | 'cart_cod_route_disabled' | 'cart_cod_limit_exceeded' | null;
 }
 interface ShippingOptionList { options: ShippingOption[]; adjustments: CartAdjustment[] }
 
@@ -529,7 +547,7 @@ total_savings = item_discount + coupon_discount + shipping_discount
 3. **Edit cart:** `POST item/add/` (additive), `PUT item/{id}/` (absolute; debounce steppers and send the final value), `DELETE item/{id}/remove/`, `DELETE clear/`. Re-render from each response. **Mark the shipping step as "needs re-selection"** after every item change.
 4. **Coupon (optional):** `POST coupon/apply/`. On success show `coupon.title` and `coupon_discount` (or "ارسال رایگان"). On error show the detail under the field and keep the input. On 429 disable for `retry_after`. Shipping is cleared.
 5. **Login decision:**
-   - If guest checkout is disabled, or the user chooses to log in: log in, then `POST /cart/merge/` with the guest token, show `adjustments`, then drop the token. The merge may have **dropped the guest destination and the shipping selection**, so restart from step 6.
+   - If guest checkout is disabled, or the user chooses to log in: log in, then `POST /cart/merge/` with the guest token, show `adjustments`, then drop the token. The merge **clears the shipping selection**; the guest destination moves over only when the user cart has none (2026-11-05), so read `destination` and restart from step 6 when it is missing.
    - Guest: continue.
 6. **Destination:**
    - Signed in: `GET /account/address/list/` and preselect `results[0]` (the default is always first) or the cart's current `destination.address.id`. Then `POST /cart/destination/ {address:id}`. Allow "add new address" through the address form (section 7), then set it.
@@ -537,10 +555,10 @@ total_savings = item_discount + coupon_discount + shipping_discount
 7. **Shipping options:** `GET /cart/shipping/option/list/`. Render every option:
    - title, description, `total`, ETA from `delivery_min_days`–`delivery_max_days` (business days; hide when null; 0 means "same day");
    - a "پس‌کرایه" badge if `freight_payer==='recipient'`, and a prepayment note if `prepayment_percentage>0`;
-   - a COD checkbox only if `supports_cash_on_delivery`, with `cod_fee` and `cod_max_amount` shown;
+   - a COD checkbox only if `supports_cash_on_delivery`, with `cod_fee` and `cod_max_amount` shown, enabled from `cash_on_delivery_available` (disabled with the reason of `cash_on_delivery_refusal` otherwise);
    - unavailable options disabled with their `reason`.
    Also read `adjustments`.
-8. **Select:** `POST /cart/shipping/select/ {code, cash_on_delivery}`. Handle `cart_shipping_method_unavailable` (refresh the list), `cart_cod_limit_exceeded` (offer non-COD) and 503 (COD off).
+8. **Select:** `POST /cart/shipping/select/ {code, cash_on_delivery}`. Handle `cart_shipping_method_unavailable` (refresh the list), `cart_cod_limit_exceeded` and `cart_cod_route_disabled` (offer non-COD) and 503 (COD off).
 9. **Review:** re-read with `GET /cart/` right before payment, because prices can change. Check `is_orderable`, `shipping.is_selected && shipping.is_available`, and `coupon.detached_reason`. Display the section 5.3 rows.
 10. **Place** (order guide; context only):
     - `POST /api/v1/order/place/` with `X-Cart-Token` (guest) or `Authorization` + `Idempotency-Key` (signed in, unique per purchase, at most 64 chars).
@@ -575,7 +593,7 @@ total_savings = item_discount + coupon_discount + shipping_discount
 | `receiver_mobile` | req | req | opt | **Iranian mobile only.** Accepts `09121234567`, `+989121234567` and Persian digits `۰۹۱۲۱۲۳۴۵۶۷`. Always returned as E.164 `+989121234567`. A landline (`02188776655`) or foreign number (`+14155552671`) gives `invalid_iranian_mobile` (`شمارهٔ موبایل ایران را وارد کنید؛ تلفن ثابت و شمارهٔ خارجی پذیرفته نمی‌شود.`). A partial number (`0912123`) gives **two** errors on the field: `invalid` (`شماره تماس وارد شده معتبر نیست.`) and `invalid_iranian_mobile`. |
 | `province`, `city` | req | req | opt | Integer ids from transportation. Unknown gives `does_not_exist` (`موردی با شناسهٔ «999» یافت نشد.`); non-numeric gives `incorrect_type`. A pair that does not match gives **`address_city_not_in_province`** (`client_error`, **attr:null**). On PATCH the missing half is read from the stored row, so **always send province and city together** when the province changes. Verified: PATCH `{city:127}` on a Tehran address returned that error. |
 | `address` | req | req | opt | Free text, no length limit, plain text (escape it on render). |
-| `postal_code` | opt | opt | opt | **Optional.** `""` or an omitted key means none (stored and returned as `""`, never null). `null` gives the `null` error. If given, it must be exactly 10 digits after stripping dashes and spaces. `12345-67890` and Persian digits are accepted and returned as `1234567890` (verified). 11 digits gives two errors: `invalid` (`کد پستی باید دقیقاً ۱۰ رقم باشد.`) and `max_length`. PATCH `""` clears it. |
+| `postal_code` | opt | opt | opt | **Optional.** `""` or an omitted key means none (stored and returned as `""`, never null). `null` gives the `null` error. If given, it must be exactly 10 digits after stripping dashes and spaces. `12345-67890` and Persian digits are accepted and returned as `1234567890` (verified). Any other value, short or long, gives one error: `invalid` (`کد پستی باید دقیقاً ۱۰ رقم باشد.`; live 2026-11-06; it used to add `max_length` for 11 digits, J-1). PATCH `""` clears it. |
 | `plaque`, `unit` | opt | opt | opt | ≤ 20, string (`12/1` and `۱۲ب` are fine), stored **as typed** (no digit conversion). `null` and `""` are both allowed and returned as sent (`""` stays `""`). |
 | `latitude`, `longitude` | opt | opt | opt | **Both or neither** in the final row. Range ±90 / ±180 (`min_value`/`max_value`). More than 3 integer digits gives `max_digits` (`بیشتر از 9 رقم نباید وجود داشته باشد.`). Extra decimals are **rounded half-up to 6 dp**, not rejected (verified: `"۳۵٫۶۸۹۱۹۸۳۲۱۵۳۳۲"` stored as `35.689198`). Persian digits and the `٫` separator are accepted, numeric strings are accepted, and the response is always a JSON number. Sending only one on create gives **`address_location_incomplete`** (`client_error`, attr:null, `عرض و طول جغرافیایی باید با هم فرستاده شوند.`). On update the absent half is taken from the row: PATCH `{latitude:35.7}` on an address with a pin works, `{latitude:null}` alone is rejected, and `{latitude:null, longitude:null}` clears the pin (all verified). Never send `0,0` for "unknown"; omit both keys instead. |
 | `is_default` | opt | opt | opt | Bool (`"maybe"` gives `invalid`). See 7.3. |
@@ -683,18 +701,20 @@ interface Paginated<T> { count: number; total_pages: number; current_page: numbe
 
 | Change | Coupon | Shipping selection + COD | Destination |
 |---|---|---|---|
-| add / PUT (**even same quantity**, verified) / DELETE item | kept, re-validated (may detach) | **cleared** | kept |
+| add / PUT (a new quantity) / DELETE item | kept, re-validated (may detach) | **cleared** | kept |
+| PUT of the quantity the line has (2026-11-05, M-9) | kept | kept | kept |
 | failed write (any 4xx) | unchanged | unchanged (verified) | unchanged |
 | apply or remove coupon | replaced or removed | **cleared** | kept |
-| set destination (any) | kept | **cleared** | replaced |
+| set destination (a new one) | kept | **cleared** | replaced |
+| set the destination the cart has (2026-11-05, X6) | kept | kept | kept |
 | edit destination address: province or city | kept | **cleared** | kept (still points to the address) |
 | edit destination address: other fields | kept | kept | kept |
 | delete destination address | kept | **cleared** | **null** |
 | clear cart | **removed** | **cleared** | **kept** (verified) |
-| real merge (user had a cart) | user's wins (guest's moves only if user had none) | **cleared** | **user's kept; guest's discarded even if user had none** (verified) |
+| real merge (user had a cart) | user's wins (guest's moves only if user had none) | **cleared** | user's kept; guest's moves only if user had none (2026-11-05, M-10) |
 | adoption (user had no cart) | kept | kept | kept |
 | reorder | kept | **cleared** | kept |
-| expired coupon, rule change, method disabled, COD toggle off (on read) | detached (once) | becomes `is_available:false` with a reason; fees zeroed | kept |
+| expired coupon, rule change, method disabled, COD toggle off, the «پرداخت در محل» payment method off or its cap lowered (on read) | detached (once) | becomes `is_available:false` with a reason; fees zeroed | kept |
 
 ---
 
@@ -715,6 +735,7 @@ interface Paginated<T> { count: number; total_pages: number; current_page: numbe
 | `cart_shipping_method_not_found` | 400 | select | Re-fetch options. |
 | `cart_shipping_method_unavailable` | 400 | select | Re-fetch and show the reason (the detail). |
 | `cart_cod_not_supported` | 400 | select | UI bug: only show COD when `supports_cash_on_delivery`. |
+| `cart_cod_route_disabled` | 400 | select | (2026-11-05) Nothing online with this option and the «پرداخت در محل» payment method is off: as below. The list's `cash_on_delivery_available` keeps the box from asking. |
 | `cart_cod_limit_exceeded` | 400 | select | Show the detail and offer online payment (the cart is untouched). |
 | `cart_token_required` | 401 | merge | Refresh the access token or go to login. |
 | `cart_reorder_order_not_found` | 404 | reorder | Show the message (separate branch from `cart_not_found`). |
@@ -775,7 +796,7 @@ These come from apply (400) and also appear in `coupon.detached_reason`. Use one
 - [ ] Signed in: address picker preselects `results[0]`. Guest: province, then city (reset city on province change).
 - [ ] Show unavailable options disabled with their `reason`. Never treat `price:0` as free unless `is_available`.
 - [ ] Option price comes from `total`. Show a "پس‌کرایه" badge for `freight_payer:'recipient'` and a prepayment note for `prepayment_percentage>0`. The ETA comes from min/max days (hide when null).
-- [ ] COD checkbox only where `supports_cash_on_delivery`; show `cod_fee` and the ceiling.
+- [ ] COD checkbox only where `supports_cash_on_delivery`; show `cod_fee` and the ceiling; enabled from `cash_on_delivery_available` (never a client-side comparison).
 - [ ] Clear the UI selection after any item, coupon or destination change, merge or reorder (the server already did).
 - [ ] Detect `is_selected && !is_available` and force re-selection with the reason.
 - [ ] Read `adjustments` from the option list too.
@@ -790,7 +811,7 @@ These come from apply (400) and also appear in `coupon.detached_reason`. Use one
 
 **Login, merge, reorder**
 - [ ] Call `POST /cart/merge/` right after login and show `adjustments` (`was_dropped` explained separately).
-- [ ] After merge, re-check the destination (it may be gone) and the shipping selection (cleared).
+- [ ] After merge, read `destination` (asked only when missing; the guest's moves to a user cart without one) and the shipping selection (cleared).
 - [ ] After logout, expect no cart; the first add creates one.
 - [ ] Show reorder only to signed-in users. Disable the button while in flight; on timeout read the cart instead of retrying.
 - [ ] Show `adjustments` and `reorder_skipped` before navigating to the cart. The count comes from `added_lines`.
@@ -819,19 +840,19 @@ These come from apply (400) and also appear in `coupon.detached_reason`. Use one
 
 ## 13. Suspected backend bugs / inconsistencies (each verified live or against schema and fixtures)
 
-1. **A no-op PUT clears the shipping selection.** The guide calls PUT absolute and "safe to repeat". Live, `PUT /cart/item/10123/ {quantity:2}` on a line that was already 2 reset `shipping.is_selected` to false and dropped `cash_on_delivery`, and a GET confirmed it. A stepper that re-sends the same value, or a network retry, silently un-selects shipping. *Mitigation:* never send a PUT when the quantity is unchanged, and always re-check `shipping.is_selected` before payment.
-2. **A real merge discards the guest cart's destination even when the user cart has none.** Verified with kamran: the guest cart had Isfahan/Isfahan, the user cart had `destination:null`, and after the merge the destination was `null`. The guides' invalidation table and merge section never mention the destination (they cover only coupon and shipping). *Mitigation:* after login and merge, re-run the destination step.
+1. **Fixed in the backend 2026-11-05 (M-9): a no-op PUT now keeps the shipping selection.** Was: the guide calls PUT absolute and "safe to repeat". Live, `PUT /cart/item/10123/ {quantity:2}` on a line that was already 2 reset `shipping.is_selected` to false and dropped `cash_on_delivery`, and a GET confirmed it. A stepper that re-sends the same value, or a network retry, silently un-selects shipping. *Mitigation (still in place, harmless):* never send a PUT when the quantity is unchanged, and always re-check `shipping.is_selected` before payment.
+2. **Fixed in the backend 2026-11-05 (M-10): the guest destination now moves to a user cart without one.** Was: a real merge discarded the guest cart's destination even when the user cart had none. Verified with kamran: the guest cart had Isfahan/Isfahan, the user cart had `destination:null`, and after the merge the destination was `null`. The guides' invalidation table and merge section never mention the destination (they cover only coupon and shipping). *Mitigation:* the steps follow `destination`: asked again only when it is missing.
 3. **The guides' example IDs are wrong for this dataset** (and for the national fixture):
    - The cart guide shows `"city_id": 315, "city_name": "تهران"`, but 315 is **صباشهر**; Tehran city is **301**.
    - The address guide uses `province 1 = تهران`, `city 1 = ری`, `2 = شهریار`, `3 = کاشان`, and lists "اصفهان (2)". Live, province 1 is **آذربایجان شرقی**, 2 is آذربایجان غربی, Tehran is 8, Isfahan is 4, شهریار is 313, کاشان is 188, and city 2 is اهر.
    - Never copy ids from the guides into seeds or tests.
 4. **OpenAPI `CartReorderRequest.order_code` has `pattern: [0-9]{10}`**, but the server accepts Persian digits (`"۹۲۴۶۸۶۸۵۰۲"` gave 200, verified), as the guide also says. Schema-generated validators (for example zod from OpenAPI) would reject valid input. Normalise digits client-side or relax the generated schema.
-5. **OpenAPI `AddressWriteRequest.postal_code` (and `OrderReceiverRequest.postal_code`) has `maxLength: 10`**, while the server accepts the printed form `12345-67890` (11 chars; verified 201, stored `1234567890`). The order schema's own description even says the dash form is accepted. Generated validators would reject it, so strip dashes before validating client-side.
-6. **The OpenAPI `limit` description on transportation lists says "capped at 100".** The real cap is 1500 (verified `page_size:1500`). The guide acknowledges this. Trust `page_size`.
-7. **The OpenAPI `Address` read schema omits `plaque`, `unit`, `postal_code` and `is_default` from `required`**, though they are always present (verified), and it marks `latitude`/`longitude` `readOnly` there. Generated TS types will make these optional. Use the hand-written interface in section 4 or override the type.
-8. **Typo in the Persian `null` validation message:** `"این مقدار نباید توهی باشد."` should be «تهی». It is seen on `variant`, `quantity`, `code`, `order_code` and `postal_code`. It is cosmetic and appears only for programming errors, but don't surface it raw.
-9. **The cart and option-list OpenAPI declares `400`/`404` responses for `GET /cart/`**, which never returns them (live 200 even with a bogus token). This is harmless noise for generated clients.
-10. **COD ceiling not reflected in the option list (UX gap, not strictly a bug).** `peyk-tehran` is advertised with `supports_cash_on_delivery:true` and `cod_max_amount:20000000` even when this cart's door amount clearly exceeds it, and only select rejects it (verified with a 118M iPhone). The guide does not say the list pre-filters, so this is consistent but worth handling in the UI.
+5. **Fixed in the schema 2026-11-05 (J-1: `maxLength: 11` and a pattern taking the dash form).** Was: **OpenAPI `AddressWriteRequest.postal_code` (and `OrderReceiverRequest.postal_code`) has `maxLength: 10`**, while the server accepts the printed form `12345-67890` (11 chars; verified 201, stored `1234567890`). The order schema's own description even says the dash form is accepted. Generated validators would reject it, so strip dashes before validating client-side.
+6. **Fixed in the schema 2026-11-05 (J-1).** Was: **the OpenAPI `limit` description on transportation lists says "capped at 100".** The real cap is 1500 (verified `page_size:1500`). The guide acknowledges this. Trust `page_size`.
+7. **Fixed in the schema 2026-11-05 (J-2: every field `readOnly` and `required`).** Was: **the OpenAPI `Address` read schema omits `plaque`, `unit`, `postal_code` and `is_default` from `required`**, though they are always present (verified), and it marks `latitude`/`longitude` `readOnly` there. Generated TS types will make these optional. Use the hand-written interface in section 4 or override the type.
+8. **Fixed in the backend 2026-11-05 (J-5: «این مقدار نباید خالی باشد.»).** Was: **typo in the Persian `null` validation message:** `"این مقدار نباید توهی باشد."` should be «تهی». It is seen on `variant`, `quantity`, `code`, `order_code` and `postal_code`. It is cosmetic and appears only for programming errors, but don't surface it raw.
+9. **Fixed in the schema 2026-11-05 (J-2).** Was: **the cart and option-list OpenAPI declares `400`/`404` responses for `GET /cart/`**, which never returns them (live 200 even with a bogus token). This is harmless noise for generated clients.
+10. **Fixed in the backend 2026-11-05 (J-28: `cash_on_delivery_available`/`cash_on_delivery_refusal` per option, §3.9).** Was: **COD ceiling not reflected in the option list (UX gap, not strictly a bug).** `peyk-tehran` is advertised with `supports_cash_on_delivery:true` and `cod_max_amount:20000000` even when this cart's door amount clearly exceeds it, and only select rejects it (verified with a 118M iPhone). The guide does not say the list pre-filters, so this is consistent but worth handling in the UI.
 11. **`tipax` sample data** is recipient-pays with in-system fare 0, so `shipping_cost:0`, and the only door amount is packaging (15,000). This is consistent with the rules, but a naive UI shows "free shipping". Label recipient-pays as "پس‌کرایه".
 12. **No line-item discounts are active in the sample data right now.** Every fixture discount window has expired, and the product API `has_discount` is false everywhere. `unit_discount`, `item_discount` and the strike-through UI cannot be exercised against this DB without admin changes. This is a data observation, not a code bug.
 

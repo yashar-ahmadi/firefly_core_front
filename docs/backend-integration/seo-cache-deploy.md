@@ -31,9 +31,11 @@ Legend: **[live]** = verified against the running server; **[code]** = verified 
    Django appends `?result=success|failed|pending&payment=<uuid>&code=<err>`. Its host must be in
    `GATEWAY_RESULT_URL_ALLOWED_HOSTS` or every payment intent fails with `gateway_result_url_invalid` (503) — this is
    currently the case in the dev env [live].
-5. **JSON-LD (`structured_data`, `breadcrumb_structured_data`) is built from `https://{SITE_DOMAIN}` — not from
-   STOREFRONT_URL and not from the request host** — including image/logo URLs under `/media/` and `/static/`. So:
-   set `SITE_DOMAIN` = the storefront's public domain, and make that domain serve (proxy) `/media/` and `/static/`. [live+code]
+5. **JSON-LD (`structured_data`, `breadcrumb_structured_data`) page URLs are built from `STOREFRONT_URL`** since the
+   2026-11-05 round (M-12/X5/K-3; it was `https://{SITE_DOMAIN}`): each exactly the sitemap's `<loc>`, a Persian slug
+   percent-encoded. Image/logo URLs are on `PUBLIC_FILES_ORIGIN` (default `https://{SITE_DOMAIN}`, where the
+   storefront forwards `/media/` and `/static/`; a CDN URL is kept as it is). The storefront embeds both as they come:
+   no origin rewriting. So: backend `STOREFRONT_URL` = the storefront's `SITE_URL`, exactly. [live+code]
 6. **Image URLs in normal API fields are built from the request `Host`** (`request.build_absolute_uri`). Node's `fetch`
    **silently ignores a custom `Host` header** [verified on Node 22]. If SSR calls Django on an internal hostname
    (`http://web:8000`) every image URL becomes `http://web:8000/media/...`, ALLOWED_HOSTS rejects unknown hosts (400:
@@ -58,9 +60,12 @@ Legend: **[live]** = verified against the running server; **[code]** = verified 
 9. **Never cache `redirects/resolve/` or `shortener/<code>/`** (every 200 is counted), never 301 a short link, and
    note that **`GET /api/v1/blog/post/<slug>/` increments `view_count` on every call** (incl. HEAD, ISR revalidations,
    duplicate generateMetadata fetches) [code].
-10. **`meta_tags` (og:/twitter:/custom) exist only on `pages/<slug>/` and `homepage/`**, even though the admin offers the
-    meta-tag inline on products, categories, brands, product lists, blog posts and blog categories (silently dropped).
-    No noindex / og / twitter / hreflang fields exist anywhere else — the storefront synthesizes them. [code+live]
+10. **`meta_tags` (og:/twitter:/custom)** are on `pages/<slug>/` and `homepage/`, and since the 2026-11-05 round (M-13)
+    on product, category, brand, list-page, blog post and blog category detail too (`{field, value}[]`, oldest first,
+    `[]` for none). The storefront writes each row and keeps its own og/twitter/description values only for the
+    fields the operator did not write (`pageMetadata`, `OperatorMetaTags`). There are still no noindex / hreflang
+    fields: the storefront decides robots itself (a filtered listing, a preview, a members-only page) and, while it
+    sets one, an operator `robots` row is left out. [code+live]
 
 ---------------------------------------------------------------------------------------------------------------------
 
@@ -107,8 +112,8 @@ FIREFLY_API_KEY=<project key>                  # never NEXT_PUBLIC_
 
 | # | Storefront path | Built by (backend) | Where it surfaces | Slash | Storefront implementation | API to call |
 |---|---|---|---|---|---|---|
-| 1 | `/` | JSON-LD breadcrumb root `https://{SITE_DOMAIN}/` (`product/services/structured_data.py:207`, `blog/services/structured_data.py:118`) | breadcrumbs JSON-LD | yes | `app/page.tsx` | `GET /api/v1/homepage/` |
-| 2 | `/product/{slug}/` | `Product.get_absolute_url` (`product/models.py:725`) | sitemap, JSON-LD `offers.url`, menu `url`, search-suggest `url`, redirect/short-link targets, **back-in-stock SMS `product_link`** (`https://{SITE_DOMAIN}/product/{slug}/`, `product/services/notifications.py:135`) | yes | `app/product/[slug]/page.tsx` | `GET /api/v1/product/detail/{slug}/` (+ `/variants/`) |
+| 1 | `/` | JSON-LD breadcrumb root `{STOREFRONT_URL}/` (since 2026-11-05, M-12; it was `https://{SITE_DOMAIN}/`) | breadcrumbs JSON-LD | yes | `app/page.tsx` | `GET /api/v1/homepage/` |
+| 2 | `/product/{slug}/` | `Product.get_absolute_url` (`product/models.py:725`) | sitemap, JSON-LD `offers.url`, menu `url`, search-suggest `url`, redirect/short-link targets, **back-in-stock SMS `product_link`** (`{STOREFRONT_URL}/product/{slug}/` since 2026-11-05, M-12) | yes | `app/product/[slug]/page.tsx` | `GET /api/v1/product/detail/{slug}/` (+ `/variants/`) |
 | 3 | `/product-category/{path}/` (path = slug chain root→leaf, e.g. `digital/mobile-phone`) | `Category.get_absolute_url` (`product/models.py:201`) | sitemap, menu, JSON-LD breadcrumbs, homepage links | yes | `app/product-category/[...path]/page.tsx` | `GET /api/v1/product/category/{LAST slug}/` (lookup is by slug only; `digital/mobile-phone` ⇒ Django 404 [live]) — compare `data.path` to the URL path, 308 to canonical if different |
 | 4 | `/product/list/{slug}/` | `ProductList.get_absolute_url` (`product/models.py:307`) | sitemap, menu, homepage, short links | yes | `app/product/list/[slug]/page.tsx` | `GET /api/v1/product/list-page/{slug}/` + `GET /api/v1/product/list/?...` |
 | 5 | `/brand/{slug}/` | `Brand.get_absolute_url` (`product/models.py:2931`) | sitemap, menu, JSON-LD | yes | `app/brand/[slug]/page.tsx` | `GET /api/v1/product/brand/{slug}/` |
@@ -122,7 +127,7 @@ FIREFLY_API_KEY=<project key>                  # never NEXT_PUBLIC_
 | 13 | payment result page — fixture `/payment/callback/` | `GatewaySetting.result_url` (panel "آدرس نتیجهٔ پرداخت"); Django 302s there with `?result=…&payment=<uuid>&code=…` (`payment/views.py:218-243`) | after every gateway return (orders, wallet top-up, amendment) | as configured | `app/payment/callback/page.tsx` (dynamic, noindex) | `GET /api/v1/payment/{uuid}/status/` (throttle scope `payment_status` 240/h) |
 | 14 | `/sitemap.xml` | robots `Sitemap:` line = `{STOREFRONT_URL}/sitemap.xml` (`robots/services/rendering.py:63`) | robots.txt | n/a | rewrite/proxy → `{API}/sitemap.xml` (§6) | — |
 | 15 | `/robots.txt` | crawler convention; content from panel | — | n/a | `app/robots.txt/route.ts` (§3) | `GET /api/v1/robots/` |
-| 16 | `/media/**`, `/static/**` **on SITE_DOMAIN** | JSON-LD `image`/publisher `logo` (`https://{SITE_DOMAIN}/media/...`, placeholder `/static/defaults/default.png`), push-notification image for Firebase (`notification/models.py:240`) | JSON-LD in product/blog responses; FCM | n/a | if SITE_DOMAIN = storefront domain: proxy both prefixes to Django (nginx) | — |
+| 16 | `/media/**`, `/static/**` **on `PUBLIC_FILES_ORIGIN`** (default `https://{SITE_DOMAIN}`; 2026-11-05, M-12/X5) | JSON-LD `image`/publisher `logo` (`{PUBLIC_FILES_ORIGIN}/media/...`, placeholder `/static/defaults/default.png`), push-notification image for Firebase | JSON-LD in product/blog responses; FCM | n/a | if that origin is the storefront's: it forwards both prefixes to Django (`proxy.ts`), else they are the API's own | — |
 
 Live confirmation of #12/#13 (dev):
 ```
@@ -465,12 +470,12 @@ module.exports = {
 ### 7.1 Matrix
 | Resource (API) | page_title | page_description | page_keywords | canonical_link | meta_tags | structured_data | breadcrumb_structured_data | UI breadcrumb | is_unpublished |
 |---|---|---|---|---|---|---|---|---|---|
-| Product `GET /product/detail/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✗ | `[Product]` (array of 1) | `BreadcrumbList` object | `breadcrumb[]` {id,name,slug,**path**,parent_id} (category chain, not the product) | ✓ |
-| Product category `GET /product/category/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | `breadcrumb[]` incl. self, with `path` | ✗ |
-| Brand `GET /product/brand/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✗ |
-| Product list page `GET /product/list-page/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ (home→category chain→list) | ✗ (`product_category` {id,name,slug,parent_id}) | ✗ |
-| Blog post `GET /blog/post/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✗ | `[BlogPosting]` | ✓ (home→/blog/→categories) | `breadcrumb[]` {id,name,slug,parent_id} **no path** | ✓ |
-| Blog category `GET /blog/category/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✗ | `[CollectionPage]` | ✓ | `breadcrumb[]` incl. self, no path; top-level `path` | ✗ |
+| Product `GET /product/detail/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✓ (M-13) | `[Product]` (array of 1) | `BreadcrumbList` object (ends with the product, J-17) | `breadcrumb[]` {id,name,slug,**path**,parent_id} (category chain, not the product) | ✓ |
+| Product category `GET /product/category/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✓ (M-13) | ✗ | ✓ | `breadcrumb[]` incl. self, with `path` | ✗ |
+| Brand `GET /product/brand/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✓ (M-13) | ✗ | ✓ | ✗ | ✗ |
+| Product list page `GET /product/list-page/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✓ (M-13) | ✗ | ✓ (home→category chain→list) | `product_category.breadcrumb[]` {id,name,slug,**path**,parent_id} (J-16) | ✗ |
+| Blog post `GET /blog/post/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✓ (M-13) | `[BlogPosting]` | ✓ (home→/blog/→categories) | `breadcrumb[]` {id,name,slug,parent_id} **no path** | ✓ |
+| Blog category `GET /blog/category/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✓ (M-13) | `[CollectionPage]` | ✓ | `breadcrumb[]` incl. self, no path; top-level `path` | ✗ |
 | Content page `GET /pages/{slug}/` | ✓ | ✓ | ✓ | ✓ | ✓ `[{field,value}]` | ✗ | ✗ | ✗ | ✓ |
 | Home `GET /homepage/` | ✓ (fallback site name) | ✓ (fallback slogan, else '') | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
 | Blog home `/blog/home/`, post list, product list, linker, menus | — no SEO fields — | | | | | | | | |
@@ -492,26 +497,30 @@ Semantics (common to `seo.models.AbstractBaseSeoModel`):
   `<meta property>` in the page; React 19 hoists them into `<head>`).
 - `is_unpublished`: only a staff JWT gets drafts (`true`); everyone else gets 404 ⇒ when `true`: banner, `robots:
   { index:false, follow:false }`, `cache: 'no-store'`, never ISR.
-- **No fields exist for:** robots/noindex, Open Graph, Twitter, hreflang/alternates, og:image, `lastmod` on detail
+- **No dedicated fields exist for:** robots/noindex, Open Graph, Twitter, hreflang/alternates, og:image (only an
+  operator's `meta_tags` row), `lastmod` on detail
   (use `updated`), `published_at` (blog post has it). `/global/languages/` lists `en` + `fa` UI label translations,
   but content is Persian-only (`LANGUAGES=[fa]`, modeltranslation registrations commented out) ⇒ **no hreflang**;
   `<html lang="fa" dir="rtl">`.
 
 ### 7.2 JSON-LD details [live]
 - Product `structured_data[0]`: `@context "https://schema.org/"`, `@type Product`, `name`, `image`
-  (`https://{SITE_DOMAIN}/media/CACHE/...` or `/static/defaults/default.png`), `description` (= page_description,
+  (`{PUBLIC_FILES_ORIGIN}/media/CACHE/...` or `/static/defaults/default.png`), `description` (= page_description,
   may be ''), `sku`/`mpn` (representative variant SKU), `offers` = `AggregateOffer {url, priceCurrency:"IRR",
   lowPrice, highPrice, offerCount, availability}` for multi-variant or `Offer {url, priceCurrency, price, availability}`;
-  `brand {@type Brand, name}` (site name if none); `review[]` ≤5 approved root comments (key absent if none); **no
-  aggregateRating** by design. **Prices in JSON-LD are Rials (API Toman × 10)** — never display them.
+  `brand {@type Brand, name}` (site name if none); `review[]` ≤5 approved root comments (key absent if none), each
+  rated one with `reviewRating`; `aggregateRating` when `rating_count > 0` (since 2026-11-05, J-17). **Prices in
+  JSON-LD are Rials (API Toman × 10)** — never display them.
 - `breadcrumb_structured_data`: `{ "@context":"https://schema.org", "@type":"BreadcrumbList", "itemListElement":[
-  {"@type":"ListItem","position":1,"name":"خانه","item":"https://{SITE_DOMAIN}/"}, …] }` — object, not array.
-  Product/category chains use `/product-category/<path>/`; blog chains insert `بلاگ` → `/blog/`.
+  {"@type":"ListItem","position":1,"name":"خانه","item":"{STOREFRONT_URL}/"}, …] }` — object, not array.
+  Product/category chains use `/product-category/<path>/` (a product's ends with the product, J-17); blog chains
+  insert `وبلاگ` → `/blog/` (J-5).
 - Blog post `structured_data[0]`: `BlogPosting { mainEntityOfPage {@id url}, headline, description, image,
-  publisher {Organization name, logo ImageObject url}, datePublished, dateModified, articleBody (**raw HTML**),
-  author {Person}, commentCount, comment[] }`.
-- Blog category: `CollectionPage { name "دسته‌بندی: …", description, url, isPartOf {Blog name, url ".../blog/"},
-  publisher }`.
+  publisher? {Organization name, logo? ImageObject url}, datePublished (published_at's Tehran day), dateModified,
+  articleBody (plain text), author {Person}, commentCount, comment[] }`. No `logo` without one, no `publisher`
+  without the site's settings (J-37).
+- Blog category: `CollectionPage { name "دسته‌بندی: …", description, url, isPartOf {Blog name «وبلاگ …», url
+  ".../blog/"}, publisher? }`.
 - FAQ: backend has `faqs.models.FAQ.structured_data()` (FAQPage) but **does not expose it**. Build FAQPage yourself
   from `GET /api/v1/faq/category/list/` (`results[].items[] {id,question,answer,…}`) and from `question_answers[]`
   `{question, answer}` on product / product category / list page.
@@ -520,8 +529,9 @@ Semantics (common to `seo.models.AbstractBaseSeoModel`):
 - Embedding: `<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(x).replace(/</g, '\\u003c') }} />`
   — mandatory escaping: `articleBody` carries HTML, a `</script>` in content would break out. (The product guide's
   `{JSON.stringify(...)}`-as-children snippet is not safe/correct in React.)
-- Host consistency: JSON-LD URLs are `https://{SITE_DOMAIN}` (forced https, no port); sitemap/canonicals use
-  STOREFRONT_URL. If they differ, rewrite the origin of page URLs before embedding (and keep `/media/` reachable).
+- Host consistency (since 2026-11-05, M-12): JSON-LD page URLs, the sitemap and the SMS links are all on
+  `STOREFRONT_URL`; canonicals are the storefront's `SITE_URL` + path. The two must be the same origin (a deployment
+  setting); the storefront no longer rewrites anything. Keep `/media/` reachable on `PUBLIC_FILES_ORIGIN`.
 
 ### 7.3 generateMetadata recipe (product; same shape for category/brand/list/post/blog-category/page)
 ```ts
