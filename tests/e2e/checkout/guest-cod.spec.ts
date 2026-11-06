@@ -14,7 +14,7 @@ import { chooseShipping, SHIPPING_SELECT } from '../support/shipping-choice'
 import { watchErrors } from '../support/watch-errors'
 
 // A guest's pay-on-delivery purchase against the dev backend (Plan 4 Task 10), in the `journeys`
-// project (ruling P4-R4: a guest, one at a time). Ahmad Tea and a perfume with the sample coupon
+// project (ruling P4-R4: a guest, one at a time). Ahmad Tea and a blender with the sample coupon
 // `TEA30` (30% off Ahmad Tea, valid until 2031 in the sample data, cart-address.md §9;
 // support/sample-coupon.ts), as the API priced it. The receiver in Tehran; the operator's
 // default (peyk Tehran, COD-capable) with «پرداخت در محل». With COD the courier collects the goods,
@@ -31,8 +31,12 @@ import { watchErrors } from '../support/watch-errors'
 // test ends before. Per run: 1 coupon apply, 1 placement, 0 payment intents (the one held),
 // 1 tracking lookup (`order_tracking` 20/min), about 4 `order_payment_link` calls, 1 cancel.
 
-/** TEA30's product, and enough beside it for free peyk (goods ≥ 5,000,000 after any coupon). */
-const PRODUCTS = ['ahmad-tea-earl-grey', 'perfume-oud-royal']
+/**
+ * TEA30's product, and enough beside it for free peyk (goods ≥ 5,000,000 after the coupon): the
+ * blender (5,900,000, one variant, no discount; the perfume used here before is now discounted
+ * below that line by the sample data's running discounts, F-2).
+ */
+const PRODUCTS = ['ahmad-tea-earl-grey', 'philips-blender-pro']
 const BFF = { 'X-Requested-With': 'ff' }
 const INTENT = /\/api\/bff\/payment\/link\/[^/]+\/intent\/$/
 /** A console error about the held confirmation (its URL closes the line). */

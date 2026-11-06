@@ -5,6 +5,7 @@ import {
   type BrowserContextOptions,
   type FullProject,
   type Page,
+  type Request,
   type TestInfo,
 } from '@playwright/test'
 import { gzipSync } from 'node:zlib'
@@ -107,27 +108,36 @@ type Body = { url: string; ok: true; bytes: Buffer } | { url: string; ok: false;
 /**
  * Records every script response's body, and when the app's static assets last moved. Each body
  * promise settles to a result (never rejects), so a failed read is reported, not left unhandled.
+ * Only the measured document's responses count: from its commit (the main frame's navigation)
+ * on. A page already open may still be loading a lazy chunk when the measure navigates (the
+ * payment link's open attempt, fetched after load); that response is the old page's, and its body
+ * goes with it.
  */
 function recordScripts(page: Page) {
   const bodies = new Map<string, Promise<Body>>()
-  let inFlight = 0
+  // The static requests seen starting: one that began before the recording (the old page's)
+  // finishes uncounted, or the count would never come back to zero.
+  const inFlight = new Set<Request>()
   let lastActivity = Date.now()
+  let measured = false
   const moved = () => (lastActivity = Date.now())
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) measured = true
+  })
   page.on('request', (request) => {
     if (!STATIC.test(request.url())) return
-    inFlight += 1
+    inFlight.add(request)
     moved()
   })
-  const done = (request: { url: () => string }) => {
-    if (!STATIC.test(request.url())) return
-    inFlight -= 1
+  const done = (request: Request) => {
+    if (!inFlight.delete(request)) return
     moved()
   }
   page.on('requestfinished', done)
   page.on('requestfailed', done)
   page.on('response', (response) => {
     const url = response.url().split('?')[0]!
-    if (!SCRIPT.test(url) || bodies.has(url)) return
+    if (!measured || !SCRIPT.test(url) || bodies.has(url)) return
     bodies.set(
       url,
       response.body().then(
@@ -138,7 +148,7 @@ function recordScripts(page: Page) {
   })
   return {
     bodies,
-    settled: () => inFlight === 0 && Date.now() - lastActivity >= QUIET_MS,
+    settled: () => inFlight.size === 0 && Date.now() - lastActivity >= QUIET_MS,
   }
 }
 

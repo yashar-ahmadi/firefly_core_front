@@ -59,6 +59,9 @@ test.describe('shell', () => {
   test('desktop: the mega-menu opens on hover and shows the main menu', async ({ page }) => {
     test.skip(width(page) < 1024, 'the mega-menu is shown from lg up')
     await page.goto('/')
+    // A hover before the header hydrates is lost (no handler yet): under a full run's load the
+    // home page, with the sample data's longer sections, can hydrate after the pointer arrived.
+    await shellHydrated(page)
     const trigger = page.getByRole('button', { name: CATEGORIES })
     await trigger.hover()
     await expect(trigger).toHaveAttribute('aria-expanded', 'true')
