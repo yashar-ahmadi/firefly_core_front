@@ -111,6 +111,7 @@ describe('placeOrder', () => {
     ['order_cart_changed', 409, 'cart_changed'],
     ['order_unpaid_limit_reached', 409, 'unpaid_limit'],
     ['order_idempotency_key_invalid', 400, 'invalid_key'],
+    ['order_idempotency_key_reused', 409, 'key_reused'],
     ['cart_not_found', 404, 'cart_gone'],
   ])('%s (%i) → %s, with the API’s detail', async (code, status, problem) => {
     refuse(body(status, code))

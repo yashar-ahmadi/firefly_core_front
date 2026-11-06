@@ -198,7 +198,8 @@ test('a guest: the sample coupon, Tehran, pay on delivery; thanks, tracked, canc
   expect((await lookup).status(), 'tracking finds it').toBe(200)
   const result = page.getByRole('heading', { level: 2, name: /^سفارش\s[۰-۹]/ })
   await expect(result).toContainText(shown)
-  await expect(result).toContainText('در انتظار پرداخت')
+  // A pure pay-on-delivery order awaiting its confirmation, in the API's words (J-35).
+  await expect(result).toContainText('در انتظار تأیید')
 
   // Cancelled through its link page (the safe choice focused first).
   await page.goBack()

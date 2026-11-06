@@ -19,7 +19,10 @@ const { Checkbox, RadioGroupItem } = STEP_CONTROLS
 // One shipping option of the radio group (cart digest §6.7): its title (the API sends no carrier
 // logo: a truck stands in), «پس‌کرایه» for a fare collected at the door, its cost from `total`,
 // the delivery time, the prepayment note, an unavailable option's reason (and no price), and on
-// the chosen one the COD box when the method and the shop offer it.
+// the chosen one the COD box when the method and the shop offer it. Whether this cart may pay
+// this option at the door is the API's verdict (`cash_on_delivery_available`, digest §3.9), never
+// a comparison made here: refused for this cart (the door ceiling, nothing online with the shop's
+// «پرداخت در محل» method off), the box stays, disabled, with why (the ceiling named).
 
 export interface ShippingOptionRowProps {
   option: ShippingOption
@@ -46,13 +49,38 @@ function Details({ option }: { option: ShippingOption }) {
             <span>{'کرایه\u{0654} حمل هنگام تحویل از گیرنده دریافت می\u{200C}شود.'}</span>
           )}
           {prepayment && <span>{prepayment}</span>}
-          {option.supports_cash_on_delivery && <span>امکان پرداخت در محل</span>}
+          {codAvailable(option) && <span>امکان پرداخت در محل</span>}
         </>
       ) : (
         option.reason && <span className="font-medium text-warning">{option.reason}</span>
       )}
     </span>
   )
+}
+
+/**
+ * The API's verdict on this cart paying this option at the door; an API older than the verdict
+ * sends none, and the method's own flag stands in (its select still refuses what it must).
+ */
+function codAvailable(option: ShippingOption): boolean {
+  return option.cash_on_delivery_available ?? option.supports_cash_on_delivery
+}
+
+/** The COD box's sentence: what it means, or why this cart cannot have it with this option. */
+function codNote(option: ShippingOption): string {
+  const cap = option.cod_max_amount
+  if (codAvailable(option)) {
+    return cap === null
+      ? 'مبلغ کالاها هنگام تحویل پرداخت می\u{200C}شود.'
+      : `مبلغ کالاها هنگام تحویل پرداخت می\u{200C}شود؛ تا سقف ${formatToman(cap)}.`
+  }
+  if (option.cash_on_delivery_refusal === 'cart_cod_limit_exceeded' && cap !== null) {
+    return `مبلغ پرداخت در محل این سفارش از سقف ${formatToman(cap)} بیشتر است؛ با پرداخت آنلاین ادامه دهید.`
+  }
+  if (option.cash_on_delivery_refusal === 'cart_cod_route_disabled') {
+    return 'پرداخت کامل سفارش هنگام تحویل اکنون ممکن نیست؛ با پرداخت آنلاین ادامه دهید.'
+  }
+  return 'پرداخت در محل برای این سفارش با این روش ارسال ممکن نیست.'
 }
 
 export function ShippingOptionRow({
@@ -64,7 +92,16 @@ export function ShippingOptionRow({
   busy,
 }: ShippingOptionRowProps) {
   const cost = costLabel(option)
-  const showCod = chosen && option.is_available && option.supports_cash_on_delivery && codOffered
+  // The method collects at the door and the shop offers it (a switch the list may know is off
+  // before this page does): the box shows, ticked only where the API says this cart may.
+  const showCod =
+    chosen &&
+    option.is_available &&
+    option.supports_cash_on_delivery &&
+    codOffered &&
+    option.cash_on_delivery_refusal !== 'feature_disabled'
+  // Refused for this cart: never ticked here (a tick on its way may still be taken back).
+  const codLocked = busy || (!codAvailable(option) && !cashOnDelivery)
   return (
     <div
       data-option={option.code}
@@ -103,13 +140,9 @@ export function ShippingOptionRow({
         <Checkbox
           className="ms-9 border-t border-brand-100"
           label={`پرداخت در محل (هزینه\u{0654} ${formatToman(option.cod_fee)})`}
-          description={
-            option.cod_max_amount === null
-              ? 'مبلغ کالاها هنگام تحویل پرداخت می\u{200C}شود.'
-              : `مبلغ کالاها هنگام تحویل پرداخت می\u{200C}شود؛ تا سقف ${formatToman(option.cod_max_amount)}.`
-          }
+          description={codNote(option)}
           checked={cashOnDelivery}
-          disabled={busy}
+          disabled={codLocked}
           onCheckedChange={(checked) => onCashOnDelivery(checked === true)}
         />
       )}

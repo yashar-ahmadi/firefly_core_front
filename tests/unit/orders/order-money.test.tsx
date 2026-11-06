@@ -169,4 +169,28 @@ describe('OrderMoney', () => {
     render(<OrderMoney order={order} />)
     expect(screen.queryByText(/^مانده برای پرداخت آنلاین/, { selector: 'dt' })).toBeNull()
   })
+
+  it('a cancelled order: no «پرداخت هنگام تحویل» (its door payment is closed, X2)', () => {
+    const cod = detail('cod')
+    expect(cod.money.amount_to_collect_on_delivery).toBeGreaterThan(0)
+    const cancelled = { ...cod, status: 'cancelled' as const, is_payable: false, can_cancel: false }
+    render(<OrderMoney order={cancelled} />)
+    expect(screen.queryByText(/^پرداخت هنگام تحویل/, { selector: 'dt' })).toBeNull()
+    expect(screen.queryByText(/^دریافت‌شده هنگام تحویل/, { selector: 'dt' })).toBeNull()
+    // Nothing online either: no split to show (never an empty «پرداخت» box).
+    expect(screen.queryByRole('region', { name: 'پرداخت' })).toBeNull()
+    expect(row(/^مبلغ کل/)).toBeVisible()
+  })
+
+  it('a cancelled order that the door did take money for still says what was received', () => {
+    const cod = detail('cod')
+    const cancelled = {
+      ...cod,
+      status: 'cancelled' as const,
+      money: { ...cod.money, amount_settled_on_delivery: 50_000 },
+    }
+    render(<OrderMoney order={cancelled} />)
+    expect(screen.queryByText(/^پرداخت هنگام تحویل/, { selector: 'dt' })).toBeNull()
+    expect(row(/^دریافت‌شده هنگام تحویل/)).toHaveTextContent('۵۰٬۰۰۰ تومان')
+  })
 })

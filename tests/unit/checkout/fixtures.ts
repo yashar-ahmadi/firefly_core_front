@@ -5,6 +5,7 @@ import cartDestination from '../../fixtures/checkout-cart-destination.json'
 import cartTipax from '../../fixtures/checkout-cart-tipax.json'
 import cityNotInProvince from '../../fixtures/checkout-city-not-in-province.json'
 import codLimit from '../../fixtures/checkout-cod-limit.json'
+import codRouteDisabled from '../../fixtures/checkout-cod-route-disabled.json'
 import optionsTehran from '../../fixtures/checkout-options-tehran.json'
 import shippingUnavailable from '../../fixtures/checkout-shipping-unavailable.json'
 import { itemsCartFixture } from '../cart/fixtures'
@@ -38,8 +39,13 @@ export const option = (code: string, changes: Partial<ShippingOption> = {}): Shi
   ...changes,
 })
 
-/** 400 `cart_cod_limit_exceeded` (the API's body; the plan says 409, the API answers 400). */
+/**
+ * 400 `cart_cod_limit_exceeded` (the API's body; the plan says 409, the API answers 400): the
+ * ceiling that refused, here the shop's «پرداخت در محل» method's (2026-11-06).
+ */
 export const codLimitBody = () => copy<Record<string, unknown>>(codLimit)
+/** 400 `cart_cod_route_disabled`: nothing online, the shop's «پرداخت در محل» method off (M-8). */
+export const codRouteDisabledBody = () => copy<Record<string, unknown>>(codRouteDisabled)
 /** 400 `cart_shipping_method_unavailable` (bar-sangin: «برای این وزن روش های ارسال ارزان تری…»). */
 export const unavailableBody = () => copy<Record<string, unknown>>(shippingUnavailable)
 /** 400 `cart_city_not_in_province`. */

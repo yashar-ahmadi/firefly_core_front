@@ -53,6 +53,7 @@
     "postal_tracking_code": "25826414806168261578370",
     "is_payable": false,
     "payment_url": "http://localhost:3000/order/pay/accountLinkToken701086857300000000000000000",
+    "payment_expires_at": "2026-08-14T15:00:00+03:30",
     "can_cancel": false,
     "channel": "website",
     "customer_note": null,

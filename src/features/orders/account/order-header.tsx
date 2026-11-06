@@ -3,12 +3,14 @@ import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import type { OrderDetail } from '@/lib/api/types/order-detail'
 import { formatJalaliDate } from '@/lib/format'
+import { formatJalaliDateTime } from '@/lib/format/date-time'
 import { statusTone } from '../status-tone'
 
-// The top of an account order's page (order digest §6.4): when it was placed and paid, where it
-// was sold when not on the website, and two facts as badges: confirmed (the shop is preparing
-// it) and fully paid (online and at the door). The heading, its code and status are the page's
-// own (AccountPageHeader); the actions go under these facts.
+// The top of an account order's page (order digest §6.4): when it was placed and paid, until when
+// it can be paid while it can (`payment_expires_at` beside `is_payable`, M-1), where it was sold
+// when not on the website, and two facts as badges: confirmed (the shop is preparing it) and
+// fully paid (online and at the door, an amendment's top-up included). The heading, its code and
+// status are the page's own (AccountPageHeader); the actions go under these facts.
 
 const CHANNELS: Record<string, string> = {
   social_media: 'شبکه‌های اجتماعی',
@@ -43,6 +45,13 @@ export function OrderFacts({ order }: { order: OrderDetail }) {
         {order.paid_at && (
           <Fact term="تاریخ پرداخت">
             <time dateTime={order.paid_at}>{formatJalaliDate(order.paid_at)}</time>
+          </Fact>
+        )}
+        {order.is_payable && order.payment_expires_at && (
+          <Fact term="مهلت پرداخت">
+            <time dateTime={order.payment_expires_at}>
+              {formatJalaliDateTime(order.payment_expires_at)}
+            </time>
           </Fact>
         )}
         {channel && <Fact term="محل خرید">{channel}</Fact>}

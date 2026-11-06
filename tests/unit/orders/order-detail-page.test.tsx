@@ -51,6 +51,16 @@ describe('the order, as the server read it', () => {
     expect(calls(mocks.bffFetch, `order/${CODE}/`)).toHaveLength(0)
   })
 
+  it('a payable order says until when (the API’s deadline as it came); a delivered one does not', () => {
+    const { unmount } = renderPage(detail('awaiting'))
+    const facts = section('خلاصه\u{0654} سفارش')
+    expect(within(facts).getByText('مهلت پرداخت:')).toBeVisible()
+    expect(facts.querySelector('time[datetime="2031-09-16T15:00:00+03:30"]')).not.toBeNull()
+    unmount()
+    renderPage(detail('delivered'))
+    expect(section('خلاصه\u{0654} سفارش')).not.toHaveTextContent('مهلت پرداخت')
+  })
+
   it('the way up is «سفارش‌های من» at every width, never the account hub', () => {
     renderPage(detail('delivered'))
     const back = screen.getByRole('link', { name: 'بازگشت به سفارش‌های من' })

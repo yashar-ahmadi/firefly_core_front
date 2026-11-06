@@ -27,7 +27,10 @@ export interface WriteOutcome {
   error?: unknown
   /** The city went: the lists were stale (`cart_city_not_in_province`, `does_not_exist`). */
   resetCity?: boolean
-  /** COD was refused (its ceiling, not offered, switched off): the method was chosen prepaid. */
+  /**
+   * COD was refused (its ceiling, not offered, nothing online with the shop's «پرداخت در محل»
+   * method off, switched off): the method was chosen prepaid.
+   */
   codDropped?: boolean
 }
 
@@ -102,7 +105,16 @@ export function useDestinationWrite() {
   return { setDestination, isPending }
 }
 
-const COD_REFUSED = new Set(['cart_cod_limit_exceeded', 'cart_cod_not_supported'])
+/**
+ * The COD refusals of a method the cart may still have prepaid (cart digest §3.10): the list's
+ * `cash_on_delivery_available` keeps the box from asking, so these come from a list read before
+ * a change (the operator's ceiling, the payment method switched off).
+ */
+const COD_REFUSED = new Set([
+  'cart_cod_limit_exceeded',
+  'cart_cod_not_supported',
+  'cart_cod_route_disabled',
+])
 const OPTION_GONE = new Set(['cart_shipping_method_unavailable', 'cart_shipping_method_not_found'])
 
 /** The API refused the option itself: no longer available for this cart, or unknown. */
@@ -129,6 +141,8 @@ export function useShippingWrite() {
         // (The QueryClient marks the switch off too; idempotent.)
         if (switchedOff) markFeatureDisabled(error.feature ?? 'pay_on_delivery', message)
         const prepaid = await select(code, false)
+        // The list that offered the box was out of date: read again for its verdict.
+        void client.invalidateQueries({ queryKey: SHIPPING_OPTIONS_KEY })
         return { ...prepaid, message: prepaid.message ?? message, codDropped: true }
       }
       if (isOptionGone(error)) {

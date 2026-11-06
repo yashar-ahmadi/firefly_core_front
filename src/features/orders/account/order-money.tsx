@@ -10,7 +10,8 @@ import { isTerminalStatus } from '../order-statuses'
 // «رایگان», a fare the carrier collects as «پس‌کرایه», never «free»; the coupon's shipping saving
 // only when there is one), packaging, tax with its rate, the pay-on-delivery fee, the total and
 // the savings; then how it is paid: online (A, its prepayment inside it, never added again), at
-// the door (D), what was settled each way, and what is still owed online (O; not for an order
+// the door (D; not for a cancelled order, whose courier collects nothing: its door payment is
+// closed, X2), what was settled each way, and what is still owed online (O; not for an order
 // that ended: the API does not zero it on cancellation). Nothing is added up here. Rows that
 // would only say «۰» (a discount, a fee, the online share of an order paid at the door alone) are
 // left out. No state: a server component as well.
@@ -72,7 +73,16 @@ export function OrderMoney({ order }: { order: OrderDetail }) {
   const { money, coupon } = order
   const online = money.amount_charged_online
   const door = money.amount_to_collect_on_delivery
-  const owed = money.amount_outstanding_online > 0 && !isTerminalStatus(order.status)
+  // A cancelled order's door share is never collected: said only for what the door did take.
+  const doorOwed = door > 0 && order.status !== 'cancelled'
+  const rows = {
+    // Paid at the door alone: no «۰» online row (a free order still says it).
+    online: online > 0 || door === 0,
+    door: doorOwed,
+    settledOnline: online > 0,
+    settledDoor: doorOwed || money.amount_settled_on_delivery > 0,
+    owed: money.amount_outstanding_online > 0 && !isTerminalStatus(order.status),
+  }
   const couponShown =
     coupon.code !== null && (money.coupon_discount > 0 || coupon.discount_type === 'free_shipping')
   return (
@@ -131,36 +141,39 @@ export function OrderMoney({ order }: { order: OrderDetail }) {
           </Row>
         )}
       </dl>
-      <section aria-labelledby="order-money-split" className="rounded-card bg-ink-50 px-4 py-3">
-        <h3 id="order-money-split" className="text-base leading-7 font-bold text-ink-900">
-          پرداخت
-        </h3>
-        <dl>
-          {/* Paid at the door alone: no «۰» online row (a free order still says it). */}
-          {(online > 0 || door === 0) && (
-            <Row term="پرداخت آنلاین">
-              {formatToman(online)}
-              {money.prepayment > 0 && (
-                <span className="block text-sm leading-6 font-normal text-ink-600">
-                  {`شامل بیعانه\u{0654} ${formatToman(money.prepayment)}`}
-                </span>
-              )}
-            </Row>
-          )}
-          {door > 0 && <Row term="پرداخت هنگام تحویل">{formatToman(door)}</Row>}
-          {online > 0 && (
-            <Row term="پرداخت‌شده آنلاین">{formatToman(money.amount_settled_online)}</Row>
-          )}
-          {door > 0 && (
-            <Row term="دریافت‌شده هنگام تحویل">{formatToman(money.amount_settled_on_delivery)}</Row>
-          )}
-          {owed && (
-            <Row term="مانده برای پرداخت آنلاین">
-              <span className="text-warning">{formatToman(money.amount_outstanding_online)}</span>
-            </Row>
-          )}
-        </dl>
-      </section>
+      {Object.values(rows).some(Boolean) && (
+        <section aria-labelledby="order-money-split" className="rounded-card bg-ink-50 px-4 py-3">
+          <h3 id="order-money-split" className="text-base leading-7 font-bold text-ink-900">
+            پرداخت
+          </h3>
+          <dl>
+            {rows.online && (
+              <Row term="پرداخت آنلاین">
+                {formatToman(online)}
+                {money.prepayment > 0 && (
+                  <span className="block text-sm leading-6 font-normal text-ink-600">
+                    {`شامل بیعانه\u{0654} ${formatToman(money.prepayment)}`}
+                  </span>
+                )}
+              </Row>
+            )}
+            {rows.door && <Row term="پرداخت هنگام تحویل">{formatToman(door)}</Row>}
+            {rows.settledOnline && (
+              <Row term="پرداخت‌شده آنلاین">{formatToman(money.amount_settled_online)}</Row>
+            )}
+            {rows.settledDoor && (
+              <Row term="دریافت‌شده هنگام تحویل">
+                {formatToman(money.amount_settled_on_delivery)}
+              </Row>
+            )}
+            {rows.owed && (
+              <Row term="مانده برای پرداخت آنلاین">
+                <span className="text-warning">{formatToman(money.amount_outstanding_online)}</span>
+              </Row>
+            )}
+          </dl>
+        </section>
+      )}
     </div>
   )
 }

@@ -47,6 +47,7 @@
     "postal_tracking_code": null,
     "is_payable": false,
     "payment_url": "http://localhost:3000/order/pay/e2eStoreLinkToken00000000000000000000000002",
+    "payment_expires_at": "2026-09-05T15:00:00+03:30",
     "can_cancel": false,
     "channel": "store",
     "customer_note": null,

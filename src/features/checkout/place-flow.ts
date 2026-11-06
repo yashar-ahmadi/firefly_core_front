@@ -12,12 +12,16 @@ import type { Placement, PlacementNotice } from './use-place-order'
 // (`afterPlacement`), or for a refusal what the page does about it (`handleRefusal`, with the
 // page's own state and helpers handed in: this chunk adds no module the page does not have).
 // The placement key is taken here, at the press (idempotency.ts: the review made it when it was
-// reached), and forgotten here when the API calls it malformed. `submitPlacement` never rejects:
-// a refusal comes back as its `PlacementError`.
+// reached), replaced here when the API says it already placed another order (409
+// `order_idempotency_key_reused`: nothing placed, the cart untouched, so the same request goes
+// once more with a new key, M-20), and forgotten here when the API calls it malformed.
+// `submitPlacement` never rejects: a refusal comes back as its `PlacementError`.
 
 /**
- * `earlier`: a replay (200) of an order whose total is not this cart's: the key's 2xx was lost
- * and a new purchase began in this tab. That order is recorded, never taken for this purchase.
+ * `earlier`: a replay (200) of an order whose total is not this cart's. The API replays a key
+ * only while nothing else is there to place (no cart, an empty one, or the cart that order froze;
+ * another cart with goods is the 409 above), so this is a guard: such an order is recorded, never
+ * taken for this purchase.
  */
 export type PlacementOutcome =
   | { ok: true; ctx: PlacedContext }
@@ -29,7 +33,7 @@ export async function submitPlacement(
   { route, gatewayCode }: { route: RouteChoice['route']; gatewayCode: string | null },
 ): Promise<PlacementOutcome> {
   try {
-    const { order, replayed } = await placeOrder({ ...input, key: placementKey() })
+    const { order, replayed } = await placeWithKey(input)
     const ctx = contextOf(order, { guest: input.isGuest, route, gatewayCode })
     if (replayed && order.total !== input.expectedTotal) {
       recordEarlier(ctx)
@@ -42,6 +46,21 @@ export async function submitPlacement(
       ok: false,
       error: error instanceof PlacementError ? error : new PlacementError('other', error),
     }
+  }
+}
+
+/**
+ * The placement with this purchase's key; a key that already placed another order (409
+ * `order_idempotency_key_reused`, digest §8.1) is forgotten and the request sent once more with a
+ * new one: nothing was placed and the cart is as the shopper confirmed it.
+ */
+async function placeWithKey(input: Omit<PlaceOrderInput, 'key'>) {
+  try {
+    return await placeOrder({ ...input, key: placementKey() })
+  } catch (error) {
+    if (!(error instanceof PlacementError && error.problem === 'key_reused')) throw error
+    clearPlacementKey()
+    return placeOrder({ ...input, key: placementKey() })
   }
 }
 
@@ -143,7 +162,9 @@ export async function handleRefusal(error: PlacementError, sent: number, deps: R
       deps.setThrottle({ error: error.cause, at: Date.now() })
       return deps.setNotice({ message: deps.throttledMessage, problem: 'throttled' })
     case 'invalid_key':
-      // Malformed (a client bug): the next press makes a new one.
+    case 'key_reused':
+      // Malformed (a client bug), or a new key refused as used again (never expected): the next
+      // press makes a new one.
       clearPlacementKey()
       return say()
     default:

@@ -162,13 +162,22 @@ export interface OrderSummaryBase {
   item_count: number
   shipping_method_title: string
   postal_tracking_code: string | null
-  /** Owes online money now (the deadline is not checked). */
+  /**
+   * A pay button leads somewhere now: money is owed online (the order's own, or an amendment's
+   * top-up) and `payment_expires_at` has not passed (the server's clock; M-1).
+   */
   is_payable: boolean
   /**
    * Present until cancelled, even after payment or expiry; holds the link token (a bearer
    * credential). The account order's first render carries a marker instead (order-read.ts).
    */
   payment_url: string | null
+  /**
+   * When the current payment window closes (the order's deadline, or an amendment top-up's);
+   * kept after payment, null once cancelled or the link revoked. For display only, beside
+   * `is_payable`: never compared with this device's clock.
+   */
+  payment_expires_at: string | null
   /** status === awaiting_payment. */
   can_cancel: boolean
 }
@@ -178,12 +187,16 @@ export interface OrderLinePreview {
   product_name: string
   variant_name: string | null
   image: string | null
+  /** Units of this line. */
+  quantity: number
 }
 
-/** `GET order/list/` (paginated): no money breakdown, no payment deadline. */
+/** `GET order/list/` (paginated): no money breakdown. */
 export interface OrderListItem extends OrderSummaryBase {
   /** The first three lines at most. */
   item_preview: OrderLinePreview[]
+  /** Every line of the order, whatever its quantity (`item_count` sums the quantities). */
+  line_count: number
 }
 
 /** `GET order/list/`'s orders (`sort`; anything else is a 400 `invalid_choice`). */

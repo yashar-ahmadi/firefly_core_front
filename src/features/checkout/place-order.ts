@@ -55,6 +55,11 @@ export type PlacementProblem =
   | 'session'
   /** `order_idempotency_key_invalid` (a client bug). */
   | 'invalid_key'
+  /**
+   * 409 `order_idempotency_key_reused`: the key placed an earlier order and this is another cart;
+   * nothing was placed and the cart is as it was (place-flow sends it again with a new key).
+   */
+  | 'key_reused'
   | 'other'
 
 const PROBLEMS: Record<string, PlacementProblem> = {
@@ -74,6 +79,7 @@ const PROBLEMS: Record<string, PlacementProblem> = {
   order_cart_changed: 'cart_changed',
   order_unpaid_limit_reached: 'unpaid_limit',
   order_idempotency_key_invalid: 'invalid_key',
+  order_idempotency_key_reused: 'key_reused',
   cart_not_found: 'cart_gone',
 }
 

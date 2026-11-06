@@ -23,10 +23,10 @@ export interface CartLineQuantity {
 
 /**
  * The quantity of one line (`PUT cart/item/{variant}/`, absolute). Taps are debounced and only
- * the final value is sent, and only when it differs from the cart's (any PUT clears the shipping
- * choice, digest §13.1). A refusal shows the detail and reads the cart again. A value still
- * waiting when the line unmounts (the mini-cart closed) is sent at once. It never sends 0: use
- * `useRemoveCartLine`.
+ * the final value is sent, and only when it differs from the cart's: a request saved (the API
+ * keeps the shipping choice for an unchanged quantity anyway, digest §3.3, M-9; a real change
+ * clears it). A refusal shows the detail and reads the cart again. A value still waiting when the
+ * line unmounts (the mini-cart closed) is sent at once. It never sends 0: use `useRemoveCartLine`.
  */
 export function useUpdateCartLine(
   line: Pick<CartLine, 'variant_id' | 'quantity'>,

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { buttonClasses } from '@/components/ui/button-styles'
 import type { OrderListItem } from '@/lib/api/types/order-detail'
 import { formatJalaliDate, formatNumber, formatToman, toPersianDigits } from '@/lib/format'
+import { formatJalaliDateTime } from '@/lib/format/date-time'
 import { TrackingCode } from '../components/tracking-code'
 import { statusTone } from '../status-tone'
 import { CopyCode } from './copy-code'
@@ -18,9 +19,11 @@ import { OrderThumbs } from './order-thumbs'
 
 // One order of «سفارش‌های من» (order digest §6.3): an article named by its code (a link to the
 // order, left to right, with «کپی»), the status in the API's words, when it was placed and how
-// many units, the first lines' pictures, the server's progress, the API's total, the shipping
-// method and where it goes (`address_summary`), the parcel's tracking code when it has one. ONE main action: «پرداخت» (it owes online
-// money) or «تأیید سفارش» (pure pay on delivery awaiting its confirmation), both the pay sheet;
+// many units, the first lines' pictures (and «+n» for the rest), the server's progress, the API's
+// total, the shipping method and where it goes (`address_summary`), the parcel's tracking code
+// when it has one. ONE main action: «پرداخت» (`is_payable`: it owes online money and its window
+// is open; the deadline said beside it, never compared with this device's clock, M-1) or
+// «تأیید سفارش» (pure pay on delivery awaiting its confirmation), both the pay sheet;
 // otherwise «جزئیات سفارش». «لغو سفارش» beside it while it may be cancelled. An action that went
 // while it held the focus (the order read again after its overlay closed) gives the focus to the
 // card's heading, never to <body>.
@@ -77,7 +80,7 @@ export function OrderCard({ order, onPay, onCancel }: OrderCardProps) {
         <time dateTime={order.placed_at}>{formatJalaliDate(order.placed_at)}</time>
         <span>{`${formatNumber(order.item_count)} کالا`}</span>
       </p>
-      <OrderThumbs preview={order.item_preview} />
+      <OrderThumbs preview={order.item_preview} lineCount={order.line_count} />
       <MiniProgress progress={order.progress} />
       <dl className="grid gap-x-6 gap-y-1 text-base leading-7 sm:grid-cols-2">
         <div className="flex flex-wrap gap-x-2">
@@ -94,6 +97,16 @@ export function OrderCard({ order, onPay, onCancel }: OrderCardProps) {
           <div className="flex flex-wrap gap-x-2 sm:col-span-2">
             <dt className="text-ink-600">ارسال به:</dt>
             <dd className="min-w-0 text-ink-800">{order.address_summary}</dd>
+          </div>
+        )}
+        {rules.pay && order.payment_expires_at && (
+          <div className="flex flex-wrap gap-x-2 sm:col-span-2">
+            <dt className="text-ink-600">مهلت پرداخت:</dt>
+            <dd className="text-ink-800">
+              <time dateTime={order.payment_expires_at}>
+                {formatJalaliDateTime(order.payment_expires_at)}
+              </time>
+            </dd>
           </div>
         )}
       </dl>

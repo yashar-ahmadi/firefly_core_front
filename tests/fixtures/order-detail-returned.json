@@ -59,6 +59,7 @@
     "postal_tracking_code": "92761652593210037453827",
     "is_payable": false,
     "payment_url": "http://localhost:3000/order/pay/e2eReturnedLinkToken000000000000000000000003",
+    "payment_expires_at": "2026-07-26T15:00:00+03:30",
     "can_cancel": false,
     "channel": "website",
     "customer_note": null,

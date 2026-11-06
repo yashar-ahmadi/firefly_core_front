@@ -5,8 +5,10 @@ import { TrackingCode } from '../components/tracking-code'
 
 // An order's delivery and receiver (order digest §6.4): the shipping method (the carrier), the
 // business days it takes, «پس‌کرایه» (the receiver pays the freight at the door) and «پرداخت در
-// محل» (a pay-on-delivery order), the parcel's tracking code; the receiver's name, mobile, email,
-// address with plaque and unit, postal code, and the shopper's note. As the API gave them.
+// محل» (a pay-on-delivery order; neither for a cancelled order: nothing is collected at its door,
+// its door collection cancelled with it, BACKEND-ISSUES X2), the parcel's tracking code; the
+// receiver's name, mobile, email, address with plaque and unit, postal code, and the shopper's
+// note. As the API gave them.
 
 /** The business days it takes, as said: «۲ تا ۴», «تا ۱» (from none), «همان روز» (none at all). */
 function days({ delivery_min_days: min, delivery_max_days: max }: OrderDetail): string | null {
@@ -21,6 +23,10 @@ function days({ delivery_min_days: min, delivery_max_days: max }: OrderDetail): 
 
 export function OrderDelivery({ order }: { order: OrderDetail }) {
   const eta = days(order)
+  // A cancelled order collects nothing at the door.
+  const atDoor = order.status !== 'cancelled'
+  const cod = atDoor && order.cash_on_delivery
+  const freight = atDoor && order.freight_paid_by_recipient
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1 text-base leading-7">
@@ -29,15 +35,15 @@ export function OrderDelivery({ order }: { order: OrderDetail }) {
         )}
         {eta && <p className="text-ink-700">{eta}</p>}
       </div>
-      {(order.freight_paid_by_recipient || order.cash_on_delivery) && (
+      {(freight || cod) && (
         <div className="flex flex-col gap-2">
-          {order.cash_on_delivery && (
+          {cod && (
             <p className="flex flex-wrap items-center gap-2 text-sm leading-6 text-ink-700">
               <Badge tone="info">پرداخت در محل</Badge>
               سهم پرداخت هنگام تحویل را به مأمور ارسال می‌پردازید.
             </p>
           )}
-          {order.freight_paid_by_recipient && (
+          {freight && (
             <p className="flex flex-wrap items-center gap-2 text-sm leading-6 text-ink-700">
               <Badge tone="info">پس‌کرایه</Badge>
               هزینهٔ ارسال را گیرنده هنگام تحویل می‌پردازد.

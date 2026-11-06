@@ -158,16 +158,42 @@ describe('the cards', () => {
     expect(within(card).getByRole('button', { name: 'لغو سفارش' })).toBeVisible()
   })
 
-  it('three pictures at most, no «+n» tile (the preview has no quantities); the units in words', async () => {
+  it('three pictures at most, a line’s quantity on it, «+n» for the lines not shown; the units in words', async () => {
     const orders = ORDERS()
     const first = orders.results[0]!
     const line = first.item_preview[0]!
-    orders.results[0] = { ...first, item_count: 9, item_preview: [line, line, line] }
+    orders.results[0] = {
+      ...first,
+      item_count: 9,
+      line_count: 5,
+      item_preview: [{ ...line, quantity: 3 }, line, line],
+    }
     listAnswer = () => ok(orders)
     renderOrders()
     const card = await screen.findByRole('article', { name: /سفارش ۳۰۶۷۵۶۲۳۵۸/ })
     expect(card).toHaveTextContent('۹ کالا')
-    expect(card).not.toHaveTextContent('+')
+    expect(card.querySelectorAll('[data-quantity]')).toHaveLength(1)
+    expect(card.querySelector('[data-quantity]')).toHaveTextContent('×۳')
+    expect(card.querySelector('[data-more]')).toHaveTextContent('+۲')
+  })
+
+  it('every line shown: no «+n» tile, and a single unit carries no quantity', async () => {
+    renderOrders()
+    const card = await screen.findByRole('article', { name: /سفارش ۵۲۱۰۹۲۴۱۱۳/ })
+    expect(card.querySelector('[data-more]')).toBeNull()
+    expect(card.querySelector('[data-quantity]')).toBeNull()
+    // sara's notebook order: one line of two units.
+    const notebook = screen.getByRole('article', { name: /سفارش ۶۲۷۰۶۲۴۸۴۹/ })
+    expect(notebook.querySelector('[data-quantity]')).toHaveTextContent('×۲')
+  })
+
+  it('a payable order says its deadline (the API’s, as it came); one that is not says none', async () => {
+    renderOrders()
+    const card = await screen.findByRole('article', { name: /سفارش ۳۰۶۷۵۶۲۳۵۸/ })
+    expect(card).toHaveTextContent('مهلت پرداخت:')
+    expect(card.querySelector('time[datetime="2031-09-16T15:00:00+03:30"]')).not.toBeNull()
+    const delivered = screen.getByRole('article', { name: /سفارش ۷۰۱۰۸۶۸۵۷۳/ })
+    expect(delivered).not.toHaveTextContent('مهلت پرداخت')
   })
 
   it('a delivered order: its details as the action, and its postal tracking code', async () => {

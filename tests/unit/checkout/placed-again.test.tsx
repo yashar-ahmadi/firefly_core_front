@@ -1,11 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  PLACEMENT_KEY_MAX_AGE_MS,
-  PLACEMENT_KEY_STORAGE,
-  PLACEMENT_KEY_USED_STORAGE,
-} from '@/features/checkout/idempotency'
+import { PLACEMENT_KEY_STORAGE } from '@/features/checkout/idempotency'
+import { ApiError } from '@/lib/api/errors'
+import keyReused from '../../fixtures/order-place-key-reused.json'
 import { contextOf, readPlaced, savePlaced } from '@/features/checkout/placed-order'
 import { PLACED_KEY, RECENT_MS } from '@/features/checkout/placed/last-placed'
 import { findGuestOrder } from '@/features/orders/guest-orders'
@@ -21,13 +19,15 @@ import {
   placed,
   renderCheckout,
   serve,
+  signedInCart,
 } from './place-support'
 
 // An order placed in this tab, met again: the checkout opened again with the cart it emptied (a
-// reload, Back from the bank) shows that order first; and a placement key whose 2xx was lost,
-// sent again for another cart, meets that earlier order (a 200 replay of another total): it is
-// said and recorded, never taken for the purchase on screen (order digest §5.1). A key left
-// unused for longer than the stock hold is not sent at all: the purchase on screen gets its own.
+// reload, Back from the bank) shows that order first. A placement key whose 2xx was lost, sent
+// again with another cart, places nothing: 409 `order_idempotency_key_reused` (M-20), and the same
+// request goes once more with a new key. A 200 replay of another total (a guard: the API replays
+// only while nothing else is there to place) is said and recorded, never taken for the purchase
+// on screen (order digest §5.1).
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), push: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
@@ -105,20 +105,41 @@ describe('an order placed in this tab, met again', () => {
     expect(keys[1]).not.toBe(first)
   })
 
-  it('a key left unused past the stock hold (a purchase long ago): this purchase sends a new one', async () => {
+  it('a key that placed an earlier order (409 key reused): the same request again with a new key, once', async () => {
     const user = userEvent.setup()
-    sessionStorage.setItem(PLACEMENT_KEY_STORAGE, 'stale-key-0000')
-    const lastUse = Date.now() - PLACEMENT_KEY_MAX_AGE_MS - 60_000
-    sessionStorage.setItem(PLACEMENT_KEY_USED_STORAGE, String(lastUse))
-    serve(mocks.bffFetch, () => onlineCart(), { [PLACE]: placed() })
-    renderCheckout({ cart: onlineCart() })
+    sessionStorage.setItem(PLACEMENT_KEY_STORAGE, 'spent-key-0000')
+    const place = vi
+      .fn()
+      .mockImplementationOnce(() => Promise.reject(ApiError.fromBody(409, keyReused)))
+      .mockImplementationOnce(placed({ order_code: '5592580095' }))
+    serve(mocks.bffFetch, () => signedInCart(), { [PLACE]: place })
+    renderCheckout({ cart: signedInCart(), hasSession: true })
     const button = await placeButton()
     await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'))
     await user.click(button)
     expect(await screen.findByRole('heading', { name: 'سفارش شما ثبت شد' })).toBeInTheDocument()
-    const keys = calls(mocks.bffFetch, PLACE).map(([, init]) => init.idempotencyKey)
-    expect(keys).toHaveLength(1)
-    expect(keys[0]).not.toBe('stale-key-0000')
-    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/)
+    expect(screen.queryByText(/کلید یکتای درخواست/)).not.toBeInTheDocument()
+    const sent = calls(mocks.bffFetch, PLACE).map(([, init]) => init)
+    expect(sent).toHaveLength(2)
+    expect(sent[0]!.idempotencyKey).toBe('spent-key-0000')
+    expect(sent[1]!.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/)
+    // The same purchase: the same body (expected_total, no receiver), only the key is new.
+    expect(sent[1]!.body).toEqual(sent[0]!.body)
+    // The 2xx ended the purchase: its key is gone.
+    expect(sessionStorage.getItem(PLACEMENT_KEY_STORAGE)).toBeNull()
+  })
+
+  it('the new key refused as used too (never expected): said, and the next press makes another', async () => {
+    const user = userEvent.setup()
+    const place = vi.fn(() => Promise.reject(ApiError.fromBody(409, keyReused)))
+    serve(mocks.bffFetch, () => signedInCart(), { [PLACE]: place })
+    renderCheckout({ cart: signedInCart(), hasSession: true })
+    const button = await placeButton()
+    await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'))
+    await user.click(button)
+    const review = screen.getByRole('region', { name: /بازبینی و ثبت سفارش/ })
+    expect(await within(review).findByText(/کلید یکتای درخواست/)).toBeInTheDocument()
+    expect(place).toHaveBeenCalledTimes(2)
+    expect(sessionStorage.getItem(PLACEMENT_KEY_STORAGE)).toBeNull()
   })
 })
