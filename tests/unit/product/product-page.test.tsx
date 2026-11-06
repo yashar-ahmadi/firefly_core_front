@@ -204,21 +204,28 @@ describe('the product page', () => {
     }
   })
 
-  it('embeds the Product and BreadcrumbList JSON-LD on the shop origin', async () => {
+  it('embeds the Product and BreadcrumbList JSON-LD as the API writes it (M-12)', async () => {
     const { container } = await renderPage()
     const blocks = [...container.querySelectorAll('script[type="application/ld+json"]')].map(
       (script) => JSON.parse(script.textContent ?? '{}') as Record<string, unknown>,
     )
     expect(blocks.map((block) => block['@type'])).toEqual(['Product', 'BreadcrumbList'])
+    // Pages on the backend's STOREFRONT_URL (the sitemap's <loc>), pictures on its
+    // PUBLIC_FILES_ORIGIN: nothing moved.
     expect(blocks[0]).toMatchObject({
-      offers: { url: 'https://shop.ir/product/samsung-galaxy-s25-ultra/', lowPrice: '785000000' },
+      offers: {
+        url: 'http://localhost:3000/product/samsung-galaxy-s25-ultra/',
+        lowPrice: '785000000',
+      },
+      aggregateRating: { ratingCount: 3, bestRating: 5 },
     })
-    expect(String(blocks[0]?.image)).toMatch(/^https:\/\/shop\.ir\/media\//)
+    expect(String(blocks[0]?.image)).toMatch(/^https:\/\/localhost\/media\//)
     const items = (blocks[1] as { itemListElement: { item: string }[] }).itemListElement
     expect(items.map((item) => item.item)).toEqual([
-      'https://shop.ir/',
-      'https://shop.ir/product-category/digital/',
-      'https://shop.ir/product-category/digital/mobile-phone/',
+      'http://localhost:3000/',
+      'http://localhost:3000/product-category/digital/',
+      'http://localhost:3000/product-category/digital/mobile-phone/',
+      'http://localhost:3000/product/samsung-galaxy-s25-ultra/',
     ])
     // Rial prices live only in the JSON-LD, never in the text.
     const visible = container.cloneNode(true) as HTMLElement
@@ -376,5 +383,33 @@ describe('product metadata', () => {
   it('is noindex, nofollow for a draft seen in a staff preview', async () => {
     mocks.getProductDetail.mockResolvedValue(s25Product({ is_unpublished: true }))
     expect((await generateMetadata(props())).robots).toEqual({ index: false, follow: false })
+  })
+
+  it('writes the operator’s meta rows (M-13): theirs replace ours, the rest stay', async () => {
+    const meta_tags = [
+      { field: 'og:title', value: 'S25 اولترا با قلم' },
+      { field: 'twitter:site', value: '@firefly' },
+      { field: 'robots', value: 'noimageindex' },
+    ]
+    mocks.getProductDetail.mockResolvedValue(s25Product({ meta_tags }))
+    const meta = await generateMetadata(props())
+    expect(meta.openGraph).not.toHaveProperty('title')
+    expect(meta.openGraph).toMatchObject({ siteName: 'فایرفلای' })
+    expect(meta.other).toEqual({ 'twitter:site': ['@firefly'], robots: ['noimageindex'] })
+    await renderPage()
+    // React hoists the page's property= rows into <head>; name= rows are the metadata's.
+    const og = document.head.querySelectorAll('meta[property]')
+    expect(
+      [...og].map((tag) => [tag.getAttribute('property'), tag.getAttribute('content')]),
+    ).toEqual([['og:title', 'S25 اولترا با قلم']])
+  })
+
+  it('a draft’s preview keeps its own robots over an operator row', async () => {
+    mocks.getProductDetail.mockResolvedValue(
+      s25Product({ is_unpublished: true, meta_tags: [{ field: 'robots', value: 'index' }] }),
+    )
+    const meta = await generateMetadata(props())
+    expect(meta.robots).toEqual({ index: false, follow: false })
+    expect(meta).not.toHaveProperty('other')
   })
 })

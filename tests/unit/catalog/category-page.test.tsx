@@ -181,7 +181,7 @@ describe('the category page', () => {
     expect(within(chips).getByRole('link', { name: /گوشی موبایل/ })).toHaveTextContent('۷')
   })
 
-  it('shows breadcrumbs and the breadcrumb JSON-LD on the shop origin', async () => {
+  it('shows breadcrumbs and the breadcrumb JSON-LD as the API writes it (M-12)', async () => {
     const { container } = await renderPage(['digital', 'mobile-phone'])
     const trail = screen.getByRole('navigation', { name: 'مسیر صفحه' })
     expect(within(trail).getByRole('link', { name: 'کالای دیجیتال' })).toHaveAttribute(
@@ -192,11 +192,8 @@ describe('the category page', () => {
     const data = JSON.parse(script?.textContent ?? '{}') as {
       itemListElement: { item: string }[]
     }
-    expect(data.itemListElement.map((item) => item.item)).toEqual([
-      'https://shop.ir/',
-      'https://shop.ir/product-category/digital/',
-      'https://shop.ir/product-category/digital/mobile-phone/',
-    ])
+    // On the backend's STOREFRONT_URL, each the sitemap's <loc>: nothing moved.
+    expect(data).toEqual(categoryFixture().breadcrumb_structured_data)
   })
 
   it('shows the content, consider-before-buying and the FAQ below the listing', async () => {

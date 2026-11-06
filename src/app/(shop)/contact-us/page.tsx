@@ -14,7 +14,7 @@ import { contactHeading, contactJsonLd, contactMetadata } from '@/features/conta
 import { richContentHtml } from '@/features/content/rich-content'
 import { RichContentBody } from '@/features/content/rich-content-body'
 import { JsonLd } from '@/features/seo/json-ld'
-import { propertyMetaTags } from '@/features/seo/page-metadata'
+import { OperatorMetaTags } from '@/features/seo/operator-meta-tags'
 import { shopName } from '@/features/seo/shop-name'
 import { getSiteSettings, getTranslations } from '@/features/settings/api'
 import { createTranslator } from '@/lib/i18n/translator'
@@ -61,9 +61,7 @@ export default async function ContactRoute() {
   const after = blocksAt(blocks, 'after_content').length > 0
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
-      {propertyMetaTags(page?.meta_tags ?? []).map((tag, index) => (
-        <meta key={`${tag.field}-${index}`} property={tag.field.trim()} content={tag.value} />
-      ))}
+      <OperatorMetaTags tags={page?.meta_tags ?? []} />
       <JsonLd data={contactJsonLd(page, getStoreConfig().siteUrl, shop)} />
       {page?.is_unpublished && (
         <PreviewBar className="max-w-3xl">{'پیش\u{200C}نویس — منتشر نشده'}</PreviewBar>

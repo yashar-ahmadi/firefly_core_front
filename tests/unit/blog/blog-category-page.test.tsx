@@ -133,23 +133,35 @@ describe('the blog category route', () => {
     expect(mocks.getBlogPosts).toHaveBeenCalledWith({ category: 'mobile-blog', page: 4 })
   })
 
-  it('emits the backend’s CollectionPage and trail on the shop’s origin, every < escaped', async () => {
+  it('emits the backend’s CollectionPage and trail as it writes them, every < escaped', async () => {
     await renderTree(await BlogCategoryPage(props(CANONICAL)))
     const blocks = jsonLdBlocks()
     expect(blocks.map((block) => block.data['@type'])).toEqual(['CollectionPage', 'BreadcrumbList'])
     const [collection, trail] = blocks
+    // Pages on the backend's STOREFRONT_URL, the logo on its PUBLIC_FILES_ORIGIN, the Blog
+    // «وبلاگ» (M-12, J-5): nothing moved or renamed.
+    expect(collection?.data).toEqual(categoryDetailFixture().structured_data[0])
     expect(collection?.data).toMatchObject({
-      url: 'https://shop.ir/blog/category/tech-news/mobile-blog/',
-      // Named as the shop names its blog (the backend says «بلاگ»).
-      isPartOf: { name: 'وبلاگ فایرفلای', url: 'https://shop.ir/blog/' },
-      publisher: { logo: { url: 'https://shop.ir/media/site-logo.png' } },
+      isPartOf: { name: 'وبلاگ فایرفلای', url: 'http://localhost:3000/blog/' },
     })
-    expect((trail?.data.itemListElement as { name: string }[])[1]?.name).toBe('وبلاگ')
+    expect(trail?.data).toEqual(categoryDetailFixture().breadcrumb_structured_data)
     // The operator's description held `</script>`: written as `\u003c`, it cannot end the script.
     expect(collection?.raw).not.toContain('</script>')
     expect(collection?.raw).toContain('\\u003c/script>')
     expect(collection?.data.description).toContain('</script>')
-    expect(JSON.stringify(trail?.data)).not.toContain('https://localhost')
+  })
+
+  it('writes the operator’s property= meta rows into <head> (M-13)', async () => {
+    mocks.getBlogCategory.mockResolvedValue(
+      categoryDetailFixture({
+        meta_tags: [{ field: 'og:image', value: 'https://cdn.example/b.jpg' }],
+      }),
+    )
+    await renderTree(await BlogCategoryPage(props(CANONICAL)))
+    const rows = document.head.querySelectorAll('meta[property="og:image"]')
+    expect([...rows].map((tag) => tag.getAttribute('content'))).toEqual([
+      'https://cdn.example/b.jpg',
+    ])
   })
 })
 
@@ -203,8 +215,8 @@ describe('the blog category’s head', () => {
       title: 'گوشی و موبایل | وبلاگ فایرفلای',
       url: '/blog/category/tech-news/mobile-blog/',
       siteName: 'فایرفلای',
-      // On the shop's origin, as the structured data has it (it serves /media/ there too).
-      images: ['https://shop.ir/media/CACHE/images/categories/blog-mobile.jpg'],
+      // The API's picture as it comes, as a product category's.
+      images: ['http://localhost:8000/media/CACHE/images/categories/blog-mobile.jpg'],
     })
     expect(meta.robots).toBeUndefined()
   })

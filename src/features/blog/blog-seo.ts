@@ -2,10 +2,8 @@ import type { Metadata } from 'next'
 import { isPlaceholderImage } from '@/components/layout/menu-tree'
 import { BLOG_PATH, blogCategoryPath, type BlogQuery } from '@/features/blog/blog-routes'
 import { listingIndexing } from '@/features/catalog/listing-routes'
-import { blogBreadcrumb, blogStructuredData } from '@/features/blog/blog-structured-data'
 import { trailBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
-import { mediaOnSite } from '@/features/seo/site-media'
 import type { BlogCategoryDetail } from '@/lib/api/types/blog'
 import { toPersianDigits } from '@/lib/format'
 import { BLOG_NAME, BLOG_UNAVAILABLE_TITLE } from '@/features/blog/blog-copy'
@@ -45,14 +43,13 @@ export function blogHomeMetadata(sp: RawParams, query: BlogQuery, shop: string):
  * A category page's head from its SEO fields: `page_title` as an absolute title (it often names
  * the shop already: Plan 2's rule) with «- صفحهٔ N» on a later page, the description (else the
  * short description, description or content), keywords, the canonical (`canonical_link`, else
- * the path; a later page its own), the picture unless it is the API's placeholder, on the
- * shop's origin as in its structured data (`mediaOnSite`).
+ * the path; a later page its own), the picture unless it is the API's placeholder, and the
+ * operator's meta rows (M-13).
  */
 export function blogCategoryMetadata(
   category: BlogCategoryDetail,
   sp: RawParams,
   shop: string,
-  siteUrl: string,
 ): Metadata {
   const path = blogCategoryPath(category.path)
   return seoMetadata({
@@ -64,9 +61,10 @@ export function blogCategoryMetadata(
       category.content,
     ),
     keywords: category.page_keywords,
-    image: isPlaceholderImage(category.image) ? null : mediaOnSite(category.image, siteUrl),
+    image: isPlaceholderImage(category.image) ? null : category.image,
     path,
     siteName: shop,
+    metaTags: category.meta_tags,
     ...listingIndexing(sp, { path, canonicalLink: category.canonical_link }),
   })
 }
@@ -89,13 +87,10 @@ export function blogHomeJsonLd(siteUrl: string, shop: string): object[] {
 }
 
 /**
- * A category's JSON-LD: the backend's CollectionPage and BreadcrumbList set right for the shop
- * (blog-structured-data.ts: every URL on the storefront's origin, no empty one, «وبلاگ»).
+ * A category's JSON-LD: the backend's CollectionPage and BreadcrumbList as they come (pages on
+ * `STOREFRONT_URL`, pictures on `PUBLIC_FILES_ORIGIN`, M-12; no empty logo and «وبلاگ», J-37 and
+ * J-5).
  */
-export function blogCategoryJsonLd(category: BlogCategoryDetail, siteUrl: string): object[] {
-  const origin = new URL(siteUrl).origin
-  const collections = category.structured_data.map(
-    (item) => blogStructuredData(item, origin) as object,
-  )
-  return [...collections, blogBreadcrumb(category.breadcrumb_structured_data, siteUrl)]
+export function blogCategoryJsonLd(category: BlogCategoryDetail): object[] {
+  return [...category.structured_data, category.breadcrumb_structured_data]
 }

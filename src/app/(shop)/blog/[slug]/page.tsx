@@ -22,6 +22,7 @@ import { SeededComments } from '@/features/comments/seeded-comments'
 import { CommentPlaceholders } from '@/features/comments/subject-comment-list'
 import { JsonLd } from '@/features/seo/json-ld'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
+import { OperatorMetaTags } from '@/features/seo/operator-meta-tags'
 import { shopName } from '@/features/seo/shop-name'
 import { POST_ARTICLE_ID, POST_PRODUCTS_ID } from '@/lib/html/reserved-ids'
 import { BlogUnavailable } from '../unavailable'
@@ -75,7 +76,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
       <ReadingProgress targetId={POST_ARTICLE_ID} />
-      <JsonLd data={postJsonLd(post, getStoreConfig().siteUrl)} />
+      <OperatorMetaTags tags={post.meta_tags} />
+      <JsonLd data={postJsonLd(post)} />
       {/* A staff preview of a draft or a scheduled post (blog digest §1.5). */}
       {post.is_unpublished && (
         <PreviewBar className="mx-auto max-w-6xl">

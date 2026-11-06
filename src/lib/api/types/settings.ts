@@ -95,6 +95,11 @@ export interface MenuTarget<T extends MenuTargetType = MenuTargetType> {
   id: number
   /** The current slug; for categories only the last path segment. */
   slug: string
+  /**
+   * A page for signed-in customers only (the page's own flag; always false for any other type,
+   * NJ-1). Still listed for everyone, `url` unchanged: a guest who opens it is sent to login.
+   */
+  requires_login: boolean
 }
 
 interface MenuNodeBase {
@@ -172,7 +177,10 @@ export interface CategoryCard {
   show_in_homepage: boolean
   /** The API may send '' for none. */
   default_sorting: CategorySorting | '' | null
-  /** Direct published products only: parents are often 0. */
+  /**
+   * The published products of its whole visible subtree, each once: `count` of
+   * `product/list/?category=<slug>` (J-12), so a parent's is its children's too.
+   */
   product_count: number
   created: string
   updated: string
@@ -189,8 +197,9 @@ export interface TranslationResponse {
 
 export interface EnabledLanguage {
   language_code: string
-  language_name: string | null
-  /** Relative path: prefix the API origin. */
+  /** `''` when the operator left it blank, never null (J-2): show `language_code` then. */
+  language_name: string
+  /** An absolute URL (J-4), or null without a flag. */
   icon: string | null
   is_rtl: boolean
   translations: Record<string, unknown> | null

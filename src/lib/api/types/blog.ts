@@ -3,6 +3,7 @@
  * image is an absolute URL on the API host; datetimes are ISO-8601 with the Tehran offset.
  */
 import type { BreadcrumbListJsonLd } from '@/lib/api/types/catalog/enums'
+import type { MetaTag } from '@/lib/api/types/catalog/home'
 import type { CategoryBanner } from '@/lib/api/types/display'
 
 /** A category without its path (post cards, breadcrumbs): link it through the category list. */
@@ -83,19 +84,26 @@ export interface BlogCategoryListItem extends BlogCategoryLight {
   updated: string
 }
 
-/** The category's `structured_data[0]`. Its URLs are on `https://{SITE_DOMAIN}`. */
+/** A blog page's publisher: none without the site's settings, no `logo` without a logo (J-37). */
+export interface BlogPublisherJsonLd {
+  '@type': 'Organization'
+  name: string
+  logo?: { '@type': 'ImageObject'; url: string }
+}
+
+/**
+ * The category's `structured_data[0]`: pages on `STOREFRONT_URL`, pictures on
+ * `PUBLIC_FILES_ORIGIN` (M-12); embed it as it comes.
+ */
 export interface CollectionPageJsonLd {
   '@context': 'https://schema.org'
   '@type': 'CollectionPage'
   name: string
   description: string
   url: string
+  /** «وبلاگ <shop>» (J-5). */
   isPartOf: { '@type': 'Blog'; name: string; url: string }
-  publisher: {
-    '@type': 'Organization'
-    name: string
-    logo: { '@type': 'ImageObject'; url: string }
-  }
+  publisher?: BlogPublisherJsonLd
 }
 
 /** `GET blog/category/{slug}/`: 404 for a missing or draft category. No posts. */
@@ -120,6 +128,8 @@ export interface BlogCategoryDetail extends BlogCategoryLight {
   page_description: string
   page_keywords: string
   canonical_link: string | null
+  /** The operator's meta rows, oldest first (M-13); [] for none (absent from an older API). */
+  meta_tags?: MetaTag[]
   structured_data: CollectionPageJsonLd[]
   breadcrumb_structured_data: BreadcrumbListJsonLd
   created: string

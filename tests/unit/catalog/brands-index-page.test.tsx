@@ -6,7 +6,7 @@ import type { BrandCard } from '@/lib/api/types/catalog'
 import { clientProviders } from '../support/providers'
 import { resolveServerTree } from '../support/server-tree'
 
-// `/brand/` (the brands index): every brand A to Z, its trail as BreadcrumbList JSON-LD,
+// `/brand/` (the brands index): every brand in the API's order, its trail as BreadcrumbList JSON-LD,
 // indexable. Moved out of listing-pages.test.tsx (Plan 5 Task 8: files ≲ 250 lines).
 
 const mocks = vi.hoisted(() => ({ getBrands: vi.fn() }))
@@ -54,11 +54,14 @@ beforeEach(() => {
 })
 
 describe('the brands index', () => {
-  it('lists every brand in Persian alphabetical order, linked to its page', async () => {
+  it('lists every brand in the API’s order (its Persian alphabet, J-18), linked to its page', async () => {
+    // As the API sends them: Persian A to Z, then a name with a digit, then Latin.
     mocks.getBrands.mockResolvedValue([
-      brandCard(1, 'هایسنس', 'hisense', 3),
-      brandCard(2, 'پاناسونیک', 'panasonic', 1),
       brandCard(3, 'اپل', 'apple', 6),
+      brandCard(2, 'پاناسونیک', 'panasonic', 1),
+      brandCard(1, 'هایسنس', 'hisense', 3),
+      brandCard(4, '3M', '3m', 2),
+      brandCard(5, 'Bosch', 'bosch', 4),
     ])
     await show(BrandsPage())
     expect(screen.getByRole('heading', { level: 1, name: 'برندها' })).toBeInTheDocument()
@@ -67,6 +70,8 @@ describe('the brands index', () => {
       '/brand/apple/',
       '/brand/panasonic/',
       '/brand/hisense/',
+      '/brand/3m/',
+      '/brand/bosch/',
     ])
     expect(links[0]).toHaveTextContent('اپل')
     expect(links[0]).toHaveTextContent('۶ کالا')

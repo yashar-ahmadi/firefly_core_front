@@ -3,6 +3,7 @@
  * Every detail here returns 404 when the record is unknown or a draft.
  */
 import type { BreadcrumbListJsonLd, SortValue } from '@/lib/api/types/catalog/enums'
+import type { MetaTag } from '@/lib/api/types/catalog/home'
 import type { CategoryBanner } from '@/lib/api/types/display'
 import type { CategoryCard } from '@/lib/api/types/settings'
 
@@ -46,6 +47,11 @@ export interface CatalogSeo {
   page_keywords: string
   /** null means self-canonical. */
   canonical_link: string | null
+  /**
+   * The operator's meta rows (og, twitter, robots…), oldest first (M-13); [] for none. Absent
+   * from an API older than the 2026-11-05 round.
+   */
+  meta_tags?: MetaTag[]
   breadcrumb_structured_data: BreadcrumbListJsonLd
 }
 
@@ -115,10 +121,12 @@ export interface ProductListPageListItem {
   updated: string
 }
 
-/**
- * `GET product/list-page/<slug>/`: a curated landing page. It has no `breadcrumb` array: build the
- * visible crumb from `breadcrumb_structured_data` or the category tree.
- */
+/** The list page's category, with its chain root→self (J-16): link each `/product-category/<path>/`. */
+export interface ListPageCategory extends CategoryLight {
+  breadcrumb: CategoryBreadcrumbNode[]
+}
+
+/** `GET product/list-page/<slug>/`: a curated landing page. */
 export interface ProductListPageDetail extends CatalogSeo {
   id: number
   name: string
@@ -127,8 +135,8 @@ export interface ProductListPageDetail extends CatalogSeo {
   description: string | null
   /** HTML. */
   content: string | null
-  /** Has no `path`. */
-  product_category: CategoryLight | null
+  /** Its chain (`breadcrumb`) makes the page's visible trail; null: none. */
+  product_category: ListPageCategory | null
   /** false: `filters/?list=` returns `categories: []`. */
   show_category_filter: boolean
   default_sorting: SortValue | null

@@ -1,8 +1,7 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { breadcrumbTrail, siteBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
+import { trailBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { JsonLd, jsonLdString } from '@/features/seo/json-ld'
-import type { BreadcrumbListJsonLd } from '@/lib/api/types/catalog'
 
 const LINE_SEPARATOR = String.fromCodePoint(0x2028)
 const PARAGRAPH_SEPARATOR = String.fromCodePoint(0x2029)
@@ -48,53 +47,25 @@ describe('jsonLdString', () => {
   })
 })
 
-const LIST_PAGE: BreadcrumbListJsonLd = {
-  '@context': 'https://schema.org',
-  '@type': 'BreadcrumbList',
-  itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'خانه', item: 'https://localhost/' },
-    {
-      '@type': 'ListItem',
-      position: 2,
-      name: 'گوشی موبایل',
-      item: 'https://localhost/product-category/digital/mobile-phone/',
-    },
-    {
-      '@type': 'ListItem',
-      position: 3,
-      name: 'گوشی های پرچمدار',
-      item: 'https://localhost/product/list/flagship-phones/',
-    },
-  ],
-}
-
-describe('siteBreadcrumb', () => {
-  it("moves the items onto the shop's own origin (the backend writes its SITE_DOMAIN)", () => {
-    const rebased = siteBreadcrumb(LIST_PAGE, 'http://localhost:3000')
-    expect(rebased.itemListElement.map((item) => item.item)).toEqual([
-      'http://localhost:3000/',
-      'http://localhost:3000/product-category/digital/mobile-phone/',
-      'http://localhost:3000/product/list/flagship-phones/',
-    ])
-    expect(rebased.itemListElement[1]).toMatchObject({ position: 2, name: 'گوشی موبایل' })
-    // The input is left as it was (it may be a cached API payload).
-    expect(LIST_PAGE.itemListElement[0]?.item).toBe('https://localhost/')
-  })
-
-  it('keeps an item that is not an http(s) URL', () => {
-    const odd: BreadcrumbListJsonLd = {
-      ...LIST_PAGE,
-      itemListElement: [{ '@type': 'ListItem', position: 1, name: 'x', item: 'not a url' }],
-    }
-    expect(siteBreadcrumb(odd, 'https://shop.ir').itemListElement[0]?.item).toBe('not a url')
-  })
-})
-
-describe('breadcrumbTrail', () => {
-  it('gives the visible crumbs after home, linked by path', () => {
-    expect(breadcrumbTrail(LIST_PAGE)).toEqual([
-      { name: 'گوشی موبایل', href: '/product-category/digital/mobile-phone/' },
-      { name: 'گوشی های پرچمدار', href: '/product/list/flagship-phones/' },
+describe('trailBreadcrumb', () => {
+  it('lists «خانه» then each step on the shop’s origin, a Persian path percent-encoded', () => {
+    const list = trailBreadcrumb(
+      [
+        { name: 'برندها', path: '/brand/' },
+        { name: 'سامسونگ', path: '/brand/سامسونگ/' },
+      ],
+      'https://shop.ir/',
+      'خانه',
+    )
+    expect(list.itemListElement).toEqual([
+      { '@type': 'ListItem', position: 1, name: 'خانه', item: 'https://shop.ir/' },
+      { '@type': 'ListItem', position: 2, name: 'برندها', item: 'https://shop.ir/brand/' },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: 'سامسونگ',
+        item: `https://shop.ir/brand/${encodeURIComponent('سامسونگ')}/`,
+      },
     ])
   })
 })

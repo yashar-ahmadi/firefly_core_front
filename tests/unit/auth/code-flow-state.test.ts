@@ -175,6 +175,37 @@ describe('codeFlowReducer with the real failure mappings', () => {
     },
   )
 
+  it('register 400 under otp_method (M-11): under the identifier, the token and code kept', () => {
+    const detail = 'برای تأیید ایمیل فقط روش «ایمیل» قابل استفاده است.'
+    const refused = new ApiError({
+      status: 400,
+      code: 'invalid_choice',
+      detail,
+      errors: [{ code: 'invalid_choice', detail, attr: 'otp_method' }],
+    })
+    const state = run(
+      sentState(),
+      { type: 'submit', sending: true },
+      failed(registerFailure(refused)),
+    )
+    // Nothing was sent and the code already sent still works.
+    expect(state).toMatchObject({ step: 'entry', token: 't1', sentKey: 'k1', otpSent: SENT })
+    expect(state.fieldErrors).toEqual({ identifier: detail })
+  })
+
+  it('register: a missing identifier (`required`, J-6) lands under the identifier', () => {
+    const detail = 'وارد کردن ایمیل الزامی است.'
+    const failure = registerFailure(
+      new ApiError({
+        status: 400,
+        code: 'required',
+        detail,
+        errors: [{ code: 'required', detail, attr: 'email' }],
+      }),
+    )
+    expect(failure).toMatchObject({ field: 'identifier', code: 'required', detail })
+  })
+
   it('register auth_already_verified on a resend: on to the password, token kept', () => {
     const state = run(
       sentState(),

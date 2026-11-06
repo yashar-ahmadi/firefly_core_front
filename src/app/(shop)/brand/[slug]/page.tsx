@@ -15,6 +15,7 @@ import { trailBreadcrumb, type TrailStep } from '@/features/seo/breadcrumb-json-
 import { JsonLd } from '@/features/seo/json-ld'
 import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
+import { OperatorMetaTags } from '@/features/seo/operator-meta-tags'
 import { shopName } from '@/features/seo/shop-name'
 import { getTranslations } from '@/features/settings/api'
 import { createTranslator } from '@/lib/i18n/translator'
@@ -45,6 +46,7 @@ export async function generateMetadata({
     card: 'summary',
     path,
     siteName: await shopName(),
+    metaTags: brand.meta_tags,
     ...listingIndexing(sp, { path, canonicalLink: brand.canonical_link }),
   })
 }
@@ -68,6 +70,7 @@ export default async function BrandPage({ params, searchParams }: BrandPageProps
   ]
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
+      <OperatorMetaTags tags={brand.meta_tags} />
       <JsonLd data={trailBreadcrumb(trail, getStoreConfig().siteUrl, t('home'))} />
       <Breadcrumbs
         items={trail.map((step) => ({ name: step.name, href: step.path }))}

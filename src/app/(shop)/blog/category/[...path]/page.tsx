@@ -3,7 +3,6 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { CONTAINER } from '@/components/layout/container'
 import { cn } from '@/components/ui/cn'
-import { getStoreConfig } from '@/config/store-config'
 import { loadBlog } from '@/features/blog/availability'
 import { categoryLinks, categoryTree, childCategories } from '@/features/blog/blog-categories'
 import { BLOG_PATH, blogCategoryPath, parseBlogQuery } from '@/features/blog/blog-routes'
@@ -26,6 +25,7 @@ import { richContentHtml } from '@/features/content/rich-content'
 import { RichContentBody } from '@/features/content/rich-content-body'
 import { JsonLd } from '@/features/seo/json-ld'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
+import { OperatorMetaTags } from '@/features/seo/operator-meta-tags'
 import { shopName } from '@/features/seo/shop-name'
 import type { BlogCategoryDetail } from '@/lib/api/types/blog'
 import { formatNumber, toPersianDigits } from '@/lib/format'
@@ -56,7 +56,7 @@ export async function generateMetadata({
   ])
   if (loaded.off) return blogUnavailableMetadata(shop)
   if (loaded.data === null || loaded.data.posts === null) return notFoundMetadata()
-  return blogCategoryMetadata(loaded.data.category, sp, shop, getStoreConfig().siteUrl)
+  return blogCategoryMetadata(loaded.data.category, sp, shop)
 }
 
 /** The visible trail: «وبلاگ», then each category of the chain at its path (slugs joined). */
@@ -106,7 +106,8 @@ export default async function BlogCategoryPage({ params, searchParams }: BlogCat
 
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
-      <JsonLd data={blogCategoryJsonLd(category, getStoreConfig().siteUrl)} />
+      <OperatorMetaTags tags={category.meta_tags} />
+      <JsonLd data={blogCategoryJsonLd(category)} />
       <Breadcrumbs items={trail(category)} className="mb-2" />
       <div className="mb-4 md:mb-6">
         <ListingHero

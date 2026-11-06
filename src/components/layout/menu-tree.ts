@@ -42,7 +42,12 @@ export function categoriesToMenu(nodes: readonly CategoryLinkNode[]): MenuNode[]
     url: categoryPath(node.path),
     open_in_new_tab: false,
     icon: isPlaceholderImage(node.icon) ? null : node.icon,
-    target: { type: 'product_category', id: node.id, slug: node.path.split('/').at(-1) ?? '' },
+    target: {
+      type: 'product_category',
+      id: node.id,
+      slug: node.path.split('/').at(-1) ?? '',
+      requires_login: false,
+    },
     children: categoriesToMenu(node.children),
   }))
 }

@@ -190,12 +190,38 @@ describe('the post’s head', () => {
     expect(meta.alternates).toEqual({ canonical: '/blog/best-phones-under-30m/' })
     expect(meta.openGraph).toMatchObject({
       type: 'article',
-      // On the shop's origin, as the structured data has it (it serves /media/ there too).
-      images: ['https://shop.ir/media/CACHE/images/posts/best-phones.jpg'],
+      // The API's picture as it comes, as a product's or a category's.
+      images: ['http://localhost:8000/media/CACHE/images/posts/best-phones.jpg'],
       publishedTime: '2026-09-01T15:00:00+03:30',
       authors: ['مدیر فروشگاه'],
     })
     expect(meta.robots).toBeUndefined()
+  })
+
+  it('the operator’s meta rows (M-13): a field they wrote is theirs, the article ones too', async () => {
+    const meta_tags = [
+      { field: 'og:type', value: 'website' },
+      { field: 'article:author', value: 'تحریریه' },
+      { field: 'og:image', value: 'https://cdn.example/a.jpg' },
+      { field: 'twitter:creator', value: '@firefly' },
+    ]
+    answer(postDetailFixture({ meta_tags }))
+    const meta = await generateMetadata(props)
+    expect(meta.openGraph).not.toHaveProperty('type')
+    expect(meta.openGraph).not.toHaveProperty('authors')
+    expect(meta.openGraph).not.toHaveProperty('images')
+    expect(meta.openGraph).toMatchObject({ publishedTime: '2026-09-01T15:00:00+03:30' })
+    expect(meta.other).toEqual({ 'twitter:creator': ['@firefly'] })
+    await show(postDetailFixture({ meta_tags }))
+    const rows = [...document.head.querySelectorAll('meta[property]')].map((tag) => [
+      tag.getAttribute('property'),
+      tag.getAttribute('content'),
+    ])
+    expect(rows).toEqual([
+      ['og:type', 'website'],
+      ['article:author', 'تحریریه'],
+      ['og:image', 'https://cdn.example/a.jpg'],
+    ])
   })
 
   it('an unset description ("") falls back to the post’s own; the operator’s canonical path gets its slash', async () => {
@@ -210,31 +236,21 @@ describe('the post’s head', () => {
     expect((await generateMetadata(props)).robots).toEqual({ index: false, follow: false })
   })
 
-  it('JSON-LD: the BlogPosting and the trail on the shop’s origin, escaped, the body as text', async () => {
+  it('JSON-LD: the BlogPosting and the trail as the API writes them, escaped (M-12)', async () => {
     await show()
     const [posting, trail] = jsonLdBlocks()
     expect(posting!.raw).not.toContain('</script>')
     expect(posting!.raw).toContain('\\u003c/script>')
-    expect(posting!.data).toMatchObject({
-      '@type': 'BlogPosting',
-      mainEntityOfPage: { '@id': 'https://shop.ir/blog/best-phones-under-30m/' },
-      image: 'https://shop.ir/media/CACHE/images/posts/best-phones.jpg',
-      publisher: { logo: { url: 'https://shop.ir/media/site-logo.png' } },
-      articleBody: 'اگر بودجه شما حدود ۳۰ میلیون تومان است. چرا؟',
-    })
-    expect(trail!.data).toMatchObject({ '@type': 'BreadcrumbList' })
-    expect(JSON.stringify(trail!.data)).not.toContain('https://localhost')
-    // The blog's step named as the visible trail names it.
+    // Pages on the backend's STOREFRONT_URL, pictures on its PUBLIC_FILES_ORIGIN, the text as
+    // `articleBody`: nothing moved or rewritten.
+    expect(posting!.data).toEqual(postDetailFixture().structured_data[0])
+    expect(trail!.data).toEqual(postDetailFixture().breadcrumb_structured_data)
     expect((trail!.data.itemListElement as { name: string }[])[1]?.name).toBe('وبلاگ')
   })
 
-  it('JSON-LD of a shop without a logo: no empty logo URL', async () => {
+  it('JSON-LD of a shop without a logo: the API sends no logo, and none is added (J-37)', async () => {
     const [posting] = postDetailFixture().structured_data
-    const publisher = {
-      '@type': 'Organization' as const,
-      name: 'فایرفلای',
-      logo: { '@type': 'ImageObject' as const, url: '' },
-    }
+    const publisher = { '@type': 'Organization' as const, name: 'فایرفلای' }
     await show(postDetailFixture({ structured_data: [{ ...posting!, publisher }] }))
     expect(jsonLdBlocks()[0]!.data.publisher).toEqual({ '@type': 'Organization', name: 'فایرفلای' })
   })

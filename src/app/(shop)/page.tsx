@@ -10,7 +10,7 @@ import { buildHomeMetadata } from '@/features/home/home-metadata'
 import { SectionRenderer } from '@/features/home/sections/section-renderer'
 import { RecentlyViewedStrip } from '@/features/recently-viewed/strip'
 import { OrganizationJsonLd } from '@/features/seo/organization-jsonld'
-import { propertyMetaTags } from '@/features/seo/page-metadata'
+import { OperatorMetaTags } from '@/features/seo/operator-meta-tags'
 import { getSiteSettings } from '@/features/settings/api'
 import { KeptCopySession } from '@/lib/session/kept-copy-session'
 
@@ -39,9 +39,7 @@ export default async function ShopHomePage() {
   return (
     <>
       {/* Open Graph rows need property=, which Next's metadata cannot write; React hoists these. */}
-      {propertyMetaTags(home.meta_tags).map((tag, index) => (
-        <meta key={`${tag.field}-${index}`} property={tag.field.trim()} content={tag.value} />
-      ))}
+      <OperatorMetaTags tags={home.meta_tags} />
       <OrganizationJsonLd />
       {config.features.pwa && <KeptCopySession />}
       <h1 className="sr-only">{storeName(config, settings)}</h1>

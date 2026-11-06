@@ -22,6 +22,10 @@ export type CommentType = 'comment' | 'question'
 export type ProductContentType = 'general' | 'fragile_or_liquid' | 'documents'
 
 /** Item URLs are on `https://<SITE_DOMAIN>`; position 1 is «خانه». */
+/**
+ * A page's trail as the API writes it: every item on `STOREFRONT_URL`, the page's own `<loc>` in
+ * the sitemap (M-12); embed it as it comes.
+ */
 export interface BreadcrumbListJsonLd {
   '@context': 'https://schema.org'
   '@type': 'BreadcrumbList'
@@ -55,7 +59,7 @@ export interface ProductJsonLd {
   '@context': 'https://schema.org/'
   '@type': 'Product'
   name: string
-  /** On `https://<SITE_DOMAIN>/media/...`, not the API host. */
+  /** On the backend's `PUBLIC_FILES_ORIGIN` (a CDN URL as it is), not the API host. */
   image: string
   /** Equals `page_description`; may be "". */
   description: string
@@ -64,12 +68,21 @@ export interface ProductJsonLd {
   offers: ProductJsonLdOffer
   /** The product brand, else the site name. */
   brand?: { '@type': 'Brand'; name: string }
-  /** Up to 5 root reviews; no `reviewRating`, and no `aggregateRating` anywhere. */
+  /** Up to 5 root reviews; `reviewRating` on a rated one (J-17). */
   review?: {
     '@type': 'Review'
     author: { '@type': 'Person'; name: string }
-    /** YYYY-MM-DD. */
+    /** YYYY-MM-DD, Tehran's day. */
     datePublished: string
     reviewBody: string
+    reviewRating?: { '@type': 'Rating'; ratingValue: number; bestRating: 5; worstRating: 1 }
   }[]
+  /** When `rating_count > 0` (J-17). */
+  aggregateRating?: {
+    '@type': 'AggregateRating'
+    ratingValue: number | string
+    ratingCount: number
+    bestRating: 5
+    worstRating: 1
+  }
 }

@@ -176,6 +176,25 @@ describe('the curated list page', () => {
     )
   })
 
+  it('builds its trail from its category’s chain (J-16), the page last, not a link', async () => {
+    await show(ListPage(slugProps('flagship-phones')))
+    const trail = screen.getByRole('navigation', { name: 'مسیر صفحه' })
+    expect(within(trail).getByRole('link', { name: 'کالای دیجیتال' })).toHaveAttribute(
+      'href',
+      '/product-category/digital/',
+    )
+    expect(within(trail).queryByRole('link', { name: 'گوشی های پرچمدار' })).toBeNull()
+    expect(within(trail).getByText('گوشی های پرچمدار')).toBeInTheDocument()
+  })
+
+  it('a list without a category: the trail is the page alone', async () => {
+    mocks.getListPage.mockResolvedValue(listPageFixture({ product_category: null }))
+    await show(ListPage(slugProps('flagship-phones')))
+    const trail = screen.getByRole('navigation', { name: 'مسیر صفحه' })
+    expect(within(trail).queryByRole('link', { name: 'گوشی موبایل' })).toBeNull()
+    expect(within(trail).getByText('گوشی های پرچمدار')).toBeInTheDocument()
+  })
+
   it('shows the FAQ when the list has one', async () => {
     mocks.getListPage.mockResolvedValue(
       listPageFixture({ question_answers: [{ question: 'ارسال رایگان است؟', answer: 'بله.' }] }),

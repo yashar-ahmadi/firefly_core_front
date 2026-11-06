@@ -62,8 +62,10 @@ describe('commentFailure: a post’s error matrix', () => {
   it.each([
     ['required', 'review', 'این مقدار لازم است.'],
     ['blank', 'review', 'این مقدار نباید خالی باشد.'],
-    ['max_length', 'review', 'طول این مقدار نباید بیشتر از 4096 نویسه باشد.'],
-    ['invalid', 'name', 'وارد کردن نام برای کاربران مهمان الزامی است.'],
+    ['max_length', 'review', 'طول این مقدار نباید بیشتر از ۴٬۰۹۶ نویسه باشد.'],
+    // A guest's missing name: `required` left out, `blank` empty or spaces (J-11).
+    ['required', 'name', 'وارد کردن نام برای کاربران مهمان الزامی است.'],
+    ['blank', 'name', 'وارد کردن نام برای کاربران مهمان الزامی است.'],
     ['max_length', 'name', 'طول این مقدار نباید بیشتر از 255 نویسه باشد.'],
     ['invalid', 'email', 'پست الکترونیکی صحیح وارد کنید.'],
   ])('400 %s on %s goes under that field', (code, attr, detail) => {
@@ -80,6 +82,18 @@ describe('commentFailure: a post’s error matrix', () => {
       ]),
     )
     expect(failure.errors).toEqual({ review: 'خالی است.', email: 'ایمیل نادرست.' })
+  })
+
+  it('a guest’s missing name comes with the other field errors, in the same 400 (J-11)', () => {
+    const name = 'وارد کردن نام برای کاربران مهمان الزامی است.'
+    const failure = postCommentFailure(
+      refusal(400, [
+        { code: 'required', attr: 'name', detail: name },
+        { code: 'blank', attr: 'review', detail: 'این مقدار نباید خالی باشد.' },
+      ]),
+    )
+    expect(failure.errors).toEqual({ name, review: 'این مقدار نباید خالی باشد.' })
+    expect(failure.askName).toBe(true)
   })
 
   it('400 invalid_choice on comment_type: above the buttons, with its message', () => {

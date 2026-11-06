@@ -17,10 +17,11 @@ export interface TocEntry {
 }
 
 /**
- * The h2 and h3 headings, in order (an h1 counts as an h2: the sanitiser shows it as one). A
- * heading without an id (punctuation only) cannot be linked to, nor one whose id the page's own
- * markup uses (`isUsableHeadingId`: the sanitiser dropped it), and a repeated id (two headings
- * with the same text) is only on the first one: all are left out. h4 to h6 are too deep.
+ * The h2 and h3 headings, in order (an h1 counts as an h2: the sanitiser shows it as one). The
+ * API gives every heading an id of its own (J-22: «x-2» for a repeated text, «section-<n>» for
+ * punctuation only); one the page's own markup uses (`isUsableHeadingId`: the sanitiser dropped
+ * it), an empty one or a repeat (an older post) cannot be linked to and is left out. h4 to h6
+ * are too deep.
  */
 export function tocEntries(headings: readonly ContentHeading[]): TocEntry[] {
   const seen = new Set<string>()

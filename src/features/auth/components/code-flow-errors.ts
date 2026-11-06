@@ -20,9 +20,11 @@ const REGISTER_RULES: FailureRules<CodeFlowField> = {
   byAttr: {
     first_name: 'firstName',
     last_name: 'lastName',
-    // A missing identifier comes as `invalid` too, not `required` (§13 #7).
+    // A missing identifier is `required` (J-6), a wrong one `invalid`: either under its field.
     email: 'identifier',
     phone_number: 'identifier',
+    // A channel that cannot reach the identifier (start and resend alike, M-11): with it.
+    otp_method: 'identifier',
     otp_code: 'otp',
     password: 'password',
     confirm_password: 'confirm',

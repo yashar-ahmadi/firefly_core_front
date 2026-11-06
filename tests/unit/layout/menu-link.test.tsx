@@ -34,6 +34,30 @@ describe('MenuLink', () => {
     expect(screen.getByText('کالای دیجیتال').tagName).toBe('SPAN')
   })
 
+  it('marks a page for signed-in customers only with a lock, «ویژهٔ اعضا» (NJ-1)', () => {
+    render(
+      <>
+        <MenuLink
+          node={menuNode({
+            id: 3,
+            title: 'باشگاه مشتریان',
+            url: '/page/loyalty-club-guide/',
+            link_type: 'page',
+            requires_login: true,
+          })}
+        />
+        <MenuLink
+          node={menuNode({ id: 4, title: 'درباره ما', url: '/page/about-us/', link_type: 'page' })}
+        />
+      </>,
+    )
+    // Listed for everyone, at its own URL: the page sends a guest to login.
+    const members = screen.getByRole('link', { name: /^باشگاه مشتریان\s+ویژه\u{0654} اعضا$/u })
+    expect(members).toHaveAttribute('href', '/page/loyalty-club-guide/')
+    expect(screen.getByRole('link', { name: 'درباره ما' })).toBeInTheDocument()
+    expect(screen.getAllByRole('img', { name: 'ویژه\u{0654} اعضا' })).toHaveLength(1)
+  })
+
   it('renders a storefront path as a Next Link', () => {
     render(
       <MenuLink

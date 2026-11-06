@@ -38,6 +38,11 @@ export interface LoginActions {
   submitCode: (code?: string) => void
   submitTotp: (code?: string) => void
   signInWithGoogle: (idToken: string) => void
+  /**
+   * The same Google token sent again: after `503 auth_google_unavailable` on the first step
+   * (Google did not answer; nothing was said about the token, J-7). Null otherwise.
+   */
+  retryGoogle: (() => void) | null
   /** The API said Google login is off (`auth_google_disabled`): the button goes. */
   googleOff: boolean
 }
@@ -47,6 +52,8 @@ export function useLoginActions(context: LoginContext): LoginActions {
   const { state, dispatch, type, loginIdentifier, methods, channel, next, onSignedIn } = context
   const completeLogin = useCompleteLogin()
   const [googleOff, setGoogleOff] = useState(false)
+  /** The token Google's sign-in could not be checked with (Google unreachable), to send again. */
+  const [unchecked, setUnchecked] = useState<string | null>(null)
   const run = useRequestRunner(dispatch, loginFailure)
 
   /** Sends `request` (again with `totpCode` after a challenge): signed in, or asked for TOTP. */
@@ -57,7 +64,13 @@ export function useLoginActions(context: LoginContext): LoginActions {
       if (request.kind === 'password') return authApi.login({ ...request.body, ...totp })
       if (request.kind === 'otp') return authApi.loginOtpVerify({ ...request.body, ...totp })
       return authApi.google({ ...request.body, ...totp }).catch((error: unknown) => {
-        if (error instanceof ApiError && error.code === 'auth_google_disabled') setGoogleOff(true)
+        const code = error instanceof ApiError ? error.code : null
+        if (code === 'auth_google_disabled') setGoogleOff(true)
+        // Always 503, and the token was not judged: the same one goes again a little later. A
+        // refused token is always 401 `auth_google_token_invalid`: a new one from the button.
+        // On the TOTP step the step's own button sends the same token again.
+        const sameAgain = code === 'auth_google_unavailable' && totpCode === undefined
+        setUnchecked(sameAgain ? request.body.id_token : null)
         throw error
       })
     }
@@ -76,6 +89,8 @@ export function useLoginActions(context: LoginContext): LoginActions {
 
   return {
     googleOff,
+    retryGoogle:
+      unchecked === null ? null : () => signIn({ kind: 'google', body: { id_token: unchecked } }),
     continueWithIdentifier() {
       if (state.identifier.trim() === '') return invalid('identifier', IDENTIFIER_REQUIRED)
       if (type === null) return invalid('identifier', IDENTIFIER_INVALID)

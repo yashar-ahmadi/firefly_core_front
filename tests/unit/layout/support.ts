@@ -10,6 +10,8 @@ export interface MenuNodeInit {
   link_type?: MenuNode['link_type']
   open_in_new_tab?: boolean
   icon?: string | null
+  /** A page for signed-in customers only (`target.requires_login`). */
+  requires_login?: boolean
   children?: MenuNode[]
 }
 
@@ -19,7 +21,12 @@ export function menuNode(init: MenuNodeInit): MenuNode {
   const target =
     linkType === 'none' || linkType === 'url'
       ? null
-      : { type: linkType, id: init.id, slug: url?.split('/').filter(Boolean).at(-1) ?? '' }
+      : {
+          type: linkType,
+          id: init.id,
+          slug: url?.split('/').filter(Boolean).at(-1) ?? '',
+          requires_login: init.requires_login ?? false,
+        }
   return {
     id: init.id,
     title: init.title,

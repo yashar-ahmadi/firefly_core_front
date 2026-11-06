@@ -4,7 +4,6 @@ import { Breadcrumbs } from '@/components/layout/breadcrumbs'
 import { CONTAINER } from '@/components/layout/container'
 import { isPlaceholderImage } from '@/components/layout/menu-tree'
 import { cn } from '@/components/ui/cn'
-import { getStoreConfig } from '@/config/store-config'
 import { getCategory, getFilters, isPastLastPage } from '@/features/catalog/api'
 import { ListingExtras } from '@/features/catalog/components/listing-extras'
 import { ListingHero } from '@/features/catalog/components/listing-hero'
@@ -18,10 +17,10 @@ import {
   queryString,
   requestedCategoryPath,
 } from '@/features/catalog/listing-routes'
-import { siteBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { JsonLd } from '@/features/seo/json-ld'
 import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
+import { OperatorMetaTags } from '@/features/seo/operator-meta-tags'
 import { shopName } from '@/features/seo/shop-name'
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -67,6 +66,7 @@ export async function generateMetadata({
     image: isPlaceholderImage(category.image) ? null : category.image,
     path,
     siteName: await shopName(),
+    metaTags: category.meta_tags,
     ...listingIndexing(sp, { path, canonicalLink: category.canonical_link }),
   })
 }
@@ -101,9 +101,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
-      <JsonLd
-        data={siteBreadcrumb(category.breadcrumb_structured_data, getStoreConfig().siteUrl)}
-      />
+      <OperatorMetaTags tags={category.meta_tags} />
+      <JsonLd data={category.breadcrumb_structured_data} />
       <Breadcrumbs
         items={category.breadcrumb.map((node) => ({
           name: node.name,

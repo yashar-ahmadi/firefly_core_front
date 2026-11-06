@@ -82,7 +82,6 @@ const cases: [string, () => Metadata][] = [
         } as never,
         {},
         'فرش',
-        'https://shop.ir/',
       ),
   ],
   ['the blog switched off', () => blogUnavailableMetadata('فرش')],

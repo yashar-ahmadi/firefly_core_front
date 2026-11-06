@@ -526,6 +526,7 @@
   "page_description": "پرچمدار سامسونگ با نمایشگر ۶.۸ اینچی داینامیک امولد، قلم S Pen و دوربین ۲۰۰ مگاپیکسلی.",
   "page_keywords": "گوشی موبایل سامسونگ گلکسی S25 اولترا, خرید اینترنتی, قیمت",
   "canonical_link": null,
+  "meta_tags": [],
   "structured_data": [
     {
       "@context": "https://schema.org/",
@@ -537,7 +538,7 @@
       "mpn": "SM-S25U-BLK-256",
       "offers": {
         "@type": "AggregateOffer",
-        "url": "https://localhost/product/samsung-galaxy-s25-ultra/",
+        "url": "http://localhost:3000/product/samsung-galaxy-s25-ultra/",
         "priceCurrency": "IRR",
         "lowPrice": "785000000",
         "highPrice": "869000000",
@@ -556,7 +557,13 @@
             "name": "علی کریمی"
           },
           "datePublished": "2026-06-21",
-          "reviewBody": "گرم شدن دستگاه موقع بازی کردن آزاردهنده است."
+          "reviewBody": "گرم شدن دستگاه موقع بازی کردن آزاردهنده است.",
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": 3,
+            "bestRating": 5,
+            "worstRating": 1
+          }
         },
         {
           "@type": "Review",
@@ -565,7 +572,13 @@
             "name": "محمد رضایی"
           },
           "datePublished": "2026-06-18",
-          "reviewBody": "کیفیت ساخت بی نظیره اما قیمتش نسبت به سال قبل خیلی بالا رفته."
+          "reviewBody": "کیفیت ساخت بی نظیره اما قیمتش نسبت به سال قبل خیلی بالا رفته.",
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": 4,
+            "bestRating": 5,
+            "worstRating": 1
+          }
         },
         {
           "@type": "Review",
@@ -574,9 +587,22 @@
             "name": "سارا احمدی"
           },
           "datePublished": "2026-06-15",
-          "reviewBody": "دوربینش واقعا عالیه و باتری یک روز کامل جواب میده. بسته بندی و ارسال هم مرتب بود."
+          "reviewBody": "دوربینش واقعا عالیه و باتری یک روز کامل جواب میده. بسته بندی و ارسال هم مرتب بود.",
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": 5,
+            "bestRating": 5,
+            "worstRating": 1
+          }
         }
-      ]
+      ],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": 4.0,
+        "ratingCount": 3,
+        "bestRating": 5,
+        "worstRating": 1
+      }
     }
   ],
   "breadcrumb_structured_data": {
@@ -587,19 +613,25 @@
         "@type": "ListItem",
         "position": 1,
         "name": "خانه",
-        "item": "https://localhost/"
+        "item": "http://localhost:3000/"
       },
       {
         "@type": "ListItem",
         "position": 2,
         "name": "کالای دیجیتال",
-        "item": "https://localhost/product-category/digital/"
+        "item": "http://localhost:3000/product-category/digital/"
       },
       {
         "@type": "ListItem",
         "position": 3,
         "name": "گوشی موبایل",
-        "item": "https://localhost/product-category/digital/mobile-phone/"
+        "item": "http://localhost:3000/product-category/digital/mobile-phone/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 4,
+        "name": "گوشی موبایل سامسونگ گلکسی S25 اولترا",
+        "item": "http://localhost:3000/product/samsung-galaxy-s25-ultra/"
       }
     ]
   },

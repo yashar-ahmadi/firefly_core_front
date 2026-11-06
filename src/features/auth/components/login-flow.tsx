@@ -83,6 +83,7 @@ export function LoginFlow({
       identifier={state.identifier}
       next={next}
       register={register}
+      onRetry={state.step === 'identifier' ? actions.retryGoogle : null}
     />
   )
   const errors = state.fieldErrors

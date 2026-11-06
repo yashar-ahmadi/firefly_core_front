@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import type { MetaTag } from '@/lib/api/types/catalog'
 
-// A page's <head> from its SEO fields and the operator's meta rows (homepage, content pages).
-// Pure. Keys without a value are left out, never set to `undefined` (that would wipe the
+// A page's <head> from its SEO fields and the operator's meta rows (`meta_tags`: the homepage,
+// content pages, and since M-13 products, categories, brands, list pages, posts and blog
+// categories). Pure. Keys without a value are left out, never set to `undefined` (that would wipe the
 // layout's value).
 
 /** Meta fields written with `property=` (Open Graph and its families); the rest use `name=`. */
@@ -33,15 +34,16 @@ function operatorValue(tags: readonly MetaTag[], field: string): string | null {
 /**
  * The other `name=` rows by field, repeats kept in order (`metadata.other` takes arrays).
  * `description` and `keywords` are left out: they go to their own keys, so each tag is written
- * once.
+ * once; so is `robots` while the page sets its own (`ownRobots`: a filtered listing, a draft's
+ * preview, a members-only page are never indexed, whatever a row says).
  */
-function nameMetaTags(tags: readonly MetaTag[]): Record<string, string[]> {
+function nameMetaTags(tags: readonly MetaTag[], ownRobots: boolean): Record<string, string[]> {
   const other: Record<string, string[]> = {}
   for (const tag of tags) {
     const field = tag.field.trim()
-    if (!usable(tag) || PROPERTY_FIELD.test(field) || KEYED_FIELDS.has(field.toLowerCase())) {
-      continue
-    }
+    const keyed = KEYED_FIELDS.has(field.toLowerCase())
+    const robots = ownRobots && field.toLowerCase() === 'robots'
+    if (!usable(tag) || PROPERTY_FIELD.test(field) || keyed || robots) continue
     other[field] = [...(other[field] ?? []), tag.value]
   }
   return other
@@ -87,7 +89,8 @@ export interface PageSeo {
  * - canonical and `og:url`: `canonical`, none when null.
  * - Open Graph (website, fa_IR) and Twitter: titles, descriptions and the image set explicitly;
  *   a field the operator wrote as a meta tag (og:title, twitter:card…) is left out here.
- * - other operator meta tags: `name=` ones through `other`; see `propertyMetaTags` for the rest.
+ * - other operator meta tags: `name=` ones through `other` (a `robots` row only when the page
+ *   sets no robots of its own); see `propertyMetaTags` for the rest.
  */
 export function pageMetadata(seo: PageSeo): Metadata {
   const tags = seo.metaTags ?? []
@@ -98,7 +101,7 @@ export function pageMetadata(seo: PageSeo): Metadata {
   const image = present(seo.image)
   const images = image ? [image] : null
   const given = new Set(tags.filter(usable).map((tag) => tag.field.trim().toLowerCase()))
-  const other = nameMetaTags(tags)
+  const other = nameMetaTags(tags, Boolean(seo.robots))
 
   return {
     ...(title ? { title: { absolute: title } } : {}),

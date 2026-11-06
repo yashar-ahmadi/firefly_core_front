@@ -60,13 +60,14 @@ export function postDetailFixture(overrides: Partial<PostDetail> = {}): PostDeta
       'اگر بودجه شما حدود ۳۰ میلیون تومان است، این پنج گوشی بهترین انتخاب ها هستند.',
     page_keywords: 'بهترین, گوشی',
     canonical_link: null,
+    meta_tags: [],
     structured_data: [
       {
         '@context': 'https://schema.org',
         '@type': 'BlogPosting',
         mainEntityOfPage: {
           '@type': 'WebPage',
-          '@id': 'https://localhost/blog/best-phones-under-30m/',
+          '@id': 'http://localhost:3000/blog/best-phones-under-30m/',
         },
         headline: 'بهترین گوشی های زیر ۳۰ میلیون تومان </script><script>alert(1)</script>',
         description: 'اگر بودجه شما حدود ۳۰ میلیون تومان است.',
@@ -78,7 +79,7 @@ export function postDetailFixture(overrides: Partial<PostDetail> = {}): PostDeta
         },
         datePublished: '2026-09-01',
         dateModified: '2026-09-01',
-        articleBody: '<p>اگر بودجه شما <strong>حدود</strong> ۳۰ میلیون تومان است.</p><h2>چرا؟</h2>',
+        articleBody: 'اگر بودجه شما حدود ۳۰ میلیون تومان است. چرا؟',
         author: { '@type': 'Person', name: 'مدیر فروشگاه' },
         commentCount: 2,
       },
@@ -87,13 +88,13 @@ export function postDetailFixture(overrides: Partial<PostDetail> = {}): PostDeta
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'خانه', item: 'https://localhost/' },
-        { '@type': 'ListItem', position: 2, name: 'بلاگ', item: 'https://localhost/blog/' },
+        { '@type': 'ListItem', position: 1, name: 'خانه', item: 'http://localhost:3000/' },
+        { '@type': 'ListItem', position: 2, name: 'وبلاگ', item: 'http://localhost:3000/blog/' },
         {
           '@type': 'ListItem',
           position: 3,
           name: 'اخبار فناوری',
-          item: 'https://localhost/blog/category/tech-news/',
+          item: 'http://localhost:3000/blog/category/tech-news/',
         },
       ],
     },

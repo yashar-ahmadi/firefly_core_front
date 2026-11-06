@@ -4,20 +4,26 @@ import { isPlaceholderImage } from '@/components/layout/menu-tree'
 import { cn } from '@/components/ui/cn'
 import { SmartImage } from '@/components/ui/smart-image'
 import { categoryPath } from '@/features/catalog/listing-routes'
+import { formatNumber } from '@/lib/format'
 import { BALANCED_GRID, balancedGridVars } from './balanced-grid'
 import type { CategoryCard } from '@/lib/api/types/settings'
 
 // A category grid's second to fourth styles (content digest §6.6); style 1 is the round tiles of
-// CategoryGridSection. Each links to `/product-category/{path}/` (never the slug alone) and shows
-// no product count (it covers direct products only: parents would read 0).
+// CategoryGridSection. Each links to `/product-category/{path}/` (never the slug alone). The cards
+// say how many products the category has (its whole subtree since J-12, a parent's too); the
+// chips and the tiles keep to the name.
 
-type Category = Pick<CategoryCard, 'id' | 'name' | 'path' | 'image' | 'icon'>
+type Category = Pick<CategoryCard, 'id' | 'name' | 'path' | 'image' | 'icon'> &
+  Partial<Pick<CategoryCard, 'product_count'>>
 
 export interface CategoryStyleProps {
   categories: Category[]
 }
 
-/** Style 2, cards: a square picture on a white card and the name under it, in a wrapping grid. */
+/**
+ * Style 2, cards: a square picture on a white card, the name under it and its product count
+ * («۲۶ کالا», none when empty or unknown), in a wrapping grid.
+ */
 export function CategoryCards({ categories }: CategoryStyleProps) {
   return (
     <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 lg:gap-4 xl:grid-cols-8">
@@ -36,6 +42,11 @@ export function CategoryCards({ categories }: CategoryStyleProps) {
             <span className="line-clamp-2 text-sm leading-6 font-medium text-ink-800 transition-colors group-hover:text-brand-700">
               {category.name}
             </span>
+            {category.product_count ? (
+              <span className="-mt-1.5 text-xs leading-5 text-ink-600">
+                {`${formatNumber(category.product_count)} کالا`}
+              </span>
+            ) : null}
           </Link>
         </li>
       ))}

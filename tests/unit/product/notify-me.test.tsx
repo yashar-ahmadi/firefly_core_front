@@ -177,13 +177,24 @@ describe('NotifyMe for a signed-in shopper', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(OK)
   })
 
-  it('asks for the name when the account has none', async () => {
+  it('asks for the name when the account has none (both names in one 400, J-11)', async () => {
     const user = userEvent.setup()
-    mocks.bffFetch.mockRejectedValueOnce(refused('invalid', 'first_name', 'نام ضروری است.'))
+    mocks.bffFetch.mockRejectedValueOnce(
+      new ApiError({
+        status: 400,
+        errors: [
+          { code: 'invalid', attr: 'first_name', detail: 'نام ضروری است.' },
+          { code: 'invalid', attr: 'last_name', detail: 'نام خانوادگی ضروری است.' },
+        ],
+      }),
+    )
     renderWithProduct(<NotifyMe />, { product: chipsProduct(), hasSession: true })
     await user.click(screen.getByRole('button', { name: SUBMIT }))
     const first = await screen.findByRole('textbox', { name: FIRST_NAME })
     expect(first).toHaveAccessibleDescription('نام ضروری است.')
+    expect(screen.getByRole('textbox', { name: /نام خانوادگی/ })).toHaveAccessibleDescription(
+      'نام خانوادگی ضروری است.',
+    )
     expect(screen.queryByRole('textbox', { name: /شمارهٔ موبایل/ })).toBeNull()
 
     mocks.bffFetch.mockResolvedValueOnce({ data: {}, msg: OK, status: 201 })

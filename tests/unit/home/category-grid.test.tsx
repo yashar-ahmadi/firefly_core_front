@@ -49,3 +49,34 @@ describe('CategoryGridSection links', () => {
     )
   })
 })
+
+describe('CategoryGridSection product counts (J-12)', () => {
+  const grid = (style: string, categories = [parent, empty]) =>
+    ({ ...categoryGrid(categories), style }) as Grid
+  // A parent counts its whole subtree now: `count` of its product list.
+  const parent = categoryFixture({
+    id: 1,
+    name: 'کالای دیجیتال',
+    path: 'digital',
+    product_count: 26,
+  })
+  const empty = categoryFixture({
+    id: 2,
+    name: 'لوازم جانبی',
+    path: 'accessories',
+    product_count: 0,
+  })
+
+  it('the cards say how many products each has, none for an empty one', () => {
+    const { getByRole } = render(
+      <CategoryGridSection section={grid('style_2')} seeAllLabel="همه" />,
+    )
+    expect(getByRole('link', { name: /کالای دیجیتال/ })).toHaveTextContent('۲۶ کالا')
+    expect(getByRole('link', { name: /لوازم جانبی/ })).not.toHaveTextContent('کالا')
+  })
+
+  it.each(['style_1', 'style_3', 'style_4'])('%s keeps to the names', (style) => {
+    const { getByRole } = render(<CategoryGridSection section={grid(style)} seeAllLabel="همه" />)
+    expect(getByRole('link', { name: /کالای دیجیتال/ })).not.toHaveTextContent('۲۶')
+  })
+})

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { pageMetadata } from '@/features/seo/page-metadata'
+import type { MetaTag } from '@/lib/api/types/catalog'
 import { toPersianDigits } from '@/lib/format/digits'
 import { htmlToText } from '@/lib/html/to-text'
 
@@ -21,6 +22,8 @@ export interface SeoInput {
   image?: string | null
   /** `robots: noindex, follow` (a filtered or sorted listing, the generic listing). */
   noindex?: boolean
+  /** A robots of the page's own instead (a staff preview of a draft: `noindex, nofollow`). */
+  robots?: { index: boolean; follow: boolean } | null
   /** The shop's name for `og:site_name` (`shopName()`), as on the home page. */
   siteName?: string | null
   /** The Twitter card; by default the large one with an image, else `summary`. */
@@ -38,6 +41,11 @@ export interface SeoInput {
   noCanonical?: boolean
   /** An indexable later page (N > 1) of a listing: «صفحهٔ N» goes after the title. */
   page?: number
+  /**
+   * The operator's meta rows (`meta_tags`, M-13): a field they wrote is theirs (ours is left
+   * out); the page renders the `property=` ones itself (`OperatorMetaTags`).
+   */
+  metaTags?: readonly MetaTag[]
 }
 
 /** About what search engines show of a description. */
@@ -76,7 +84,8 @@ function pagedTitle(title: string | undefined, page: number | undefined): string
  *   entity page); keywords only when set. Never `undefined` keys (they wipe the layout's).
  * - canonical (and `og:url`): `canonical`, else `path`; none at all with `noCanonical`.
  * - Open Graph `website` in `fa_IR` with the image and the shop's name; Twitter `card`, else
- *   `summary_large_image` when there is an image and `summary` without one.
+ *   `summary_large_image` when there is an image and `summary` without one; each unless the
+ *   operator wrote that field (`metaTags`), whose `name=` rows go to `other`.
  */
 export function seoMetadata(input: SeoInput): Metadata {
   const image = input.image?.trim() || null
@@ -88,6 +97,7 @@ export function seoMetadata(input: SeoInput): Metadata {
     image,
     siteName: input.siteName,
     card: input.card ?? (image ? 'summary_large_image' : 'summary'),
-    robots: input.noindex ? { index: false, follow: true } : null,
+    robots: input.robots ?? (input.noindex ? { index: false, follow: true } : null),
+    metaTags: input.metaTags,
   })
 }

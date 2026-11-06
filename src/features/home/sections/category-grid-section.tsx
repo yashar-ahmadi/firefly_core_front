@@ -49,8 +49,7 @@ export interface CategoryGridSectionProps {
  * The categories (content.md §6.6), each linking to `/product-category/{path}/`, in the
  * operator's style: 1. round pictures (or the name's first letter when the API only has its
  * placeholder) with the name, in even rows; 2. cards; 3. chips; 4. picture tiles
- * (`category-styles`). No product counts: they cover direct products only, so parents would
- * read 0.
+ * (`category-styles`; the cards say how many products each has, its whole subtree: J-12).
  */
 export function CategoryGridSection({ section, seeAllLabel }: CategoryGridSectionProps) {
   if (section.categories.length === 0) return null

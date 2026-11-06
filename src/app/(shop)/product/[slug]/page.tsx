@@ -44,11 +44,10 @@ import { SectionCard } from '@/features/product/components/section-card'
 import { SpecificationsTable, specRows } from '@/features/product/components/specifications-table'
 import { StickyBuyBar } from '@/features/product/components/sticky-buy-bar'
 import { RecentlyViewedStrip } from '@/features/recently-viewed/strip'
-import { siteBreadcrumb } from '@/features/seo/breadcrumb-json-ld'
 import { JsonLd } from '@/features/seo/json-ld'
 import { metaExcerpt, seoMetadata } from '@/features/seo/metadata'
 import { notFoundMetadata } from '@/features/seo/not-found-metadata'
-import { siteProductJsonLd } from '@/features/seo/product-json-ld'
+import { OperatorMetaTags } from '@/features/seo/operator-meta-tags'
 import { shopName } from '@/features/seo/shop-name'
 import { getSiteSettings } from '@/features/settings/api'
 
@@ -63,7 +62,7 @@ const SPECS = { id: 'specs', title: 'مشخصات' } as const
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const product = await getProductDetail((await params).slug)
   if (product === null) return notFoundMetadata()
-  const meta = seoMetadata({
+  return seoMetadata({
     pageTitle: product.page_title,
     description: product.page_description,
     fallbackDescription: metaExcerpt(product.description, product.content),
@@ -73,9 +72,10 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     path: productPath(product.slug),
     image: isPlaceholderImage(product.image) ? null : product.image,
     siteName: await shopName(),
+    metaTags: product.meta_tags,
+    // A draft in a staff preview (product digest §5.1).
+    robots: product.is_unpublished ? { index: false, follow: false } : null,
   })
-  // A draft in a staff preview (product digest §5.1).
-  return product.is_unpublished ? { ...meta, robots: { index: false, follow: false } } : meta
 }
 
 function UnpublishedBanner() {
@@ -133,12 +133,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   return (
     <ProductProvider key={product.id} product={toClientProduct(product)}>
-      <JsonLd
-        data={[
-          ...product.structured_data.map((data) => siteProductJsonLd(data, config.siteUrl)),
-          siteBreadcrumb(product.breadcrumb_structured_data, config.siteUrl),
-        ]}
-      />
+      <OperatorMetaTags tags={product.meta_tags} />
+      {/* As the API writes it: pages on STOREFRONT_URL, pictures on PUBLIC_FILES_ORIGIN (M-12). */}
+      <JsonLd data={[...product.structured_data, product.breadcrumb_structured_data]} />
       <div className={cn(CONTAINER, 'pt-2 pb-6 md:pt-4 md:pb-8')}>
         {product.is_unpublished && <UnpublishedBanner />}
         <Breadcrumbs items={trail} className="mb-2" />

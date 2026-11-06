@@ -74,14 +74,15 @@ export function categoryDetailFixture(
     page_description: '',
     page_keywords: '',
     canonical_link: null,
+    meta_tags: [],
     structured_data: [
       {
         '@context': 'https://schema.org',
         '@type': 'CollectionPage',
         name: 'دسته‌بندی: گوشی و موبایل',
         description: 'همه چیز درباره گوشی های هوشمند. </script><script>alert(1)</script>',
-        url: 'https://localhost/blog/category/tech-news/mobile-blog/',
-        isPartOf: { '@type': 'Blog', name: 'بلاگ فایرفلای', url: 'https://localhost/blog/' },
+        url: 'http://localhost:3000/blog/category/tech-news/mobile-blog/',
+        isPartOf: { '@type': 'Blog', name: 'وبلاگ فایرفلای', url: 'http://localhost:3000/blog/' },
         publisher: {
           '@type': 'Organization',
           name: 'فایرفلای',
@@ -93,19 +94,19 @@ export function categoryDetailFixture(
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'خانه', item: 'https://localhost/' },
-        { '@type': 'ListItem', position: 2, name: 'بلاگ', item: 'https://localhost/blog/' },
+        { '@type': 'ListItem', position: 1, name: 'خانه', item: 'http://localhost:3000/' },
+        { '@type': 'ListItem', position: 2, name: 'وبلاگ', item: 'http://localhost:3000/blog/' },
         {
           '@type': 'ListItem',
           position: 3,
           name: 'اخبار فناوری',
-          item: 'https://localhost/blog/category/tech-news/',
+          item: 'http://localhost:3000/blog/category/tech-news/',
         },
         {
           '@type': 'ListItem',
           position: 4,
           name: 'گوشی و موبایل',
-          item: 'https://localhost/blog/category/tech-news/mobile-blog/',
+          item: 'http://localhost:3000/blog/category/tech-news/mobile-blog/',
         },
       ],
     },

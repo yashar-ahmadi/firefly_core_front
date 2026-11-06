@@ -115,6 +115,29 @@ describe('Google sign-in', () => {
     expect(await handedByClick(register, '/register/')).toBe('')
   })
 
+  it('Google unreachable (503 auth_google_unavailable): «تلاش دوباره» sends the same token', async () => {
+    const user = renderLogin()
+    await googleAnswers(
+      new ApiError({
+        status: 503,
+        code: 'auth_google_unavailable',
+        detail: 'سرویس گوگل در دسترس نیست.',
+      }),
+    )
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('سرویس گوگل در دسترس نیست.')
+    mocks.google.mockRejectedValueOnce(
+      new ApiError({ status: 401, code: 'auth_google_token_invalid', detail: 'توکن نامعتبر.' }),
+    )
+    await user.click(within(alert).getByRole('button', { name: 'تلاش دوباره' }))
+    expect(mocks.google).toHaveBeenCalledTimes(2)
+    expect(mocks.google).toHaveBeenLastCalledWith({ id_token: 'gis-id-token' })
+    // A refused token is never sent again: a new one comes from Google's button.
+    const refused = await screen.findByRole('alert')
+    await waitFor(() => expect(refused).toHaveTextContent('توکن نامعتبر.'))
+    expect(within(refused).queryByRole('button', { name: 'تلاش دوباره' })).toBeNull()
+  })
+
   it('no registration link while registration is closed', async () => {
     renderLogin(REGISTRATION_OFF)
     await googleAnswers(

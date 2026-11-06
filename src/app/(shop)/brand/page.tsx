@@ -25,17 +25,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return { ...seoMetadata({ path: BRANDS_PATH, siteName: await shopName() }), title: TITLE }
 }
 
-/** The API orders brands by code point (پ چ ژ گ last): this is Persian alphabetical order. */
-const byName = new Intl.Collator('fa').compare
-
 /**
- * `/brand/`: every published brand, A to Z, as a grid of logo cards (the logo fits its square,
+ * `/brand/`: every published brand in the API's order (J-18: the Persian alphabet, then names
+ * that start with a digit, then Latin A to Z), as a grid of logo cards (the logo fits its square,
  * never cut) linking to the brand's page. Indexable; its visible trail (home › «برندها») is its
  * BreadcrumbList JSON-LD. An API failure reaches the error boundary.
  */
 export default async function BrandsPage() {
-  const [all, translations] = await Promise.all([getBrands(), getTranslations()])
-  const brands = [...all].sort((a, b) => byName(a.name, b.name))
+  const [brands, translations] = await Promise.all([getBrands(), getTranslations()])
   const home = createTranslator(translations)('home')
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>

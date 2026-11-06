@@ -1,9 +1,11 @@
 'use client'
 
+import { LockKeyhole } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useState, type HTMLAttributes, type MouseEvent, type ReactNode } from 'react'
 import { cn } from '@/components/ui/cn'
+import { MEMBERS_ONLY } from '@/features/content/pages/page-routes'
 import type { MenuNode } from '@/lib/api/types/settings'
 import { useOptionalStoreConfig } from '@/lib/config-context'
 import { isBlogPostPath } from '@/lib/links/post-link'
@@ -45,7 +47,8 @@ export function MenuIcon({ src, className }: { src: string; className?: string }
  * path is a Next `Link`, and any other URL a plain `<a>`. A short link (`/s/<code>`) is a plain
  * `<a>` too: every request to it counts a visit, so it must never be prefetched. A blog post's
  * page counts a view on every render, so a link to one is never prefetched either (P5-R1). The
- * URL is used as the API sends it.
+ * URL is used as the API sends it. A page for signed-in customers only (`target.requires_login`,
+ * NJ-1) carries a lock, «ویژهٔ اعضا»: a guest who follows it is sent to login by the page.
  */
 export function MenuLink({
   node,
@@ -61,6 +64,16 @@ export function MenuLink({
     <>
       {withIcon && node.icon && <MenuIcon src={node.icon} />}
       {children ?? node.title}
+      {node.target?.requires_login && (
+        <>
+          {/* A space: the link's name reads «… ویژهٔ اعضا» (a flex row drops it from view). */}{' '}
+          <LockKeyhole
+            role="img"
+            aria-label={MEMBERS_ONLY}
+            className="size-4 shrink-0 opacity-70"
+          />
+        </>
+      )}
     </>
   )
   if (node.url === null) return <span {...props}>{content}</span>

@@ -16,6 +16,8 @@ describe('videoEmbedUrl', () => {
     ['https://www.aparat.com/v/rajj65c', APARAT('rajj65c')],
     ['https://aparat.com/v/iNgzs/', APARAT('iNgzs')],
     ['http://www.aparat.com/v/b4jv2/عنوان-ویدیو', APARAT('b4jv2')],
+    // The panel stores Aparat's phone host too (NJ-3).
+    ['https://m.aparat.com/v/czq53du', APARAT('czq53du')],
   ])('Aparat: %s', (url, embed) => {
     expect(videoEmbedUrl(url)).toBe(embed)
   })

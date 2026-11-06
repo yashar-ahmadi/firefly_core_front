@@ -132,7 +132,9 @@ export function useRegisterActions(context: RegisterContext): RegisterActions {
     },
     resend() {
       if (token === null || channel === null) return
-      // Only a channel the identifier can take: the API does not check it (digest §13 #1).
+      // Only a channel the identifier can take (`codeChannels`): the API refuses any other with
+      // 400 under `otp_method` and sends nothing, the code already sent still good (M-11). It
+      // keeps a new channel only once a code went by it.
       const body = { registration_token: token, otp_method: channel }
       const sentKey = JSON.stringify(startBody(entry, channel))
       run(

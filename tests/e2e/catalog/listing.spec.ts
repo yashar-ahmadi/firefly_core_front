@@ -190,14 +190,16 @@ test.describe('curated list and generic listing', () => {
     expect((await page.goto('/product/list/no-such-list/'))?.status()).toBe(404)
   })
 
-  test('discounts: titled «تخفیف‌ها», noindex, and empty (dev has no discounts)', async ({
+  test('discounts: titled «تخفیف‌ها», noindex, with the sample data’s discounted products', async ({
     page,
   }) => {
     await page.goto('/product/list/?has_discount=true')
     await expect(page.getByRole('heading', { level: 1, name: 'تخفیف‌ها' })).toBeVisible()
-    await expect(
-      page.getByRole('heading', { name: 'محصولی با این فیلترها یافت نشد' }),
-    ).toBeVisible()
+    // The sample data's running discounts never end (F-2): 34 products, a first page of them.
+    await expect(page.getByRole('main').getByRole('article').first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'محصولی با این فیلترها یافت نشد' })).toHaveCount(
+      0,
+    )
     await expect(page).toHaveTitle(/^تخفیف‌ها \|/)
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow')
     // Filtered: no canonical to the bare listing beside the noindex (a mixed signal).

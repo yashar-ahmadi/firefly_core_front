@@ -2,21 +2,34 @@
  * A blog post's page on the wire (blog digest §1.5, §1.7, §1.9): the detail, its comments and the
  * comment form's body. Pure types: safe in any bundle.
  */
-import type { BlogCategoryLight, BlogProductCard, PostAuthor, PostCard } from './blog'
+import type {
+  BlogCategoryLight,
+  BlogProductCard,
+  BlogPublisherJsonLd,
+  PostAuthor,
+  PostCard,
+} from './blog'
 import type { BreadcrumbListJsonLd } from './catalog/enums'
+import type { MetaTag } from './catalog/home'
 
 /** A heading of the post's `content`, with the id the API put on its tag there. */
 export interface ContentHeading {
   text: string
-  /** Often Persian («چرا-بودجه-۳۰-میلیونی»); "" for a heading of punctuation only; repeated texts repeat it. */
+  /**
+   * Often Persian («چرا-بودجه-۳۰-میلیونی»), unique in the post (J-22): a repeated text gets
+   * «x-2», «x-3»; punctuation only, «section-<n>». Link with `encodeURIComponent`.
+   */
   id: string
   /** 1–6: the tag's level in `content`. */
   level: number
-  /** The outline's numbering («1», «1-2»), relative to the document. */
+  /** The outline's numbering («1», «1-2»), without gaps: an empty heading is not listed. */
   number: string
 }
 
-/** The post's `structured_data[0]`. Its URLs are on `https://{SITE_DOMAIN}`. */
+/**
+ * The post's `structured_data[0]`: its page on `STOREFRONT_URL`, pictures on
+ * `PUBLIC_FILES_ORIGIN` (M-12), dates Tehran's days (J-20); embed it as it comes.
+ */
 export interface BlogPostingJsonLd {
   '@context': 'https://schema.org'
   '@type': 'BlogPosting'
@@ -24,14 +37,12 @@ export interface BlogPostingJsonLd {
   headline: string
   description: string
   image: string
-  publisher: {
-    '@type': 'Organization'
-    name: string
-    logo: { '@type': 'ImageObject'; url: string }
-  }
+  publisher?: BlogPublisherJsonLd
+  /** YYYY-MM-DD: the day of `published_at`. */
   datePublished: string
+  /** YYYY-MM-DD, never before `datePublished`. */
   dateModified: string
-  /** The post's raw HTML (digest bug #3). */
+  /** The post's text, without markup. */
   articleBody: string
   author?: { '@type': 'Person'; name: string }
   commentCount?: number
@@ -79,6 +90,8 @@ export interface PostDetail {
   page_description: string
   page_keywords: string
   canonical_link: string | null
+  /** The operator's meta rows, oldest first (M-13); [] for none (absent from an older API). */
+  meta_tags?: MetaTag[]
   /** Exactly one. */
   structured_data: BlogPostingJsonLd[]
   breadcrumb_structured_data: BreadcrumbListJsonLd

@@ -133,14 +133,23 @@ export function LoginNoticeAlert({
   identifier,
   next,
   register,
+  onRetry = null,
 }: {
   notice: LoginNotice
   identifier: string
   next: string
   register: RegisterOffer
+  /** Sends the same request again (Google did not answer: `auth_google_unavailable`). */
+  onRetry?: (() => void) | null
 }) {
   let action: ReactNode = null
-  if (notice.code === 'auth_user_not_found' && register === 'handoff') {
+  if (notice.code === 'auth_google_unavailable' && onRetry) {
+    action = (
+      <Button type="button" variant="link" className="text-base" onClick={onRetry}>
+        تلاش دوباره
+      </Button>
+    )
+  } else if (notice.code === 'auth_user_not_found' && register === 'handoff') {
     action = (
       <HandoffLink
         page="/register/"

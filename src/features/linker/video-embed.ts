@@ -17,7 +17,8 @@ export const PLAYER_SANDBOX = 'allow-scripts allow-same-origin allow-presentatio
 export const PLAYER_ALLOW =
   'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
 
-const APARAT_HOSTS = new Set(['aparat.com', 'www.aparat.com'])
+/** The panel's own lists (NJ-3): the hosts whose addresses it stores only with a video id. */
+const APARAT_HOSTS = new Set(['aparat.com', 'www.aparat.com', 'm.aparat.com'])
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com'])
 
 function parse(value: string): URL | null {
@@ -31,7 +32,8 @@ function parse(value: string): URL | null {
 
 /**
  * The embed URL for a video link, or null (the link then shows as a button):
- * - Aparat `aparat.com/v/<hash>` → `https://www.aparat.com/video/video/embed/videohash/<hash>/vt/frame`
+ * - Aparat `aparat.com/v/<hash>` (www, m) →
+ *   `https://www.aparat.com/video/video/embed/videohash/<hash>/vt/frame`
  *   (the iframe Aparat's own embed code builds);
  * - YouTube `youtube.com/watch?v=<id>` (www, m) and `youtu.be/<id>` →
  *   `https://www.youtube-nocookie.com/embed/<id>` (YouTube's privacy-enhanced player: it sets no

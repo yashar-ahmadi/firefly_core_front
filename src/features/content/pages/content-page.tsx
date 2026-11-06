@@ -13,7 +13,7 @@ import { richContentHtml } from '@/features/content/rich-content'
 import { getPageCards } from '@/features/content/pages/api'
 import { RichContentBody } from '@/features/content/rich-content-body'
 import { JsonLd } from '@/features/seo/json-ld'
-import { propertyMetaTags } from '@/features/seo/page-metadata'
+import { OperatorMetaTags } from '@/features/seo/operator-meta-tags'
 import { getSiteSettings, getTranslations } from '@/features/settings/api'
 import type { PageDetail, PageLayout } from '@/lib/api/types/page'
 import { PAGE_TITLE_ID } from '@/lib/html/reserved-ids'
@@ -88,9 +88,7 @@ export async function ContentPage({ page, jsonLd }: ContentPageProps) {
 
   return (
     <div className={cn(CONTAINER, 'pt-2 pb-10 md:pt-4 md:pb-14')}>
-      {propertyMetaTags(page.meta_tags).map((tag, index) => (
-        <meta key={`${tag.field}-${index}`} property={tag.field.trim()} content={tag.value} />
-      ))}
+      <OperatorMetaTags tags={page.meta_tags} />
       <JsonLd data={jsonLd} />
       {page.is_unpublished && (
         <PreviewBar className={head}>{'پیش\u{200C}نویس — منتشر نشده'}</PreviewBar>

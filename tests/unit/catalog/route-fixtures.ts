@@ -5,7 +5,8 @@ import type {
   ProductListPageDetail,
 } from '@/lib/api/types/catalog'
 
-// Detail payloads of the listing routes, as the dev backend returns them (product digest §3.3–3.7).
+// Detail payloads of the listing routes, as the dev backend returns them (product digest §3.3–3.7;
+// its STOREFRONT_URL is http://localhost:3000).
 
 const PLACEHOLDER = 'http://localhost:8000/static/defaults/default.png'
 
@@ -17,7 +18,7 @@ function crumbs(...items: [name: string, path: string][]) {
       '@type': 'ListItem' as const,
       position: index + 1,
       name,
-      item: `https://localhost${path}`,
+      item: `http://localhost:3000${path}`,
     })),
   }
 }
@@ -53,6 +54,7 @@ export function categoryFixture(overrides: Partial<CategoryDetail> = {}): Catego
     page_description: '',
     page_keywords: '',
     canonical_link: null,
+    meta_tags: [],
     breadcrumb_structured_data: crumbs(
       ['کالای دیجیتال', '/product-category/digital/'],
       ['گوشی موبایل', '/product-category/digital/mobile-phone/'],
@@ -75,6 +77,7 @@ export function brandFixture(overrides: Partial<BrandDetail> = {}): BrandDetail 
     page_description: 'لیست کامل محصولات سامسونگ با قیمت روز و ارسال سریع.',
     page_keywords: '',
     canonical_link: null,
+    meta_tags: [],
     breadcrumb_structured_data: crumbs(['سامسونگ', '/brand/samsung/']),
     created: '2025-08-09T15:00:00+03:30',
     updated: '2025-08-09T15:00:00+03:30',
@@ -91,7 +94,22 @@ export function listPageFixture(
     slug: 'flagship-phones',
     description: 'گوشی های پرچمدار فروشگاه فایرفلای.',
     content: null,
-    product_category: { id: 10002, name: 'گوشی موبایل', slug: 'mobile-phone', parent_id: 10001 },
+    product_category: {
+      id: 10002,
+      name: 'گوشی موبایل',
+      slug: 'mobile-phone',
+      parent_id: 10001,
+      breadcrumb: [
+        { id: 10001, name: 'کالای دیجیتال', slug: 'digital', path: 'digital', parent_id: null },
+        {
+          id: 10002,
+          name: 'گوشی موبایل',
+          slug: 'mobile-phone',
+          path: 'digital/mobile-phone',
+          parent_id: 10001,
+        },
+      ],
+    },
     show_category_filter: true,
     default_sorting: 'sale',
     question_answers: [],
@@ -99,6 +117,7 @@ export function listPageFixture(
     page_description: '',
     page_keywords: '',
     canonical_link: null,
+    meta_tags: [],
     breadcrumb_structured_data: crumbs(
       ['کالای دیجیتال', '/product-category/digital/'],
       ['گوشی موبایل', '/product-category/digital/mobile-phone/'],
