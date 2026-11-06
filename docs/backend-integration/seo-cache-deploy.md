@@ -23,8 +23,10 @@ Legend: **[live]** = verified against the running server; **[code]** = verified 
    (cost: one extra 308 hop). [code]
 3. **The storefront host must forward `/api/v1/payment/gateway/callback/<gateway>/<token>/` (GET *and* POST) to
    Django**, with the trailing slash preserved. The bank return URL is literally `STOREFRONT_URL + reverse(...)`
-   (`payment/services/intent.py:338`). Missing slash ⇒ Django 301 on GET, **500 on POST** [live]. Without the proxy,
-   paid orders only settle via the 15-minute reconcile cron.
+   (`payment/services/intent.py:338`). Missing slash ⇒ Django 301 on GET/HEAD and, since the 2026-11-05 backend
+   round (K-5/K-9), **308** on POST/PUT/PATCH/DELETE/OPTIONS (method and body kept; was a 500 on POST) [doc]. The
+   storefront still writes every API path with its slash and never follows an API redirect (`redirect: 'manual'`).
+   Without the proxy, paid orders only settle via the 15-minute reconcile cron.
 4. **Payment result page** = operator setting `GatewaySetting.result_url` (fixture: `https://firefly-core.ir/payment/callback/`),
    Django appends `?result=success|failed|pending&payment=<uuid>&code=<err>`. Its host must be in
    `GATEWAY_RESULT_URL_ALLOWED_HOSTS` or every payment intent fails with `gateway_result_url_invalid` (503) — this is
@@ -34,13 +36,21 @@ Legend: **[live]** = verified against the running server; **[code]** = verified 
    set `SITE_DOMAIN` = the storefront's public domain, and make that domain serve (proxy) `/media/` and `/static/`. [live+code]
 6. **Image URLs in normal API fields are built from the request `Host`** (`request.build_absolute_uri`). Node's `fetch`
    **silently ignores a custom `Host` header** [verified on Node 22]. If SSR calls Django on an internal hostname
-   (`http://web:8000`) every image URL becomes `http://web:8000/media/...`, ALLOWED_HOSTS rejects unknown hosts (400
-   DisallowedHost), and with `USE_HTTPS=True` Django 301s plain-HTTP calls to https. ⇒ SSR must call the **public**
+   (`http://web:8000`) every image URL becomes `http://web:8000/media/...`, ALLOWED_HOSTS rejects unknown hosts (400:
+   since the 2026-11-05 round (K-6) a JSON envelope with `data.errors[0].code == "bad_request"` under `/api/` when
+   `DEBUG` is off; Django's HTML page with `DEBUG` on, so the storefront keeps its non-JSON guard), and with
+   `USE_HTTPS=True` Django 301s plain-HTTP calls to https. ⇒ SSR must call the **public**
    API origin (or a single-origin path-routed setup).
 7. **All SSR traffic comes from one IP** ⇒ shared guest throttle (`THROTTLE_ANON` default 2000/hour for the whole
-   shop; `payment_status` scope only 240/hour). Fix = backend trusts the storefront's `X-Forwarded-For`
-   (`TRUSTED_PROXY_IPS`, exact IP match, no CIDR) and storefront forwards the visitor IP from its own edge
-   (`X-Real-IP`) — never from a browser-supplied header.
+   shop). Since the 2026-11-05 round (M-21): flag the storefront's API key «کلید سرور (سایت فروشگاه)» in the panel
+   and every guest request with it is counted on the key (`server_key`, `THROTTLE_SERVER_KEY` default 20000/hour, a
+   fixed window that resets on the hour, UTC; its 429 carries `retry_after`/`Retry-After` = seconds left), whatever
+   `X-Forwarded-For` says; the payment lists have their own `payment_catalogue` scope (1200/hour). The sensitive
+   scoped budgets (sign-in, OTP, coupon, comment, contact, payment) stay per forwarded visitor IP, so the backend
+   must still trust the storefront's `X-Forwarded-For` (`TRUSTED_PROXY_IPS`, exact IP match, no CIDR) and the
+   storefront still forwards the visitor IP from its own edge (`X-Real-IP`) — never from a browser-supplied header.
+   The gate is off on a dev backend (`DJANGO_DEVELOPMENT=True`), so no key is matched there and the old per-IP
+   budget applies.
 8. **There is NO backend → storefront webhook / revalidation hook** (grep for revalidate/webhook/STOREFRONT callbacks:
    nothing) [code]. Storefront freshness is purely time-based ISR (`revalidate`) or storefront-internal
    `revalidateTag`. The backend's own Redis response cache (12 endpoints, 5/10/30 min caps) is write-invalidated and
@@ -678,8 +688,10 @@ Rules:
 ## 11. SSR, throttling and proxies
 
 ### 11.1 Throttles (per IP for guests via `utils.user_agent.get_ip_address`, per user when authenticated)
-`anon 2000/hour`, `user 5000/hour`, `search_suggest 1800/hour` (own scope only), `payment_status 240/hour`
-(payment/method/list, payment/gateway/list, payment status, card-transfer instructions), `comment_submit 10/hour`,
+`anon 2000/hour`, `user 5000/hour`, `server_key 20000/hour` (a guest request admitted with an API key flagged
+«کلید سرور»: counted on the key, a fixed hourly window, whatever XFF says; 2026-11-05 round, M-21),
+`search_suggest 1800/hour` (own scope only), `payment_status 240/hour` (payment status, card-transfer instructions),
+`payment_catalogue 1200/hour` (payment/method/list, payment/gateway/list; was `payment_status`), `comment_submit 10/hour`,
 `contact_message_submit 10/hour`, `order_tracking 20/min`, `order_payment_link 30/min`, `payment_attempt 30/hour`,
 `auth_attempt 20/min`, `auth_otp_request 10/min`, … (env `THROTTLE_*`). 429 `throttled` + `Retry-After` +
 `data.retry_after`. SEO endpoints have no scoped throttle (anon/user only). `/sitemap.xml` is not throttled.
@@ -697,12 +709,16 @@ Rules:
 - If it goes **through the API's reverse proxy** (usual): that proxy must trust XFF from the storefront host
   (nginx `set_real_ip_from <storefront-ip>; real_ip_header X-Forwarded-For;`, Traefik `forwardedHeaders.trustedIPs`)
   and Django trusts the proxy. Just adding the storefront IP to TRUSTED_PROXY_IPS is not enough behind an appending proxy.
-- Otherwise ask backend to raise `THROTTLE_ANON` (+ `THROTTLE_SEARCH_SUGGEST`, `THROTTLE_PAYMENT_STATUS`) to
-  whole-shop size — before launch and before big SMS campaigns (short links = 1 API call per click).
+- Flag the storefront's key «کلید سرور (سایت فروشگاه)» in the panel (server key only, never a key a browser or an
+  app holds): the shop's guest volume then goes on `THROTTLE_SERVER_KEY` instead of the server IP's `anon` budget;
+  size it (and `THROTTLE_SEARCH_SUGGEST`, `THROTTLE_PAYMENT_STATUS`) for the whole shop before launch and before big
+  SMS campaigns (short links = 1 API call per click). Without the flag, raise `THROTTLE_ANON` instead. With it, an
+  abusive visitor's plain browsing spends the shop's budget: keep the edge's own per-IP rate limit.
 
 ### 11.4 Host / scheme pitfalls for SSR
 - Node `fetch` ignores a custom `Host` header ⇒ the URL host is what Django sees. Internal URLs (`http://web:8000`)
-  ⇒ (a) must be in `ALLOWED_HOSTS` via `EXTRA_ALLOWED_HOSTS` else 400 DisallowedHost (HTML, not JSON) [live],
+  ⇒ (a) must be in `ALLOWED_HOSTS` via `EXTRA_ALLOWED_HOSTS` else 400 (JSON `bad_request` under `/api/` with `DEBUG`
+  off since the 2026-11-05 round; HTML DisallowedHost with `DEBUG` on) [live],
   (b) every `image`/media URL in responses becomes `http://web:8000/...`, (c) with `USE_HTTPS=True`
   (`SECURE_SSL_REDIRECT`) plain-HTTP calls 301 to https unless you send `X-Forwarded-Proto: https`, (d) separate
   backend cache entries per host. ⇒ Call the public API origin (or use a single-origin topology where the public
@@ -716,19 +732,21 @@ Rules:
 ### 12.1 Backend env relevant to a separate storefront
 | Var | Effect | Recommendation |
 |---|---|---|
-| `SITE_DOMAIN` (default `firefly-core.ir`, silent) | ALLOWED_HOSTS, CORS + CSRF origins (https+http), default STOREFRONT_URL, default result-URL allowlist, **JSON-LD page+image URLs**, back-in-stock SMS link, FCM image URL | = storefront public domain |
-| `STOREFRONT_URL` (no trailing slash; default `https://SITE_DOMAIN`) | pay link, sitemap `<loc>`, bank callback URL, robots `Sitemap:`, short-link base, linker/shortener absolute targets | storefront origin |
+| `SITE_DOMAIN` (default `firefly-core.ir`, silent) | ALLOWED_HOSTS, CORS + CSRF origins (https+http), default STOREFRONT_URL and PUBLIC_FILES_ORIGIN, default result-URL allowlist | = storefront public domain |
+| `STOREFRONT_URL` (no trailing slash; default `https://SITE_DOMAIN`; an invalid value stops the backend) | pay link and SMS (back-in-stock too), sitemap `<loc>`, bank callback URL, robots `Sitemap:`, **JSON-LD page URLs** (2026-11-05, M-12), short-link base, linker/shortener absolute targets, panel «view on site», CORS | = the storefront's `SITE_URL`, exactly |
+| `PUBLIC_FILES_ORIGIN` (default `https://SITE_DOMAIN`; path prefix allowed) | JSON-LD image/logo URLs, FCM image URL (files built outside a request) | empty (the storefront proxies `/media/` and `/static/`) or the API origin |
+| `EXTRA_CORS_ALLOWED_ORIGINS` | more browser origins for CORS | not needed: the storefront's browser never calls the API |
 | `SHORT_LINK_BASE_URL` (default `STOREFRONT_URL/s/`) | panel/QR short URLs | leave default or short domain |
 | `EXTRA_ALLOWED_HOSTS` | extra Host values | add API host (e.g. `api.firefly-core.ir`) in split setup, internal names if used |
 | `TRUSTED_PROXY_IPS` / `TRUSTED_PROXY_HOPS` | XFF trust | proxy IP(s) (+ storefront IP if direct) |
 | `GATEWAY_RESULT_URL_ALLOWED_HOSTS` | result-page host allowlist | default usually fine |
 | `USE_HTTPS=True` | SSL redirect, secure cookies, HSTS (3600 default) | required in prod |
-| `DEBUG=False` | default is True! | required |
+| `DEBUG=False` / `SECRET_KEY` | default is False since 2026-11-05 (K-7); production needs a private `SECRET_KEY` or the backend won't start | required |
 | `REDIS_URL` / `SITE_CACHE_REDIS_URL` | throttle counters / response cache | two separate Redis instances |
-| `THROTTLE_ANON` etc. | §11 | size for SSR |
+| `THROTTLE_SERVER_KEY`, `THROTTLE_ANON` etc. | §11 | size for SSR; flag the storefront's key as a server key |
 | `DOCUMENTATION_REQUIRE_STAFF` | `/api/v1/docs/` visibility | optional |
-CORS/CSRF lists are `SITE_DOMAIN` (+ localhost:3000/8000) only — no env to extend, no `www.` variant, STOREFRONT_URL
-host not added. Irrelevant if all API calls are server-side (recommended); matters for any browser→API call.
+CORS: `SITE_DOMAIN`, localhost, `STOREFRONT_URL`'s origin and `EXTRA_CORS_ALLOWED_ORIGINS` (2026-11-05, K-4).
+Irrelevant here: every API call is server-side; matters for any browser→API call.
 
 ### 12.2 Topology A — single public origin, path-routed (simplest; matches backend assumptions)
 ```nginx

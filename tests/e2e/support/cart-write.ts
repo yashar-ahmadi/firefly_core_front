@@ -26,8 +26,8 @@ export interface CartWriteSpec {
   /** Picks this write among several to the same path, by the JSON body sent. */
   body?: (data: unknown) => boolean
   /**
-   * The answer the test expects (a refusal it checks, say), or the answers it reads either way
-   * (a coupon taken or refused); by default any 2xx.
+   * The answer the test expects (a refusal it checks, say), or the answers it reads either way;
+   * by default any 2xx.
    */
   status?: number | readonly number[]
   /** Names the write in a failure or a warning. */

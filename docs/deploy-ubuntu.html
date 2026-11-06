@@ -483,15 +483,16 @@ sudo git -C /opt/firefly-front config core.sshCommand "ssh -i /root/.ssh/firefly
 <thead><tr><th>متغیر بک‌اند</th><th>مقدار نمونه</th><th>کاربرد</th></tr></thead>
 <tbody>
 <tr><td data-label="متغیر بک‌اند"><code>SITE_DOMAIN</code></td><td data-label="مقدار نمونه"><code>shop.ir</code></td><td data-label="کاربرد">دامنهٔ فروشگاه، بدون <code>https://</code></td></tr>
-<tr><td data-label="متغیر بک‌اند"><code>STOREFRONT_URL</code></td><td data-label="مقدار نمونه"><code>https://shop.ir</code></td><td data-label="کاربرد">بازگشت از بانک، لینک پرداخت، سایت‌مپ و لینک‌های کوتاه</td></tr>
+<tr><td data-label="متغیر بک‌اند"><code>STOREFRONT_URL</code></td><td data-label="مقدار نمونه"><code>https://shop.ir</code></td><td data-label="کاربرد">دقیقاً برابر <code>SITE_URL</code> فروشگاه؛ بازگشت از بانک، لینک پرداخت و پیامک‌ها، سایت‌مپ، نشانی صفحه‌ها در JSON-LD و لینک‌های کوتاه</td></tr>
+<tr><td data-label="متغیر بک‌اند"><code>PUBLIC_FILES_ORIGIN</code></td><td data-label="مقدار نمونه"><code>https://api.shop.ir</code></td><td data-label="کاربرد">اختیاری: نشانی تصویرهای JSON-LD؛ خالی یعنی <code>https://SITE_DOMAIN</code> که فروشگاه آن را به API می‌رساند</td></tr>
 <tr><td data-label="متغیر بک‌اند"><code>EXTRA_ALLOWED_HOSTS</code></td><td data-label="مقدار نمونه"><code>api.shop.ir</code></td><td data-label="کاربرد">مجاز کردن دامنهٔ API</td></tr>
 <tr><td data-label="متغیر بک‌اند"><code>TRUSTED_PROXY_IPS</code></td><td data-label="مقدار نمونه">IP سرور فروشگاه</td><td data-label="کاربرد">تا بک‌اند IP واقعی بازدیدکننده را که فروشگاه می‌فرستد بپذیرد</td></tr>
-<tr><td data-label="متغیر بک‌اند"><code>THROTTLE_ANON</code></td><td data-label="مقدار نمونه"><code>20000/hour</code></td><td data-label="کاربرد">سقف درخواست مهمان‌ها؛ همهٔ خواندن‌های کش‌شدهٔ فروشگاه از یک IP می‌آیند</td></tr>
-<tr><td data-label="متغیر بک‌اند"><code>USE_HTTPS</code> و <code>DEBUG</code></td><td data-label="مقدار نمونه"><code>True</code> و <code>False</code></td><td data-label="کاربرد">الزامی در محیط تولید</td></tr>
+<tr><td data-label="متغیر بک‌اند"><code>THROTTLE_SERVER_KEY</code></td><td data-label="مقدار نمونه"><code>20000/hour</code></td><td data-label="کاربرد">سقف درخواست مهمان‌های فروشگاه روی کلید سرور (پیش‌فرض همین مقدار)؛ همهٔ خواندن‌های کش‌شدهٔ فروشگاه از یک سرور می‌آیند</td></tr>
+<tr><td data-label="متغیر بک‌اند"><code>USE_HTTPS</code>، <code>DEBUG</code> و <code>SECRET_KEY</code></td><td data-label="مقدار نمونه"><code>True</code>، <code>False</code> و یک کلید خصوصی</td><td data-label="کاربرد">الزامی در محیط تولید؛ پیش‌فرض <code>DEBUG</code> خاموش است و بی <code>SECRET_KEY</code> بک‌اند بالا نمی‌آید</td></tr>
 </tbody></table></div>
 <p>در پنل مدیریت بک‌اند:</p>
 <ul>
-<li>در «تنظیمات › کلید های دسترسی API» یک کلید برای این فروشگاه بسازید. این کلید در <code>FIREFLY_API_KEY</code> قرار می‌گیرد.</li>
+<li>در «تنظیمات › کلید های دسترسی API» یک کلید برای این فروشگاه بسازید و تیک «کلید سرور (سایت فروشگاه)» را بزنید تا درخواست‌های مهمان فروشگاه سهمیهٔ خود کلید (<code>THROTTLE_SERVER_KEY</code>) را بگیرند. این کلید در <code>FIREFLY_API_KEY</code> قرار می‌گیرد و هرگز به مرورگر یا اپ نمی‌رسد.</li>
 <li>در «تنظیمات درگاه پرداخت»، «آدرس نتیجهٔ پرداخت» را <code>https://shop.ir/payment/callback/</code> بگذارید، با اسلش پایانی.</li>
 <li>«تنظیمات SMTP» را کامل کنید. ورود با کد، ثبت‌نام و بازیابی رمز عبور کد ایمیلی می‌فرستند و بدون SMTP سالم کار نمی‌کنند.</li>
 </ul>
@@ -679,7 +680,7 @@ sudo docker builder prune -f --filter until=168h</code></pre></figure>
 <tr><td data-label="نشانه">سرور nginx پاسخ <code>502</code> می‌دهد.</td><td data-label="علت محتمل">هیچ نسخه‌ای در حال اجرا نیست، یا فایل upstream به پورت دیگری اشاره می‌کند.</td><td data-label="راه‌حل">وضعیت را با دستور <code>status</code> ببینید. اگر نسخه‌ای اجرا نمی‌شود، <code>deploy</code> یا <code>rollback</code> را اجرا کنید.</td></tr>
 <tr><td data-label="نشانه">خطای ۴۰۳ «درخواست از مبدأ معتبر ارسال نشده است» هنگام ورود یا افزودن به سبد، یا خارج شدن مداوم از حساب</td><td data-label="علت محتمل">مقدار <code>SITE_URL</code> با نشانی‌ای که کاربر می‌بیند یکی نیست (<code>www</code> یا <code>http</code>).</td><td data-label="راه‌حل">مقدار <code>SITE_URL</code> را دقیقاً <code>https://shop.ir</code> بگذارید و دوباره <code>deploy</code> کنید.</td></tr>
 <tr><td data-label="نشانه">به‌جای تصاویر محصول، تصویر جایگزین نمایش داده می‌شود.</td><td data-label="علت محتمل">ایمیج با <code>FIREFLY_API_URL</code> دیگری ساخته شده است.</td><td data-label="راه‌حل">نشانی را در فایل تنظیمات درست کنید و <code>deploy</code> کنید؛ اسکریپت با همان مقدار می‌سازد.</td></tr>
-<tr><td data-label="نشانه">خطای <code>429</code> برای مهمان‌ها در ساعت‌های شلوغ</td><td data-label="علت محتمل">بک‌اند IP واقعی بازدیدکننده را نمی‌پذیرد یا سهمیهٔ مهمان کم است.</td><td data-label="راه‌حل">تنظیم <code>TRUSTED_PROXY_IPS</code> و <code>THROTTLE_ANON</code> را در بک‌اند بررسی کنید.</td></tr>
+<tr><td data-label="نشانه">خطای <code>429</code> برای مهمان‌ها در ساعت‌های شلوغ</td><td data-label="علت محتمل">کلید فروشگاه «کلید سرور» علامت نخورده، سهمیهٔ کلید سرور کم است، یا بک‌اند IP واقعی بازدیدکننده را نمی‌پذیرد.</td><td data-label="راه‌حل">تیک «کلید سرور (سایت فروشگاه)» کلید را در پنل بزنید؛ <code>THROTTLE_SERVER_KEY</code> و <code>TRUSTED_PROXY_IPS</code> را در بک‌اند بررسی کنید.</td></tr>
 <tr><td data-label="نشانه"><code>another deploy of digital is running</code></td><td data-label="علت محتمل">یک استقرار دیگر برای همین فروشگاه در جریان است.</td><td data-label="راه‌حل">صبر کنید تا تمام شود. قفل با پایان اسکریپت آزاد می‌شود.</td></tr>
 </tbody></table></div>
 <p>جدول کامل‌تر نشانه‌ها و علت‌ها در <code>docs/DEPLOYMENT.md</code>، بخش «عیب‌یابی»، آمده است.</p>

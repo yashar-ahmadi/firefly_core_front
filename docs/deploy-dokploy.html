@@ -499,13 +499,14 @@ KEEP_ALIVE_TIMEOUT=95000</code></pre></figure>
 <thead><tr><th>متغیر بک‌اند</th><th>مقدار نمونه</th><th>کاربرد</th></tr></thead>
 <tbody>
 <tr><td data-label="متغیر بک‌اند"><code>SITE_DOMAIN</code></td><td data-label="مقدار نمونه"><code>shop.ir</code></td><td data-label="کاربرد">دامنهٔ فروشگاه، بدون <code>https://</code></td></tr>
-<tr><td data-label="متغیر بک‌اند"><code>STOREFRONT_URL</code></td><td data-label="مقدار نمونه"><code>https://shop.ir</code></td><td data-label="کاربرد">بازگشت از بانک، لینک پرداخت، سایت‌مپ و لینک‌های کوتاه</td></tr>
+<tr><td data-label="متغیر بک‌اند"><code>STOREFRONT_URL</code></td><td data-label="مقدار نمونه"><code>https://shop.ir</code></td><td data-label="کاربرد">دقیقاً برابر <code>SITE_URL</code> فروشگاه؛ بازگشت از بانک، لینک پرداخت و پیامک‌ها، سایت‌مپ، نشانی صفحه‌ها در JSON-LD و لینک‌های کوتاه</td></tr>
+<tr><td data-label="متغیر بک‌اند"><code>PUBLIC_FILES_ORIGIN</code></td><td data-label="مقدار نمونه"><code>https://api.shop.ir</code></td><td data-label="کاربرد">اختیاری: نشانی تصویرهای JSON-LD؛ خالی یعنی <code>https://SITE_DOMAIN</code> که فروشگاه آن را به API می‌رساند</td></tr>
 <tr><td data-label="متغیر بک‌اند"><code>EXTRA_ALLOWED_HOSTS</code></td><td data-label="مقدار نمونه"><code>api.shop.ir</code></td><td data-label="کاربرد">مجاز کردن دامنهٔ API</td></tr>
 <tr><td data-label="متغیر بک‌اند"><code>TRUSTED_PROXY_IPS</code></td><td data-label="مقدار نمونه">IP سرور Dokploy</td><td data-label="کاربرد">نشانی‌ای که درخواست‌های فروشگاه از آن به API می‌رسند، تا IP واقعی بازدیدکننده پذیرفته شود</td></tr>
-<tr><td data-label="متغیر بک‌اند"><code>THROTTLE_ANON</code></td><td data-label="مقدار نمونه"><code>20000/hour</code></td><td data-label="کاربرد">سقف درخواست مهمان‌ها</td></tr>
-<tr><td data-label="متغیر بک‌اند"><code>USE_HTTPS</code> و <code>DEBUG</code></td><td data-label="مقدار نمونه"><code>True</code> و <code>False</code></td><td data-label="کاربرد">الزامی در محیط تولید</td></tr>
+<tr><td data-label="متغیر بک‌اند"><code>THROTTLE_SERVER_KEY</code></td><td data-label="مقدار نمونه"><code>20000/hour</code></td><td data-label="کاربرد">سقف درخواست مهمان‌های فروشگاه روی کلید سرور (پیش‌فرض همین مقدار)</td></tr>
+<tr><td data-label="متغیر بک‌اند"><code>USE_HTTPS</code>، <code>DEBUG</code> و <code>SECRET_KEY</code></td><td data-label="مقدار نمونه"><code>True</code>، <code>False</code> و یک کلید خصوصی</td><td data-label="کاربرد">الزامی در محیط تولید؛ پیش‌فرض <code>DEBUG</code> خاموش است و بی <code>SECRET_KEY</code> بک‌اند بالا نمی‌آید</td></tr>
 </tbody></table></div>
-<p>در پنل مدیریت بک‌اند یک کلید API برای فروشگاه بسازید («تنظیمات › کلید های دسترسی API»)، «آدرس نتیجهٔ پرداخت» را <code>https://shop.ir/payment/callback/</code> بگذارید و «تنظیمات SMTP» را کامل کنید.</p>
+<p>در پنل مدیریت بک‌اند یک کلید API برای فروشگاه بسازید («تنظیمات › کلید های دسترسی API») و تیک «کلید سرور (سایت فروشگاه)» آن را بزنید، «آدرس نتیجهٔ پرداخت» را <code>https://shop.ir/payment/callback/</code> بگذارید و «تنظیمات SMTP» را کامل کنید.</p>
 </section>
 
 <section id="deploy" data-toc="اولین استقرار">
