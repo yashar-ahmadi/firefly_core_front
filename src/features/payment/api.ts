@@ -52,7 +52,10 @@ export type IntentProblem =
   | 'wallet_login'
   | 'forbidden'
   | 'wallet_frozen'
-  /** `gateway_unknown`: that gateway left out for the page, the gateways read again. */
+  /**
+   * `gateway_unknown`: the gateway list is out of date (it lists only the gateways an intent can
+   * use, BACKEND-ISSUES M-4, fixed): read it again.
+   */
   | 'gateway_refresh'
   /** `gateway_amount_not_supported`: that gateway left out at that amount, the gateways read again. */
   | 'gateway_amount'
@@ -66,7 +69,11 @@ export type IntentProblem =
   | 'token_expired'
   /** The order can no longer be paid (deadline, link): place it again. */
   | 'unpayable'
-  /** Nothing is owed online any more. */
+  /**
+   * Nothing is owed online any more: all of it arrived (`order_already_settled`, or
+   * `order_online_settled_rest_on_delivery` with the rest due to the courier, M-6), or nothing
+   * was ever charged online (`order_collected_on_delivery`).
+   */
   | 'settled'
   /** `order_stock_reservation_failed`: an item sold out meanwhile. */
   | 'stock'
@@ -104,6 +111,7 @@ const PROBLEMS: Record<string, IntentProblem> = {
   order_not_payable: 'unpayable',
   order_amendment_not_allowed: 'unpayable',
   order_already_settled: 'settled',
+  order_online_settled_rest_on_delivery: 'settled',
   order_collected_on_delivery: 'settled',
   order_stock_reservation_failed: 'stock',
   order_out_of_stock: 'stock',

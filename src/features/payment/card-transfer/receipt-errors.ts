@@ -5,15 +5,15 @@ import { RECEIPT_MESSAGES, type ReceiptErrors, type ReceiptField } from './valid
 // What a refused receipt upload does on the page (order digest §3.2.8, §8.4; live bodies in
 // tests/fixtures/card-transfer-receipt-refusals.json). Pure.
 //
-// - The picture's own refusals (413 too large, too small, not a JPEG/PNG/WEBP, not a picture at
-//   all: DRF's `invalid_image` on `image`) go under the picture; the BFF's own 413 (over its
-//   6 MiB) too.
+// - The picture's own refusals (413 `payment_receipt_image_too_large`, too small, not a
+//   JPEG/PNG/WEBP or not a picture at all: `payment_receipt_image_invalid`, BACKEND-ISSUES J-26,
+//   fixed) go under the picture; the BFF's own 413 (over its 6 MiB) too.
 // - A validation error goes under the field its `attr` names; several come at once.
 // - A destination card that does not exist (`does_not_exist` on `destination_card`) or is no
 //   longer active (`payment_destination_card_invalid`): the cards are read again and the shopper
 //   chooses again.
 // - A receipt already sent (409): the outcome. The attempt no longer open
-//   (`payment_target_invalid`): a new one. 403/404: the calm page. 429 (10 an hour): its wait.
+//   (`payment_target_invalid`): a new one. 404: the calm page. 429 (10 an hour): its wait.
 // - `503 upload_retry` (the BFF refreshed the session while the upload streamed, which cannot be
 //   sent twice) and a lost answer: «دوباره تلاش کنید», every field and the file kept. A session
 //   found gone (401) ends it (the page turns into a guest's); the receipt needs none, so the press
@@ -36,7 +36,7 @@ export type ReceiptRefusal =
   /** Press again, nothing lost; `session`: the session was found gone (end it first). */
   | { kind: 'retry'; message: string; session: boolean }
   | { kind: 'throttled'; retryAfter: number | null }
-  | { kind: 'refused'; reason: 'forbidden' | 'not_found' }
+  | { kind: 'refused'; reason: 'not_found' }
   | { kind: 'other'; message: string }
 
 const FIELDS: ReadonlySet<string> = new Set<ReceiptField>([
@@ -72,7 +72,6 @@ export function receiptRefusal(error: unknown): ReceiptRefusal {
   if (error.status === 413) return fields({ image: RECEIPT_MESSAGES.imageSize })
   if (error.code === 'payment_receipt_already_submitted') return { kind: 'submitted' }
   if (error.code === 'payment_target_invalid') return { kind: 'closed' }
-  if (error.code === 'payment_forbidden') return { kind: 'refused', reason: 'forbidden' }
   if (error.code === 'payment_not_found') return { kind: 'refused', reason: 'not_found' }
   if (error.code === 'payment_destination_card_invalid') {
     return fields({ destination_card: CARDS_CHANGED }, true)
@@ -87,8 +86,6 @@ export function receiptRefusal(error: unknown): ReceiptRefusal {
     if (field === 'destination_card') {
       errors.destination_card = CARDS_CHANGED
       reloadCards = true
-    } else if (field === 'image' && item.code === 'invalid_image') {
-      errors.image = RECEIPT_MESSAGES.imageDecode
     } else {
       errors[field] = item.detail || GENERIC_ERROR_DETAIL
     }

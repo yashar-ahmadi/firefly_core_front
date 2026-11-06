@@ -6,6 +6,10 @@ import {
   walletLoginOffered,
   type RouteInput,
 } from '@/features/payment/routes'
+import type { Paginated } from '@/lib/api/types/common'
+import type { GatewayOption, PaymentMethodOption } from '@/lib/api/types/payment'
+import noGateways from '../../fixtures/payment-gateways-none.json'
+import noGatewayMethods from '../../fixtures/payment-methods-no-gateway.json'
 import { FEATURES_ON, gateways, method, methods, wallet } from './fixtures'
 
 // Which payment routes the checkout offers (order digest §5.3), for the cart's amounts before
@@ -180,6 +184,27 @@ describe('availableRoutes', () => {
       routeOf({ features: { ...FEATURES_ON, wallet: { enabled: false, reason: null } } }, 'wallet')!
         .reason,
     ).toBe('این روش پرداخت موقتاً در دسترس نیست.')
+  })
+
+  it('no usable gateway (the develop backend, live 2026-11-06, M-4): both bank routes closed, said why', () => {
+    // The list names only the gateways an intent can use: none here; the method list says so too.
+    const lists = {
+      methods: (noGatewayMethods as { data: Paginated<PaymentMethodOption> }).data.results,
+      gateways: (noGateways as { data: Paginated<GatewayOption> }).data.results,
+    }
+    expect(lists.gateways).toEqual([])
+    const routes = availableRoutes(input({ ...lists, wallet: wallet({ balance: 500_000 }) }))
+    const reason = 'درگاه پرداخت پیکربندی نشده است.'
+    expect(routes.find((r) => r.route === 'bank_gateway')).toMatchObject({ enabled: false, reason })
+    expect(routes.find((r) => r.route === 'wallet_and_gateway')).toMatchObject({
+      enabled: false,
+      reason,
+    })
+    expect(routes.find((r) => r.route === 'card_transfer')).toMatchObject({ enabled: true })
+    expect(defaultRoute(routes)?.route).toBe('card_transfer')
+    // Listed as available but no gateway: closed all the same, with our sentence.
+    const open = availableRoutes(input({ gateways: [] })).find((r) => r.route === 'bank_gateway')
+    expect(open).toMatchObject({ enabled: false, reason: 'درگاه بانکی در دسترس نیست.' })
   })
 })
 

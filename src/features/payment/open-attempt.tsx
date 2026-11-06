@@ -1,12 +1,13 @@
 'use client'
 
 import { CreditCard } from 'lucide-react'
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { buttonClasses } from '@/components/ui/button-styles'
 import { cn } from '@/components/ui/cn'
 import { Countdown } from '@/components/ui/countdown'
 import { announce } from '@/components/ui/live-announcer'
 import { Spinner } from '@/components/ui/spinner'
+import { useHydrated } from '@/components/ui/use-media-query'
 import type { OpenAttempt as Attempt, PaymentRoute } from '@/lib/api/types/payment'
 import { formatToman } from '@/lib/format'
 import { formatJalaliDateTime } from '@/lib/format/date-time'
@@ -21,10 +22,10 @@ import {
   AttemptNote,
   BANK_LOAD_FAILED,
   BANK_UNAVAILABLE,
-  CANCEL_FORBIDDEN,
   CANCELLED,
   CANCELLED_REPAY,
   ENDED,
+  expiredText,
   HANDOFF_ENDED,
   PARKED_NOTE,
   POLL_EXHAUSTED,
@@ -34,7 +35,7 @@ import {
   SMS_NOTE,
   UNDER_REVIEW,
 } from './open-attempt-parts'
-import { savePending } from './pending-payments'
+import { getPending, savePending } from './pending-payments'
 import { usePaymentStatus } from './use-payment-status'
 
 // The order's one open online attempt (order digest §5.9; the 409 `payment_attempt_open` body,
@@ -43,8 +44,13 @@ import { usePaymentStatus } from './use-payment-status'
 // an attempt itself: «انصراف» abandons this one (`POST payment/<uuid>/cancel/`, one press at a
 // time) and hands the order back (`onResolved`): the host pays again (`repay`: a new intent,
 // a new key) or offers its routes. «ادامه در …» saves the pending payment, then goes to the bank
-// with the handoff the server still holds (no intent at all). The uuid is a credential: the
-// card-transfer page is a full page load, and nothing here logs it.
+// with the handoff the server still holds (no intent at all). A handoff that expired: the attempt
+// closes «حداکثر تا» its `expires_at` (sooner if the bank says no), and what the row says depends
+// on the bank it went to (BACKEND-ISSUES B-1): Zarinpal, Zibal and IDPay are asked by the backend
+// itself, so a payment made there is booked; the others' money comes back from the bank. The
+// bank is the handoff's while the panel holds it, else this device's pending entry (read once the
+// page runs). The uuid is a credential: the card-transfer page is a full page load, and nothing
+// here logs it.
 
 export type AttemptResolution =
   /** Abandoned: pay again at once (`repay`), or offer the routes; `notice`: the shop's sentence. */
@@ -64,7 +70,6 @@ export interface OpenAttemptProps {
 export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemptProps) {
   const [underReview, setUnderReview] = useState(false)
   const [handoffGone, setHandoffGone] = useState(false)
-  const [forbidden, setForbidden] = useState(false)
   const panel = useRef<HTMLElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   // The focused control went away with a swap: the heading takes the focus (after the render).
@@ -82,6 +87,14 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
   const holdWhileLeaving = useReleaseIfStillHere(BANK_LEAVING_MS)
   const own = attemptRow(attempt)
   const row: AttemptRow = underReview ? 'review' : own === 'bank' && handoffGone ? 'expired' : own
+  // The bank it went to: the handoff's, else this device's note of it (localStorage: after hydration).
+  const hydrated = useHydrated()
+  const gatewayCode = useMemo(
+    () =>
+      attempt.handoff?.gateway_code ??
+      (hydrated ? (getPending(attempt.payment)?.gatewayCode ?? null) : null),
+    [attempt.handoff, attempt.payment, hydrated],
+  )
   // The verification's outcome, read under the polling policy (usePaymentStatus).
   const polled = usePaymentStatus(row === 'verifying' ? attempt.payment : null)
   const polledStatus = polled.info?.status ?? null
@@ -97,6 +110,7 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
       ...(orderCode ? { orderCode } : {}),
       ...(door.kind === 'link' ? { linkToken: door.token } : { orderUuid: door.orderUuid }),
       route,
+      ...(attempt.handoff ? { gatewayCode: attempt.handoff.gateway_code } : {}),
       amount: attempt.amount,
       startedAt: Date.now(),
     })
@@ -122,11 +136,6 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
     if (outcome.problem === 'stale') {
       announce(ENDED)
       return onResolved({ kind: 'ended' })
-    }
-    // Another account's attempt: explained with the way out, the press never offered again.
-    if (outcome.problem === 'forbidden') {
-      setForbidden(true)
-      return focusIfInside()
     }
     inFlight.current = false
     if (outcome.problem === 'under_review') {
@@ -181,7 +190,9 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
         {row === 'verifying' && <Spinner aria-hidden />}
         {ROW_TITLES[row]}
       </h3>
-      <p className="text-base leading-7 text-ink-800">{ROW_TEXTS[row]}</p>
+      <p className="text-base leading-7 text-ink-800">
+        {row === 'expired' ? expiredText(gatewayCode) : ROW_TEXTS[row]}
+      </p>
       <p className="text-base leading-7 text-ink-700">
         {'مبلغ: '}
         <span className="font-bold text-ink-900">{formatToman(attempt.amount)}</span>
@@ -199,10 +210,18 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
           />
         </p>
       )}
-      {(row === 'expired' || row === 'card') && attempt.expires_at && (
+      {row === 'card' && attempt.expires_at && (
         <p className="text-sm leading-6 text-ink-700">
-          {row === 'card' ? 'مهلت ثبت رسید: ' : 'این تلاش بسته می\u{200C}شود در: '}
+          {'مهلت ثبت رسید: '}
           <time dateTime={attempt.expires_at}>{formatJalaliDateTime(attempt.expires_at)}</time>
+        </p>
+      )}
+      {row === 'expired' && attempt.expires_at && (
+        // An upper bound (B-1): the bank's «no» closes it sooner.
+        <p className="text-sm leading-6 text-ink-700">
+          {'این تلاش حداکثر تا '}
+          <time dateTime={attempt.expires_at}>{formatJalaliDateTime(attempt.expires_at)}</time>
+          {' بسته می\u{200C}شود.'}
         </p>
       )}
       {row !== 'review' && (
@@ -227,18 +246,13 @@ export function OpenAttempt({ attempt, door, orderCode, onResolved }: OpenAttemp
               ادامهٔ کارت به کارت و ثبت رسید
             </a>
           )}
-          {forbidden
-            ? null
-            : row === 'expired'
-              ? cancelButton('انصراف و پرداخت دوباره', true)
-              : cancelButton()}
+          {row === 'expired' ? cancelButton('انصراف و پرداخت دوباره', true) : cancelButton()}
         </div>
       )}
-      {(row === 'bank' || row === 'expired' || row === 'card') && !forbidden && (
+      {(row === 'bank' || row === 'expired' || row === 'card') && (
         <AttemptNote>{SMS_NOTE}</AttemptNote>
       )}
       {row === 'verifying' && <AttemptNote>{PARKED_NOTE}</AttemptNote>}
-      {forbidden && <AttemptError>{CANCEL_FORBIDDEN}</AttemptError>}
       {error && <AttemptError>{error}</AttemptError>}
       {row === 'verifying' && (
         <p role="status" className="text-sm leading-6 text-ink-700 empty:-mt-3">

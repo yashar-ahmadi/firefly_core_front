@@ -71,6 +71,16 @@ export interface PaymentStatusInfo {
   settled_at: string | null
 }
 
+/** `POST payment/<uuid>/cancel/` (200): the payment as the status shows it, and one flag. */
+export interface PaymentCancelResult extends PaymentStatusInfo {
+  /**
+   * The bank had confirmed a capture for this attempt the shop could not book
+   * (`gateway_capture_parked`, `gateway_amount_mismatch`): abandoning it does not give that money
+   * back; the shop resolves it (the envelope's `msg` says so). Always present.
+   */
+  capture_parked: boolean
+}
+
 /** How the browser goes to the bank (digest §5.4): a GET with query params, or a POSTed form. */
 export interface RedirectPayload {
   gateway_code: string
@@ -93,15 +103,22 @@ export interface BankCard {
   account_number: string
 }
 
-/** The answer of both intent doors (always 201, a replay too). */
+/**
+ * The answer of both intent doors (always 201). A replay of the key answers exactly the first
+ * answer: its cards and door collection included (BACKEND-ISSUES M-2, fixed).
+ */
 export interface PaymentIntent {
   /** null only for a free order confirmed with `pay_on_delivery`. */
   payment: PaymentStatusInfo | null
   status: PaymentStatus | null
   /** bank_gateway and wallet_and_gateway. */
   handoff: RedirectPayload | null
-  /** card_transfer only ([] on a key replay: read them again from `card-transfer/`). */
+  /** card_transfer only. */
   destination_cards: BankCard[]
+  /**
+   * The door's share of an order that has one (a deposit or an online fare), whatever the route,
+   * the wallet's included (BACKEND-ISSUES M-3, fixed); else null.
+   */
   delivery_collection: PaymentStatusInfo | null
 }
 
@@ -111,7 +128,13 @@ export interface OpenAttempt {
   method: PaymentMethodName
   status: PaymentStatus
   amount: Toman
-  /** null: the bank answered, verification is running. */
+  /**
+   * When the attempt is closed if nothing happens (null: the bank answered, verification is
+   * running). For a Zarinpal, Zibal or IDPay handoff the shopper never came back from, the server
+   * asks the bank first and holds the attempt open until then: up to an hour past the handoff's
+   * expiry and its grace (about 90 minutes in all by default; BACKEND-ISSUES B-1). It may close
+   * sooner: an upper bound, said as «حداکثر تا».
+   */
   expires_at: string | null
   handoff: RedirectPayload | null
   destination_cards: BankCard[]

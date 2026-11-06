@@ -112,14 +112,17 @@ describe('cancel before a receipt', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('رسید ثبت شد')
   })
 
-  it('another account’s attempt (403): said in the dialog, never offered again', async () => {
+  it('a refusal the page has no view for: its sentence in the dialog, the press offered again', async () => {
+    // A 403 no longer comes for another account's attempt (BACKEND-ISSUES M-7); any refusal like
+    // it is said as the API words it.
     serve(mocks.bffFetch, {
-      [CANCEL]: () => Promise.reject(new ApiError({ status: 403, code: 'payment_forbidden' })),
+      [CANCEL]: () =>
+        Promise.reject(new ApiError({ status: 403, code: 'forbidden', detail: 'دسترسی ندارید.' })),
     })
     const { user, dialog } = await openDialog()
     await user.click(screen.getByRole('button', { name: 'انصراف از پرداخت' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('از حساب کاربری دیگری آغاز شده')
-    expect(screen.queryByRole('button', { name: 'انصراف از پرداخت' })).toBeNull()
+    expect(await screen.findByRole('alert')).toHaveTextContent('دسترسی ندارید.')
+    expect(screen.getByRole('button', { name: 'انصراف از پرداخت' })).toBeInTheDocument()
     expect(dialog).toBeInTheDocument()
   })
 

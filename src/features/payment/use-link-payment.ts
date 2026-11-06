@@ -91,6 +91,7 @@ export function useLinkPayment(options: LinkPaymentOptions) {
         orderCode,
         ...(door.kind === 'link' ? { linkToken: door.token } : { orderUuid: door.orderUuid }),
         route,
+        ...(intent.handoff ? { gatewayCode: intent.handoff.gateway_code } : {}),
         amount: payment.amount,
         startedAt: Date.now(),
       })

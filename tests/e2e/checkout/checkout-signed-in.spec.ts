@@ -2,10 +2,11 @@ import { expect, type APIResponse, type Response } from '@playwright/test'
 import type { Cart } from '@/lib/api/types/cart'
 import type { OrderPlacementResult } from '@/lib/api/types/order'
 import { cartAnswer, cartWrite, requestCartWrite } from '../support/cart-write'
+import { waitForCredentialPath } from '../support/credential-url'
 import { enforce, measure, measurePhone, type BudgetRoute } from '../support/js-budget'
 import { kamranTest } from '../support/kamran-guard'
 import { chooseShipping, SHIPPING_SELECT } from '../support/shipping-choice'
-import { forgiveFailure, watchErrors } from '../support/watch-errors'
+import { watchErrors } from '../support/watch-errors'
 
 // The signed-in checkout (Plan 4 Task 2), in the `journeys` project only
 // (playwright.config.ts): k.yazdi (ruling P4-R4), signed in by the `kamran` guard, which puts
@@ -18,9 +19,10 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // (the page's own writes, one after the other) is measured as it happens, the context's first
 // page; then the checkout at the review, as he would find it again, in fresh contexts on a
 // desktop and on a phone. No other login: his session, his cart, the guard's restore.
-// Then the order is placed through the review (Plan 4 Task 10): the bank, the default, refused by
-// the dev backend (digest §11 #3), the order kept on the page; the `kamran` guard cancels it.
-// Per run: 1 placement, 1 payment intent (refused; his own `payment_attempt` budget), 1 cancel.
+// Then the order is placed through the review (Plan 4 Task 10): the dev backend runs no bank
+// (digest §11 #3) and lists no usable gateway (BACKEND-ISSUES M-4), so the default route is card
+// to card and its page opens; the `kamran` guard cancels the order. Per run: 1 placement, 1
+// payment intent (his own `payment_attempt` budget), 1 cancel.
 
 kamranTest.describe.configure({ mode: 'serial' })
 
@@ -36,6 +38,7 @@ const isPlacement = (response: Response) =>
   response.request().method() === 'POST'
 const isIntent = (response: Response) =>
   /\/api\/bff\/payment\/order\/[^/]+\/intent\/$/.test(new URL(response.url()).pathname)
+const CARD_PAGE = /^\/payment\/card-transfer\/[0-9a-f-]{36}\/$/
 
 kamranTest(
   'signed in: the default address is the destination, the default option is chosen; placed',
@@ -122,8 +125,7 @@ kamranTest(
     }
 
     // The order placed through the review (Task 10: the only signed-in placement of a routine
-    // run). The bank is the default and the dev backend refuses it: the order stays, here, and
-    // the page asks for nothing the spent cart no longer has (its shipping options: 404).
+    // run). No usable gateway: card to card is the default, and its page opens (a full load).
     await page.goto('/checkout/')
     const review = page.getByRole('region', { name: /بازبینی و ثبت سفارش/ })
     await expect(review).toHaveAttribute('data-state', 'active')
@@ -136,11 +138,11 @@ kamranTest(
     const order = ((await (await placement).json()) as { data: OrderPlacementResult }).data
     kamran.track(order.order_code)
     expect((await placement).request().postDataJSON()).toEqual({ expected_total: cart.total })
-    const bank = await intent
-    expect([400, 503], 'the dev bank refuses').toContain(bank.status())
-    forgiveFailure(page, bank.url(), bank.status())
-    await expect(page.getByRole('region', { name: 'سفارش شما ثبت شد' })).toBeVisible()
-    expect(new URL(page.url()).pathname, 'no navigation').toBe('/checkout/')
+    const card = await intent
+    expect(card.status(), 'a card-transfer attempt').toBe(201)
+    expect(card.request().postDataJSON()).toEqual({ route: 'card_transfer' })
+    await waitForCredentialPath(page, CARD_PAGE, 'the card-transfer page')
+    await expect(page.getByRole('heading', { level: 1, name: 'پرداخت کارت به کارت' })).toBeVisible()
     expect(errors).toEqual([])
   },
 )

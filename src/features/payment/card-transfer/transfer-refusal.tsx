@@ -9,23 +9,18 @@ import { HEADING_ID } from './transfer-copy'
 import { SupportNote } from './support-note'
 import type { TransferRefusal as Refusal, TransferRefusalKind } from './use-transfer-reads'
 
-// The card-transfer page when it cannot show the payment (order digest §3.2.7: 404, 403; a
-// wait; no answer): a calm page, never an error screen, with what to do next (the order's
+// The card-transfer page when it cannot show the payment (order digest §3.2.7: 404; a wait; no
+// answer): a calm page, never an error screen, with what to do next (the order's
 // tracking, the shop, the support line) and, for a wait or a lost answer, a read again. Also the
 // segment's not-found page (a uuid of the wrong shape), rendered on the server, with no retry: it
 // takes no client component of its own (each one would load on every visit of the route, the
 // JS budget), so the island hands in its tracking link (`renderTrack`: TrackLink, the order's
-// code handed over) and what more it offers (`extra`: a copy of the page's link, for another
-// account's payment); the server's page has a plain link to tracking.
+// code handed over); the server's page has a plain link to tracking.
 
 const COPY: Record<TransferRefusalKind, { title: string; body: string }> = {
   not_found: {
     title: 'این پرداخت پیدا نشد',
     body: 'این لینک پرداخت کارت به کارت معتبر نیست یا دیگر وجود ندارد. سفارش خود را از «پیگیری سفارش» پیدا کنید یا با پشتیبانی تماس بگیرید.',
-  },
-  forbidden: {
-    title: 'این پرداخت از حساب کاربری دیگری است',
-    body: 'این پرداخت از حساب کاربری دیگری آغاز شده است و با این حساب نمایش داده نمی\u{200C}شود. این صفحه را بدون ورود به حساب کاربری (مثلاً در پنجره\u{0654} ناشناس مرورگر) باز کنید یا با پشتیبانی تماس بگیرید.',
   },
   throttled: { title: 'کمی صبر کنید', body: 'لطفاً کمی بعد دوباره تلاش کنید.' },
   unavailable: {
@@ -50,8 +45,6 @@ export interface TransferRefusalProps {
   onRetry?: () => void
   /** The link to tracking, made by the island (by default a plain link). */
   renderTrack?: (className: string, children: ReactNode) => ReactNode
-  /** More to offer, from the island. */
-  extra?: ReactNode
 }
 
 export function TransferRefusal({
@@ -60,7 +53,6 @@ export function TransferRefusal({
   headingRef,
   onRetry,
   renderTrack,
-  extra,
 }: TransferRefusalProps) {
   const copy = COPY[refusal.kind]
   const waiting = refusal.kind === 'throttled'
@@ -107,7 +99,6 @@ export function TransferRefusal({
           <House aria-hidden />
           صفحهٔ اصلی فروشگاه
         </Link>
-        {extra}
       </div>
       <div className="self-stretch border-t border-ink-100 pt-4">
         <SupportNote support={support} />

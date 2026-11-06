@@ -33,9 +33,9 @@ import { useWalletBalance } from './use-wallet'
 // later changes are said once, politely. A payment that went through forgets its pending entry,
 // reads the account's figures again and throws a little confetti (never under reduced motion).
 // The account's pages for the order, and the owner's door, only for its confirmed owner (its order
-// read for this account, use-order-ownership.ts): a signed-in payer of someone else's order (its
-// status answered only without the session, `foreign`) or of a guest's (answered with it: a guest
-// order's payment has no owner) is offered tracking, or the order's link.
+// read for this account, use-order-ownership.ts): a signed-in payer of someone else's order or of
+// a guest's (the status answers whoever holds the uuid, BACKEND-ISSUES M-7) is offered tracking,
+// or the order's link, and not the account's own list of orders, which holds no such order.
 
 export interface PaymentResultPageProps {
   support: SupportLine | null
@@ -72,7 +72,7 @@ export function PaymentResultPage({ support }: PaymentResultPageProps) {
   const pending = useMemo(() => (uuid ? getPending(uuid) : null), [uuid])
   const copy = pickCopy(ret, status)
   const orderCode = info?.order_code ?? null
-  const ownership = useOrderOwnership(orderCode, hasSession && !status.foreign)
+  const ownership = useOrderOwnership(orderCode, hasSession)
   const own = ownOrderOf(ownership)
   const payAgain = usePayAgain({ orderCode, pending, hasSession, own })
   const topUpSettled = info?.status === 'settled' && info.applies_to === 'wallet_topup'
@@ -164,7 +164,7 @@ export function PaymentResultPage({ support }: PaymentResultPageProps) {
           actions={copy.actions}
           orderCode={orderCode}
           owner={own !== null}
-          listOrders={hasSession && !status.foreign}
+          listOrders={hasSession && !(orderCode && ownership.state === 'other')}
           linkToken={payAgain.linkToken}
           payAgain={payAgain}
           support={support}

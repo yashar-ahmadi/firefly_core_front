@@ -4,18 +4,19 @@ import { cartWrite } from '../support/cart-write'
 import { kamranTest } from '../support/kamran-guard'
 import { placeKamranOrder } from '../support/kamran-order'
 import { shirinGuardedTest } from '../support/shirin-guard'
-import { forgiveFailure, watchErrors } from '../support/watch-errors'
+import { watchErrors } from '../support/watch-errors'
 
 // An account order's life against the dev backend (Plan 4 Task 8), in the `journeys` project only
 // (playwright.config.ts): k.yazdi (ruling P4-R4: never sara), signed in by the `kamran` guard,
 // which puts his cart back afterwards. An order of his left awaiting payment (placed through the
 // BFF: support/kamran-order.ts) is found under «در انتظار پرداخت» in «سفارش‌های من» and opened;
-// «پرداخت» opens the route choice through his uuid door and the dev bank refuses it (digest §11
-// #3: no navigation, said in the sheet); «لغو سفارش» cancels it from its page (the API's order
+// «پرداخت» opens the route choice for his uuid door, where the bank is offered closed with its
+// reason: the dev backend runs no bank (digest §11 #3) and lists no usable gateway (BACKEND-ISSUES
+// M-4), so nothing is sent; «لغو سفارش» cancels it from its page (the API's order
 // shown at once); «خرید دوباره» puts its line back in his cart and the toast leads to it. Whatever
 // happens, the order is cancelled (the `kamran` guard's teardown, also after a timeout; already
 // cancelled is fine). Per run: 1
-// placement, 1 payment intent (refused), 1 cancellation, 1 reorder.
+// placement, no payment intent, 1 cancellation, 1 reorder.
 // Then «خرید دوباره» on a DELIVERED order (Task 10): shirin's (P4-R4: k.yazdi has none; never
 // sara's), her first in «تحویل داده شده»: the toast, and the order's lines in her cart. A reorder
 // writes only the cart: her cart (and address book) are put back exactly by the `shirin` guard
@@ -28,7 +29,7 @@ const isIntent = (response: Response) =>
   /\/api\/bff\/payment\/order\/[^/]+\/intent\/$/.test(new URL(response.url()).pathname)
 
 kamranTest(
-  'k.yazdi: an order awaiting payment, opened from his orders, refused by the dev bank, cancelled there, bought again',
+  'k.yazdi: an order awaiting payment, opened from his orders, the bank closed, cancelled there, bought again',
   async ({ page, kamran }) => {
     const errors = watchErrors(page)
     const home = kamran.before.addresses[0]
@@ -47,23 +48,22 @@ kamranTest(
     await expect(page).toHaveURL(new RegExp(`/account/orders/${code}/$`))
     await expect(page.getByRole('heading', { level: 1, name: `سفارش ${shown}` })).toBeVisible()
 
-    // «پرداخت»: the routes for what is owed online; the bank, refused by the dev backend.
+    // «پرداخت»: the routes for what is owed online; the bank offered closed, with its reason.
+    const intents: Response[] = []
+    page.on('response', (response) => {
+      if (isIntent(response)) intents.push(response)
+    })
     await page.getByRole('button', { name: 'پرداخت', exact: true }).click()
     const sheet = page.getByRole('dialog', { name: /پرداخت سفارش/ })
     const routes = sheet.getByRole('radiogroup', { name: 'روش\u{200C}های پرداخت' })
     const bank = routes.getByRole('radio', { name: 'درگاه بانکی', exact: true })
-    await expect(bank).toBeEnabled()
-    await bank.check({ force: true })
-    const intent = page.waitForResponse(isIntent)
-    await sheet.getByRole('button', { name: 'پرداخت سفارش' }).click()
-    const refused = await intent
-    expect([400, 503]).toContain(refused.status())
-    expect(refused.request().headers()['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/)
-    forgiveFailure(page, refused.url(), refused.status())
-    await expect(sheet.getByRole('alert')).toBeVisible()
+    await expect(bank).toBeDisabled()
+    await expect(routes).toContainText('درگاه پرداخت پیکربندی نشده است.')
+    await expect(routes.getByRole('radio', { name: /کارت به کارت/ })).toBeEnabled()
     expect(new URL(page.url()).pathname).toBe(`/account/orders/${code}/`)
     await page.keyboard.press('Escape')
     await expect(sheet).toBeHidden()
+    expect(intents, 'no intent sent').toEqual([])
 
     // «لغو سفارش» from its page: the question starts on «بازگشت»; the API's order at once.
     await page.getByRole('button', { name: 'لغو سفارش' }).click()

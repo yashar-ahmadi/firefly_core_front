@@ -1,6 +1,5 @@
 import { expect, type Page, type Response } from '@playwright/test'
 import { toPersianDigits } from '@/lib/format/digits'
-import { pressUntilBankCloses } from '../support/bank-refusals'
 import { waitForCredentialPath } from '../support/credential-url'
 import { placeGuestOrder } from '../support/guest-order'
 import {
@@ -17,18 +16,18 @@ import { forgiveFailure, watchErrors } from '../support/watch-errors'
 // guest, one at a time): a guest order left awaiting payment (placed through the BFF, no intent),
 // opened as the SMS spells it, WITHOUT the trailing slash (308 to the page, the token kept, no
 // referrer, no operator snippet). The page shows the order and its routes. The dev backend cannot
-// run a bank (digest §11 #3): a named gateway answers 400 `gateway_unknown` (withdrawn, the next
-// one tried with a press until none is left: support/bank-refusals.ts), an unnamed one 503
-// `gateway_not_configured`; either way the page says
-// the bank cannot be used here, with support, and never navigates. Card to card opens an attempt
+// run a bank (digest §11 #3) and says so up front since its 2026-11-05 round: its gateway list
+// names only usable gateways (none, BACKEND-ISSUES M-4) and its method list closes the bank route
+// with its reason, so the bank is offered disabled with that reason, card to card is chosen, and
+// no bank intent is ever sent. Card to card opens an attempt
 // (a full load to its page, card-transfer.spec.ts's subject); back on the link the attempt's resume UI shows
 // instead of the routes, and its «انصراف» cancels it; the bank's return page then reads that
 // cancelled attempt's real status (Task 5). The order is then cancelled through the
 // page's dialog (this is the cleanup; the `orders` guard, support/order-guard.ts, cancels it
 // through the API if the test ends earlier, a timeout included). The JS budget of the link's pages is measured on the way: payable, with an open
 // attempt, refused.
-// Per run: 1 placement; 2-3 `payment_attempt` calls for the bank and the card, 1 attempt cancel
-// (of 30/h); about 11 `order_payment_link` reads and the cancel (of 30/min); 3 `payment_status`
+// Per run: 1 placement; 1 `payment_attempt` call for the card, 1 attempt cancel (of 30/h); about
+// 11 `order_payment_link` reads and the cancel (of 30/min); 3 `payment_status`
 // reads (the card page's status and cards, the result page; of 240/h). Never printed: the token
 // (`<token>` in the budget lines).
 
@@ -41,10 +40,8 @@ const isIntent = (response: Response) =>
 
 const routes = (page: Page) => page.getByRole('radiogroup', { name: 'روش\u{200C}های پرداخت' })
 const attemptPanel = (page: Page) => page.getByRole('region', { name: 'پرداخت باز این سفارش' })
-/** The routes section's own alert (not Next's route announcer, also an alert). */
-const payAlert = (page: Page) => page.getByRole('region', { name: 'روش پرداخت' }).getByRole('alert')
 
-test('a guest opens the SMS link: the routes, the bank refused, a card attempt resumed, the order cancelled', async ({
+test('a guest opens the SMS link: the routes, the bank closed, a card attempt resumed, the order cancelled', async ({
   page,
   browser,
   orders,
@@ -77,8 +74,11 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
   await expect(page).toHaveTitle(new RegExp(`پرداخت سفارش ${toPersianDigits(order.orderCode)}`))
   await expect(page.getByRole('heading', { level: 1, name: 'پرداخت سفارش' })).toBeVisible()
   await expect(page.getByText(toPersianDigits(order.orderCode)).first()).toBeVisible()
-  await expect(routes(page).getByRole('radio', { name: /درگاه بانکی/ })).toBeChecked()
-  await expect(routes(page).getByRole('radio', { name: /کارت به کارت/ })).toBeVisible()
+  // No usable gateway: the bank offered disabled with the method list's reason; card to card,
+  // the first enabled route after it, chosen.
+  await expect(routes(page).getByRole('radio', { name: /درگاه بانکی/ })).toBeDisabled()
+  await expect(routes(page)).toContainText('درگاه پرداخت پیکربندی نشده است.')
+  await expect(routes(page).getByRole('radio', { name: /کارت به کارت/ })).toBeChecked()
   await expect(page.getByRole('link', { name: 'ورود برای استفاده از کیف پول' })).toBeVisible()
 
   const payable: BudgetRoute = {
@@ -90,21 +90,11 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
   }
   figures.push(await measure(page, payable, 'desktop'), await measurePhone(browser, payable))
 
-  // The bank: refused by the dev backend; no navigation, the bank closed with support.
   const press = () => page.getByRole('button', { name: 'پرداخت سفارش' }).click()
-  const first = page.waitForResponse(isIntent)
-  await press()
-  const bank = await first
-  if (bank.status() === 400) {
-    await pressUntilBankCloses(page, { first: bank, alert: payAlert(page), press, isIntent })
-  } else {
-    forgiveFailure(page, bank.url(), bank.status())
-    expect(bank.status()).toBe(503)
-  }
-  const alert = payAlert(page)
-  await expect(alert).toContainText('پرداخت با درگاه بانکی در این فروشگاه اکنون ممکن نیست')
-  await expect(alert.getByRole('link', { name: /پشتیبانی/ })).toBeVisible()
-  expect(new URL(page.url()).pathname === path, 'never sent anywhere').toBe(true)
+  const intents: Response[] = []
+  page.on('response', (response) => {
+    if (isIntent(response)) intents.push(response)
+  })
 
   // Card to card: an attempt opens; its page is a full page load (card-transfer.spec.ts).
   await routes(page)
@@ -113,6 +103,10 @@ test('a guest opens the SMS link: the routes, the bank refused, a card attempt r
   const card = page.waitForResponse(isIntent)
   await press()
   expect((await card).status(), 'a card transfer attempt').toBe(201)
+  // The only intent of the run: never one for the closed bank.
+  expect(intents.map((response) => response.request().postDataJSON())).toEqual([
+    { route: 'card_transfer' },
+  ])
   await waitForCredentialPath(page, CARD_PAGE, 'the card-transfer page')
   const attempt = CARD_PAGE.exec(new URL(page.url()).pathname)![1]!
 

@@ -95,6 +95,7 @@ export function usePayAgain({
         orderCode,
         ...(target.kind === 'uuid' ? { orderUuid: target.orderUuid } : { linkToken: target.token }),
         route,
+        gatewayCode: intent.handoff.gateway_code,
         amount: intent.payment.amount,
         startedAt: Date.now(),
       })

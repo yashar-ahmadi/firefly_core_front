@@ -9,28 +9,28 @@ import type { GatewayRefusal } from './routes'
 // The payment catalog in the browser: the server's cached copy (props, the route texts already
 // sanitised there), read again through the BFF only after a refusal says it is out of date
 // (`gateway_unknown`, `gateway_amount_not_supported`: the gateways; a route switched off or gone:
-// the methods), since the lists share the 240/h `payment_status` budget. A fresh method list
-// brings its availability only: the texts stay the server's sanitised ones (a route the server
-// did not list shows its label alone), so no operator HTML ever renders unsanitised. Routes the
-// shop proved it cannot run now are withdrawn for this page (`withdraw`). A gateway list that
-// could not be read (the server's copy, or a read here) is said as such (`gatewaysFailed`): the
-// bank's state is then unknown, not «unavailable».
+// the methods), on the lists' own 1200/h `payment_catalogue` budget. The gateway list names only
+// the gateways an intent can use (BACKEND-ISSUES M-4, fixed), so a gateway is left out here only
+// at an amount it refused. A fresh method list brings its availability only: the texts stay the
+// server's sanitised ones (a route the server did not list shows its label alone), so no operator
+// HTML ever renders unsanitised. Routes the shop proved it cannot run now are withdrawn for this
+// page (`withdraw`). A gateway list that could not be read (the server's copy, or a read here) is
+// said as such (`gatewaysFailed`): the bank's state is then unknown, not «unavailable».
 
 export interface PaymentCatalogState {
   /** null: the server could not read them (the step offers to read them again). */
   methods: PaymentMethodView[] | null
-  /** The gateways this page may still use (those it withdrew for any amount left out). */
+  /** The gateways the shop lists (each may still be left out at an amount it refused). */
   gateways: GatewayOption[]
-  /** The gateways withdrawn, each at the amount it refused (for any without one). */
+  /** The gateways withdrawn, each at the amount it refused. */
   refused: readonly GatewayRefusal[]
   withdrawn: readonly PaymentRoute[]
   withdraw: (routes: readonly PaymentRoute[]) => void
   /**
-   * A gateway the shop lists but could not use: left out for this page (`gateway_unknown`), or
-   * only at `amount`, the one it refused (`gateway_amount_not_supported`: another amount offers
-   * it again).
+   * A gateway left out at `amount`, the one it refused (`gateway_amount_not_supported`): another
+   * amount offers it again.
    */
-  withdrawGateway: (code: string, amount?: number) => void
+  withdrawGateway: (code: string, amount: number) => void
   /** Resolves true once read (false: the read failed; the page keeps what it had). */
   refreshMethods: () => Promise<boolean>
   refreshGateways: () => Promise<boolean>
@@ -57,8 +57,8 @@ function merge(
   })
 }
 
-/** The refusal of `code` at `amount` (none: for any amount). */
-const refusal = (code: string, amount?: number) => (r: GatewayRefusal) =>
+/** The refusal of `code` at `amount`. */
+const refusal = (code: string, amount: number) => (r: GatewayRefusal) =>
   r.code === code && r.amount === amount
 
 export function usePaymentCatalog(initial: PaymentCatalog): PaymentCatalogState {
@@ -100,7 +100,7 @@ export function usePaymentCatalog(initial: PaymentCatalog): PaymentCatalogState 
     )
   return {
     methods,
-    gateways: gateways.filter((g) => !refused.some(refusal(g.code))),
+    gateways,
     refused,
     withdrawn,
     withdraw: (routes) => setWithdrawn((current) => [...new Set([...current, ...routes])]),
@@ -114,7 +114,7 @@ export function usePaymentCatalog(initial: PaymentCatalog): PaymentCatalogState 
     retry: async () => {
       setRetrying(true)
       setRetryFailed(false)
-      // Only what could not be read (the lists share the 240/h `payment_status` budget).
+      // Only what could not be read (the lists share the 1200/h `payment_catalogue` budget).
       const reads = await Promise.all([
         methods === null ? refreshMethods() : true,
         gatewaysFailed ? refreshGateways() : true,

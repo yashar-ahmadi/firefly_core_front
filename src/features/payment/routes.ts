@@ -28,8 +28,8 @@ export type RouteMethod = Pick<
   | 'reason'
 >
 
-/** A gateway the shop refused: at one amount (`gateway_amount_not_supported`), or at any. */
-export type GatewayRefusal = { code: string; amount?: number }
+/** A gateway the shop refused at one amount (`gateway_amount_not_supported`). */
+export type GatewayRefusal = { code: string; amount: number }
 
 export interface RouteInput<M extends RouteMethod = PaymentMethodOption> {
   methods: M[]
@@ -52,7 +52,7 @@ export interface RouteInput<M extends RouteMethod = PaymentMethodOption> {
   withdrawn?: readonly PaymentRoute[]
   /** The wallet's balance is being read: its routes wait (not a refusal). */
   walletPending?: boolean
-  /** Gateways refused: at the amount the bank was asked for, or at any. */
+  /** Gateways refused, each at the amount the bank was asked for. */
   refused?: readonly GatewayRefusal[]
 }
 
@@ -131,9 +131,9 @@ function walletReason(input: RouteInput<RouteMethod>): string | null {
 
 function choose<M extends RouteMethod>(method: M, input: RouteInput<M>): RouteChoice<M> {
   const { online, gateways, refused = [] } = input
-  // The gateways not refused at `amount` (a refusal without one: at any).
+  // The gateways not refused at `amount`.
   const refusedAt = (code: string, amount: number) =>
-    refused.some((r) => r.code === code && (r.amount ?? amount) === amount)
+    refused.some((r) => r.code === code && r.amount === amount)
   const usable = (amount: number) => gateways.filter((g) => !refusedAt(g.code, amount))
   const choice = (reason: string | null, extra: Partial<RouteChoice<M>> = {}): RouteChoice<M> => ({
     route: method.route,
@@ -230,10 +230,10 @@ export function defaultGateway(gateways: GatewayOption[]): GatewayOption | null 
 /**
  * The `gateway_code` to send (digest §3.2.2, §5.4): the gateway shown chosen whenever the chooser
  * shows (the shopper saw and kept it, the default included), else none for the shop's default
- * (the server picks its default itself, then the first usable one) and the code of a lone other
- * gateway. Never for a route without a bank part. The dev backend answers any named gateway
- * with 400 `gateway_unknown` (its credentials cannot be read, digest §11 #3); unnamed, 503
- * `gateway_not_configured`.
+ * (the server's `is_default` is the gateway an unnamed intent goes to) and the code of a lone
+ * other gateway. Never for a route without a bank part. The list names only usable gateways
+ * (BACKEND-ISSUES M-4, fixed): the dev backend, whose credentials cannot be read (digest §11 #3),
+ * lists none, and its method list marks both bank routes unavailable.
  */
 export function gatewayCodeFor<M extends RouteMethod>(
   choice: RouteChoice<M>,

@@ -22,6 +22,11 @@ export interface PendingPayment {
   /** The link door (`payment/link/<token>/intent/`). */
   linkToken?: string
   route: PaymentRoute
+  /**
+   * The bank it went to (`handoff.gateway_code`): an open attempt whose handoff expired says
+   * whether the backend will ask that bank itself (BACKEND-ISSUES B-1).
+   */
+  gatewayCode?: string
   /** What this attempt charges (the bank's part of a wallet-and-gateway payment). */
   amount: number
   /** Epoch milliseconds. */
@@ -34,6 +39,7 @@ const isPending = (value: unknown): value is PendingPayment =>
   isRecord(value) &&
   (value.kind === 'order' || value.kind === 'topup') &&
   typeof value.route === 'string' &&
+  (value.gatewayCode === undefined || typeof value.gatewayCode === 'string') &&
   typeof value.amount === 'number' &&
   typeof value.startedAt === 'number' &&
   (value.session === undefined || typeof value.session === 'boolean')

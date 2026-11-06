@@ -156,11 +156,8 @@ describe('the cut-off', () => {
 describe('when it cannot be paid here', () => {
   it.each([
     ['404', new ApiError({ status: 404, code: 'payment_not_found' }), 'این پرداخت پیدا نشد'],
-    [
-      '403',
-      new ApiError({ status: 403, code: 'payment_forbidden' }),
-      'این پرداخت از حساب کاربری دیگری است',
-    ],
+    // None comes for another account's payment any more (M-7): read again from the calm page.
+    ['403', new ApiError({ status: 403, code: 'forbidden' }), 'اطلاعات پرداخت خوانده نشد'],
   ])('%s: a calm page with tracking and the support line', async (_, error, title) => {
     keepToken()
     serve(mocks.bffFetch, { [CARDS]: () => Promise.reject(error) })
@@ -175,7 +172,7 @@ describe('when it cannot be paid here', () => {
       'tel:+982191000000',
     )
     expect(screen.queryByRole('button', { name: 'ثبت رسید' })).toBeNull()
-    // No such payment: its pending entry is stale and goes; another account's stays.
+    // No such payment: its pending entry is stale and goes; otherwise it stays.
     expect(getPending(PAYMENT_UUID) === null).toBe(error.status === 404)
   })
 

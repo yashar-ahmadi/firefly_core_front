@@ -2,8 +2,11 @@ import { ApiError, NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
 
 // Why the payment link's page does not open (order digest §3.1.9, §8.2), in the server's order
 // of refusals, and what the page says: our own title for each, the API's Persian detail under it
-// where it has one worth reading, and our next steps (tracking, support). Pure, and safe on the
-// server (the page renders a refusal there): nothing here comes from a client module.
+// where it has one worth reading, and our next steps (tracking, support). An order the link takes
+// no more money for is told so whatever its deadline (one of the 409s); only an order still owed
+// online past it gets the 410 (BACKEND-ISSUES M-5, fixed), the one refusal that sends the shopper
+// to support. Pure, and safe on the server (the page renders a refusal there): nothing here comes
+// from a client module.
 
 /** A 429's sentence (the account lists' own, which live in a client module). */
 const THROTTLED = 'لطفاً کمی بعد دوباره تلاش کنید.'
@@ -11,10 +14,16 @@ const THROTTLED = 'لطفاً کمی بعد دوباره تلاش کنید.'
 export type LinkRefusalKind =
   /** 404 `order_payment_link_invalid`: an unknown token, or a cancelled order (revoked). */
   | 'invalid'
-  /** 410 `order_payment_link_expired`: the deadline passed (also an old order already paid). */
+  /** 410 `order_payment_link_expired`: the deadline passed while money was still owed online. */
   | 'expired'
-  /** 409 `order_already_settled`: everything owed online has arrived. */
+  /** 409 `order_already_settled`: everything owed online has arrived, nothing is due at the door. */
   | 'settled'
+  /**
+   * 409 `order_online_settled_rest_on_delivery`: the online share has all arrived and the courier
+   * still collects the rest; the API's sentence names the amount (`data.amount_outstanding_on_
+   * delivery` holds it too, M-6), so no sentence of ours is built for it.
+   */
+  | 'rest_on_delivery'
   /** 409 `order_collected_on_delivery`: a confirmed pay-on-delivery order. */
   | 'collected'
   /** 409 `order_not_payable`: owed but not payable now (a receipt under review, say). */
@@ -36,6 +45,7 @@ const KINDS: Record<string, LinkRefusalKind> = {
   order_payment_link_invalid: 'invalid',
   order_payment_link_expired: 'expired',
   order_already_settled: 'settled',
+  order_online_settled_rest_on_delivery: 'rest_on_delivery',
   order_collected_on_delivery: 'collected',
   order_not_payable: 'not_payable',
 }
@@ -70,13 +80,19 @@ export const REFUSAL_COPY: Record<LinkRefusalKind, RefusalCopy> = {
   },
   expired: {
     title: 'مهلت پرداخت تمام شده',
-    note: 'اگر این سفارش را پیش\u{200C}تر پرداخت کرده\u{200C}اید، وضعیت آن را با پیگیری سفارش ببینید؛ برای پرداخت یا هر پرسشی با پشتیبانی تماس بگیرید.',
+    note: 'اگر هنوز می\u{200C}خواهید این سفارش را پرداخت کنید، با پشتیبانی تماس بگیرید تا لینک پرداخت دوباره باز شود. وضعیت سفارش را با پیگیری سفارش ببینید.',
     detail: true,
     retry: false,
   },
   settled: {
     title: 'پرداخت آنلاین این سفارش انجام شده',
-    note: 'اگر بخشی از مبلغ سفارش هنگام تحویل دریافت می\u{200C}شود، آن را به پیک بپردازید. وضعیت سفارش را با پیگیری سفارش ببینید.',
+    note: 'وضعیت سفارش را با پیگیری سفارش ببینید.',
+    detail: true,
+    retry: false,
+  },
+  rest_on_delivery: {
+    title: 'باقی مبلغ هنگام تحویل پرداخت می\u{200C}شود',
+    note: 'پرداخت دیگری از این لینک لازم نیست. وضعیت سفارش را با پیگیری سفارش ببینید.',
     detail: true,
     retry: false,
   },

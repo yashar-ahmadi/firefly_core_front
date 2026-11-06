@@ -82,15 +82,13 @@ describe('the status is the truth (Review Focus #3)', () => {
     expect(screen.queryByRole('button', { name: 'پرداخت دوباره' })).not.toBeInTheDocument()
   })
 
-  it('signed in and refused (403 payment_forbidden): read again without the session', async () => {
-    serve(mocks.bffFetch, [
-      new ApiError({ status: 403, code: 'payment_forbidden' }),
-      status({ status: 'settled' }),
-    ])
+  it('signed in: read once, with the session (whosever the payment, M-7)', async () => {
+    serve(mocks.bffFetch, [status({ status: 'settled' })])
     arrive(`?result=success&payment=${PAYMENT_UUID}`)
     await renderResult({ hasSession: true })
-    expect(statusReads(mocks.bffFetch)[1]?.[1]).toMatchObject({ query: { anon: '1' } })
     expect(heading()).toHaveTextContent('پرداخت موفق')
+    expect(statusReads(mocks.bffFetch)).toHaveLength(1)
+    expect(statusReads(mocks.bffFetch)[0]?.[1]?.query).toBeUndefined()
   })
 })
 

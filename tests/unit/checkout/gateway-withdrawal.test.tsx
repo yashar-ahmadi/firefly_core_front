@@ -7,11 +7,11 @@ import { stubBrowserApis } from '../support/dom-stubs'
 import { gateways, intent, LINK_TOKEN } from '../payment/fixtures'
 import { ok, onlineCart, PLACE, placeButton, placed, renderCheckout, serve } from './place-support'
 
-// A gateway the shop lists but cannot use (order digest §5.4, §8.3; the dev backend's own state:
-// `payment/gateway/list/` lists configurations its resolver refuses): `gateway_unknown` reads the
-// gateways again and withdraws the one tried, for this page, so it is never tried again. The
-// other gateway is offered; with none left the bank routes close with their reason and the
-// support line, as for a bank that is not configured.
+// A gateway refused as unknown at intent time (order digest §5.4, §8.3): the gateway list names
+// only the gateways an intent can use (BACKEND-ISSUES M-4, fixed), so `gateway_unknown` means the
+// page's list is out of date. The page withdraws nothing itself: it reads the list again and
+// offers what that list holds; read again without any gateway, the bank routes close with their
+// reason.
 
 const LINK_INTENT = `payment/link/${LINK_TOKEN}/intent/`
 const GATEWAYS = 'payment/gateway/list/'
@@ -34,7 +34,10 @@ beforeEach(() => {
 })
 
 const unknown = () => Promise.reject(ApiError.fromBody(400, gatewayUnknown))
-const list = () => ({ count: 2, total_pages: 1, results: gateways() })
+const list = (codes: string[]) => {
+  const results = gateways().filter(({ code }) => codes.includes(code))
+  return { count: results.length, total_pages: 1, results }
+}
 
 async function placeNow(user: ReturnType<typeof userEvent.setup>) {
   const button = await placeButton()
@@ -42,32 +45,36 @@ async function placeNow(user: ReturnType<typeof userEvent.setup>) {
   await user.click(button)
 }
 
-describe('a gateway the shop cannot use', () => {
-  it('is withdrawn after `gateway_unknown`: the other is offered and tried, never it again', async () => {
+describe('a gateway refused as unknown', () => {
+  it('the list read again: the gateway it no longer holds is not offered, the next press uses the other', async () => {
     const user = userEvent.setup()
     const pay = vi
       .fn<(body: unknown, init: unknown) => Promise<unknown>>()
       .mockImplementationOnce(unknown)
       .mockImplementationOnce(async () => ok(intent('bank_gateway'), 201))
+    const read = vi.fn(async () => ok(list(['ZIBAL'])))
     serve(mocks.bffFetch, () => onlineCart(), {
       [PLACE]: placed(),
       [LINK_INTENT]: pay,
-      [GATEWAYS]: async () => ok(list()),
+      [GATEWAYS]: read,
     })
     renderCheckout({ cart: onlineCart() })
     await placeNow(user)
     const panel = await screen.findByRole('region', { name: 'سفارش شما ثبت شد' })
     expect(await within(panel).findByRole('alert')).toHaveTextContent(UNUSABLE)
     expect(pay.mock.calls[0]![0]).toMatchObject({ gateway_code: 'ZARINPAL' })
-    // The bank is still offered, with the other gateway only (no chooser for one).
+    expect(read).toHaveBeenCalledTimes(1)
+    // The bank is still offered, with the gateway the list now holds (no chooser for one).
     expect(within(panel).getByRole('radio', { name: /درگاه بانکی/ })).toBeEnabled()
-    expect(within(panel).queryByRole('radio', { name: /زرین پال/ })).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(within(panel).queryByRole('radio', { name: /زرین پال/ })).not.toBeInTheDocument(),
+    )
     await user.click(within(panel).getByRole('button', { name: 'پرداخت سفارش' }))
     await waitFor(() => expect(pay).toHaveBeenCalledTimes(2))
     expect(pay.mock.calls[1]![0]).toMatchObject({ gateway_code: 'ZIBAL' })
   })
 
-  it('none left: the bank routes close with their reason and the support line', async () => {
+  it('the list read again holds none: the bank routes close with their reason', async () => {
     const user = userEvent.setup()
     const pay = vi
       .fn<(body: unknown, init: unknown) => Promise<unknown>>()
@@ -75,22 +82,16 @@ describe('a gateway the shop cannot use', () => {
     serve(mocks.bffFetch, () => onlineCart(), {
       [PLACE]: placed(),
       [LINK_INTENT]: pay,
-      [GATEWAYS]: async () => ok(list()),
+      [GATEWAYS]: async () => ok(list([])),
     })
     renderCheckout({ cart: onlineCart() })
     await placeNow(user)
     const panel = await screen.findByRole('region', { name: 'سفارش شما ثبت شد' })
     await within(panel).findByRole('alert')
-    await user.click(within(panel).getByRole('button', { name: 'پرداخت سفارش' }))
-    await waitFor(() => expect(pay).toHaveBeenCalledTimes(2))
-    const alert = await within(panel).findByText(/پرداخت با درگاه بانکی در این فروشگاه/)
-    expect(alert.closest('[role="alert"]')).not.toBeNull()
-    expect(within(panel).getByRole('link', { name: /پشتیبانی/ })).toBeInTheDocument()
     const bank = within(panel).getByRole('radio', { name: /درگاه بانکی/ })
-    expect(bank).toBeDisabled()
+    await waitFor(() => expect(bank).toBeDisabled())
     expect(bank).toHaveAccessibleDescription(/درگاه بانکی در دسترس نیست/)
-    // Nothing is tried with a withdrawn gateway: the shopper moves on to another route.
-    const codes = pay.mock.calls.map(([body]) => (body as { gateway_code?: string }).gateway_code)
-    expect(codes).toEqual(['ZARINPAL', 'ZIBAL'])
+    // Nothing more is sent to the bank: the shopper moves on to another route.
+    expect(pay).toHaveBeenCalledTimes(1)
   })
 })

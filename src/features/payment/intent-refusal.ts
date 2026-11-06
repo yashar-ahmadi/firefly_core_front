@@ -6,9 +6,9 @@ import type { PaymentCatalogState } from './use-payment-catalog'
 
 // What a refused intent changes on the page's payment routes (order digest §5.4–5.6, §8.3),
 // whichever door it went through (the checkout's placed order, the payment link's page): the
-// routes the shop proved it cannot run are withdrawn, a gateway it lists but cannot use is left
-// out, stale lists are read again, a closed switch is marked, the wallet is read again. What the
-// page then shows is its own. Pure apart from the callbacks.
+// routes the shop proved it cannot run are withdrawn, a gateway refused at an amount is left out
+// at it, stale lists are read again, a closed switch is marked, the wallet is read again. What
+// the page then shows is its own. Pure apart from the callbacks.
 
 const WALLET_ROUTES: readonly PaymentRoute[] = ['wallet', 'wallet_and_gateway']
 
@@ -42,16 +42,19 @@ export function applyIntentRefusal(
     case 'gateway_broken':
       catalog.withdraw(BANK_ROUTES)
       return
-    case 'gateway_amount':
-    case 'gateway_refresh': {
-      // The gateway tried (no code: the shop's default) is left out, at the amount asked of it
-      // when that was the refusal (another amount offers it again), else for this page; the list
-      // is read again. With none left, the bank routes close with their reason.
+    case 'gateway_refresh':
+      // The list names only the gateways an intent can use (BACKEND-ISSUES M-4, fixed): one
+      // refused as unknown means the list is out of date. Read again, it leaves that one out.
+      void catalog.refreshGateways()
+      return
+    case 'gateway_amount': {
+      // The gateway tried (no code: the shop's default) is left out at the amount asked of it
+      // (another amount offers it again); the list is read again. With none left at that amount,
+      // the bank routes close with their reason.
       const tried =
         gatewayCode ??
         (catalog.gateways.find((gateway) => gateway.is_default) ?? catalog.gateways[0])?.code
-      if (tried)
-        catalog.withdrawGateway(tried, error.problem === 'gateway_amount' ? amount : undefined)
+      if (tried && amount !== undefined) catalog.withdrawGateway(tried, amount)
       void catalog.refreshGateways()
       return
     }

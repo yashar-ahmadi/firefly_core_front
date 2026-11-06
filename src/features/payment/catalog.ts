@@ -7,11 +7,12 @@ import type { Paginated } from '@/lib/api/types/common'
 import type { GatewayOption, PaymentMethodOption } from '@/lib/api/types/payment'
 
 // The payment step's catalog, read on the server (order digest §1.6, §10): `payment/method/list/`
-// and `payment/gateway/list/` share the anonymous 240/h `payment_status` budget with every
-// payment status poll, so they come from the Next.js data cache (60 s, anonymous, no visitor IP:
-// one copy for every shopper) and go to the checkout as props. The operator's route texts are
-// sanitised here, so the parser never reaches the browser. Never throws: a list that cannot be
-// read is null (the page offers to read it again).
+// and `payment/gateway/list/` (their own 1200/h `payment_catalogue` budget, apart from the status
+// polls since BACKEND-ISSUES M-21) come from the Next.js data cache (60 s, anonymous, no visitor
+// IP: one copy for every shopper) and go to the checkout as props. The gateway list names only
+// the gateways an intent can use (M-4): empty, the bank routes have none. The operator's route
+// texts are sanitised here, so the parser never reaches the browser. Never throws: a list that
+// cannot be read is null (the page offers to read it again).
 
 const REVALIDATE_SECONDS = 60
 const TIMEOUT_MS = 5_000

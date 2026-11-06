@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TopUpForm } from '@/features/wallet/top-up-form'
 import type { WalletBalance } from '@/lib/api/types/payment'
-import { catalog } from '../payment/fixtures'
+import { catalog, gateways } from '../payment/fixtures'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { balance } from './fixtures'
 import {
@@ -21,8 +21,8 @@ import {
 // Every refusal of `POST wallet/top-up/` (order digest §3.3.3, §8.3, §8.5), the live ones from
 // the dev backend: the bound said from the wallet read again, the box gone when top-ups are off
 // or the bank cannot be used (the support line), the freeze message, a gateway the server calls
-// unknown left out for the page, waits, and the same key only while the press is still starting.
-// The dev backend refuses every bank: nothing navigates.
+// unknown (the list read again: it names only usable gateways, BACKEND-ISSUES M-4), waits, and the
+// same key only while the press is still starting. Nothing navigates.
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), goToBank: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
@@ -130,14 +130,32 @@ describe('the box closes', () => {
 })
 
 describe('the gateway', () => {
-  it('live gateway_unknown: that gateway left out (no repeat), the next press names the other', async () => {
+  it('live gateway_unknown: the gateway list read again, said; the next press goes as it says', async () => {
     const answers: Route[] = [() => refuseLive('topup-named'), () => new Promise(() => {})]
-    const { user } = await pressWith((init) => answers.shift()!(init))
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'این درگاه در حال حاضر در دسترس نیست؛ برای پرداخت با زیبال دوباره «افزایش موجودی» را بزنید.',
+    // Read again, the list leaves the refused gateway out (it lists usable gateways only, M-4).
+    const fresh = gateways().filter(({ code }) => code === 'ZIBAL')
+    const list = vi.fn(() => ok({ count: 1, results: fresh }))
+    serve(mocks.bffFetch, {
+      'wallet/top-up/': (init) => answers.shift()!(init),
+      'payment/gateway/list/': list,
+    })
+    renderWallet(
+      <TopUpForm
+        wallet={balance()}
+        catalog={catalog()}
+        supportPhone="+982191000000"
+        refreshWallet={vi.fn(async () => balance())}
+      />,
     )
-    // One gateway left: nothing to choose, its own code sent (it is not the shop's default).
-    expect(screen.queryByRole('button', { name: 'تغییر درگاه' })).toBeNull()
+    const user = userEvent.setup()
+    await user.type(amount(), '100000')
+    await user.click(submit())
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'این درگاه در حال حاضر در دسترس نیست؛ دوباره «افزایش موجودی» را بزنید.',
+    )
+    expect(list).toHaveBeenCalledTimes(1)
+    // One gateway left: nothing to choose, its own code sent.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'تغییر درگاه' })).toBeNull())
     await user.click(submit())
     expect(topUpSent(mocks.bffFetch)).toEqual([
       { amount: 100_000, gateway_code: 'ZARINPAL' },

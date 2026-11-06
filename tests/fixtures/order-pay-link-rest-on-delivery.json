@@ -1,0 +1,15 @@
+{
+  "msg": "این درخواست با وضعیت فعلی سازگار نیست.",
+  "code": 409,
+  "data": {
+    "type": "client_error",
+    "errors": [
+      {
+        "code": "order_online_settled_rest_on_delivery",
+        "detail": "مبلغ آنلاین این سفارش پرداخت شده است؛ ۱۵٬۰۰۰ تومان باقی‌مانده هنگام تحویل دریافت می‌شود.",
+        "attr": null
+      }
+    ],
+    "amount_outstanding_on_delivery": 15000
+  }
+}

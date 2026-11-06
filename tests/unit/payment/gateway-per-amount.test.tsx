@@ -9,10 +9,10 @@ import { ApiError } from '@/lib/api/errors'
 import { catalog, FEATURES_ON, gateways, methods, wallet } from './fixtures'
 
 // `gateway_amount_not_supported` (order digest §5.4: «other gateway / route»): the gateway tried
-// does not take the amount asked of it, under its floor or over its ceiling. It used to withdraw
-// that gateway for the whole page, as `gateway_unknown` (a gateway the shop cannot use at all)
-// does (Plan 4 final review, carried to Plan 5 Task 9). Now it is left out for that amount only:
-// another amount (the wallet's share taken off, a top-up's other sum) offers it again.
+// does not take the amount asked of it, under its floor or over its ceiling. It is left out for
+// that amount only: another amount (the wallet's share taken off, a top-up's other sum) offers it
+// again. `gateway_unknown` withdraws nothing any more: the list names only usable gateways
+// (BACKEND-ISSUES M-4, fixed), so the list is read again instead.
 
 vi.mock('@/lib/api/client', () => ({ bffFetch: vi.fn(() => new Promise(() => {})) }))
 
@@ -46,12 +46,6 @@ describe('the routes, a gateway refused at an amount', () => {
     expect(offered({ refused }, 'bank_gateway')).toEqual(['ZARINPAL', 'ZIBAL'])
   })
 
-  it('refused for any amount (`gateway_unknown`): offered for none', () => {
-    const refused = [{ code: 'ZIBAL' }]
-    expect(offered({ refused }, 'bank_gateway')).toEqual(['ZARINPAL'])
-    expect(offered({ refused, online: 2_000_000 }, 'bank_gateway')).toEqual(['ZARINPAL'])
-  })
-
   it('every gateway refused at the amount: the bank closes for it, saying none is available', () => {
     const refused = ['ZARINPAL', 'ZIBAL'].map((code) => ({ code, amount: ONLINE }))
     const bank = availableRoutes(input({ refused })).find((r) => r.route === 'bank_gateway')!
@@ -60,14 +54,12 @@ describe('the routes, a gateway refused at an amount', () => {
 })
 
 describe('the catalog', () => {
-  it('a gateway withdrawn at an amount stays listed, refused at that amount; without one, gone', () => {
+  it('a gateway withdrawn at an amount stays listed, refused at that amount', () => {
     const served = catalog()
     const { result } = renderHook(() => usePaymentCatalog(served))
     act(() => result.current.withdrawGateway('ZIBAL', ONLINE))
     expect(result.current.gateways.map(({ code }) => code)).toEqual(['ZARINPAL', 'ZIBAL'])
     expect(result.current.refused).toEqual([{ code: 'ZIBAL', amount: ONLINE }])
-    act(() => result.current.withdrawGateway('ZIBAL'))
-    expect(result.current.gateways.map(({ code }) => code)).toEqual(['ZARINPAL'])
   })
 
   it('one refusal per gateway and amount, however often it is said', () => {
@@ -76,12 +68,12 @@ describe('the catalog', () => {
     act(() => result.current.withdrawGateway('ZIBAL', ONLINE))
     act(() => result.current.withdrawGateway('ZIBAL', ONLINE))
     act(() => result.current.withdrawGateway('ZIBAL', 2_000_000))
-    act(() => result.current.withdrawGateway('ZARINPAL'))
-    act(() => result.current.withdrawGateway('ZARINPAL'))
+    act(() => result.current.withdrawGateway('ZARINPAL', ONLINE))
+    act(() => result.current.withdrawGateway('ZARINPAL', ONLINE))
     expect(result.current.refused).toEqual([
       { code: 'ZIBAL', amount: ONLINE },
       { code: 'ZIBAL', amount: 2_000_000 },
-      { code: 'ZARINPAL', amount: undefined },
+      { code: 'ZARINPAL', amount: ONLINE },
     ])
   })
 
@@ -126,10 +118,11 @@ describe('a refused intent', () => {
     expect(unnamed.catalog.withdrawGateway).toHaveBeenCalledWith('ZARINPAL', ONLINE)
   })
 
-  it('`gateway_unknown`: left out for any amount', () => {
+  it('`gateway_unknown`: nothing withdrawn, the list read again (it lists usable gateways only)', () => {
     const d = deps()
     applyIntentRefusal(refusal('gateway_unknown'), 'ZIBAL', d, 549_000)
-    expect(d.catalog.withdrawGateway).toHaveBeenCalledWith('ZIBAL', undefined)
+    expect(d.catalog.withdrawGateway).not.toHaveBeenCalled()
+    expect(d.catalog.refreshGateways).toHaveBeenCalledOnce()
   })
 
   it('says the API’s own sentence (the bound), and to choose another gateway or route', () => {

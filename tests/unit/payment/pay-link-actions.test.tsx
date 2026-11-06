@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '@/lib/api/errors'
 import cancelledLink from '../../fixtures/order-pay-link-cancelled.json'
+import restOnDelivery from '../../fixtures/order-pay-link-rest-on-delivery.json'
 import cancelledAttempt from '../../fixtures/payment-attempt-cancel.json'
 import { stubBrowserApis } from '../support/dom-stubs'
 import { LINK_TOKEN, PAYMENT_UUID } from './fixtures'
@@ -132,6 +133,38 @@ describe('an order that moved on meanwhile', () => {
       '/order/track/',
     )
     expect(mocks.bffFetch.mock.calls.filter(([path]) => path === LINK_READ)).toHaveLength(1)
+  })
+
+  it('a press finds the online share paid, the rest due at the door (M-6): read again, said so', async () => {
+    const user = userEvent.setup()
+    const restAtDoor = () =>
+      Promise.reject(ApiError.fromBody(409, restOnDelivery as Record<string, unknown>))
+    serve(mocks.bffFetch, { [LINK_INTENT]: restAtDoor, [LINK_READ]: restAtDoor })
+    renderLink()
+    await routesReady()
+    await user.click(screen.getByRole('button', { name: 'پرداخت سفارش' }))
+    expect(
+      await screen.findByRole('heading', { name: 'باقی مبلغ هنگام تحویل پرداخت می\u{200C}شود' }),
+    ).toBeVisible()
+    // The API's sentence names the courier's amount.
+    expect(screen.getByText(/۱۵٬۰۰۰ تومان باقی\u{200C}مانده هنگام تحویل دریافت/u)).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'پرداخت سفارش' })).not.toBeInTheDocument()
+  })
+
+  it('a cancellation finds the online share paid, the rest due at the door: the page says why', async () => {
+    const user = userEvent.setup()
+    serve(mocks.bffFetch, {
+      [LINK_CANCEL]: () =>
+        Promise.reject(ApiError.fromBody(409, restOnDelivery as Record<string, unknown>)),
+    })
+    renderLink()
+    await routesReady()
+    await user.click(screen.getByRole('button', { name: 'لغو سفارش' }))
+    const dialog = await screen.findByRole('dialog', { name: 'لغو سفارش' })
+    await user.click(within(dialog).getByRole('button', { name: 'لغو سفارش' }))
+    expect(
+      await screen.findByRole('heading', { name: 'باقی مبلغ هنگام تحویل پرداخت می\u{200C}شود' }),
+    ).toBeVisible()
   })
 })
 

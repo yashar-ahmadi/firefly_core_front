@@ -1,8 +1,14 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { PARKED_CAPTURE } from '@/features/payment/attempt-api'
 import { OpenAttempt, type OpenAttemptProps } from '@/features/payment/open-attempt'
-import { getPending } from '@/features/payment/pending-payments'
+import {
+  EXPIRED_INQUIRING,
+  EXPIRED_UNASKED,
+  ROW_TEXTS,
+} from '@/features/payment/open-attempt-parts'
+import { getPending, savePending } from '@/features/payment/pending-payments'
 import { ApiError } from '@/lib/api/errors'
 import { BANK_LEAVING_MS, LEAVING_MS } from '@/lib/navigation/leaving'
 import type { OpenAttempt as Attempt } from '@/lib/api/types/payment'
@@ -81,6 +87,8 @@ describe('a bank attempt whose handoff is still valid', () => {
       orderCode: '1411635340',
       linkToken: LINK_TOKEN,
       route: 'bank_gateway',
+      // The bank it went to: what the panel says once its handoff expired (B-1).
+      gatewayCode: 'ZARINPAL',
       amount: 1_049_000,
     })
     expect(mocks.bffFetch).not.toHaveBeenCalled()
@@ -128,6 +136,48 @@ describe('a bank attempt whose handoff expired', () => {
     expect(cancels()).toHaveLength(1)
     expect(mocks.goToBank).not.toHaveBeenCalled()
   })
+
+  it('says when it closes as an upper bound («حداکثر تا»: the bank’s «no» closes it sooner, B-1)', () => {
+    const { panel } = show(expiredAttempt())
+    expect(panel).toHaveTextContent(/این تلاش حداکثر تا .+ بسته می\u{200C}شود\./u)
+    expect(within(panel).getByRole('button', { name: 'انصراف و پرداخت دوباره' })).toBeVisible()
+  })
+
+  it.each([
+    ['nothing on this device: the plain sentence', null, ROW_TEXTS.expired],
+    [
+      'Zarinpal (asked by the backend): a payment made there is booked',
+      'ZARINPAL',
+      EXPIRED_INQUIRING,
+    ],
+    ['Zibal', 'ZIBAL', EXPIRED_INQUIRING],
+    ['IDPay', 'IDPAY', EXPIRED_INQUIRING],
+    ['Mellat (never asked): its bank gives the money back', 'MELLAT', EXPIRED_UNASKED],
+    ['Saman', 'SEP', EXPIRED_UNASKED],
+  ])('the bank it went to, from this device’s note: %s', async (_, gatewayCode, text) => {
+    if (gatewayCode)
+      savePending(PAYMENT_UUID, {
+        kind: 'order',
+        route: 'bank_gateway',
+        gatewayCode,
+        amount: 1_049_000,
+        startedAt: Date.now(),
+      })
+    const { panel } = show(expiredAttempt())
+    await waitFor(() => expect(panel).toHaveTextContent(text))
+  })
+
+  it('the handoff ran out on the page: the bank is the handoff’s own', async () => {
+    vi.useFakeTimers()
+    try {
+      const soon = new Date(Date.now() + 2_000).toISOString()
+      const { panel } = show(bankAttempt({ handoff: handoff({ expires_at: soon }) }))
+      await act(async () => void (await vi.advanceTimersByTimeAsync(3_000)))
+      expect(panel).toHaveTextContent(EXPIRED_INQUIRING)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 describe('a verification running', () => {
@@ -146,13 +196,53 @@ describe('a verification running', () => {
       'این تلاش بسته شد. مبلغی که بانک برای آن برداشته روی سفارش ثبت نشده و فروشگاه آن را پیگیری می\u{200C}کند.'
     mocks.bffFetch.mockImplementation((path: string) =>
       path === CANCEL
-        ? Promise.resolve({ data: cancelled.data, msg: parked, status: 200 })
+        ? Promise.resolve({
+            data: { ...cancelled.data, capture_parked: true },
+            msg: parked,
+            status: 200,
+          })
         : new Promise(() => {}),
     )
     const { panel, onResolved } = show(verifyingAttempt())
     await user.click(within(panel).getByRole('button', { name: 'انصراف' }))
     await waitFor(() =>
       expect(onResolved).toHaveBeenCalledWith({ kind: 'cancelled', repay: false, notice: parked }),
+    )
+  })
+
+  it('decided by `capture_parked`, never by the sentence (J-34): another `msg` alone is no notice', async () => {
+    const user = userEvent.setup()
+    mocks.bffFetch.mockImplementation((path: string) =>
+      path === CANCEL
+        ? Promise.resolve({ data: cancelled.data, msg: 'متنی که پنل عوض کرده است.', status: 200 })
+        : new Promise(() => {}),
+    )
+    const { panel, onResolved } = show(verifyingAttempt())
+    await user.click(within(panel).getByRole('button', { name: 'انصراف' }))
+    await waitFor(() =>
+      expect(onResolved).toHaveBeenCalledWith({ kind: 'cancelled', repay: false }),
+    )
+  })
+
+  it('parked with no sentence of its own: the shop’s sentence', async () => {
+    const user = userEvent.setup()
+    mocks.bffFetch.mockImplementation((path: string) =>
+      path === CANCEL
+        ? Promise.resolve({
+            data: { ...cancelled.data, capture_parked: true },
+            msg: '',
+            status: 200,
+          })
+        : new Promise(() => {}),
+    )
+    const { panel, onResolved } = show(verifyingAttempt())
+    await user.click(within(panel).getByRole('button', { name: 'انصراف' }))
+    await waitFor(() =>
+      expect(onResolved).toHaveBeenCalledWith({
+        kind: 'cancelled',
+        repay: false,
+        notice: PARKED_CAPTURE,
+      }),
     )
   })
 })
@@ -203,17 +293,15 @@ describe('a cancellation the server refuses', () => {
     },
   )
 
-  it('payment_forbidden (another account’s attempt): explained with a way out, never re-offered', async () => {
+  it('a 403 (none comes for another account’s attempt any more, M-7): said, the press offered again', async () => {
     const user = userEvent.setup()
     mocks.bffFetch.mockRejectedValue(
-      new ApiError({ status: 403, code: 'payment_forbidden', detail: 'اجازه ندارید.' }),
+      new ApiError({ status: 403, code: 'forbidden', detail: 'اجازه ندارید.' }),
     )
     const { panel, onResolved } = show(expiredAttempt())
     await user.click(within(panel).getByRole('button', { name: 'انصراف و پرداخت دوباره' }))
-    const alert = await within(panel).findByRole('alert')
-    expect(alert).toHaveTextContent('حساب کاربری دیگری')
-    expect(alert).toHaveTextContent('بدون ورود')
-    expect(within(panel).queryByRole('button', { name: /انصراف/ })).not.toBeInTheDocument()
+    expect(await within(panel).findByRole('alert')).toHaveTextContent('اجازه ندارید.')
+    expect(within(panel).getByRole('button', { name: 'انصراف و پرداخت دوباره' })).toBeEnabled()
     expect(cancels()).toHaveLength(1)
     expect(onResolved).not.toHaveBeenCalled()
   })

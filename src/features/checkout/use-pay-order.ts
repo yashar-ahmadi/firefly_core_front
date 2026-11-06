@@ -95,6 +95,7 @@ export function usePayOrder(
         orderCode: ctx.orderCode,
         ...(ctx.guest ? { linkToken: ctx.linkToken ?? undefined } : { orderUuid: ctx.orderUuid }),
         route,
+        ...(intent.handoff ? { gatewayCode: intent.handoff.gateway_code } : {}),
         amount: intent.payment!.amount,
         startedAt: Date.now(),
       })

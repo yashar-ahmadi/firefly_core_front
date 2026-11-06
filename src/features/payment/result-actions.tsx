@@ -32,7 +32,7 @@ export interface ResultActionsProps {
   orderCode: string | null
   /** The order's confirmed owner (its order read for this account): its account page. */
   owner: boolean
-  /** Signed in, and the payment not someone else's: the account's own list of orders. */
+  /** Signed in, and the order not known to be someone else's: the account's own list of orders. */
   listOrders: boolean
   /** The order's link token, when this device knows it (another route, not the owner). */
   linkToken: string | null

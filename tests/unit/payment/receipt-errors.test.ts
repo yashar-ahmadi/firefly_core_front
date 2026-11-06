@@ -44,7 +44,12 @@ describe('receiptRefusal', () => {
       'ابعاد تصویر رسید کمتر از حد مجاز (۳۰۰ در ۳۰۰ پیکسل) است.',
     ],
     ['image_too_large (413)', live.image_too_large, M.imageSize],
-    ['invalid_image (bytes that are no picture)', live.invalid_image, M.imageDecode],
+    [
+      'payment_receipt_image_invalid (bytes that are no picture, J-26)',
+      live.not_a_picture,
+      'فایل ارسالی یک تصویر معتبر (JPEG، PNG یا WEBP) نیست.',
+    ],
+    ['413 for bytes that are no picture, over the size', live.not_a_picture_too_large, M.imageSize],
   ])('%s: under the picture', (_, body, message) => {
     expect(receiptRefusal(fromLive(body as Body))).toEqual({
       kind: 'fields',
@@ -79,14 +84,28 @@ describe('receiptRefusal', () => {
     expect(receiptRefusal(fromLive(live.target_invalid))).toEqual({ kind: 'closed' })
   })
 
-  it('not found (404) and another account’s (403): the calm page', () => {
+  it('not found (404): the calm page', () => {
     expect(receiptRefusal(fromLive(live.not_found))).toEqual({
       kind: 'refused',
       reason: 'not_found',
     })
-    expect(receiptRefusal(new ApiError({ status: 403, code: 'payment_forbidden' }))).toEqual({
-      kind: 'refused',
-      reason: 'forbidden',
+  })
+
+  it('a 403 (none comes any more for another account’s payment, M-7): said as the API words it', () => {
+    const error = new ApiError({ status: 403, code: 'forbidden', detail: 'دسترسی ندارید.' })
+    expect(receiptRefusal(error)).toEqual({ kind: 'other', message: 'دسترسی ندارید.' })
+  })
+
+  it('DRF’s `invalid_image` on `image` (the old answer): the API’s own sentence there', () => {
+    const error = new ApiError({
+      status: 400,
+      code: 'invalid_image',
+      errors: [{ code: 'invalid_image', detail: 'یک عکس معتبر آپلود کنید.', attr: 'image' }],
+    })
+    expect(receiptRefusal(error)).toEqual({
+      kind: 'fields',
+      errors: { image: 'یک عکس معتبر آپلود کنید.' },
+      reloadCards: false,
     })
   })
 

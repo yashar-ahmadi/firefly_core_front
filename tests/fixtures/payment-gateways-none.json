@@ -1,0 +1,13 @@
+{
+  "msg": "درخواست با موفقیت انجام شد.",
+  "code": 200,
+  "data": {
+    "count": 0,
+    "total_pages": 1,
+    "current_page": 1,
+    "page_size": 20,
+    "next": null,
+    "previous": null,
+    "results": []
+  }
+}

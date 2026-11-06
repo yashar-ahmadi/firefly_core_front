@@ -21,7 +21,7 @@ import {
 // Every refusal of the receipt upload, on the page (order digest §8.4, live bodies): the API's
 // words under the fields it names (several at once), the cards read again when the chosen one is
 // gone, the outcome for a second receipt, a new attempt for a closed one, a wait for the 10 an
-// hour, the calm page for 403/404.
+// hour, the calm page for a 404.
 
 const mocks = vi.hoisted(() => ({ bffFetch: vi.fn(), loadPage: vi.fn(), probe: vi.fn() }))
 vi.mock('@/lib/api/client', () => ({ bffFetch: mocks.bffFetch }))
@@ -80,7 +80,7 @@ describe('the server’s refusals, mapped', () => {
     ['413 too large', live.image_too_large, /حجم تصویر نباید بیشتر از ۵ مگابایت باشد/],
     ['too small', live.image_too_small, /کمتر از حد مجاز/],
     ['not a JPEG, PNG or WEBP', live.image_invalid, /تصویر معتبر \(JPEG، PNG یا WEBP\) نیست/],
-    ['not a picture at all (invalid_image)', live.invalid_image, /فایل تصویر معتبر نیست/],
+    ['not a picture at all (J-26)', live.not_a_picture, /تصویر معتبر \(JPEG، PNG یا WEBP\) نیست/],
   ])('%s: under the picture, which takes the focus', async (_, body, message) => {
     await sendWith(refuse(body as Body))
     const input = screen.getByLabelText(/تصویر رسید/)
@@ -149,15 +149,10 @@ describe('the server’s refusals, mapped', () => {
     expect(screen.getByLabelText(/نام صاحب کارت مبدأ/)).toHaveValue('سارا احمدی')
   })
 
-  it.each([
-    ['404', refuse(live.not_found), 'این پرداخت پیدا نشد'],
-    [
-      '403',
-      () => Promise.reject(new ApiError({ status: 403, code: 'payment_forbidden' })),
-      'این پرداخت از حساب کاربری دیگری است',
-    ],
-  ])('%s: the calm page', async (_, answer, title) => {
-    await sendWith(answer)
-    expect(await screen.findByRole('heading', { level: 1, name: title })).toBeVisible()
+  it('404: the calm page', async () => {
+    await sendWith(refuse(live.not_found))
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'این پرداخت پیدا نشد' }),
+    ).toBeVisible()
   })
 })

@@ -9,6 +9,7 @@
     "amount": 1049000,
     "order_code": "1411635340",
     "failure_reason": "payment_attempt_abandoned",
-    "settled_at": null
+    "settled_at": null,
+    "capture_parked": false
   }
 }

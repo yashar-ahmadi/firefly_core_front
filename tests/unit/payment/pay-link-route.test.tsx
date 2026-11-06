@@ -9,6 +9,7 @@ import PayLinkRoute, { dynamic, generateMetadata } from '@/app/(checkout)/order/
 import { FeatureProvider } from '@/features/settings/feature-context'
 import { ApiError } from '@/lib/api/errors'
 import invalid from '../../fixtures/order-pay-link-invalid.json'
+import restOnDelivery from '../../fixtures/order-pay-link-rest-on-delivery.json'
 import { clientProviders } from '../support/providers'
 import { resolveServerTree } from '../support/server-tree'
 import { catalog, LINK_TOKEN } from './fixtures'
@@ -119,8 +120,16 @@ describe('/order/pay/<token>/', () => {
   })
 
   it.each([
-    [410, 'order_payment_link_expired', 'مهلت پرداخت تمام شده', /پیش\u{200C}تر پرداخت کرده/u],
-    [409, 'order_already_settled', 'پرداخت آنلاین این سفارش انجام شده', /به پیک بپردازید/],
+    // Only an order still owed online gets the 410: support is where to pay now (M-5).
+    [410, 'order_payment_link_expired', 'مهلت پرداخت تمام شده', /با پشتیبانی تماس بگیرید/],
+    [409, 'order_already_settled', 'پرداخت آنلاین این سفارش انجام شده', /پیگیری سفارش ببینید/],
+    // An amount at the door with no figure in `data`: the API's own sentence (M-6).
+    [
+      409,
+      'order_online_settled_rest_on_delivery',
+      'باقی مبلغ هنگام تحویل پرداخت می\u{200C}شود',
+      /پرداخت دیگری از این لینک لازم نیست/,
+    ],
     [
       409,
       'order_collected_on_delivery',
@@ -145,6 +154,26 @@ describe('/order/pay/<token>/', () => {
       expect((await generateMetadata(params())).title).toBe(title)
     },
   )
+
+  it('409 order_online_settled_rest_on_delivery (live): what the courier collects, no pay button', async () => {
+    mocks.apiFetch.mockRejectedValue(ApiError.fromBody(409, restOnDelivery))
+    await show()
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'باقی مبلغ هنگام تحویل پرداخت می\u{200C}شود',
+      }),
+    ).toBeVisible()
+    // The API's sentence, which names the courier's amount (M-6): none of ours beside it.
+    expect(
+      screen.getByText(
+        'مبلغ آنلاین این سفارش پرداخت شده است؛ ۱۵٬۰۰۰ تومان باقی\u{200C}مانده هنگام تحویل دریافت می\u{200C}شود.',
+      ),
+    ).toBeVisible()
+    expect(screen.queryByText(/با پشتیبانی تماس بگیرید/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /پرداخت/ })).not.toBeInTheDocument()
+  })
 
   it('a 429: wait, and the page again (a full load)', async () => {
     mocks.apiFetch.mockRejectedValue(

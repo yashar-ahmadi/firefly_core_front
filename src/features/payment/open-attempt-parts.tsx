@@ -25,6 +25,27 @@ export const ROW_TEXTS: Record<AttemptRow, string> = {
     'رسید کارت به کارت این سفارش ثبت شده و در صف بررسی است؛ نتیجه با پیامک اعلام می\u{200C}شود. تا آن زمان کاری لازم نیست.',
 }
 
+/**
+ * The gateways the backend asks itself about a handoff the shopper never came back from: a
+ * payment made there is booked on its own, while the attempt stays open (BACKEND-ISSUES B-1). The
+ * others' handoffs are closed unasked, and their bank gives the money back.
+ */
+export const INQUIRING_GATEWAYS: ReadonlySet<string> = new Set(['ZARINPAL', 'ZIBAL', 'IDPAY'])
+
+/** `expired` when the bank is one the backend asks: a payment made there is not lost. */
+export const EXPIRED_INQUIRING =
+  'اگر پرداخت را در درگاه بانک کامل کرده\u{200C}اید، فروشگاه نتیجه را خودش از بانک می\u{200C}پرسد و پرداخت تا بسته شدن این تلاش خودکار ثبت می\u{200C}شود؛ دوباره پرداخت نکنید. اگر پرداخت نکرده\u{200C}اید، از این تلاش انصراف دهید و دوباره پرداخت کنید.'
+
+/** `expired` when the bank is one the backend does not ask: its money comes back from the bank. */
+export const EXPIRED_UNASKED =
+  'این تلاش پرداخت دیگر به درگاه نمی\u{200C}رود و به\u{200C}زودی بسته می\u{200C}شود. اگر مبلغی از حساب شما کسر شده، بانک حداکثر ظرف ۷۲ ساعت آن را برمی\u{200C}گرداند. برای پرداخت، از آن انصراف دهید و دوباره پرداخت کنید.'
+
+/** What the `expired` row says, by the bank it went to (null: not known on this device). */
+export function expiredText(gatewayCode: string | null): string {
+  if (gatewayCode === null) return ROW_TEXTS.expired
+  return INQUIRING_GATEWAYS.has(gatewayCode.toUpperCase()) ? EXPIRED_INQUIRING : EXPIRED_UNASKED
+}
+
 /** Abandoning an attempt the bank has not answered sends the shopper an SMS (digest §3.2.6). */
 export const SMS_NOTE =
   'با انصراف، پیامک «پرداخت ناموفق» همراه لینک پرداخت این سفارش برایتان فرستاده می\u{200C}شود.'
@@ -48,14 +69,6 @@ export const POLL_UNREADABLE =
 export const BANK_LOAD_FAILED = 'انتقال به درگاه انجام نشد؛ دوباره تلاش کنید.'
 /** A handoff that leads to no bank's page: said as `gateway_unavailable` is (intent-messages.ts). */
 export const BANK_UNAVAILABLE = 'درگاه بانک پاسخ نداد؛ کمی بعد دوباره تلاش کنید.'
-
-/**
- * A cancellation refused with 403 `payment_forbidden`: signed in, this attempt is another
- * account's (anyone with the link may pay a guest order); the API lets the same request through
- * without a session (digest §11 #7), so the way out is the link without signing in.
- */
-export const CANCEL_FORBIDDEN =
-  'این پرداخت از حساب کاربری دیگری آغاز شده است و با این حساب نمی\u{200C}توان از آن انصراف داد. برای انصراف، این لینک را بدون ورود به حساب کاربری (مثلاً در پنجره\u{0654} ناشناس مرورگر) باز کنید یا با پشتیبانی تماس بگیرید.'
 
 export function AttemptNote({ children }: { children: ReactNode }) {
   return (

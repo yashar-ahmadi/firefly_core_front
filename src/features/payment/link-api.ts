@@ -32,6 +32,7 @@ const LINK_REFUSALS = new Set([
   'order_payment_link_invalid',
   'order_payment_link_expired',
   'order_already_settled',
+  'order_online_settled_rest_on_delivery',
   'order_collected_on_delivery',
   'order_not_payable',
 ])

@@ -1,6 +1,6 @@
 import { bffFetch } from '@/lib/api/client'
 import { ApiError, GENERIC_ERROR_DETAIL, NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
-import type { PaymentStatus, PaymentStatusInfo } from '@/lib/api/types/payment'
+import type { PaymentCancelResult, PaymentStatus } from '@/lib/api/types/payment'
 
 // An open attempt's own call through the BFF (order digest §3.2.6): abandon it
 // (`POST payment/<uuid>/cancel/`, the 30/h `payment_attempt` budget shared with the intents).
@@ -14,8 +14,12 @@ import type { PaymentStatus, PaymentStatusInfo } from '@/lib/api/types/payment'
  */
 const THROTTLED_MESSAGE = 'لطفاً کمی بعد دوباره تلاش کنید.'
 
-/** The envelope's sentence for an ordinary 200 (the API's `STATUS_MESSAGES[200]`). */
-const ORDINARY_OK = 'درخواست با موفقیت انجام شد.'
+/**
+ * The shop's sentence for a parked capture, when the envelope brings none of its own: the API's
+ * `PARKED_CAPTURE_ABANDONED_MESSAGE`, as it reads today.
+ */
+export const PARKED_CAPTURE =
+  'این تلاش بسته شد. مبلغی که بانک برای آن برداشته روی سفارش ثبت نشده و فروشگاه آن را پیگیری می\u{200C}کند.'
 
 export type CancelOutcome =
   | {
@@ -24,7 +28,8 @@ export type CancelOutcome =
       status: PaymentStatus
       /**
        * The shop's sentence when the bank had taken money the order could not book (a parked
-       * capture: the envelope's own `msg`, digest §3.2.6): show it, never «pay again».
+       * capture: `capture_parked`, the envelope's own `msg` saying it, digest §3.2.6): show it,
+       * never «pay again».
        */
       parked: string | null
     }
@@ -33,10 +38,11 @@ export type CancelOutcome =
       /**
        * - `under_review`: a receipt is in the queue (`payment_under_review`): it cannot be abandoned;
        * - `stale`: not an open order attempt (`payment_target_invalid`, `payment_not_found`);
-       * - `forbidden`: another account's payment (`payment_forbidden`);
-       * - `throttled`, `other` (a lost answer included: the press can be repeated).
+       * - `throttled`, `other` (a lost answer included: the press can be repeated). Whoever holds
+       *   the uuid may abandon the attempt (BACKEND-ISSUES M-7, fixed): no refusal for another
+       *   account's payment any more.
        */
-      problem: 'under_review' | 'stale' | 'forbidden' | 'throttled' | 'other'
+      problem: 'under_review' | 'stale' | 'throttled' | 'other'
       detail: string
     }
 
@@ -44,16 +50,16 @@ const PROBLEMS: Record<string, Exclude<CancelOutcome, { ok: true }>['problem']> 
   payment_under_review: 'under_review',
   payment_target_invalid: 'stale',
   payment_not_found: 'stale',
-  payment_forbidden: 'forbidden',
 }
 
 /** Abandons the attempt; never throws. */
 export async function cancelAttempt(uuid: string): Promise<CancelOutcome> {
   try {
-    const { data, msg } = await bffFetch<PaymentStatusInfo>(`payment/${uuid}/cancel/`, {
+    const { data, msg } = await bffFetch<PaymentCancelResult>(`payment/${uuid}/cancel/`, {
       method: 'POST',
     })
-    const parked = msg.trim() && msg.trim() !== ORDINARY_OK ? msg.trim() : null
+    // The flag decides (BACKEND-ISSUES J-34, fixed), never the sentence: the panel may reword it.
+    const parked = data.capture_parked === true ? msg.trim() || PARKED_CAPTURE : null
     return { ok: true, status: data.status, parked }
   } catch (error) {
     if (!(error instanceof ApiError))

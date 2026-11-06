@@ -13,7 +13,7 @@ export type TopUpRefusal =
   | { kind: 'amount'; message: string }
   /** 403 `wallet_frozen`: its detail is the freeze message. */
   | { kind: 'frozen'; message: string }
-  /** `gateway_unknown`: that gateway is left out for the page. */
+  /** `gateway_unknown`: the gateway list is out of date; it is read again. */
   | { kind: 'gateway_unknown'; message: string }
   /** `gateway_amount_not_supported`: that gateway is left out at that amount (its bound said). */
   | { kind: 'gateway_amount'; message: string }

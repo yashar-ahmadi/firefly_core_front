@@ -55,9 +55,7 @@ export interface TopUpRequest {
 }
 
 const WORDS = {
-  gateway: 'این درگاه در حال حاضر در دسترس نیست؛ درگاه دیگری را انتخاب کنید.',
-  gatewayNext: (title: string) =>
-    `این درگاه در حال حاضر در دسترس نیست؛ برای پرداخت با ${title} دوباره «افزایش موجودی» را بزنید.`,
+  gateway: 'این درگاه در حال حاضر در دسترس نیست؛ دوباره «افزایش موجودی» را بزنید.',
   next: (title: string) => `برای پرداخت با ${title} دوباره «افزایش موجودی» را بزنید.`,
   other: 'درگاه دیگری را انتخاب کنید یا مبلغ دیگری وارد کنید.',
   broken:
@@ -72,8 +70,8 @@ const WORDS = {
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 /**
- * The gateways a top-up of `amount` may use: those not withdrawn for the page, nor refused at
- * that amount (`gateway_amount_not_supported`). No amount yet: every one not withdrawn.
+ * The gateways a top-up of `amount` may use: those not refused at that amount
+ * (`gateway_amount_not_supported`). No amount yet: every one listed.
  */
 export const usableAt = (catalog: PaymentCatalogState, amount: number | null): GatewayOption[] =>
   catalog.gateways.filter(
@@ -156,15 +154,12 @@ export function useTopUp({
             : topUpProblem(request.amount, bounds) || toPersianDigits(refusal.message)
         return setIssue({ field })
       }
-      case 'gateway_unknown': {
-        const left = catalog.gateways.filter((gateway) => gateway.code !== request.gatewayCode)
-        if (request.gatewayCode) catalog.withdrawGateway(request.gatewayCode)
+      case 'gateway_unknown':
+        // The list names only the gateways an intent can use (BACKEND-ISSUES M-4, fixed): one
+        // refused as unknown means it is out of date. Read again, it leaves that one out (none
+        // left: the box closes).
         void catalog.refreshGateways()
-        // One left: the next press goes through it (nothing to choose); none: the box closes.
-        return setIssue({
-          alert: left.length === 1 ? WORDS.gatewayNext(left[0]!.title) : WORDS.gateway,
-        })
-      }
+        return setIssue({ alert: WORDS.gateway })
       case 'gateway_amount': {
         // Left out at this amount only (another amount offers it again): another gateway takes
         // the next press; none, the bound is the amount's own issue (the box sends nothing).

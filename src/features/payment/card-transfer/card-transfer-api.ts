@@ -1,5 +1,4 @@
 import { bffFetch } from '@/lib/api/client'
-import { ApiError } from '@/lib/api/errors'
 import { toLatinDigits } from '@/lib/format/digits'
 import type {
   CardTransferInstruction,
@@ -9,64 +8,30 @@ import type {
 } from '@/lib/api/types/payment'
 
 // The card-transfer page's calls through the BFF (order digest §3.2.5, §3.2.7, §3.2.8, §3.2.10).
-// The cards are always read here (`GET payment/<uuid>/card-transfer/`), never taken from an
-// intent's answer: a replayed key answers `destination_cards: []` (§0 #11). The instruction read
-// and the status share the 240/h `payment_status` budget; the receipt has its own 10/h. Signed
-// in, the API refuses another account's payment (403 `payment_forbidden`) but answers the same
-// call made anonymously (§11 #7): the status, the cards and the receipt are then made again
-// without the session (`?anon=1`, which the BFF honours for exactly these three), and from then
-// on (`sessionFirst`). The uuid is a bearer credential: in the path only, never in a log. Each
-// call throws `ApiError`.
+// The page reads the cards itself (`GET payment/<uuid>/card-transfer/`, with the amount, the
+// route's instruction and the deadline): it is a page of its own, reached by a full page load, so
+// no intent's answer is at hand. The instruction read and the status share the 240/h
+// `payment_status` budget; the receipt has its own 10/h. Whoever holds the uuid makes these calls,
+// signed in or not and whosever the payment is (BACKEND-ISSUES M-7, fixed), so they always go with
+// the session. The uuid is a bearer credential: in the path only, never in a log. Each call
+// throws `ApiError`.
 
 export const instructionPath = (uuid: string) => `payment/${uuid}/card-transfer/`
 export const receiptPath = (uuid: string) => `payment/${uuid}/card-transfer/receipt/`
 
 export interface PaymentCallOptions {
-  /** Without the session (`?anon=1`). */
-  anonymous?: boolean
   signal?: AbortSignal
 }
 
-const anonQuery = (anonymous: boolean) => (anonymous ? { anon: '1' } : undefined)
-
 export async function readInstruction(
   uuid: string,
-  { anonymous = false, signal }: PaymentCallOptions = {},
+  { signal }: PaymentCallOptions = {},
 ): Promise<CardTransferInstruction> {
-  const query = anonQuery(anonymous)
-  return (await bffFetch<CardTransferInstruction>(instructionPath(uuid), { query, signal })).data
-}
-
-/** What a call answered, and whether only without the session (another account's payment). */
-export interface Answered<T> {
-  value: T
-  foreign: boolean
-}
-
-export const isPaymentForbidden = (error: unknown) =>
-  error instanceof ApiError && error.status === 403 && error.code === 'payment_forbidden'
-
-/**
- * `call` with the session, then, refused another account's payment, once more without it; at
- * once without it when the payment is already known to be someone else's (`anonymous`).
- */
-export async function sessionFirst<T>(
-  call: (anonymous: boolean) => Promise<T>,
-  anonymous = false,
-): Promise<Answered<T>> {
-  if (anonymous) return { value: await call(true), foreign: true }
-  try {
-    return { value: await call(false), foreign: false }
-  } catch (error) {
-    if (!isPaymentForbidden(error)) throw error
-    return { value: await call(true), foreign: true }
-  }
+  return (await bffFetch<CardTransferInstruction>(instructionPath(uuid), { signal })).data
 }
 
 export interface TransferStatus {
   info: PaymentStatusInfo
-  /** Answered only without the session (another account's payment, §11 #7). */
-  foreign: boolean
 }
 
 export interface ReceiptBody {
@@ -85,11 +50,7 @@ export interface ReceiptBody {
  * fields fit). A stream cannot be sent twice, so a refresh of the session on the way answers
  * `503 upload_retry`, and the shopper presses again.
  */
-export async function submitReceipt(
-  uuid: string,
-  body: ReceiptBody,
-  { anonymous = false }: Pick<PaymentCallOptions, 'anonymous'> = {},
-): Promise<CardTransferReceipt> {
+export async function submitReceipt(uuid: string, body: ReceiptBody): Promise<CardTransferReceipt> {
   const form = new FormData()
   form.set('image', body.image)
   form.set('payer_name', body.payerName.trim())
@@ -100,11 +61,7 @@ export async function submitReceipt(
   const reference = toLatinDigits(body.bankReference).trim()
   if (reference) form.set('bank_reference', reference)
   return (
-    await bffFetch<CardTransferReceipt>(receiptPath(uuid), {
-      method: 'POST',
-      formData: form,
-      query: anonQuery(anonymous),
-    })
+    await bffFetch<CardTransferReceipt>(receiptPath(uuid), { method: 'POST', formData: form })
   ).data
 }
 

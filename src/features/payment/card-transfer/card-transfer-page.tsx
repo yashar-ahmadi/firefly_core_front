@@ -1,6 +1,5 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useRef } from 'react'
 import { announce } from '@/components/ui/live-announcer'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -31,13 +30,6 @@ import { useTransferReads } from './use-transfer-reads'
 // Each later view takes the focus on its heading and is said once, politely. The uuid is a
 // credential: nothing here logs it.
 
-// «کپی لینک این صفحه» is offered on one refusal only (another account's payment): its own chunk,
-// fetched then, never on an ordinary visit. A chunk that cannot load leaves the address bar.
-const CopyPageLink = dynamic(
-  () => import('./copy-page-link').then((module) => module.CopyPageLink).catch(() => () => null),
-  { ssr: false },
-)
-
 export interface CardTransferPageProps {
   uuid: string
   /** The route's instruction, sanitised on the server (null: none; undefined: not known). */
@@ -64,10 +56,7 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
   const { hasSession } = useSession()
   const orderCode = status?.info.order_code ?? null
   // Not for a refused page: the calm page offers nothing that depends on the order's owner.
-  const ownership = useOrderOwnership(
-    orderCode,
-    hasSession && !reads.foreign && phase.kind !== 'refused',
-  )
+  const ownership = useOrderOwnership(orderCode, hasSession && phase.kind !== 'refused')
   const own = ownOrderOf(ownership)
   const linkToken = orderLinkToken({ uuid, orderCode, own })
   const heading = useRef<HTMLHeadingElement>(null)
@@ -126,7 +115,6 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
                 {children}
               </TrackLink>
             )}
-            extra={phase.refusal.kind === 'forbidden' ? <CopyPageLink /> : null}
           />
         )}
       </section>
@@ -160,7 +148,6 @@ export function CardTransferPage({ uuid, instruction, support }: CardTransferPag
           initial={status}
           notice={phase.notice}
           ownership={ownership}
-          foreign={reads.foreign}
           support={support}
           headingRef={heading}
         />

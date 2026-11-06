@@ -1,15 +1,17 @@
 import { expect, type Response } from '@playwright/test'
 import { readWallet, SHIRIN, shirinWithdrawalTest } from '../support/shirin'
-import { forgiveFailure, watchErrors } from '../support/watch-errors'
+import { watchErrors } from '../support/watch-errors'
 
 // shirin's wallet moving money against the dev backend (Plan 4 Task 9), in the `journeys` project
-// only (playwright.config.ts; ruling P4-R4: her wallet, never sara's): a top-up the dev bank
-// refuses (digest §11 #3: said, no navigation, no money moved), then ONE withdrawal request,
-// cancelled in the same test (the money back at once, §3.3.6): her balance exactly as before.
-// A guard (`withdrawalGuard`, a fixture with its own request context) cancels any open request
-// of hers before and after, however the test ends, a timeout included (the `wallet_withdrawal`
-// budget is 5 an hour, counted on success: one request per run). Per run: 1 top-up attempt
-// (refused), 1 withdrawal request, 1 cancellation (+ the guard's, if a run broke off).
+// only (playwright.config.ts; ruling P4-R4: her wallet, never sara's): the top-up box closed up
+// front, since the dev backend runs no bank (digest §11 #3) and its gateway list names only usable
+// gateways (none, BACKEND-ISSUES M-4): said with the support line, nothing sent, no money moved;
+// then ONE withdrawal request, cancelled in the same test (the money back at once, §3.3.6): her
+// balance exactly as before. A guard (`withdrawalGuard`, a fixture with its own request context)
+// cancels any open request of hers before and after, however the test ends, a timeout included
+// (the `wallet_withdrawal` budget is 5 an hour, counted on success: one request per run). Per
+// run: no top-up attempt, 1 withdrawal request, 1 cancellation (+ the guard's, if a run broke
+// off).
 
 shirinWithdrawalTest.describe.configure({ mode: 'serial' })
 
@@ -23,7 +25,7 @@ const toman = (amount: number) =>
 const SHEBA = 'IR062960000000100324200001'
 
 shirinWithdrawalTest(
-  'shirin: a top-up refused by the dev bank, one withdrawal requested and cancelled, the balance as before',
+  'shirin: the top-up closed (no usable gateway), one withdrawal requested and cancelled, the balance as before',
   async ({ page, withdrawalGuard }) => {
     const errors = watchErrors(page)
     const { before } = withdrawalGuard
@@ -36,22 +38,18 @@ shirinWithdrawalTest(
     const balance = page.getByRole('region', { name: 'موجودی', exact: true })
     await expect(balance).toContainText(toman(before.balance))
 
-    // A top-up: the dev bank refuses every gateway (400 gateway_unknown when one is named).
+    // A top-up: no usable gateway listed, so the box says so at once, with the support line,
+    // and offers no amount to send.
+    const topUps: Response[] = []
+    page.on('response', (response) => {
+      if (BFF_PATH('wallet/top-up/')(response)) topUps.push(response)
+    })
     const box = page.getByRole('region', { name: 'افزایش موجودی' })
-    await box.getByRole('textbox', { name: /مبلغ شارژ/ }).fill('100000')
-    const topUp = page.waitForResponse(BFF_PATH('wallet/top-up/'))
-    await box.getByRole('button', { name: 'افزایش موجودی' }).click()
-    const refused = await topUp
-    expect([400, 503]).toContain(refused.status())
-    expect(refused.request().headers()['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/)
-    forgiveFailure(page, refused.url(), refused.status())
-    // 400 gateway_unknown: that gateway left out, said; 503 gateway_not_configured: the box
-    // closes with the support line.
-    await expect(
-      box.getByRole('alert').or(box.getByText(/شارژ کیف پول با درگاه بانکی/)),
-    ).toBeVisible()
-    expect(new URL(page.url()).pathname).toBe('/account/wallet/')
-    expect((await readWallet(page.request)).balance).toBe(before.balance)
+    await expect(box.getByRole('status')).toHaveText(
+      'شارژ کیف پول با درگاه بانکی اکنون ممکن نیست؛ با پشتیبانی تماس بگیرید.',
+    )
+    await expect(box.getByRole('link', { name: /پشتیبانی/ })).toBeVisible()
+    await expect(box.getByRole('textbox', { name: /مبلغ شارژ/ })).toHaveCount(0)
 
     // One withdrawal request: the money leaves the balance now (the API's figures).
     const tabs = page.getByRole('navigation', { name: 'بخش‌های کیف پول' })
@@ -92,6 +90,7 @@ shirinWithdrawalTest(
     const rows = page.getByRole('list', { name: 'تراکنش‌های کیف پول' }).getByRole('listitem')
     await expect(rows.first()).toContainText('برگشت درخواست برداشت')
     await expect(rows.nth(1)).toContainText('برداشت به حساب بانکی')
+    expect(topUps, 'no top-up sent').toEqual([])
     expect(errors).toEqual([])
   },
 )

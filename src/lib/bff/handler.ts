@@ -6,7 +6,6 @@ import { GENERIC_ERROR_DETAIL, NETWORK_ERROR_DETAIL } from '@/lib/api/errors'
 import { isExpiring } from '@/lib/auth/jwt'
 import { refreshAccess } from '@/lib/auth/refresh'
 import { isAllowed } from '@/lib/bff/allowlist'
-import { NO_SESSION, isAnonymousCall, withoutAnonFlag } from '@/lib/bff/anonymous'
 import { bustStaleSubjects } from '@/lib/bff/contact-subjects'
 import { anonymousCartBody, isAnonymousCartRead } from '@/lib/bff/guest-cart'
 import {
@@ -142,13 +141,9 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
     if (text !== null) return serialisedJsonResponse(text)
   }
 
-  // A payment call asked without the session (`anonymous.ts`): none of it goes, none of it
-  // changes.
-  const anonymous = isAnonymousCall(req, method, path)
-  const query = anonymous ? withoutAnonFlag(queryOf(req)) : queryOf(req)
-  const url = `${env.FIREFLY_API_URL}/api/v1/${apiPath(path, query)}`
+  const url = `${env.FIREFLY_API_URL}/api/v1/${apiPath(path, queryOf(req))}`
   const forwardedFor = getClientIp(req.headers, env.CLIENT_IP_HEADER)
-  const cookies = anonymous ? NO_SESSION : readSession(req)
+  const cookies = readSession(req)
   const jar = new CookieJar()
   // The refresh and logout endpoints, and the auth forms', authenticate with the API key alone.
   const keyOnly = isKeyOnly(path)
@@ -181,7 +176,7 @@ export async function handleBff(req: NextRequest, segments: string[]): Promise<N
   }
   const secure = new URL(env.SITE_URL).protocol === 'https:'
   const answer = (response: NextResponse): NextResponse => {
-    if (!anonymous) jar.applyTo(response, secure)
+    jar.applyTo(response, secure)
     return response
   }
 

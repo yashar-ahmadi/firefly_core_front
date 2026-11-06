@@ -48,10 +48,11 @@ export interface ReceiptHandlers {
   onSubmitted: () => void
   /** 400 `payment_target_invalid`: the attempt is no longer open. */
   onClosed: () => void
-  onRefused: (reason: 'forbidden' | 'not_found') => void
+  /** 404: no such payment (the calm page). */
+  onRefused: (reason: 'not_found') => void
   /** The cards read again (a chosen card the API no longer takes); false: they could not be. */
   reloadCards: () => Promise<boolean>
-  /** Sends the receipt (the page knows whether the payment is someone else's: §11 #7). */
+  /** Sends the receipt. */
   upload: (body: ReceiptBody) => Promise<CardTransferReceipt>
 }
 

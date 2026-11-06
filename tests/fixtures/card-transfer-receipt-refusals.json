@@ -1,5 +1,5 @@
 {
-  "_note": "Captured live from the dev API on 2026-10-18 (POST payment/<uuid>/card-transfer/receipt/ against a cancelled card attempt and one already under review; nothing was written). The bodies are as the API sent them.",
+  "_note": "Captured live from the dev API on 2026-10-18 (POST payment/<uuid>/card-transfer/receipt/ against a cancelled card attempt and one already under review; nothing was written); `not_a_picture` and `not_a_picture_too_large` on 2026-11-06 from the develop backend (a few text bytes, and 6 MB of zero bytes: BACKEND-ISSUES J-26, fixed, no more DRF `invalid_image`). The bodies are as the API sent them.",
   "validation": {
     "msg": "درخواست ارسالی معتبر نیست.",
     "code": 400,
@@ -71,16 +71,30 @@
       ]
     }
   },
-  "invalid_image": {
+  "not_a_picture": {
     "msg": "درخواست ارسالی معتبر نیست.",
     "code": 400,
     "data": {
-      "type": "validation_error",
+      "type": "client_error",
       "errors": [
         {
-          "code": "invalid_image",
-          "detail": "یک عکس معتبر آپلود کنید. فایلی که ارسال کردید عکس یا عکس خراب شده نیست",
-          "attr": "image"
+          "code": "payment_receipt_image_invalid",
+          "detail": "فایل ارسالی یک تصویر معتبر (JPEG، PNG یا WEBP) نیست.",
+          "attr": null
+        }
+      ]
+    }
+  },
+  "not_a_picture_too_large": {
+    "msg": "حجم درخواست ارسالی بیش از حد مجاز است.",
+    "code": 413,
+    "data": {
+      "type": "client_error",
+      "errors": [
+        {
+          "code": "payment_receipt_image_too_large",
+          "detail": "حجم تصویر رسید نباید بیشتر از ۵ مگابایت باشد.",
+          "attr": null
         }
       ]
     }
